@@ -798,7 +798,8 @@ def _create_backend_from_plan(p, item, headers, workspace, name, writable, table
     """create_backend after the plan is made: the would-remove guard, the dry run or the create/update. The Fabric
     workload's build route (workload_api.py) comes in here too, with the plan its review file left."""
     source_id, source_type = source_for(workspace, item, headers)
-    found = _existing_api(workspace, name, headers)
+    out_ws = _out_ws(workspace)                              # n221: the API goes to the build's workspace; it reads the source's
+    found = _existing_api(out_ws, name, headers)
     kept: list[dict] = []
     if found:                                    # the API's field names for the same relationships stay (finding 7, 27 October)
         p, kept = _drift.keep_api_names(p, found[1], confirmed)
@@ -813,14 +814,14 @@ def _create_backend_from_plan(p, item, headers, workspace, name, writable, table
                         "you already pass). To drop them on purpose, call it with allow_removals=true."}, indent=2)
     env = definition(p, name, workspace, source_id, source_type, writable=writable, tables=tables)
     if dry_run:
-        return _backend_dry_run(p, env, workspace, source_id, source_type, found, kept, writable, tables, confirmed, headers)
-    result = deploy(env, workspace, token_provider=token_provider)
+        return _backend_dry_run(p, env, workspace, source_id, source_type, found, kept, writable, tables, confirmed, headers, out_ws)
+    result = deploy(env, out_ws, token_provider=token_provider)
     out = {"summary": p.summary(), "dry_run": False, "source": {"id": source_id, "type": source_type}, "result": result,
            "skipped_relationships": env.get("skipped_relationships", [])}
     if kept:
         out["names_kept_from_api"] = kept
     if result.get("status") == "Succeeded":
-        out["card"] = connection_card(workspace, result["id"], name)
+        out["card"] = connection_card(out_ws, result["id"], name)
     elif result.get("status") == "Failed" and result.get("http"):          # Fabric refused the create/update: say why
         out.update(classify_http(int(result["http"]), result.get("body", ""), f"creating {name!r} in workspace {workspace}"))
         result.pop("body", None)
@@ -833,10 +834,11 @@ def _create_backend_from_plan(p, item, headers, workspace, name, writable, table
     return json.dumps(out, indent=2)
 
 
-def _backend_dry_run(p, env, workspace, source_id, source_type, found, kept, writable, tables, confirmed, headers) -> str:
+def _backend_dry_run(p, env, workspace, source_id, source_type, found, kept, writable, tables, confirmed, headers, out_ws=None) -> str:
     """create_backend's dry run: what a create with dry_run=false would send, read-only. The item is looked up the
     way deploy() looks it up (deploy.find_item), so "update" and "create" are the choice the real call would make."""
-    existing_id = _find_item(workspace, env["displayName"], headers)
+    out_ws = out_ws or workspace                             # n221: where the API is (or would be) created
+    existing_id = _find_item(out_ws, env["displayName"], headers)
     existing = found[1] if found and existing_id else None
     preview = _drift.preview(p, env, existing_id, existing, workspace, source_id, source_type, writable=writable,
                              tables=tables, confirmed=confirmed)
@@ -849,8 +851,8 @@ def _backend_dry_run(p, env, workspace, source_id, source_type, found, kept, wri
         checks.append("the existing API's definition was read")
         checks.append(f"allow_removals=true: {len(lost)} relationship(s) of the API would be removed" if lost
                       else "no relationship the API has today would be removed")
-    rest = ({"method": "POST", "url": f"{FABRIC}/v1/workspaces/{workspace}/items/{existing_id}/updateDefinition"}
-            if existing_id else {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{workspace}/graphQLApis"})
+    rest = ({"method": "POST", "url": f"{FABRIC}/v1/workspaces/{out_ws}/items/{existing_id}/updateDefinition"}
+            if existing_id else {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{out_ws}/graphQLApis"})
     rest |= {"delegated_scope": "GraphQLApi.ReadWrite.All", "parts": preview["parts"]}
     out = {"summary": p.summary(), "dry_run": True, "source": {"id": source_id, "type": source_type}, **preview,
            "rest": rest, "checks_passed": checks, "not_checked": "validate_plan (keys and relationships against the rows)",
@@ -983,8 +985,8 @@ def create_ontology(workspace: _p.Workspace, source: _p.Source, name: _p.Ontolog
     _pictures.keep("ontology", lambda: _pictures.ontology_from(_ontology.bindings(p, args["item_name"], schema, tables),
                                                                _ontology.summary(p, tables)))   # n170: the dry run's picture
     out = {"summary": _ontology.summary(p, tables), "dry_run": dry_run,
-           "rest": {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{args['workspace_id']}/ontologies",
-                    "update": f"{FABRIC}/v1/workspaces/{args['workspace_id']}/ontologies/{{id}}/updateDefinition",
+           "rest": {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{_out_ws(args['workspace_id'])}/ontologies",
+                    "update": f"{FABRIC}/v1/workspaces/{_out_ws(args['workspace_id'])}/ontologies/{{id}}/updateDefinition",
                     "delegated_scope": "Item.ReadWrite.All", "workspace_role": "Contributor", "parts": list(parts),
                     "spec": ("microsoft/fabric-rest-api-specs ontology/swagger.json: Items_CreateOntology and Items_UpdateOntologyDefinition, "
                              "long-running operations, item in preview; read 26 October 2026 (commit a96c37a)")},
@@ -1001,7 +1003,7 @@ def create_ontology(workspace: _p.Workspace, source: _p.Source, name: _p.Ontolog
             out["parts"] = {k: v for k, v in parts.items() if not k.startswith(("entities/", "tables/"))}
             text = json.dumps(out, indent=2)
         return text
-    result = _create_ontology(body, args["workspace_id"], token_provider=lambda: auth.fabric(ctx))
+    result = _create_ontology(body, _out_ws(args["workspace_id"]), token_provider=lambda: auth.fabric(ctx))   # n221
     return _finish_create(out, result, "Item.ReadWrite.All", f"creating the ontology {name!r}")
 
 
@@ -1562,11 +1564,11 @@ def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.M
     read = _model_reads(workspace, source, schema, p, tables, ctx)          # n151: the calendar's range, whole-number quantities
     draft = _semantic_model.draft(p, info, name, tables, date_range=read["date_range"], whole_quantities=read["whole"])
     body = _semantic_model.envelope(draft["parts"], name, description=f"Created by Krusgraph from {source} ({schema})")
-    replaces = _model_replacement(info["workspace_id"], name, draft["parts"], _headers(ctx))
+    replaces = _model_replacement(_out_ws(info["workspace_id"]), name, draft["parts"], _headers(ctx))   # n221: where it is built
     out = {"replaces": replaces} if replaces else {}
     out |= {"summary": draft["summary"], "read_from_rows": read["said"], "dry_run": dry_run,
-           "rest": {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{info['workspace_id']}/semanticModels",
-                    "update": f"{FABRIC}/v1/workspaces/{info['workspace_id']}/semanticModels/{{id}}/updateDefinition",
+           "rest": {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{_out_ws(info['workspace_id'])}/semanticModels",
+                    "update": f"{FABRIC}/v1/workspaces/{_out_ws(info['workspace_id'])}/semanticModels/{{id}}/updateDefinition",
                     "delegated_scope": "SemanticModel.ReadWrite.All or Item.ReadWrite.All", "parts": [x["path"] for x in body["definition"]["parts"]]},
            "after_creation": ["Refresh the model once (framing) so its Direct Lake tables are processed; until then queries fall back or fail.",
                               "If the portal asks for credentials on the SQL analytics endpoint connection, set them under the model's settings (OAuth2 with your account).",
@@ -1582,7 +1584,7 @@ def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.M
             out["parts"] = {k: v for k, v in draft["parts"].items() if not k.startswith("definition/tables/")}
             text = json.dumps(out, indent=2)
         return text
-    result = _create_semantic_model(body, info["workspace_id"], token_provider=lambda: auth.fabric(ctx))
+    result = _create_semantic_model(body, _out_ws(info["workspace_id"]), token_provider=lambda: auth.fabric(ctx))   # n221
     return _finish_create(out, result, "SemanticModel.ReadWrite.All (or Item.ReadWrite.All)", f"creating the semantic model {name!r}")
 
 
@@ -1636,7 +1638,7 @@ def create_report(workspace: _p.Workspace, model: _p.ReportModel, name: _p.Repor
     Errors: {error, kind, hint}."""
     from . import model_compare as _mc
     headers = _headers(ctx)
-    workspace_id = _workspace_id(workspace, headers)
+    workspace_id = _out_ws(_workspace_id(workspace, headers))   # n221: the report goes with the model, in the build's workspace
     if _GUID.match(model.strip()):
         model_item = {"id": model.strip(), "displayName": _model_display_name(workspace_id, model.strip(), headers)}
     else:
@@ -1812,7 +1814,14 @@ def create_data_agent(workspace: _p.Workspace, source: _p.Source, name: _p.Agent
         return json.dumps({"error": f"layer is \"source\", \"silver\" or \"gold\"; got {layer!r}.", "kind": "bad_request",
                            "hint": "Leave it out for the source tables."})
     layers = _agent_layers(p, info, layer, show_personal_data)
-    spec = _data_agent.draft(p, info, name, schema, show_personal_data, counted, layers=layers)
+    reads = info
+    if layers and _cross(info):                       # n221: silver and gold are in the build's lakehouse, not the source's
+        winfo, _refusal = _write_info(info, "The data agent's layer", ctx)
+        if winfo is not None:
+            reads = {**winfo, "item_kind": "Lakehouse"}
+    spec = _data_agent.draft(p, reads, name, schema, show_personal_data, counted, layers=layers)
+    if reads is not info:                             # the source's tables are not in that lakehouse: no fallback to them
+        spec["layers"] = [x for x in spec["layers"] if x["layer"] != "source"]
     out = {"summary": p.summary(), "dry_run": dry_run, "agent": {k: spec[k] for k in ("name", "instructions", "datasource", "datasource_instructions",
                                                                                       "datasource_description", "tables_to_select", "fewshots")},
            "context": spec["context"],
@@ -1842,7 +1851,7 @@ def create_data_agent(workspace: _p.Workspace, source: _p.Source, name: _p.Agent
         return json.dumps(out, indent=2)
     headers = _headers(ctx)
     try:
-        result = _data_agent.apply(spec, info["workspace_id"], headers, publish=publish)
+        result = _data_agent.apply(spec, _out_ws(info["workspace_id"]), headers, publish=publish)   # n221: the build's workspace
     except _data_agent.RestError as e:
         result = {"status": "Failed", "http": e.status, "body": e.body, "step": e.what}
     return _finish_create(out, result, "Item.ReadWrite.All (or DataAgent.ReadWrite.All)", f"creating the data agent {name!r}")
@@ -1861,35 +1870,70 @@ NOTEBOOK_SPEC = ("microsoft/fabric-rest-api-specs notebook/swagger.json: Items_C
 # The Krusgraph Model sets it for its build (workload_api.run_build_many): {"lakehouse": id or name, or None for the
 # default, the first lakehouse of the workspace}. The MCP tools leave it unset and refuse a read-only source as before.
 WRITE_TARGET = contextvars.ContextVar("krusgraph_write_target", default=None)
+# n221: the workspace the Krusgraph Model builds in (its own by default) when that is not the source's: every item is
+# created there, silver and gold go to a lakehouse there and the source is read across workspaces (_write_info). The
+# Model sets it for its build (workload_api.run_build_many) with WRITE_TARGET {"lakehouse", "create", "workspace_name"};
+# the MCP tools leave it unset and build in the source's workspace as before.
+BUILD_IN = contextvars.ContextVar("krusgraph_build_in", default=None)
+
+
+def _out_ws(read_ws: str) -> str:
+    """n221: the workspace an item is created in: the build's workspace when the Model set one, else the source's."""
+    return BUILD_IN.get() or read_ws
+
+
+def _cross(info: dict) -> bool:
+    want = BUILD_IN.get()
+    return bool(want) and want.lower() != str(info.get("workspace_id") or "").lower()
 
 
 def _write_info(info: dict, tool: str, ctx=None) -> tuple[dict | None, str | None]:
     """(the info to write with, a refusal). A lakehouse source writes into itself; a read-only source writes to the
-    target lakehouse (WRITE_TARGET) and is read through OneLake (mirroring.abfss), with `read_from` naming it."""
-    if info.get("item_kind") == "Lakehouse":
+    target lakehouse (WRITE_TARGET) and is read through OneLake (mirroring.abfss), with `read_from` naming it. n221: a
+    build in another workspace (BUILD_IN) writes to a lakehouse of that workspace, chosen, made by Create with consent
+    (WRITE_TARGET["create"]; the dry run names it, nothing is made) or the first by name, and reads any source through
+    OneLake; `workspace_id` is then the build's workspace."""
+    cross = _cross(info)
+    if info.get("item_kind") == "Lakehouse" and not cross:
         return info, None
     want = WRITE_TARGET.get()
     if want is None:
         return None, _lakehouse_only(info, tool)
     from . import mirroring as _mirroring
     headers = _headers(ctx)
-    lakehouses = [it for it in _list_items(info["workspace_id"], headers) if it.get("type") == "Lakehouse"]
-    target, how = _mirroring.choose_target(lakehouses, want.get("lakehouse"))
+    ws = BUILD_IN.get() if cross else info["workspace_id"]
+    lakehouses = [it for it in _list_items(ws, headers) if it.get("type") == "Lakehouse"
+                  and not (it.get("id") == info.get("item_id") and not cross)]
+    asked = want.get("lakehouse") or (want.get("create") if cross else None)
+    target, how = _mirroring.choose_target(lakehouses, asked)
+    if cross and target is not None and not want.get("lakehouse") and want.get("create"):
+        how = "made"
+    if cross and target is None and want.get("create") and not want.get("lakehouse"):
+        target, how = {"id": None, "displayName": want["create"]}, "create"
     if target is None:
-        return None, json.dumps({"error": _mirroring.no_target_words(info["item_name"], info["item_kind"], how, want.get("lakehouse")),
-                                 "kind": "not_found",
+        words = (_mirroring.no_cross_target_words(how, asked, want.get("workspace_name") or "") if cross else
+                 _mirroring.no_target_words(info["item_name"], info["item_kind"], how, want.get("lakehouse")))
+        return None, json.dumps({"error": words, "kind": "not_found",
                                  "hint": "Silver, gold and the pipeline write Delta tables with Spark, which needs a lakehouse."}, indent=2)
-    lh = _resolve_source(info["workspace_id"], target["id"], headers)
+    if target.get("id"):
+        lh = _resolve_source(ws, target["id"], headers)
+    else:                                                     # n221: the lakehouse Create makes first (with schemas)
+        lh = {"id": _mirroring.PLANNED_LAKEHOUSE, "displayName": target["displayName"], "schemas_enabled": True}
     path = _mirroring.abfss(info.get("onelake_tables_path"), info["workspace_id"], info["item_id"])
     if not path:
         return None, json.dumps({"error": f"The OneLake path of {info['item_name']!r} could not be read; nothing was written.",
                                  "kind": "source_not_ready", "hint": "Open the item once in Fabric so its tables are in OneLake, then try again."}, indent=2)
-    out = {**info, "item_id": lh.get("id") or target["id"], "item_name": lh.get("displayName") or target.get("displayName"),
+    name = lh.get("displayName") or target.get("displayName")
+    words = (_mirroring.cross_target_words({**target, "displayName": name}, how, info["item_name"], info["item_kind"],
+                                          want.get("workspace_name") or "") if cross else
+             _mirroring.target_words(target, how, info["item_name"], info["item_kind"]))
+    out = {**info, "workspace_id": ws, "item_id": lh.get("id") or target["id"], "item_name": name,
            "item_kind": "Lakehouse", "schemas_enabled": lh.get("schemas_enabled", False),
            "read_from": {"item_id": info["item_id"], "item_name": info["item_name"], "item_kind": info["item_kind"],
-                         "schema": info["schema"], "tables_path": path},
-           "target": {"lakehouse": lh.get("displayName") or target.get("displayName"), "id": lh.get("id") or target["id"], "how": how,
-                      "words": _mirroring.target_words(target, how, info["item_name"], info["item_kind"])}}
+                         "schema": info["schema"], "tables_path": path,
+                         **({"workspace_id": info["workspace_id"]} if cross else {})},
+           "target": {"lakehouse": name, "id": lh.get("id") or target["id"], "how": how, "words": words,
+                      **({"workspace_id": ws, "workspace": want.get("workspace_name") or "", "docs": list(_mirroring.CROSS_DOCS)} if cross else {})}}
     return out, None
 
 

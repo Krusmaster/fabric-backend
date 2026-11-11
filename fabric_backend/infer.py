@@ -152,6 +152,10 @@ class Plan:
     extended: list = field(default_factory=list)          # ExtendedRelationship: joins on a unique non-key column or valid on a date
     proposed: list[dict] = field(default_factory=list)    # R5 candidates the rows did not support, each with its reason; never applied
     counted: dict | None = None                            # what R5 counted in the rows: candidates, queries, sample (None: no rows read)
+    # n221: keys the Krusgraph Model's review stands behind for this build: {table: {columns, how, checked_at}}, how is
+    # "rows" (passed Check against the rows, not stale) or "accepted" (accepted in the review). silver.spec de-duplicates on
+    # them as on K0/K1/R5; the rule itself is unchanged, so the plan's identity and every other output stay the same.
+    checked_keys: dict = field(default_factory=dict)
 
     def summary(self) -> str:
         lines = [f"{len(self.schema)} tables, {len(self.keys)} with keys, {len(self.relationships)} relationships"]

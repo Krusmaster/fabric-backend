@@ -1084,6 +1084,55 @@ publisher's tenant (`docs/GUEST-TRIAL.md`). Nothing here was run against a live 
 
 The editor changed (it is served by the container app, so a redeploy brings it); the workload manifest did not change.
 
+### 19. Round n221: where the outputs are built, and the row check in silver
+
+The founder's live test of 11 November 2026 (server 17a6a36): a new Krusgraph Model item in a new workspace
+(demo_Sandvik) read the lakehouse demo_lh of the workspace demo, and the dry run said "Create makes 0 of 5; 5 already
+built from this plan" with links to demo_lh_silver ... demo_lh_api in demo. Every output went to the source's workspace.
+
+- **Build in: this item's workspace (default) / the source's workspace.** A choice at the top of Choose what to build
+  (`buildPlace.ts`, saved in source.json as `buildIn`). The editor sends `target.workspace` (the Model item's own
+  workspace, or the source's) with every request; `workload_api.build_place` answers `build_in` {workspace_id, name,
+  where, cross, words}, and the dry run's first line starts with it: "Builds in the workspace demo_Sandvik (this item's
+  workspace; the source demo_lh is read from its own workspace)." An item that sits in its source's workspace builds
+  there, as before.
+- **Already built from this plan, per workspace.** The items are looked up, adopted (n207's rules) and marked in the
+  build's workspace only, so items in demo do not make a Model in demo_Sandvik skip its own outputs.
+- **Reading across workspaces.** In another workspace than the source's, the silver notebook, the gold views and the
+  pipeline's check are attached to a lakehouse of the build's workspace (their default lakehouse) and the silver notebook
+  reads the source's Delta tables by their OneLake path, `abfss://<workspace>@onelake.dfs.fabric.microsoft.com/<item>/Tables/...`
+  (`server._write_info`, the same path n201 reads a mirrored database by). Sources: How do I connect to OneLake?
+  (learn.microsoft.com/fabric/onelake/onelake-access-api, ms.date 18 May 2026: "you can refer to anything in your tenant
+  by its workspace, item, and path"); Explore the lakehouse data with a notebook
+  (learn.microsoft.com/fabric/data-engineering/lakehouse-notebook-explore: "when Spark SQL is used, the target lakehouse
+  and the current default lakehouse are from the same workspace", which is why silver and gold are written to a
+  lakehouse of the build's workspace, not the source's). Whoever runs the notebook needs read access to the source.
+- **The lakehouse for silver and gold.** One the person chooses there (Lakehouse for silver and gold), else the first of
+  that workspace by name; a new workspace has none, and the dry run says so. Ticking "Make a lakehouse here" sends
+  `target.create_lakehouse`: the dry run names the lakehouse and makes nothing; Create makes it once, with Lakehouse
+  schemas (Items - Create Lakehouse, `creationPayload.enableSchemas`, Lakehouse.ReadWrite.All or Item.ReadWrite.All,
+  learn.microsoft.com/rest/api/fabric/lakehouse/items/create-lakehouse, read 11 November 2026), before the first output
+  that needs it; one of that name already there is used. Krusgraph never deletes a lakehouse (n198), this one included.
+  After Create, source.json keeps that lakehouse with its workspace, so the next Create and the health table (n200) use it.
+- **The semantic model, the API, the ontology, the data agent and the report** are created in the build's workspace and
+  bind to the source by its ids, as before. A Direct Lake model may be in another workspace than its source when both are
+  in the same region (Direct Lake overview, Considerations and limitations, ms.date 2 September 2026). The API's
+  definition names `sourceWorkspaceId`. Unverified: that Fabric accepts an ontology's bindings to a source of another
+  workspace (Learn says nothing either way); the dry run shows the bindings. A data agent on the silver or gold layer
+  reads the build's lakehouse, with no fallback to the source tables (they are not in that lakehouse).
+- **The data product (n198) and Delete (n210)** use the workspace its items were built in (`productWorkspace`): this
+  item's by default. Delete still deletes only items recorded in that workspace.
+- **The row check reaches silver.** After Check against the rows, a key whose check passed (not stale) and every key
+  accepted in the review go into the plan the build uses (`workload_api.checked_keys`, `Plan.checked_keys`): silver
+  de-duplicates on it and the card says "one row per key: key customer_id + product_id + store_id checked against the
+  rows on 11 November 2026" (or "accepted in the review"). A failed, stale or rejected check, or a key on other columns,
+  keeps every row as n208 says. The plan's identity does not change (the key's rule is the same), so nothing built from
+  it is "built from another plan".
+
+`tests/test_n221_build_in.py` (a build in demo_Sandvik next to demo with the test doubles, the lakehouse made once, the
+row check into silver) and `buildPlace.test.ts`. Nothing here was run against a live workspace. The editor changed (a
+redeploy brings it); the workload manifest did not, so no new package is needed.
+
 ## When something does not work
 
 | You see | Likely cause |

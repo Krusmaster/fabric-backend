@@ -125,6 +125,48 @@ def no_target_words(source_name: str, source_type: str, how: str, chosen: str | 
             "schemas for the gold views) in this workspace, then choose it under Target lakehouse.")
 
 
+# ------------------------------------------------------------------ n221: a build in another workspace ------------------
+# The Krusgraph Model builds in its own workspace by default, and its source may be a lakehouse of another workspace. Its
+# silver notebook is attached to a lakehouse of the build's workspace (its default lakehouse: "if multiple lakehouse are
+# added into the notebook, make sure when Spark SQL is used, the target lakehouse and the current default lakehouse are
+# from the same workspace", Explore the lakehouse data with a notebook, learn.microsoft.com/fabric/data-engineering/
+# lakehouse-notebook-explore, read 11 November 2026) and reads the source's Delta tables by their OneLake path
+# (abfss://<workspace GUID>@onelake.dfs.fabric.microsoft.com/<item GUID>/Tables/..., "you can refer to anything in your
+# tenant by its workspace, item, and path", How do I connect to OneLake?, learn.microsoft.com/fabric/onelake/
+# onelake-access-api, ms.date 18 May 2026). The person who runs the notebook needs read access to the source.
+CROSS_DOCS = ({"title": "How do I connect to OneLake? (URI syntax)", "url": "https://learn.microsoft.com/fabric/onelake/onelake-access-api"},
+              {"title": "Explore the lakehouse data with a notebook (default lakehouse, Spark SQL in the same workspace)",
+               "url": "https://learn.microsoft.com/fabric/data-engineering/lakehouse-notebook-explore"},
+              {"title": "Items - Create Lakehouse (creationPayload.enableSchemas)",
+               "url": "https://learn.microsoft.com/rest/api/fabric/lakehouse/items/create-lakehouse"})
+PLANNED_LAKEHOUSE = "<the lakehouse Create makes first>"
+
+
+def cross_target_words(target: dict, how: str, source_name: str, source_kind: str, workspace_name: str) -> str:
+    where = f"the workspace {workspace_name}" if workspace_name else "the workspace this Krusgraph Model builds in"
+    head = (f"The silver tables, the gold views and the pipeline's check are written to the lakehouse {target.get('displayName')} "
+            f"in {where}")
+    tail = {"chosen": " (your choice).",
+            "made": " (the lakehouse you asked Krusgraph to make; it is there now).",
+            "create": ": Create makes it first, with Lakehouse schemas, because you ticked Create a lakehouse. Nothing is made in "
+                      "the dry run.",
+            }.get(how, f", the first lakehouse of {where} by name: the default. Choose another under Lakehouse for silver and gold.")
+    read = (f" The silver notebook reads the {kind_words(source_kind)} {source_name}'s tables through OneLake (its abfss path in "
+            "the other workspace); nothing is copied outside Fabric, and whoever runs the notebook needs read access to "
+            f"{source_name}.")
+    return head + tail + read
+
+
+def no_cross_target_words(how: str, chosen: str | None, workspace_name: str) -> str:
+    where = f"the workspace {workspace_name}" if workspace_name else "the workspace this Krusgraph Model builds in"
+    if how == "not_found":
+        return (f"The lakehouse {chosen!r} is not a lakehouse of {where}; nothing was written. Choose a lakehouse of that "
+                "workspace under Lakehouse for silver and gold.")
+    return (f"{where[0].upper() + where[1:]} has no lakehouse for the silver tables, the gold views and the pipeline's check; "
+            "nothing was written. Tick Create a lakehouse (Create makes one with Lakehouse schemas, after this dry run), or "
+            "choose a lakehouse of that workspace.")
+
+
 # ------------------------------------------------------------------ the SAP pack in the review -------------------------
 
 def sap_offer(plan) -> dict | None:

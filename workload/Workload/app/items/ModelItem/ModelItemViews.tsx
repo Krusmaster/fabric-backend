@@ -65,6 +65,7 @@ import {
   validName,
 } from "./buildWords";
 import { FlowView } from "./FlowView";
+import { BUILD_IN_WORDS, BuildIn, buildIn, buildInLine, crossWorkspace, defaultLakehouseName, lakehouseLine, validLakehouseName } from "./buildPlace";
 import { canRetry, progressLabel, toRetry } from "./createRun";
 import { AgentChoices, AgentPanel, JobsPanel, PipelineChoices } from "./JobsViews";
 import { agentOf, jobsOf, scheduleProblems } from "./jobsWords";
@@ -445,6 +446,50 @@ export function ReviewView(props: {
 
 // ------------------------------------------------------------------ 3. choose outputs (n174: every output) ----------
 
+/** n221: where the outputs are built. This item's workspace is the default, so a Model in a new workspace builds its
+ * own data product there; the source's workspace builds beside the source, as before n221. */
+export function BuildInChoice(props: {
+  source: SourceDefinition;
+  itemWorkspaceId?: string;
+  onBuildIn: (patch: { buildIn?: BuildIn; createLakehouse?: string | null }) => void;
+  onChooseTarget?: () => void;
+}) {
+  const { source } = props;
+  const cross = crossWorkspace(source, props.itemWorkspaceId);
+  const make = source.createLakehouse;
+  return (
+    <section className="krusgraph-build-in" aria-label="Build in">
+      <Field label="Build in">
+        <RadioGroup layout="horizontal" value={buildIn(source)} onChange={(_, d) => props.onBuildIn({ buildIn: d.value as BuildIn })}>
+          {(["item", "source"] as BuildIn[]).map((w) => <Radio key={w} value={w} label={BUILD_IN_WORDS[w]} />)}
+        </RadioGroup>
+      </Field>
+      <Caption1>{buildInLine(source, props.itemWorkspaceId)}</Caption1>
+      {cross && (
+        <>
+          <Body1>{lakehouseLine(source, props.itemWorkspaceId)}</Body1>
+          {props.onChooseTarget && (
+            <Button size="small" appearance="secondary" onClick={props.onChooseTarget}>
+              {source.target ? `Lakehouse for silver and gold: ${source.target.displayName}` : "Lakehouse for silver and gold: choose one"}
+            </Button>
+          )}
+          {!source.target && (
+            <Checkbox checked={make !== undefined}
+              label="Make a lakehouse here for silver and gold (Create makes it, with Lakehouse schemas; the dry run makes nothing)"
+              onChange={(_, d) => props.onBuildIn({ createLakehouse: d.checked ? defaultLakehouseName(source.displayName) : null })} />
+          )}
+          {!source.target && make !== undefined && (
+            <Field label="Name of the lakehouse" validationState={validLakehouseName(make) ? "none" : "error"}
+              validationMessage={validLakehouseName(make) ? undefined : "Letters, digits and underscores, starting with a letter"}>
+              <Input value={make} onChange={(_, d) => props.onBuildIn({ createLakehouse: d.value })} />
+            </Field>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
 export function OutputsView(props: {
   choices: OutputChoice[];
   onChange: (choices: OutputChoice[]) => void;
@@ -456,6 +501,11 @@ export function OutputsView(props: {
   onPreview: () => void;
   /** n185: the last dry run said the sign-in cannot run or schedule pipelines: the two choices are shown disabled */
   jobsBlocked?: JobsCard["permission"];
+  /** n221: Build in (this item's workspace by default) and the lakehouse for silver and gold there */
+  source?: SourceDefinition;
+  itemWorkspaceId?: string;
+  onBuildIn?: (patch: { buildIn?: BuildIn; createLakehouse?: string | null }) => void;
+  onChooseTarget?: () => void;
 }) {
   const pipe = props.choices.find((c) => c.type === "pipeline" && c.enabled);
   const problems = [...choiceProblems(props.choices), ...(pipe ? scheduleProblems(jobsOf(pipe).schedule) : [])];
@@ -469,6 +519,10 @@ export function OutputsView(props: {
         Each output is made by the same engine as the Krusgraph tools in Claude, from the keys and links you reviewed. Preview shows a
         dry run of each; nothing is created until you choose Create. Nothing is run, scheduled or published unless you tick it.
       </Body1>
+      {props.source && props.onBuildIn && (
+        <BuildInChoice source={props.source} itemWorkspaceId={props.itemWorkspaceId} onBuildIn={props.onBuildIn}
+          onChooseTarget={props.onChooseTarget} />
+      )}
       {props.stored && <ProductView product={props.stored} onOpen={props.onOpen} title="Data product built so far" />}
       <div className="krusgraph-outputs">
         {KINDS.map((k) => {

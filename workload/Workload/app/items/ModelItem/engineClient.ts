@@ -379,10 +379,25 @@ export interface DataProduct {
   from: string;
 }
 
+/** n221: where the build's outputs go: the workspace, whose it is (this item's or the source's) and the words the dry
+ * run's first line starts with */
+export interface BuildPlace {
+  workspace_id: string;
+  name: string;
+  where: "item" | "source";
+  cross: boolean;
+  source_workspace_id?: string;
+  words: string;
+}
+
 export interface ManyAnswer {
   dry_run: boolean;
-  /** n201: the lakehouse a read-only source's silver, gold and check are written to, and how it was chosen */
-  target?: { lakehouse: string; id: string; how: "chosen" | "default"; words: string };
+  /** n201: the lakehouse a read-only source's silver, gold and check are written to, and how it was chosen. n221: also
+   * the lakehouse of the build's workspace when the source is in another one (how: made or create, workspace_id) */
+  target?: { lakehouse: string; id: string; how: "chosen" | "default" | "made" | "create"; words: string; workspace_id?: string };
+  build_in?: BuildPlace;
+  /** n221: the lakehouse Create made first, when the person ticked it */
+  lakehouse_made?: { id: string; name: string; workspace: string; made: boolean };
   outputs: BuildCard[];
   order: OutputKind[];
   left_out_by_review: LeftOut[];
@@ -402,8 +417,9 @@ export interface SourceRequest {
   source_name: string;
   schema: string;
   /** n201: a read-only source (a mirrored database, a warehouse, a SQL database): the lakehouse the build writes to,
-   * null for the default (the first lakehouse of the workspace); review and check ignore it */
-  target?: { lakehouse: string | null };
+   * null for the default (the first lakehouse of the workspace); review and check ignore it. n221: workspace, where the
+   * outputs go (this item's by default), and create_lakehouse, a lakehouse Create may make there */
+  target?: { lakehouse: string | null; workspace?: string; where?: "item" | "source"; create_lakehouse?: string };
 }
 
 export class EngineCallError extends Error {

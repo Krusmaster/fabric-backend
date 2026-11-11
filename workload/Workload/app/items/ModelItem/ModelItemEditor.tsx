@@ -65,7 +65,8 @@ import {
   MAX_WAIT_MS, POLL_MS, agentAfterRun, jobsBlocked, pipelineItem, recordRun, recordSchedule, runFinished, scheduleIds, stillRunning,
 } from "./jobsWords";
 import { AppChoices } from "./engineClient";
-import { PICKER_TYPES, ReadOnlySource, SapOffer, isReadOnly, restType, targetProblem } from "./sourceWords";
+import { PICKER_TYPES, ReadOnlySource, SapOffer, restType, targetProblem } from "./sourceWords";
+import { BuildIn, buildWorkspace, crossWorkspace, keptTarget, lakehouseProblem, productWorkspace, targetRequest } from "./buildPlace";
 import { DataProductView } from "./DataProductView";
 import { accessLine } from "./accessWords";
 import {
@@ -129,8 +130,9 @@ export function ModelItemEditor(props: PageProps) {
     source: d.source.itemId,
     source_name: d.source.displayName,
     schema: d.source.schema,
-    // n201: a read-only source's build writes to the chosen lakehouse, or the workspace's first (null)
-    ...(isReadOnly(d.source.itemType) ? { target: { lakehouse: d.source.target?.itemId ?? null } } : {}),
+    // n201: a read-only source's build writes to the chosen lakehouse, or the workspace's first (null). n221: the build's
+    // workspace (this item's by default, buildPlace.ts) and the lakehouse there; review and check ignore it
+    target: targetRequest(d.source, metaRef.current?.workspaceId),
   });
 
   /** n201: the source's real item type (the picker may name it otherwise) and what the review says about it. */
@@ -198,6 +200,8 @@ export function ModelItemEditor(props: PageProps) {
         const parts = await callGetItemDefinition(workloadClient, itemObjectId);
         const loaded = fromParts(parts?.definition?.parts);
         setItemMeta({ id: got.item.id, workspaceId: got.item.workspaceId, displayName: got.item.displayName });
+        // n221: the item's workspace is where the outputs go by default, so every request from now on needs it
+        metaRef.current = { id: got.item.id, workspaceId: got.item.workspaceId, displayName: got.item.displayName };
         setDef(loaded);
         setSchema(loaded.source?.schema ?? "dbo");
         setChoices(choicesFor(loaded.outputs.outputs, loaded.source?.displayName ?? got.item.displayName,
@@ -271,18 +275,36 @@ export function ModelItemEditor(props: PageProps) {
     await listSchemas(picked.workspaceId, picked.id, picked.displayName);
   }
 
-  /** n201: the lakehouse a read-only source's build writes to: one of the source's workspace. */
+  /** n201: the lakehouse a read-only source's build writes to: one of the source's workspace. n221: one of the build's
+   * workspace when the outputs are built in another workspace than the source's. */
   async function chooseTarget() {
     if (!def.source) return;
     const picked = await callDatahubOpen(workloadClient, ["Lakehouse"],
       "Choose the lakehouse the silver tables, gold views and the pipeline's check are written to", false);
     if (!picked) return;
-    const problem = targetProblem(def.source.workspaceId, { workspaceId: picked.workspaceId, type: restType(picked.type) });
+    const ws = buildWorkspace(def.source, metaRef.current?.workspaceId);
+    const problem = crossWorkspace(def.source, metaRef.current?.workspaceId)
+      ? lakehouseProblem(ws, { workspaceId: picked.workspaceId, type: restType(picked.type) })
+      : targetProblem(def.source.workspaceId, { workspaceId: picked.workspaceId, type: restType(picked.type) });
     if (problem) {
       callNotificationOpen(workloadClient, "Target lakehouse", problem, NotificationType.Error);
       return;
     }
-    setDef((d) => (d.source ? { ...d, source: { ...d.source, target: { itemId: picked.id, displayName: picked.displayName } } } : d));
+    setDef((d) => (d.source ? { ...d, source: { ...d.source, target: { itemId: picked.id, displayName: picked.displayName, workspaceId: picked.workspaceId } } } : d));
+    setDirty(true);
+  }
+
+  /** n221: Build in (this item's workspace, the default, or the source's) and the lakehouse Create may make there. */
+  function chooseBuildIn(patch: { buildIn?: BuildIn; createLakehouse?: string | null }) {
+    setDef((d) => {
+      if (!d.source) return d;
+      const next = { ...d.source };
+      if (patch.buildIn) next.buildIn = patch.buildIn;
+      if (patch.createLakehouse === null) delete next.createLakehouse;
+      else if (patch.createLakehouse !== undefined) next.createLakehouse = patch.createLakehouse;
+      return { ...d, source: next };
+    });
+    setPreview(undefined);                                       // the last dry run was for the other place
     setDirty(true);
   }
 
@@ -526,6 +548,15 @@ export function ModelItemEditor(props: PageProps) {
       last_create: lastCreateOf(cards, metaRef.current?.displayName ?? "", at) } };
     if (a.product && d.outputs.product) d = { ...d, outputs: { ...d.outputs, product: { ...d.outputs.product, items: markEarlier(d.outputs.product.items, thisRun) } } };
     d = withJobRecords(d, cards);                                // n185: run and schedule ids, for a later cleanup
+    if (d.source && crossWorkspace(d.source, metaRef.current?.workspaceId)) {
+      // n221: the lakehouse silver and gold were written to (chosen, made or the first of the workspace), kept in
+      // source.json so the next Create uses it and the health table (n200) is read there
+      const kept = keptTarget(cards.map((c) => c.answer?.target).find((t) => t?.id), buildWorkspace(d.source, metaRef.current?.workspaceId));
+      if (kept) {
+        const { createLakehouse: _made, ...rest } = d.source;
+        d = { ...d, source: { ...rest, target: kept } };
+      }
+    }
     await persist(d);
   }
 
@@ -747,7 +778,8 @@ export function ModelItemEditor(props: PageProps) {
   function productBody(action: string, extra: Record<string, unknown> = {}): Record<string, unknown> {
     const d = defRef.current;
     const o = d.outputs;
-    return { action, workspace: d.source?.workspaceId ?? metaRef.current?.workspaceId, item_id: metaRef.current?.id, product: productName(d),
+    // n221: the data product's workspace is where its items were built (this item's by default), not the source's
+    return { action, workspace: productWorkspace(d.source, o.created, metaRef.current?.workspaceId), item_id: metaRef.current?.id, product: productName(d),
       plan_id: o.product?.plan?.plan_id ?? null,
       outputs: { created: o.created, removed: o.removed ?? [], pending: o.pending ?? [], pipeline_jobs: o.pipeline_jobs ?? { runs: [], schedules: [] } },
       ...extra };
@@ -931,6 +963,10 @@ export function ModelItemEditor(props: PageProps) {
           onOpen={openItem}
           onPreview={previewBuild}
           jobsBlocked={jobsBlocked(preview?.outputs)}
+          source={def.source}
+          itemWorkspaceId={itemMeta?.workspaceId}
+          onBuildIn={chooseBuildIn}
+          onChooseTarget={chooseTarget}
         />
       ),
     },

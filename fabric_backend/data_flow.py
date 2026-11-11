@@ -46,6 +46,14 @@ def silver_nodes(spec: dict, built: bool) -> tuple[list[dict], list[dict]]:
         if t["key"] and not t.get("dedupe") and not t.get("fix_key"):     # n208: a guessed key removes no rows
             lines.append(f"every row kept: key {' + '.join(t['key'])} not checked")
             pills.append(t["key_rule"])
+        elif t["key"] and t.get("key_checked"):                         # n221: the key the row check or the review stands behind
+            kc = t["key_checked"]
+            lines.append(f"one row per key: key {' + '.join(t['key'])} " + (
+                f"checked against the rows on {kc['on']}" if kc.get("how") == "rows" and kc.get("on") else
+                "checked against the rows" if kc.get("how") == "rows" else "accepted in the review"))
+            if t["order_by"]:
+                lines.append(f"the latest by {t['order_by']}")
+            pills.append(t["key_rule"])
         elif t["key"]:
             lines.append(f"one row per {' + '.join(t['key'])}")
             if t["order_by"]:

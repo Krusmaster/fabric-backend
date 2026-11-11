@@ -477,12 +477,14 @@ export function previewLine(a: ManyAnswer): string {
   // n209: a card built from another plan waits for a choice in Create (nothing written): never "updated in place" here
   const waits = verbs.filter((c) => !c.already_built && c.built_from && c.choices?.length).length;
   const upd = verbs.filter((c) => c.would === "update" && !c.already_built && !(c.built_from && c.choices?.length)).length;
-  if (!ok) return "Nothing can be built as it stands: each card below says why.";
+  const place = a.build_in ? `${a.build_in.words} ` : "";      // n221: the first line says where the outputs go
+  if (!ok) return `${place}Nothing can be built as it stands: each card below says why.`;
   const jobs = a.outputs.find((c) => c.output === "pipeline")?.jobs;
   const runs = jobs && jobs.permission?.granted !== false
     ? [jobs.run_once ? "runs the pipeline once" : "", jobs.schedule ? "sets its schedule" : ""].filter(Boolean)
     : [];
   return (
+    place +
     `This is the dry run: nothing is written yet. Create makes ${ok - skipped - waits} of ${total}` +
     (upd ? ` (${upd} updated in place)` : "") +
     (skipped ? `; ${skipped} already built from this plan, will be skipped` : "") +

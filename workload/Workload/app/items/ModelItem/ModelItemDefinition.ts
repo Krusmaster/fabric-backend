@@ -60,8 +60,14 @@ export interface SourceDefinition {
   itemType: string;
   displayName: string;
   schema: string;
-  /** n201: for a read-only source, the lakehouse the build writes to; absent means the workspace's first (the default) */
-  target?: { itemId: string; displayName: string };
+  /** n201: for a read-only source, the lakehouse the build writes to; absent means the workspace's first (the default).
+   * n221: also the lakehouse of the build's workspace when the source is in another one; workspaceId says which
+   * workspace it is in (absent: the source's) */
+  target?: { itemId: string; displayName: string; workspaceId?: string };
+  /** n221: where the outputs are built: this item's workspace (absent, the default) or the source's */
+  buildIn?: "item" | "source";
+  /** n221: the lakehouse Create may make in the build's workspace for silver and gold (ticked by the person) */
+  createLakehouse?: string;
 }
 
 export interface CreatedItem {

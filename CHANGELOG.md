@@ -9,6 +9,17 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n221: **the Krusgraph Model builds in its own workspace, and a key that passed the row check de-duplicates
+  silver**. From the founder's live test of 11 November 2026: a Model in a new workspace read a lakehouse of another
+  workspace and every output went to that other workspace, "already built from this plan". Now Choose what to build has
+  "Build in: this item's workspace (default) / the source's workspace"; the dry run's first line names the workspace;
+  "already built" is looked up there; silver, gold and the pipeline's check go to a lakehouse of that workspace (chosen,
+  the first by name, or made by Create with Lakehouse schemas when ticked, after the dry run named it) and read the source
+  through OneLake; the model, API, ontology, agent and report are created there. The data product and Delete use the
+  workspace the items were built in. After Check against the rows, a key whose check passed (or accepted in the review)
+  is de-duplicated on in silver and the card says "one row per key: key ... checked against the rows on <date>".
+  `docs/WORKLOAD-DEV.md` section 19 with the Learn sources; `tests/test_n221_build_in.py`, `buildPlace.test.ts`. The
+  editor changed; the manifest did not, so no new package is needed.
 - Round n216: **one look for the mascots: the glossy 3D figures of the overview film everywhere the products and the
   workload show them**. New `tools/mascot_renders.py` cuts Onto, Thinker and Builder out of the film's closing frame
   (112 x 112 px, transparent ground, own soft shadow so they work on dark pages) into `fabric_backend/static/mascots/`

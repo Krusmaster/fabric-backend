@@ -320,13 +320,7 @@ def build_request(body) -> dict:
         raise BadRequest("'pending' must be outputs.json's pending list ({output, type, name}) or empty")
     flags["pending"] = [{"type": x["type"][:40], "name": x["name"][:123], "output": str(x.get("output") or "")[:40],
                          "at": str(x.get("at") or "")[:40]} for x in pending]   # n207: when the step was sent
-    target = body.get("target")                                   # n201: the lakehouse a read-only source's build writes to
-    if target is not None:
-        if not isinstance(target, dict) or not (target.get("lakehouse") is None or isinstance(target.get("lakehouse"), str)
-                                                and 0 < len(target["lakehouse"].strip()) <= 128):
-            raise BadRequest("'target' is {lakehouse: the id or name of a lakehouse of this workspace} or null for the default")
-        target = {"lakehouse": (target.get("lakehouse") or "").strip() or None}
-    flags["target"] = target
+    flags["target"] = target_request(body.get("target"))         # n201, n221
     flags.update(_ids(body))
     chosen.sort(key=lambda c: ORDER.index(c["kind"]))
     return {**req, "outputs": chosen, "dry_run": dry_run, "review": body["review"], "product": product,
@@ -335,6 +329,39 @@ def build_request(body) -> dict:
 
 
 _GUID = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+_LAKEHOUSE = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,122}$")
+BUILD_IN = ("item", "source")
+
+
+def target_request(target) -> dict | None:
+    """Where the build writes. n201: lakehouse, the id or name of the lakehouse a read-only source's silver and gold go to
+    (null: the first of the workspace). n221: workspace, the workspace the Krusgraph Model builds in (a GUID: the item's
+    own by default, or the source's, as `where` says); create_lakehouse, the name of a lakehouse Create may make there,
+    with schemas, when the person ticked it (the dry run names it and makes nothing)."""
+    if target is None:
+        return None
+    if not isinstance(target, dict) or not (target.get("lakehouse") is None or isinstance(target.get("lakehouse"), str)
+                                            and 0 < len(target["lakehouse"].strip()) <= 128):
+        raise BadRequest("'target' is {lakehouse: the id or name of a lakehouse of this workspace} or null for the default")
+    out = {"lakehouse": (target.get("lakehouse") or "").strip() or None}
+    ws = target.get("workspace")
+    if ws is not None:
+        if not isinstance(ws, str) or not _GUID.match(ws):
+            raise BadRequest("'target.workspace' is the id (a GUID) of the workspace the build writes to")
+        out["workspace"] = ws.lower()
+    where = target.get("where")
+    if where is not None:
+        if where not in BUILD_IN:
+            raise BadRequest("'target.where' is item (this item's workspace, the default) or source (the source's workspace)")
+        out["where"] = where
+    make = target.get("create_lakehouse")
+    if make not in (None, ""):
+        if not isinstance(make, str) or not _LAKEHOUSE.match(make.strip()):
+            raise BadRequest("'target.create_lakehouse': a lakehouse name, letters, digits and underscores, starting with a letter")
+        out["create_lakehouse"] = make.strip()
+    return out
+
+
 _CREATE_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 
@@ -825,8 +852,9 @@ def _run_graphql(req: dict) -> dict:
     res = out.get("result") or {}
     if res.get("status") == "Succeeded" and res.get("id"):
         from .deploy import endpoint_url
-        out["created"] = [{"type": "GraphQLApi", "id": res["id"], "name": req["name"], "workspace": workspace}]
-        out["endpoint"] = endpoint_url(workspace, res["id"])
+        made_in = S._out_ws(workspace)                              # n221: the build's workspace
+        out["created"] = [{"type": "GraphQLApi", "id": res["id"], "name": req["name"], "workspace": made_in}]
+        out["endpoint"] = endpoint_url(made_in, res["id"])
         out["portal_steps"] = [f"{req['name']} → Settings → Introspection → On (workspace admin), if an app reads the schema",
                                f"{req['name']} → Manage permissions → add who may run queries"]
     return out
@@ -1684,10 +1712,10 @@ def _call(kind: str, o: dict, chosen: dict, req: dict, keys, confirmed, dry_run:
         if off:
             return off
         p, info = S._source_inputs(req["workspace"], req["source"], req["schema"], keys, confirmed, None)
-        ws = info["workspace_id"]
-        create = (lambda url, body: write_and_wait(url, body, headers, mode="created", item_type="AppBackend",
-                                                   find=lambda: find_item(ws, o["name"], headers, "AppBackend")))
-        return rayfin_app.answer(p, info, headers, o["name"], o.get("app"), dry_run, token_scopes(), req["workspace"],
+        ws = S._out_ws(info["workspace_id"])                       # n221: the App goes to the build's workspace
+        create = (lambda url, body: write_and_wait(f"{S.FABRIC}/v1/workspaces/{ws}/appBackends", body, headers, mode="created",
+                                                   item_type="AppBackend", find=lambda: find_item(ws, o["name"], headers, "AppBackend")))
+        return rayfin_app.answer(p, info, headers, o["name"], o.get("app"), dry_run, token_scopes(), S._out_ws(req["workspace"]),
                                  create=None if dry_run else create, pre=pre, title=(req.get("product") or {}).get("name"))
     elif kind == "report":
         model = o.get("model")
@@ -1791,7 +1819,8 @@ def run_refresh_only(req: dict) -> dict:
         card["refresh"] = {"status": "not_run", "reason": f"{o['name']} is not among the items this Model built."}
     else:
         headers = S._headers(None)
-        card["refresh"] = refresh_new_model(S._workspace_id(req["workspace"], headers), made[0]["id"], scopes, app_id)
+        ws = made[0].get("workspace") or build_place(req, headers)["workspace_id"]   # n221: where the model was built
+        card["refresh"] = refresh_new_model(ws, made[0]["id"], scopes, app_id)
     log("build_output", output="semantic_model", dry_run=False, outcome="refresh:" + card["refresh"]["status"], seconds=0)
     return _with_schema({"dry_run": False, "outputs": [card], "order": ["semantic_model"], "left_out_by_review": [],
                          "refused": 0, "to_decide": 0, "note": "The model was refreshed once." if card["refresh"]["status"] == "refreshed"
@@ -1818,18 +1847,128 @@ def run_build_many(req: dict) -> dict:
         if not left:
             left.append(left_out)
         return kept
-    write_target = S.WRITE_TARGET.set(req.get("target") or {"lakehouse": None})   # n201: used only for a read-only source
+    checked = checked_keys(rv)                                     # n221: the row check and the review, into silver
+
+    def adjust_checked(plan):
+        from dataclasses import replace
+        kept = adjust(plan)
+        return replace(kept, checked_keys=checked) if checked and hasattr(kept, "checked_keys") else kept
+    tgt = req.get("target") or {}
+    place = build_place(req, S._headers(None))                     # n221: the item's workspace by default
+    write_target = S.WRITE_TARGET.set({"lakehouse": tgt.get("lakehouse"), "create": tgt.get("create_lakehouse"),
+                                       "workspace_name": place["name"]})   # n201: a read-only source; n221: another workspace
+    build_in = S.BUILD_IN.set(place["workspace_id"] if place["cross"] else None)
     try:
-        return _build_many(req, S, rv, keys, confirmed, dry_run, scopes, app_id, chosen, ours, cards, built, left, adjust)
+        made = None
+        if not dry_run and place["cross"] and tgt.get("create_lakehouse") and not tgt.get("lakehouse") and needs_lakehouse(req):
+            made = ensure_lakehouse(place["workspace_id"], tgt["create_lakehouse"], S._headers(None), req)
+            if made.get("error"):
+                return _with_schema({"dry_run": False, "outputs": [], "order": [], "left_out_by_review": [], "refused": 1,
+                                     "to_decide": 0, "build_in": place, "error": made["error"], "kind": made.get("kind", "bad_input"),
+                                     "hint": made.get("hint", ""), "note": made["error"]}, req)
+        out = _build_many(req, S, rv, keys, confirmed, dry_run, scopes, app_id, chosen, ours, cards, built, left, adjust_checked,
+                          place)
+        out["build_in"] = place
+        if made and made.get("made"):
+            out["lakehouse_made"] = made
+        return out
     finally:
+        S.BUILD_IN.reset(build_in)
         S.WRITE_TARGET.reset(write_target)
 
 
-def _build_many(req, S, rv, keys, confirmed, dry_run, scopes, app_id, chosen, ours, cards, built, left, adjust) -> dict:
+def checked_keys(rv: dict) -> dict:
+    """n221: the keys this build may de-duplicate silver on beyond the plan's own (K0, K1, R5): every key of the review
+    that is not rejected and whose row check passed (not stale: what it rests on has not changed since), and every key
+    accepted in the review. {table: {columns, how: rows|accepted, checked_at}}; the row check wins over the acceptance."""
+    out = {}
+    for it in rv.get("items", []):
+        if it.get("type") != "key" or it.get("review") == "rejected" or not it.get("columns"):
+            continue
+        c = it.get("check") or {}
+        if c.get("status") == "passed":
+            out[it["table"]] = {"columns": list(it["columns"]), "how": "rows", "checked_at": c.get("checked_at") or ""}
+        elif it.get("review") == "accepted":
+            out[it["table"]] = {"columns": list(it["columns"]), "how": "accepted", "checked_at": ""}
+    return out
+
+
+def _workspace_name(ws_id: str, headers: dict) -> str:
+    from . import server as S
+    try:
+        return next((w.get("displayName") or w.get("name") or "" for w in S._workspaces(headers)
+                     if str(w.get("id") or "").lower() == ws_id.lower()), "")
+    except Exception:                                              # noqa: BLE001 — the name is words only; the id decides
+        return ""
+
+
+def build_place(req: dict, headers: dict) -> dict:
+    """n221: where this build's outputs go. target.workspace (the editor sends the Model item's own workspace by default,
+    or the source's when the person chose that); without it, the source's workspace as before. `cross`: it is not the
+    source's, so the source is read across workspaces."""
+    from . import server as S
+    source_ws = S._workspace_id(req["workspace"], headers)
+    tgt = req.get("target") or {}
+    ws = (tgt.get("workspace") or source_ws).lower()
+    cross = ws != str(source_ws).lower()
+    where = tgt.get("where") or ("item" if cross else "source")
+    name = _workspace_name(ws, headers)
+    whose = "this item's workspace" if where == "item" else "the source's workspace"
+    words = (f"Builds in {('the workspace ' + name) if name else 'workspace ' + ws} ({whose}"
+             + (", the same as the source's" if where == "item" and not cross else "")
+             + (f"; the source {req.get('source_name') or ''} is read from its own workspace" if cross else "") + ").")
+    return {"workspace_id": ws, "name": name, "where": where, "cross": cross, "source_workspace_id": str(source_ws).lower(),
+            "words": words}
+
+
+def needs_lakehouse(req: dict) -> bool:
+    """n221: whether the outputs this request builds write Delta tables (silver, gold, the pipeline's check) or read them."""
+    kinds = set(req.get("only") or [o["kind"] for o in req["outputs"]])
+    agent = next((o for o in req["outputs"] if o["kind"] == "data_agent"), None)
+    return bool(kinds & {"silver_notebook", "gold_views", "pipeline"}) or (
+        "data_agent" in kinds and (agent.get("agent") or {}).get("layer", "silver") != "source")
+
+
+LAKEHOUSE_DOC = "https://learn.microsoft.com/rest/api/fabric/lakehouse/items/create-lakehouse"
+
+
+def ensure_lakehouse(ws: str, name: str, headers: dict, req: dict) -> dict:
+    """n221: the lakehouse the person asked Create to make in the build's workspace (Items - Create Lakehouse, POST
+    /v1/workspaces/{ws}/lakehouses with creationPayload.enableSchemas true; Lakehouse.ReadWrite.All or Item.ReadWrite.All,
+    Contributor). One of that name already there is used, not made again, so the per-output requests of one Create make
+    it once. Only after a dry run named it, and only when ticked."""
+    from . import server as S
+    from .deploy import find_item, write_and_wait
+    try:
+        hit = find_item(ws, name, headers, "Lakehouse")
+    except Exception as exc:                                       # noqa: BLE001
+        from .errors import explain
+        return explain(exc, f"Lakehouse {name!r}")
+    if hit:
+        return {"id": hit, "name": name, "workspace": ws, "made": False}
+    body = {"displayName": name, "creationPayload": {"enableSchemas": True},
+            "description": f"Made by Krusgraph for the silver tables and gold views of {req.get('source_name') or 'the source'}."}
+    r = write_and_wait(f"{S.FABRIC}/v1/workspaces/{ws}/lakehouses", body, headers, mode="created", item_type="Lakehouse",
+                       find=lambda: find_item(ws, name, headers, "Lakehouse"))
+    if r.get("status") == "Succeeded" and r.get("id"):
+        log("lakehouse_made", outcome="ok")
+        return {"id": r["id"], "name": name, "workspace": ws, "made": True, "doc": LAKEHOUSE_DOC}
+    from .errors import classify_http
+    if r.get("http"):
+        got = classify_http(int(r["http"]), r.get("body", ""), f"creating the lakehouse {name!r}")
+    else:
+        got = {"error": f"Fabric did not confirm the lakehouse {name!r} in time.", "kind": "timeout",
+               "hint": "Choose Create again in a minute: a lakehouse of that name is used, not made twice."}
+    log("lakehouse_made", outcome=str(got.get("kind")))
+    return {**got, "error": got.get("error") or f"The lakehouse {name!r} was not made; nothing else was written."}
+
+
+def _build_many(req, S, rv, keys, confirmed, dry_run, scopes, app_id, chosen, ours, cards, built, left, adjust, place=None) -> dict:
     with S.plan_scope(adjust):
         headers = S._headers(None)
-        workspace = S._workspace_id(req["workspace"], headers)
-        p, _item, _ = S._plan(workspace, req["source"], req["schema"], keys, confirmed, None)
+        workspace = place["workspace_id"] if place else S._workspace_id(req["workspace"], headers)   # n221: where outputs go
+        source_ws = place["source_workspace_id"] if place else workspace   # n221: the source is read in its own workspace
+        p, _item, _ = S._plan(source_ws, req["source"], req["schema"], keys, confirmed, None)
         req = _exact(req, p.schema.schema)                         # n175: every output reads and writes the exact name
         mark = plan_mark(rv, p, req["schema"])                     # n180: what every item of this build is built from
         req = {**req, "plan_mark": mark}                           # n200: handed to the pipeline's health step
@@ -2025,7 +2164,7 @@ def _items_there(req: dict, kind: str) -> tuple[bool, list[str]]:
     o = next(x for x in req["outputs"] if x["kind"] == kind)
     chosen = {x["kind"]: x["name"] for x in req["outputs"]}
     headers = S._headers(None)
-    workspace = S._workspace_id(req["workspace"], headers)
+    workspace = build_place(req, headers)["workspace_id"]          # n221: the build's workspace
     missing = [name for typ, name in _names(o, chosen, req["schema"]) if not S._find_item(workspace, name, headers, typ)]
     return not missing, missing
 
@@ -2410,7 +2549,8 @@ def _health_target(req: dict, headers: dict) -> dict | None:
         plan = next((m for m in reversed(marks) if m), None)
     target = source.get("target") or {}
     lakehouse = target.get("itemId") or (source.get("itemId") if str(source.get("itemType", "")).lower() == "lakehouse" else None)
-    ws = source.get("workspaceId") or req["workspace"]
+    # n221: a build in another workspace than the source's keeps its lakehouse's workspace with it (target.workspaceId)
+    ws = (target.get("workspaceId") if target.get("itemId") else None) or source.get("workspaceId") or req["workspace"]
     if not plan or not H.PLAN_ID.match(str(plan)) or not lakehouse:
         return None
     return {"workspace": ws, "source": lakehouse, "source_name": target.get("displayName") or source.get("displayName") or lakehouse,
