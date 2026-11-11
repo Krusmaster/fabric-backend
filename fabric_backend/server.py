@@ -3067,6 +3067,8 @@ def build_app(host: str = "0.0.0.0"):
     page_route("/privacy", privacy_html)
     from .pages import trust_html, trust_md
     page_route("/trust", trust_html)                     # n205: security and data
+    from .pages import security_policy_html, security_policy_md
+    page_route("/security", security_policy_html)        # n211: the vulnerability disclosure policy
     from .pages import ATTESTATION_PATH, attestation_html, attestation_md
     page_route(ATTESTATION_PATH, attestation_html)       # n195: the workload's vendor attestation, unlinked
     page_route("/docs", docs_html)
@@ -3106,6 +3108,7 @@ def build_app(host: str = "0.0.0.0"):
         md_route(path, fn)
     md_route(ATTESTATION_PATH + ".md", attestation_md)
     md_route("/trust.md", trust_md)
+    md_route("/security.md", security_policy_md)
     for _post in BLOG_POSTS:
         md_route("/blog/" + _post["slug"] + ".md", (lambda slug: lambda: blog_md(slug))(_post["slug"]))
 

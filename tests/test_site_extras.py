@@ -120,7 +120,7 @@ def test_the_theme_script_is_the_one_inline_script_and_the_csp_allows_it_by_hash
 
 def test_security_txt_follows_rfc_9116(monkeypatch):
     """n59: /.well-known/security.txt as text/plain, with Contact, Expires (renew before this fails), the languages,
-    the policy on GitHub and Canonical; /it links it."""
+    the policy (n211: the site's own /security page) and Canonical; /it links it."""
     from datetime import datetime, timedelta, timezone
 
     from starlette.testclient import TestClient
@@ -133,7 +133,7 @@ def test_security_txt_follows_rfc_9116(monkeypatch):
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/plain")
     fields = dict(line.split(": ", 1) for line in r.text.strip().splitlines())
     assert fields == {"Contact": "mailto:gustav@krusgraph.com", "Expires": discovery.SECURITY_EXPIRES, "Preferred-Languages": "en, sv",
-                      "Policy": "https://github.com/Krusmaster/fabric-backend/blob/main/SECURITY.md",
+                      "Policy": "https://krusgraph.test/security",
                       "Canonical": "https://krusgraph.test/.well-known/security.txt"}
     expires = datetime.strptime(fields["Expires"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
     assert timedelta(days=30) < expires - datetime.now(timezone.utc) <= timedelta(days=366), "renew Expires in discovery.py"

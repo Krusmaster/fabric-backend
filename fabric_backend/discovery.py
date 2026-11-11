@@ -34,7 +34,7 @@ USP_POINTS = (
 USP_SAP = ("SAP tables: keys with MANDT and the order-to-cash links, each with its public source", "/sap")
 
 # The public pages, in sitemap order. /mascots is a review page and stays out (noindex, disallowed).
-PUBLIC_PAGES = ["/", "/check", "/start", "/choose", "/sap", "/docs", "/lovable", "/local", "/use-cases", "/use-cases/build", "/privacy", "/trust", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms", "/blog"]
+PUBLIC_PAGES = ["/", "/check", "/start", "/choose", "/sap", "/docs", "/lovable", "/local", "/use-cases", "/use-cases/build", "/privacy", "/trust", "/security", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms", "/blog"]
 PUBLIC_PAGES += ["/blog/" + x["slug"] for x in _BLOG_POSTS]                             # n145: the blog and its posts
 
 
@@ -126,15 +126,16 @@ def robots_txt() -> str:
 
 
 # n59: /.well-known/security.txt (RFC 9116). Expires is a fixed date, renewed by hand before it passes;
-# tests/test_site_extras.py fails once it is less than 30 days away, as the reminder.
+# tests/test_site_extras.py fails once it is less than 30 days away, as the reminder. n211: Policy is the site's own
+# disclosure policy page, /security (page_templates/SECURITY-POLICY.md), no longer the file on GitHub.
 SECURITY_CONTACT = "mailto:gustav@krusgraph.com"
 SECURITY_EXPIRES = "2027-10-30T00:00:00Z"
-SECURITY_POLICY = "https://github.com/Krusmaster/fabric-backend/blob/main/SECURITY.md"
+SECURITY_POLICY_PATH = "/security"
 
 
 def security_txt() -> str:
     return (f"Contact: {SECURITY_CONTACT}\nExpires: {SECURITY_EXPIRES}\nPreferred-Languages: en, sv\n"
-            f"Policy: {SECURITY_POLICY}\nCanonical: {site_url()}/.well-known/security.txt\n")
+            f"Policy: {site_url()}{SECURITY_POLICY_PATH}\nCanonical: {site_url()}/.well-known/security.txt\n")
 
 
 def llms_full_txt(parts: list[tuple[str, str]]) -> str:

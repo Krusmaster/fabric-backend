@@ -633,7 +633,7 @@ _THEME_BUTTON = ('<button type="button" class="theme-toggle" data-theme-toggle a
                  '</button>')
 
 
-MARKDOWN_TWINS = ("/docs", "/start", "/privacy", "/trust", "/lovable", "/local", "/use-cases", "/choose", "/workload/attestation")       # pages that are also served as <path>.md
+MARKDOWN_TWINS = ("/docs", "/start", "/privacy", "/trust", "/security", "/lovable", "/local", "/use-cases", "/choose", "/workload/attestation")       # pages that are also served as <path>.md
 
 
 # n55: one demo, on /check. The old addresses answer with a redirect so docs, the sitemap's old entries and shared
@@ -1305,6 +1305,22 @@ def trust_md() -> str:
 def trust_html() -> str:
     body = f'<article class="wrap prose">{_md_to_html(trust_md())}</article>'
     return _shell("Security and data — {{PRODUCT}}", TRUST_DESC, body, page="trust", nav="", path="/trust", chat=True)
+
+
+# n211: /security, the vulnerability disclosure policy that /.well-known/security.txt names as its Policy (RFC 9116);
+# /security.md is its Markdown twin. Same address as discovery.SECURITY_CONTACT (tests/test_n211_security_pack.py).
+SECURITY_POLICY_DESC = ("How to report a security problem in {{PRODUCT}}: the address, what is in scope, the testing rules "
+                        "and what to expect from a one-person maintainer.")
+
+
+def security_policy_md() -> str:
+    return _fill(_read("SECURITY-POLICY.md"), escape=False)
+
+
+def security_policy_html() -> str:
+    body = f'<article class="wrap prose">{_md_to_html(security_policy_md())}</article>'
+    return _shell("Vulnerability disclosure policy — {{PRODUCT}}", SECURITY_POLICY_DESC, body, page="security", nav="",
+                  path="/security", chat=True)
 
 
 # n195: the vendor attestation of the Fabric workload Krusgraph.Modeler, Section III of Microsoft's template

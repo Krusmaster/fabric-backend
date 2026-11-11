@@ -123,7 +123,7 @@ writing.
 | 15 | Log retention? | Open | A setting from 30 to 730 days; the live value is on [For your IT department](/it#stored) |
 | 16 | Backups? | Today, partly | Your state lives in your Fabric, not with us. The service is rebuilt from the public repository with one script |
 | 17 | Business continuity and disaster recovery? | Planned | No written plan, RTO or RPO yet |
-| 18 | Incident response? | Planned | A reporting address and security.txt exist; no written incident response plan yet |
+| 18 | Incident response? | Today, partly | A reporting address, a [disclosure policy](/security), security.txt and a written [incident process]({{GITHUB}}/blob/main/docs/INCIDENT-RESPONSE.md); the time to notify customers is a proposal, not yet confirmed |
 | 19 | Breach notification to customers? | Open | To be set in the data processing agreement (channel and time limit) |
 | 20 | Vulnerability management? | Today | Pinned dependencies, a weekly audit of them, Dependabot, an SBOM on every push |
 | 21 | Penetration testing? | Planned | Not done |
@@ -137,7 +137,24 @@ writing.
 | 29 | Private Link, private networking? | Not applicable today | The service is on the public internet; you can run the MCP server in your own Azure instead |
 | 30 | Change management? | Today | Every change is a commit on GitHub with tests in CI; versions in the changelog |
 
+## For customers under NIS2 and the Swedish cybersecurity act
+
+If your organisation is covered by NIS2 or the Swedish cybersecurity act (cybersäkerhetslagen, SFS 2025:1506), you
+have to manage security in your supply chain and will ask {{PRODUCT}}, as a supplier, what is in place. Kruse
+Consulting AB is a one-person company and probably not itself covered; {{PRODUCT}} holds no certification and no approval
+from any authority, and this is not legal advice.
+
+| Document | What it says | Status |
+| --- | --- | --- |
+| [Supplier security pack]({{GITHUB}}/blob/main/docs/SECURITY-SUPPLIER.md) | What {{PRODUCT}} is in your supply chain, roles (you are information owner of your data; Kruse Consulting AB is system owner of the hosted service), what is and is not in place, subcontractors, and a table against the Article 21 measures | Written; the legal sources are to be re-read against the primary texts before it is sent |
+| [Incident response]({{GITHUB}}/blob/main/docs/INCIDENT-RESPONSE.md) | How an incident is detected, assessed, contained and told to affected customers, and what the notice contains | Written; the notification time is a proposal, not yet confirmed |
+| [Vulnerability disclosure policy](/security) and [security.txt](/.well-known/security.txt) | How to report a security problem | In place |
+
+Not in place yet: a signed data processing agreement, an external penetration test, a service level agreement and any
+certification.
+
 ## Reporting a security issue
 
-Write to [{{CONTACT}}](mailto:{{CONTACT}}); the rules are in [SECURITY.md]({{GITHUB}}/blob/main/SECURITY.md). See also
+Write to [{{CONTACT}}](mailto:{{CONTACT}}); the rules are in the [vulnerability disclosure policy](/security) and in
+[SECURITY.md]({{GITHUB}}/blob/main/SECURITY.md). See also
 the [privacy policy](/privacy) and [For your IT department](/it).
