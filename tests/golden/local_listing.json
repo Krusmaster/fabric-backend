@@ -286,6 +286,211 @@
   },
   "title": "Create or update the GraphQL API (dry run by default)"
  },
+ "create_databricks_constraints": {
+  "annotations": {
+   "destructive_hint": true,
+   "idempotent_hint": true,
+   "open_world_hint": true,
+   "read_only_hint": false
+  },
+  "description": "Add the informational PRIMARY KEY / FOREIGN KEY constraints of databricks_constraints_draft to the source tables\nthrough the SQL warehouse, after validate_plan's counts: RELY only where they hold, a key the data contradicts left\nout, SET NOT NULL only with set_not_null=true and only where there is no NULL. Only ADD; never DROP. dry_run=true\n(default) returns the statements. Needs ownership of each table.",
+  "input_schema": {
+   "properties": {
+    "confirmed": {
+     "anyOf": [
+      {
+       "items": {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Confirmed"
+    },
+    "dry_run": {
+     "default": true,
+     "title": "Dry Run",
+     "type": "boolean"
+    },
+    "keys": {
+     "anyOf": [
+      {
+       "additionalProperties": {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Keys"
+    },
+    "schema": {
+     "default": "default",
+     "title": "Schema",
+     "type": "string"
+    },
+    "set_not_null": {
+     "default": false,
+     "title": "Set Not Null",
+     "type": "boolean"
+    }
+   },
+   "title": "create_databricks_constraintsArguments",
+   "type": "object"
+  },
+  "name": "create_databricks_constraints",
+  "output_schema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "create_databricks_constraintsOutput",
+   "type": "object"
+  },
+  "title": "Databricks: add informational constraints (dry run by default)"
+ },
+ "create_databricks_pipeline": {
+  "annotations": {
+   "destructive_hint": true,
+   "idempotent_hint": true,
+   "open_world_hint": true,
+   "read_only_hint": false
+  },
+  "description": "Write databricks_pipeline_draft's two notebooks to /Workspace/Users/<you>/krusgraph/<name> and create the pipeline\n`name` (serverless), or update the one of that name in place when all its code is in that folder. Starts no run and\ndeletes nothing. dry_run=true (default) returns the notebooks and the REST calls it would make.",
+  "input_schema": {
+   "properties": {
+    "confirmed": {
+     "anyOf": [
+      {
+       "items": {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Confirmed"
+    },
+    "dry_run": {
+     "default": true,
+     "title": "Dry Run",
+     "type": "boolean"
+    },
+    "gold_schema": {
+     "default": "gold",
+     "title": "Gold Schema",
+     "type": "string"
+    },
+    "keys": {
+     "anyOf": [
+      {
+       "additionalProperties": {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Keys"
+    },
+    "name": {
+     "title": "Name",
+     "type": "string"
+    },
+    "order_by": {
+     "anyOf": [
+      {
+       "additionalProperties": {
+        "type": "string"
+       },
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Order By"
+    },
+    "schema": {
+     "default": "default",
+     "title": "Schema",
+     "type": "string"
+    },
+    "show_personal_data": {
+     "default": false,
+     "title": "Show Personal Data",
+     "type": "boolean"
+    },
+    "silver_schema": {
+     "default": "silver",
+     "title": "Silver Schema",
+     "type": "string"
+    },
+    "tables": {
+     "anyOf": [
+      {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Tables"
+    }
+   },
+   "required": [
+    "name"
+   ],
+   "title": "create_databricks_pipelineArguments",
+   "type": "object"
+  },
+  "name": "create_databricks_pipeline",
+  "output_schema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "create_databricks_pipelineOutput",
+   "type": "object"
+  },
+  "title": "Databricks: create or update the Lakeflow pipeline (dry run by default)"
+ },
  "create_views": {
   "annotations": {
    "destructive_hint": true,
@@ -443,6 +648,336 @@
   },
   "title": "Data dictionary (Markdown)"
  },
+ "databricks_constraints_draft": {
+  "annotations": {
+   "destructive_hint": false,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "The plan's keys and relationships as Unity Catalog informational constraints: ALTER TABLE ... ADD CONSTRAINT ...\nPRIMARY KEY / FOREIGN KEY for those not declared yet, each with its rule. validate=true runs validate_plan's counts\nfirst: RELY only where they hold, and a key the data contradicts is left out. A PRIMARY KEY needs NOT NULL columns;\nset_not_null=true adds ALTER COLUMN ... SET NOT NULL where the counts show no NULL. Returns the SQL; changes nothing.",
+  "input_schema": {
+   "properties": {
+    "confirmed": {
+     "anyOf": [
+      {
+       "items": {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Confirmed"
+    },
+    "keys": {
+     "anyOf": [
+      {
+       "additionalProperties": {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Keys"
+    },
+    "max_items": {
+     "default": 60,
+     "title": "Max Items",
+     "type": "integer"
+    },
+    "schema": {
+     "default": "default",
+     "title": "Schema",
+     "type": "string"
+    },
+    "set_not_null": {
+     "default": false,
+     "title": "Set Not Null",
+     "type": "boolean"
+    },
+    "validate": {
+     "default": false,
+     "title": "Validate",
+     "type": "boolean"
+    }
+   },
+   "title": "databricks_constraints_draftArguments",
+   "type": "object"
+  },
+  "name": "databricks_constraints_draft",
+  "output_schema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "databricks_constraints_draftOutput",
+   "type": "object"
+  },
+  "title": "Databricks: draft informational PRIMARY KEY / FOREIGN KEY constraints (nothing changed)"
+ },
+ "databricks_lineage": {
+  "annotations": {
+   "destructive_hint": false,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "What read from or wrote to the schema's tables in the last `days` days, from system.access.table_lineage:\nsource and target tables, and the notebook, job, pipeline, dashboard or query (entity_type, entity_id) behind each\nevent. Needs access to the system catalog (an account admin enables and grants it). Read-only.",
+  "input_schema": {
+   "properties": {
+    "days": {
+     "default": 90,
+     "title": "Days",
+     "type": "integer"
+    },
+    "schema": {
+     "default": "default",
+     "title": "Schema",
+     "type": "string"
+    },
+    "table": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Table"
+    }
+   },
+   "title": "databricks_lineageArguments",
+   "type": "object"
+  },
+  "name": "databricks_lineage",
+  "output_schema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "databricks_lineageOutput",
+   "type": "object"
+  },
+  "title": "Databricks: lineage of a schema's tables from the system tables"
+ },
+ "databricks_metric_view_draft": {
+  "annotations": {
+   "destructive_hint": false,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "One Unity Catalog metric view per fact table (CREATE OR REPLACE VIEW ... WITH METRICS LANGUAGE YAML): the row\ncount and the sums semantic_model_draft would suggest as measures, the fact's columns and those of the tables one\nmany-to-one step away as dimensions, those tables as joins. Personal columns left out unless show_personal_data.\nReturns the YAML and the SQL; creates nothing.",
+  "input_schema": {
+   "properties": {
+    "confirmed": {
+     "anyOf": [
+      {
+       "items": {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Confirmed"
+    },
+    "keys": {
+     "anyOf": [
+      {
+       "additionalProperties": {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Keys"
+    },
+    "metrics_schema": {
+     "default": "krusgraph",
+     "title": "Metrics Schema",
+     "type": "string"
+    },
+    "schema": {
+     "default": "default",
+     "title": "Schema",
+     "type": "string"
+    },
+    "show_personal_data": {
+     "default": false,
+     "title": "Show Personal Data",
+     "type": "boolean"
+    }
+   },
+   "title": "databricks_metric_view_draftArguments",
+   "type": "object"
+  },
+  "name": "databricks_metric_view_draft",
+  "output_schema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "databricks_metric_view_draftOutput",
+   "type": "object"
+  },
+  "title": "Databricks: draft metric views (nothing created)"
+ },
+ "databricks_pipeline_draft": {
+  "annotations": {
+   "destructive_hint": false,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "The silver and gold rules of the Fabric notebooks as a Lakeflow pipeline in SQL (two notebooks in Databricks'\nsource format): per table the latest row per key (by `order_by` {table: column}), the key and every reference as\nexpectations that drop the row, clean tables in `silver_schema`, krusgraph_quarantine with each dropped row and its\nrule; one gold materialized view per fact table in `gold_schema` with the plan's keys and relationships as\nexpectations. Never over a source table. Returns the notebooks and the pipeline settings; creates nothing.",
+  "input_schema": {
+   "properties": {
+    "confirmed": {
+     "anyOf": [
+      {
+       "items": {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Confirmed"
+    },
+    "gold_schema": {
+     "default": "gold",
+     "title": "Gold Schema",
+     "type": "string"
+    },
+    "keys": {
+     "anyOf": [
+      {
+       "additionalProperties": {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Keys"
+    },
+    "name": {
+     "default": "krusgraph",
+     "title": "Name",
+     "type": "string"
+    },
+    "order_by": {
+     "anyOf": [
+      {
+       "additionalProperties": {
+        "type": "string"
+       },
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Order By"
+    },
+    "schema": {
+     "default": "default",
+     "title": "Schema",
+     "type": "string"
+    },
+    "show_personal_data": {
+     "default": false,
+     "title": "Show Personal Data",
+     "type": "boolean"
+    },
+    "silver_schema": {
+     "default": "silver",
+     "title": "Silver Schema",
+     "type": "string"
+    },
+    "tables": {
+     "anyOf": [
+      {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Tables"
+    }
+   },
+   "title": "databricks_pipeline_draftArguments",
+   "type": "object"
+  },
+  "name": "databricks_pipeline_draft",
+  "output_schema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "databricks_pipeline_draftOutput",
+   "type": "object"
+  },
+  "title": "Databricks: draft a Lakeflow pipeline for silver and gold (nothing created)"
+ },
  "dbt_schema": {
   "annotations": {
    "destructive_hint": false,
@@ -542,6 +1077,109 @@
    "type": "object"
   },
   "title": "dbt sources file"
+ },
+ "export_databricks_bundle": {
+  "annotations": {
+   "destructive_hint": false,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "What the Databricks drafts would create, as a Declarative Automation Bundle (formerly Databricks Asset Bundle)\nfolder for your own repository: databricks.yml, the pipeline and two jobs as resources, the pipeline notebooks, and\nthe constraints, views and metric views as SQL files. validate=true runs the counts first, for RELY in the\nconstraints. Returns {path: content}; deploy it yourself with `databricks bundle deploy`.",
+  "input_schema": {
+   "properties": {
+    "confirmed": {
+     "anyOf": [
+      {
+       "items": {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Confirmed"
+    },
+    "gold_schema": {
+     "default": "gold",
+     "title": "Gold Schema",
+     "type": "string"
+    },
+    "keys": {
+     "anyOf": [
+      {
+       "additionalProperties": {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Keys"
+    },
+    "metrics_schema": {
+     "default": "krusgraph",
+     "title": "Metrics Schema",
+     "type": "string"
+    },
+    "name": {
+     "default": "krusgraph",
+     "title": "Name",
+     "type": "string"
+    },
+    "schema": {
+     "default": "default",
+     "title": "Schema",
+     "type": "string"
+    },
+    "show_personal_data": {
+     "default": false,
+     "title": "Show Personal Data",
+     "type": "boolean"
+    },
+    "silver_schema": {
+     "default": "silver",
+     "title": "Silver Schema",
+     "type": "string"
+    },
+    "validate": {
+     "default": false,
+     "title": "Validate",
+     "type": "boolean"
+    },
+    "views_schema": {
+     "default": "krusgraph",
+     "title": "Views Schema",
+     "type": "string"
+    }
+   },
+   "title": "export_databricks_bundleArguments",
+   "type": "object"
+  },
+  "name": "export_databricks_bundle",
+  "output_schema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "export_databricks_bundleOutput",
+   "type": "object"
+  },
+  "title": "Databricks: export a bundle (nothing created)"
  },
  "join_path": {
   "annotations": {
@@ -950,6 +1588,131 @@
    "type": "object"
   },
   "title": "Rayfin connector entities"
+ },
+ "review_plan": {
+  "annotations": {
+   "destructive_hint": false,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "The plan with the decisions made about it and its checks, as one JSON file to keep in your own repository,\nplus a short Markdown report and what needs attention first. Each key and relationship has a review status\n(proposed, accepted, rejected or open, with a reason, set through `decisions`: [{\"item\": \"key:orders\", \"review\":\n\"accepted\", \"reason\": \"...\"}]) and, separately, a check status (not_checked, passed, failed, stale). validate=true\nruns validate_plan's counting queries. `previous` takes an earlier file from this tool: its corrections are applied\nagain, schema changes are listed, and a check on a table that changed becomes stale. Holds names, types, rules,\ndecisions and counts, never row values or the connection string. Creates nothing.",
+  "input_schema": {
+   "properties": {
+    "confirmed": {
+     "anyOf": [
+      {
+       "items": {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Confirmed"
+    },
+    "decisions": {
+     "anyOf": [
+      {
+       "items": {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Decisions"
+    },
+    "keys": {
+     "anyOf": [
+      {
+       "additionalProperties": {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Keys"
+    },
+    "max_items": {
+     "default": 60,
+     "title": "Max Items",
+     "type": "integer"
+    },
+    "previous": {
+     "anyOf": [
+      {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Previous"
+    },
+    "schema": {
+     "default": "dbo",
+     "title": "Schema",
+     "type": "string"
+    },
+    "tables": {
+     "anyOf": [
+      {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Tables"
+    },
+    "validate": {
+     "default": false,
+     "title": "Validate",
+     "type": "boolean"
+    }
+   },
+   "title": "review_planArguments",
+   "type": "object"
+  },
+  "name": "review_plan",
+  "output_schema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "review_planOutput",
+   "type": "object"
+  },
+  "title": "Keep the reviewed plan as a file"
  },
  "sample_rows": {
   "annotations": {
