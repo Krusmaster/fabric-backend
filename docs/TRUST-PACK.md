@@ -210,6 +210,19 @@ buyers ISO 27001 is the more common ask; SOC 2 is more common in the United Stat
 14. Liability, term, governing law (Sweden), venue.
 15. What happens on the opt-in AI paths (who is whose vendor).
 
+**Customers under NIS2 and the Swedish cybersecurity act** (round n211). A customer covered by NIS2 (Directive (EU)
+2022/2555) or the cybersäkerhetslag (SFS 2025:1506) must manage security in its supply chain and will ask Krusgraph
+as a supplier. Three documents answer that, with their status:
+
+| Document | Status |
+| --- | --- |
+| `docs/SECURITY-SUPPLIER.md`: what Krusgraph is in the customer's supply chain, roles (customer information owner, Kruse Consulting AB system owner of the hosted service), what is and is not in place, subcontractors, and the Article 21 measures against what Krusgraph has | Written. Its legal sources were partly **Unverified** (primary hosts not reachable when written): re-read before it is sent |
+| `docs/INCIDENT-RESPONSE.md`: detect, assess, contain, notify affected customers, review | Written. The notification target is a proposal: **To confirm by the founder** |
+| The disclosure policy at `/security` (`fabric_backend/page_templates/SECURITY-POLICY.md`) and `/.well-known/security.txt` (RFC 9116, Policy pointing at `/security`) | In place |
+
+Neither document says Krusgraph meets the act; Kruse Consulting AB is probably not itself an entity under it (to confirm
+with a lawyer). `/trust` has the same section for the public.
+
 ## 10. Answers to a standard vendor security questionnaire
 
 Today = in place, with the file that shows it. Planned = written down as a step, not done. Not applicable = does not
@@ -234,7 +247,7 @@ apply to how Krusgraph works. **To confirm by the founder** = the repository can
 | 15 | Log retention? | To confirm by the founder | A setting from 30 to 730 days; the live value is on `/it` | `deploy/azure_containerapp.py`, `docs/TRUST.md` "Logs" |
 | 16 | Backups? | Today, partly | Customer state lives in the customer's Fabric, not with Krusgraph. `--backup` exports the MCP sign-in table; not yet run against the live subscription. The service is rebuilt from the public repository with one script | `docs/OPERATIONS.md` §8.3, `WORKLOAD-ATTESTATION.md` |
 | 17 | Business continuity and disaster recovery? | Planned | No written plan, RTO or RPO. A continuity section says what someone else needs if the maintainer is unavailable | `docs/OPERATIONS.md` §9, `docs/WORKLOAD-PUBLISH.md` TODO 11 |
-| 18 | Incident response? | Planned | A reporting address and `security.txt` exist. No incident response plan with roles and notification duties | `SECURITY.md`, `docs/ISO27001-SELF-ASSESSMENT.md` 5.24 to 5.28 |
+| 18 | Incident response? | Today, partly | A reporting address, a disclosure policy (`/security`), `security.txt` and a written process for a one-person supplier (detect, assess, contain, notify, review). The time to notify customers is a proposal: **To confirm by the founder**. Alerts not yet switched on | `SECURITY.md`, `docs/INCIDENT-RESPONSE.md`, `docs/ISO27001-SELF-ASSESSMENT.md` 5.24 to 5.28 |
 | 19 | Breach notification to customers? | To confirm by the founder | To be set in the DPA (channel and time limit) | `docs/DPA-DRAFT.md` §5 |
 | 20 | Vulnerability management? | Today | Pinned Python dependencies, weekly `pip-audit`, Dependabot for Python and GitHub Actions, an SBOM on every push. The editor's npm dependencies are not watched by Dependabot: **To confirm by the founder** | `deploy/constraints.txt`, `.github/workflows/audit.yml`, `.github/dependabot.yml`, `.github/workflows/sbom.yml` |
 | 21 | Penetration testing? | Planned | Not done. Who and when: **To confirm by the founder** | `docs/WORKLOAD-PUBLISH.md` TODO 5 |

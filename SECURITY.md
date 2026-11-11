@@ -2,7 +2,8 @@
 
 ## Reporting a vulnerability
 
-Email **gustav@krusgraph.com** — the same address as in `https://krusgraph.com/.well-known/security.txt`. Please
+Email **gustav@krusgraph.com** — the same address as in `https://krusgraph.com/.well-known/security.txt`, whose
+Policy is the disclosure policy at `https://krusgraph.com/security` (scope, testing rules, what to expect). Please
 include what you found, how to reproduce it, and which version or commit it concerns. Do not open a public GitHub
 issue for a vulnerability, and do not test against other people's tenants or data.
 
@@ -29,4 +30,6 @@ duration, and at most a salted hash of the tenant id. Details: `docs/SECURITY.md
 - A CycloneDX SBOM of those versions is built on every push to `main` and on every version tag, and kept as a workflow
   artifact (`.github/workflows/sbom.yml`).
 
-Krusgraph holds no security certification (no SOC 2, no ISO 27001).
+Krusgraph holds no security certification (no SOC 2, no ISO 27001). If a report shows that customers may be affected,
+they are told under `docs/INCIDENT-RESPONSE.md`; customers under NIS2 or the Swedish cybersecurity act will find the
+supplier view in `docs/SECURITY-SUPPLIER.md`.

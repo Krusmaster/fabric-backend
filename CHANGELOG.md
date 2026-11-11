@@ -9,6 +9,14 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n211: **a supplier security pack for customers under NIS2 and the Swedish cybersecurity act**. New
+  `docs/SECURITY-SUPPLIER.md` (what the texts say with sources, Krusgraph's place in a customer's supply chain, roles,
+  what is and is not in place, subcontractors, the Article 21 measures against what Krusgraph has) and
+  `docs/INCIDENT-RESPONSE.md` (detect, assess, contain, notify, review; the notification time is a proposal for the
+  founder). The site serves a vulnerability disclosure policy at `/security` (and `/security.md`), and
+  `/.well-known/security.txt` names it as its Policy instead of the file on GitHub. `/trust` and `docs/TRUST-PACK.md`
+  get a section linking them; questionnaire row 18 moves from Planned to Today, partly. No claim of compliance,
+  certification or approval. Docs and site only; redeploy for the new page and the security.txt Policy line.
 - Round n210: **verification of the integrated main before the first guest users** (n197 to n209). Security: Turn off
   (the Data product page's soft retire) used a schedule id from outputs.json unchecked in a DELETE path, so a crafted id
   could become a hard delete of another item while the dry run said "Remove the schedule"; only GUID ids are used now,
