@@ -1052,6 +1052,38 @@ own CSS with Fluent's tokens), `productWords.ts` (the words and rules), the engi
 - **Not verified against Fabric.** None of the calls has run against a live workspace yet (fake Fabric only). The editor
   changed: a new workload package is needed.
 
+### 18. Round n209: ready for the first outside users
+
+The founder's live tests of 10 November 2026, fixed before outside Fabric users try the item as B2B guests in the
+publisher's tenant (`docs/GUEST-TRIAL.md`). Nothing here was run against a live workspace; the tests below use the doubles.
+
+- **The dry run predicts Create.** One decision for both (`workload_api.existing_decision`), and every card carries
+  `decision` {action, words} (`decision_of`): *skip* "already built from this plan, will be skipped" (also for items
+  another Krusgraph Model item built from the same plan), *choose* (built from another plan or plan unknown: Create
+  writes nothing and asks Update or a new name), *refuse* (an item someone else made, n207's rule; red only here),
+  *update* and *create* only where Create writes. The editor's dry run sends outputs.json's `pending` too, so it adopts
+  what Create adopts. Most of this was already right since n197 (4033655); what was left was the dry run's title and
+  summary for a card built from another plan, and the data product's "would be updated". `tests/test_n209_dry_run_equals_create.py`,
+  `dryRunEqualsCreate.test.ts`.
+- **Gold without repeated keys.** A joined table's join target column is not output again (`orders_order_id`,
+  `products_product_id`, `customers_customer_id` on the shop sample); the rule that drops a row whose reference finds
+  nothing is the view's WHERE on the joined aliases, the same rows as before (`gold.py`, `tests/test_n209_gold_keys.py`).
+- **The review.** A link the check counted with 0 orphans says "This link holds in the rows: 0 of N rows point at
+  nothing." under Accept and Reject; rejecting it says that the semantic model, the API and the ontology will have one
+  relationship fewer, with the count above the list (`modelWords.ts`, `reviewHolds.test.ts`).
+- **The App card on reopen** keeps the saved choices and the package link of an App already built (outputs.json
+  `outputs[].app_package`, `appWords.rememberApp`, a read-only panel); "Tick at least one key figure" never shows for it.
+  An App built before n209 by someone who never changed a tick has no record, and its card says so.
+- **The data agent with Run once.** The example queries are checked (and the agent published, when ticked) only on the
+  editor's call after the run succeeded; a failure to connect is sent once more and then reads "not checked yet" with
+  Fabric's reason, never "invalid" (`agent_card`, `recheck_examples`, `jobsWords.exampleWords`,
+  `tests/test_n209_agent_after_run.py`).
+- **n198, n200 and n201 together.** `tests/test_n209_integration.py` runs review, dry run, Create with Run once, the Data
+  product page with the health word after two pipeline runs, Update's dry run and Retire's dry run through the routes;
+  they agreed on the plan id, the ids and the definition's files, and nothing between them needed a fix.
+
+The editor changed (it is served by the container app, so a redeploy brings it); the workload manifest did not change.
+
 ## When something does not work
 
 | You see | Likely cause |

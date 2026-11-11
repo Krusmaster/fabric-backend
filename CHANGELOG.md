@@ -9,6 +9,19 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n209: **the Krusgraph Model ready for the first outside users** (the founder's live tests of 10 November 2026).
+  The dry run and Create take one decision (`workload_api.existing_decision`, each card's `decision`): items built from
+  this plan, also by another Krusgraph Model item, are "already built from this plan, will be skipped" in both; red only
+  for an item someone else made; "would be updated" only where Create writes. Gold views no longer repeat the join keys
+  (`orders_order_id` and the like); the orphan rule moved to the view's WHERE with the same rows kept and dropped. The
+  review says "This link holds in the rows: 0 of N rows point at nothing." next to Reject and what rejecting such a link
+  costs the semantic model, the API and the ontology. An App already built keeps its choices and package link on reopen.
+  With Run once ticked the data agent's example queries are checked and the agent published only after the run
+  succeeded; a failure to connect is retried once and reads "not checked yet", never "invalid". An end-to-end test of
+  review, dry run, Create, the Data product page with health, Update and Retire (n198, n200, n201 together).
+  `docs/GUEST-TRIAL.md` (new) and a section on /pilot/fabric: B2B guests in the publisher's tenant before the workload
+  name is registered, cited to Microsoft Learn with Unverified where Learn is silent. Not run against a live workspace.
+  Redeploy for the engine and the editor; the workload manifest did not change.
 - Round n201: **the Krusgraph Model reads mirrored databases**, SAP mirrored through SAP Datasphere among them, and
   warehouses and SQL databases (the founder, 10 November 2026: the detail page said "Compatible with: Lakehouse"
   only). The source picker offers the four item types; review and check read the SQL analytics endpoint, read-only.
