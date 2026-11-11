@@ -765,7 +765,9 @@ export function ModelItemEditor(props: PageProps) {
   }
 
   async function loadProduct() {
-    const h = engine.health(workloadClient, { workspace: defRef.current.source?.workspaceId, item_id: metaRef.current?.id, product: productName() });
+    // n210: the Model item's own workspace, where its definition is read (the source's workspace can be another one)
+    const h = engine.health(workloadClient, { workspace: metaRef.current?.workspaceId ?? defRef.current.source?.workspaceId,
+      item_id: metaRef.current?.id, product: productName() });
     const s = await productStep("Reading the items in Fabric…", () => engine.product<StatusAnswer>(workloadClient, productBody("status")));
     const health = await h;
     setDp((x) => ({ ...x, ...(s ? { status: s } : {}), health: healthWords(health as never) }));

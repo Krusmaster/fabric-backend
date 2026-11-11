@@ -287,6 +287,11 @@ def retire(http, req: dict, listings: dict[str, dict], lefts: dict | None = None
     if scope == "soft" and lefts is not None:
         raise Refused("A leftover has no schedule Krusgraph recorded; offer Adopt or Delete for it.")
     go, refused = _targets(outputs, req.get("items"), listings, lefts)
+    here = str(req.get("workspace") or "").lower()
+    if here:                                                       # n210: only the data product's own workspace
+        refused += [{**x, "why": "Recorded in another workspace than this data product's; Krusgraph leaves it alone."}
+                    for x in go if str(x.get("workspace") or "").lower() != here]
+        go = [x for x in go if str(x.get("workspace") or "").lower() == here]
     steps = []
     if scope == "soft":
         for x in go:

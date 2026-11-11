@@ -88,8 +88,13 @@ def default_version(root: Path = WORKLOAD.parent) -> str:
     try:
         count = subprocess.run(["git", "rev-list", "--count", "HEAD"], cwd=root, capture_output=True, text=True,
                                check=True).stdout.strip()
+        shallow = subprocess.run(["git", "rev-parse", "--is-shallow-repository"], cwd=root, capture_output=True, text=True,
+                                 check=True).stdout.strip()
     except (OSError, subprocess.CalledProcessError):
         raise PackageError("No git history here; pass --version 1.0.N (each upload needs a higher version)") from None
+    if shallow == "true":                                         # n210: a --depth clone counts too few commits
+        raise PackageError(f"This checkout is shallow (only {count} commits), so 1.0.{count} would be lower than the version "
+                           "already in Fabric. Run `git fetch --unshallow` first, or pass --version 1.0.N yourself.")
     return f"1.0.{count}"
 
 

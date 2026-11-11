@@ -56,3 +56,17 @@ def test_the_route_leaves_out_a_schedule_whose_ids_are_not_guids(client):
     assert r.status_code == 200, r.text
     assert all(f"/dataPipelines/{PIPE}/jobs/execute/schedules/" in url and "hardDelete" not in url for _, url in fake.writes())
     assert LAKEHOUSE in fake.items
+
+
+def test_delete_from_fabric_leaves_an_item_recorded_in_another_workspace_alone():
+    other_ws = "0f0f0f0f-0000-4000-8000-0000000000ff"
+    fake = Fabric()
+    planted = {"id": "00000000-0000-4000-8000-000000000099", "type": "Report", "name": "someone_elses", "workspace": other_ws,
+               "output": "report", "plan": {}}
+    outputs = {**OUTPUTS, "created": [*OUTPUTS["created"], planted]}
+    seen = {**listings(fake), other_ws: {planted["id"]: {"id": planted["id"], "type": "Report", "displayName": "someone_elses"}}}
+    dry = life.retire(fake, req(outputs=outputs, workspace=WS), seen)
+    assert planted["id"] not in {x["id"] for x in dry["items"]}
+    assert any(x["id"] == planted["id"] and "another workspace" in x["why"] for x in dry["refused"])
+    life.retire(fake, req(outputs=outputs, workspace=WS, dry_run=False, confirm=dry["confirm"], typed_name="Shop sales"), seen)
+    assert fake.writes() and not any(other_ws in url for _, url in fake.writes())

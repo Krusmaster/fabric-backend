@@ -43,7 +43,7 @@ describe("the rows of the page", () => {
     expect(ownerWords(undefined)).toBe(NO_OWNER);
     expect(healthWords(undefined)).toBe(NOT_CHECKED);
     expect(healthWords(null)).toBe(NOT_CHECKED);
-    expect(healthWords({ word: "green", words: "every check passed" })).toBe("Health: green. every check passed");
+    expect(healthWords({ word: "green", words: "every check passed" })).toBe("Health: green. Every check passed");
   });
 });
 

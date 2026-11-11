@@ -278,7 +278,25 @@ def test_the_package_refuses_a_krusgraph_dot_name(tmp_path):
         b.build(WL_ID, "1.0.1", out_dir=tmp_path / "out", manifest=manifest)
 
 
-def test_the_package_version_grows_with_the_history():
+def _repo(path, commits: int):
+    run = lambda *a: subprocess.run(["git", *a], cwd=path, check=True, capture_output=True)  # noqa: E731
+    path.mkdir()
+    run("init", "-q")
+    for i in range(commits):
+        run("-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "--allow-empty", "-m", f"c{i}")
+    return path
+
+
+def test_the_package_version_grows_with_the_history(tmp_path):
     b = _builder()
-    version = b.default_version()
-    assert version.startswith("1.0.") and int(version.split(".")[-1]) > 0
+    assert b.default_version(_repo(tmp_path / "full", 3)) == "1.0.3"
+
+
+def test_a_shallow_checkout_gives_no_version(tmp_path):
+    """n210: CI and `git clone --depth 1` count too few commits; the version would fall below the one in Fabric."""
+    b = _builder()
+    full = _repo(tmp_path / "full", 3)
+    subprocess.run(["git", "clone", "-q", "--depth", "1", f"file://{full}", str(tmp_path / "shallow")], check=True,
+                   capture_output=True)
+    with pytest.raises(b.PackageError, match="unshallow"):
+        b.default_version(tmp_path / "shallow")

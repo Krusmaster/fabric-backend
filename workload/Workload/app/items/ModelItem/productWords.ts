@@ -133,7 +133,8 @@ export function ownerWords(p: ProductDefinition | undefined): string {
 export function healthWords(h: { word?: string; status?: string; words?: string; checked_at?: string } | undefined | null): string {
   const word = h?.word ?? h?.status;
   if (!h || !word) return NOT_CHECKED;
-  return `Health: ${word}` + (h.words ? `. ${h.words}` : "") + (h.checked_at ? ` (checked ${dayOf(h.checked_at)})` : "");
+  const said = h.words ? h.words.charAt(0).toUpperCase() + h.words.slice(1) : "";       // n210: a sentence after the period
+  return `Health: ${word}` + (said ? `. ${said}` : "") + (h.checked_at ? ` (checked ${dayOf(h.checked_at)})` : "");
 }
 
 // ------------------------------------------------------------------ owner, removals, adoptions into outputs.json -------
