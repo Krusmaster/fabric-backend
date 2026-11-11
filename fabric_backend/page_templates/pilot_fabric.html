@@ -26,6 +26,19 @@
       <p>In a workspace on the Fabric capacity: <strong>+ New item → Krusgraph Model</strong>. Choose a lakehouse in the workspace and a schema; {{PRODUCT}} proposes keys and relationships, each with the rule that found it. You accept or reject each one and see a dry run before anything is created. We suggest a first try on a lakehouse with test data.</p></li>
   </ol>
 
+  <section id="guest-trial" aria-labelledby="guest-trial-h">
+    <h2 id="guest-trial-h" class="h3">Try it as a guest before the name is registered</h2>
+    <p>Until Microsoft registers the name <code>Krusgraph.Modeler</code>, the item runs only in Kruse Consulting AB’s own tenant, as the development workload <code>Org.Krusgraph</code>. Outside Fabric users can try it there as Microsoft Entra B2B guests, in one dedicated workspace with synthetic data only (the shop sample from the open source code). Kruse Consulting’s administrator:</p>
+    <ul>
+      <li>creates the trial workspace on a Fabric capacity and loads the synthetic shop sample;</li>
+      <li>invites the guests in Microsoft Entra and puts them in one security group;</li>
+      <li>turns on <strong>Guest users can access Microsoft Fabric</strong> and <strong>Users can see and work with additional workloads not validated by Microsoft</strong> for that group, and gives it a workspace role;</li>
+      <li>sends a link with <code>?ctid=</code> and the tenant id, so the guest lands in that tenant and not in their own;</li>
+      <li>removes the guests, their licences and the workspace when the trial ends.</li>
+    </ul>
+    <p>On a capacity smaller than F64, a guest who creates or opens the semantic model or the report needs a Power BI Pro or Premium Per User licence. Some of these steps are not yet confirmed for guests; the guide marks them. The steps, with the Microsoft Learn pages they rest on: <a href="{{GITHUB}}/blob/main/docs/GUEST-TRIAL.md" rel="noopener">docs/GUEST-TRIAL.md</a>.</p>
+  </section>
+
   <p class="muted tiny">Screenshots we send of these steps use the synthetic shop schema from {{PRODUCT}}’s open source code, not anyone’s data. If something does not work, write to <a href="mailto:{{CONTACT}}">{{CONTACT}}</a> with the text the screen showed; please do not send table contents. To leave the pilot, tell us and we remove your tenant id from both lists; you can remove the consent and turn the setting off yourself at any time.</p>
   <p class="muted tiny">The same steps as a document: <a href="{{GITHUB}}/blob/main/docs/PILOT-ONBOARDING.md" rel="noopener">docs/PILOT-ONBOARDING.md</a>. A pilot of the work itself, with a number your team cannot agree on, is on <a href="/partners">Try a pilot</a>.</p>
 </article>
