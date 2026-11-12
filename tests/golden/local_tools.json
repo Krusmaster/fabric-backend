@@ -125,6 +125,32 @@
  {
   "answer": {
    "ambiguous": [],
+   "coverage": {
+    "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
+    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 6 links proposed, 0 counted, 0 hold; 1 column that looks like a reference is unlinked.",
+    "keys": {
+     "states": {
+      "by name only": 6
+     },
+     "with_key": 6,
+     "without_key": 1
+    },
+    "links": {
+     "counted": 0,
+     "counted_in_a_sample": 0,
+     "hold": 0,
+     "proposed": 6,
+     "states": {
+      "by name only": 6
+     }
+    },
+    "next": "validate_plan counts the keys and links (by importance, within the call's time budget)",
+    "tables": 7,
+    "unlinked_first": [
+     "orders.ship_to_id"
+    ],
+    "unlinked_reference_columns": 1
+   },
    "keyless": [
     "audit_log"
    ],
@@ -133,18 +159,21 @@
      "columns": [
       "address_id"
      ],
+     "evidence": "by name only",
      "rule": "K2"
     },
     "categories": {
      "columns": [
       "id"
      ],
+     "evidence": "by name only",
      "rule": "K2"
     },
     "customers": {
      "columns": [
       "customer_id"
      ],
+     "evidence": "by name only",
      "rule": "K2"
     },
     "order_items": {
@@ -152,24 +181,28 @@
       "order_id",
       "line_no"
      ],
+     "evidence": "by name only",
      "rule": "K5"
     },
     "orders": {
      "columns": [
       "order_id"
      ],
+     "evidence": "by name only",
      "rule": "K2"
     },
     "products": {
      "columns": [
       "product_id"
      ],
+     "evidence": "by name only",
      "rule": "K2"
     }
    },
    "mermaid": "erDiagram\n  customers {\n    customer_id int PK\n    name string\n    country string\n  }\n  categories {\n    id int PK\n    name string\n  }\n  products {\n    product_id int PK\n    name string\n    category_id int\n    list_price double\n  }\n  addresses {\n    address_id int PK\n    customer_id int\n    city string\n  }\n  orders {\n    order_id int PK\n    customer_id int\n    order_date date\n    ship_to_id int\n  }\n  order_items {\n    order_id int PK\n    line_no int PK\n    product_id int\n    quantity double\n  }\n  audit_log {\n    event string\n    customer_id int\n    happened_at timestamp\n  }\n  categories ||--o{ products : \"category_id R1\"\n  customers ||--o{ addresses : \"customer_id R1\"\n  customers ||--o{ orders : \"customer_id R1\"\n  orders ||--o{ order_items : \"order_id R1\"\n  products ||--o{ order_items : \"product_id R1\"\n  customers ||--o{ audit_log : \"customer_id R1\"",
    "relationships": [
     {
+     "evidence": "by name only",
      "field_name": "category",
      "reverse_name": "products",
      "rule": "R1",
@@ -183,6 +216,7 @@
      ]
     },
     {
+     "evidence": "by name only",
      "field_name": "customer",
      "reverse_name": "addresses",
      "rule": "R1",
@@ -196,6 +230,7 @@
      ]
     },
     {
+     "evidence": "by name only",
      "field_name": "customer",
      "reverse_name": "orders",
      "rule": "R1",
@@ -209,6 +244,7 @@
      ]
     },
     {
+     "evidence": "by name only",
      "field_name": "order",
      "reverse_name": "order_items",
      "rule": "R1",
@@ -222,6 +258,7 @@
      ]
     },
     {
+     "evidence": "by name only",
      "field_name": "product",
      "reverse_name": "order_items",
      "rule": "R1",
@@ -235,6 +272,7 @@
      ]
     },
     {
+     "evidence": "by name only",
      "field_name": "customer",
      "reverse_name": "audit_log",
      "rule": "R1",
@@ -260,6 +298,31 @@
  {
   "answer": {
    "ambiguous": [],
+   "coverage": {
+    "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
+    "headline": "7 tables: 0 with a counted key, 1 with a key you gave, not counted, 5 with a key by name only, 1 without a key; 7 links proposed, 0 counted, 0 hold; 0 columns that look like references are unlinked.",
+    "keys": {
+     "states": {
+      "by name only": 5,
+      "given, not counted": 1
+     },
+     "with_key": 6,
+     "without_key": 1
+    },
+    "links": {
+     "counted": 0,
+     "counted_in_a_sample": 0,
+     "hold": 0,
+     "proposed": 7,
+     "states": {
+      "by name only": 6,
+      "given, not counted": 1
+     }
+    },
+    "next": "validate_plan counts the keys and links (by importance, within the call's time budget)",
+    "tables": 7,
+    "unlinked_reference_columns": 0
+   },
    "keyless": [
     "audit_log"
    ],
@@ -268,18 +331,21 @@
      "columns": [
       "address_id"
      ],
+     "evidence": "by name only",
      "rule": "K2"
     },
     "categories": {
      "columns": [
       "id"
      ],
+     "evidence": "by name only",
      "rule": "K2"
     },
     "customers": {
      "columns": [
       "customer_id"
      ],
+     "evidence": "by name only",
      "rule": "K2"
     },
     "order_items": {
@@ -287,24 +353,28 @@
       "order_id",
       "line_no"
      ],
+     "evidence": "given, not counted",
      "rule": "K1"
     },
     "orders": {
      "columns": [
       "order_id"
      ],
+     "evidence": "by name only",
      "rule": "K2"
     },
     "products": {
      "columns": [
       "product_id"
      ],
+     "evidence": "by name only",
      "rule": "K2"
     }
    },
    "mermaid": "erDiagram\n  customers {\n    customer_id int PK\n    name string\n    country string\n  }\n  categories {\n    id int PK\n    name string\n  }\n  products {\n    product_id int PK\n    name string\n    category_id int\n    list_price double\n  }\n  addresses {\n    address_id int PK\n    customer_id int\n    city string\n  }\n  orders {\n    order_id int PK\n    customer_id int\n    order_date date\n    ship_to_id int\n  }\n  order_items {\n    order_id int PK\n    line_no int PK\n    product_id int\n    quantity double\n  }\n  audit_log {\n    event string\n    customer_id int\n    happened_at timestamp\n  }\n  addresses ||--o{ orders : \"ship_to_id confirmed\"\n  categories ||--o{ products : \"category_id R1\"\n  customers ||--o{ addresses : \"customer_id R1\"\n  customers ||--o{ orders : \"customer_id R1\"\n  orders ||--o{ order_items : \"order_id R1\"\n  products ||--o{ order_items : \"product_id R1\"\n  customers ||--o{ audit_log : \"customer_id R1\"",
    "relationships": [
     {
+     "evidence": "given, not counted",
      "field_name": "ship_to",
      "reverse_name": "orders_as_ship_to",
      "rule": "confirmed",
@@ -318,6 +388,7 @@
      ]
     },
     {
+     "evidence": "by name only",
      "field_name": "category",
      "reverse_name": "products",
      "rule": "R1",
@@ -331,6 +402,7 @@
      ]
     },
     {
+     "evidence": "by name only",
      "field_name": "customer",
      "reverse_name": "addresses",
      "rule": "R1",
@@ -344,6 +416,7 @@
      ]
     },
     {
+     "evidence": "by name only",
      "field_name": "customer",
      "reverse_name": "orders",
      "rule": "R1",
@@ -357,6 +430,7 @@
      ]
     },
     {
+     "evidence": "by name only",
      "field_name": "order",
      "reverse_name": "order_items",
      "rule": "R1",
@@ -370,6 +444,7 @@
      ]
     },
     {
+     "evidence": "by name only",
      "field_name": "product",
      "reverse_name": "order_items",
      "rule": "R1",
@@ -383,6 +458,7 @@
      ]
     },
     {
+     "evidence": "by name only",
      "field_name": "customer",
      "reverse_name": "audit_log",
      "rule": "R1",
@@ -426,7 +502,42 @@
  {
   "answer": {
    "ambiguous": [],
+   "coverage": {
+    "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
+    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 6 links proposed, 0 counted, 0 hold; 1 column that looks like a reference is unlinked.",
+    "keys": {
+     "states": {
+      "by name only": 6
+     },
+     "with_key": 6,
+     "without_key": 1
+    },
+    "links": {
+     "counted": 0,
+     "counted_in_a_sample": 0,
+     "hold": 0,
+     "proposed": 6,
+     "states": {
+      "by name only": 6
+     }
+    },
+    "next": "validate_plan counts the keys and links (by importance, within the call's time budget)",
+    "tables": 7,
+    "unlinked_first": [
+     "orders.ship_to_id"
+    ],
+    "unlinked_reference_columns": 1
+   },
    "detail": "summary",
+   "evidence": {
+    "by name only": [
+     "key:orders",
+     "key:order_items",
+     "rel:orders.customer_id>customers",
+     "rel:order_items.order_id>orders",
+     "rel:order_items.product_id>products"
+    ]
+   },
    "keyless": [],
    "keys": {
     "order_items": "order_id+line_no (K5)",
@@ -500,6 +611,49 @@
      "sql": "SELECT COUNT_BIG(CASE WHEN s.[order_id] IS NOT NULL THEN 1 END) AS with_value_1, SUM(CASE WHEN s.[order_id] IS NOT NULL AND t1.[order_id] IS NULL THEN 1 ELSE 0 END) AS orphans_1, COUNT_BIG(CASE WHEN s.[product_id] IS NOT NULL THEN 1 END) AS with_value_2, SUM(CASE WHEN s.[product_id] IS NOT NULL AND t2.[product_id] IS NULL THEN 1 ELSE 0 END) AS orphans_2 FROM [shop].[order_items] AS s LEFT JOIN [shop].[orders] AS t1 ON s.[order_id] = t1.[order_id] LEFT JOIN [shop].[products] AS t2 ON s.[product_id] = t2.[product_id]"
     }
    ],
+   "coverage": {
+    "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 6 links proposed, 6 counted, 6 hold; 1 column that looks like a reference is unlinked.",
+    "keys": {
+     "states": {
+      "counted unique": 6
+     },
+     "with_key": 6,
+     "without_key": 1
+    },
+    "links": {
+     "counted": 6,
+     "counted_in_a_sample": 0,
+     "hold": 6,
+     "proposed": 6,
+     "states": {
+      "counted and holds": 6
+     }
+    },
+    "tables": 7,
+    "unlinked_first": [
+     "orders.ship_to_id"
+    ],
+    "unlinked_reference_columns": 1
+   },
+   "evidence": {
+    "counted and holds": [
+     "rel:products.category_id>categories",
+     "rel:addresses.customer_id>customers",
+     "rel:orders.customer_id>customers",
+     "rel:order_items.order_id>orders",
+     "rel:order_items.product_id>products",
+     "rel:audit_log.customer_id>customers"
+    ],
+    "counted unique": [
+     "key:customers",
+     "key:categories",
+     "key:products",
+     "key:addresses",
+     "key:orders",
+     "key:order_items"
+    ]
+   },
    "keys": [
     {
      "columns": [
@@ -656,7 +810,13 @@
      "verdict": "holds for all 40 rows with a value"
     }
    ],
-   "summary": "6 of 6 keys unique, 6 of 6 relationships hold without orphans"
+   "summary": "6 of 6 keys unique, 6 of 6 relationships hold without orphans",
+   "time_budget": {
+    "counted": 12,
+    "not_checked_time": 0,
+    "ran_out": false,
+    "seconds": 45.0
+   }
   },
   "args": {
    "detail": "full",
@@ -694,7 +854,50 @@
      }
     ]
    },
+   "coverage": {
+    "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 6 links proposed, 6 counted, 6 hold; 1 column that looks like a reference is unlinked.",
+    "keys": {
+     "states": {
+      "counted unique": 6
+     },
+     "with_key": 6,
+     "without_key": 1
+    },
+    "links": {
+     "counted": 6,
+     "counted_in_a_sample": 0,
+     "hold": 6,
+     "proposed": 6,
+     "states": {
+      "counted and holds": 6
+     }
+    },
+    "tables": 7,
+    "unlinked_first": [
+     "orders.ship_to_id"
+    ],
+    "unlinked_reference_columns": 1
+   },
    "detail": "summary",
+   "evidence": {
+    "counted and holds": [
+     "rel:products.category_id>categories",
+     "rel:addresses.customer_id>customers",
+     "rel:orders.customer_id>customers",
+     "rel:order_items.order_id>orders",
+     "rel:order_items.product_id>products",
+     "rel:audit_log.customer_id>customers"
+    ],
+    "counted unique": [
+     "key:customers",
+     "key:categories",
+     "key:products",
+     "key:addresses",
+     "key:orders",
+     "key:order_items"
+    ]
+   },
    "left_out": {
     "how": "12 passing check(s) are left out of this summary; detail=\"full\" lists every check with its counts and rule.",
     "keys": 6,
@@ -726,6 +929,12 @@
    ],
    "note": "Counts over the whole tables at the moment of the call. They show the data agrees with the plan today; they do not prove the meaning, and new rows can change them.",
    "summary": "6 of 6 keys unique, 6 of 6 relationships hold without orphans",
+   "time_budget": {
+    "counted": 12,
+    "not_checked_time": 0,
+    "ran_out": false,
+    "seconds": 45.0
+   },
    "totals": {
     "amount_levels": {
      "checked": 1,
@@ -962,6 +1171,32 @@
     "tables: all tables of the source",
     "keys and relationships planned: 7 tables, 6 with keys, 6 relationships"
    ],
+   "coverage": {
+    "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
+    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 6 links proposed, 0 counted, 0 hold; 1 column that looks like a reference is unlinked.",
+    "keys": {
+     "states": {
+      "by name only": 6
+     },
+     "with_key": 6,
+     "without_key": 1
+    },
+    "links": {
+     "counted": 0,
+     "counted_in_a_sample": 0,
+     "hold": 0,
+     "proposed": 6,
+     "states": {
+      "by name only": 6
+     }
+    },
+    "next": "validate_plan counts the keys and links (by importance, within the call's time budget)",
+    "tables": 7,
+    "unlinked_first": [
+     "orders.ship_to_id"
+    ],
+    "unlinked_reference_columns": 1
+   },
    "definition": {
     "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/graphqlApi/definition/1.0.0/schema.json",
     "datasources": [
@@ -1292,6 +1527,32 @@
  {
   "answer": {
    "card": "GraphQL endpoint:  https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/graphqlapis/new-graphQLApis/graphql\nTenant ID / Client ID / Client secret: from your Entra app registration\n\nStill to do in the Fabric portal (no API for these yet):\n  [ ] shop_api_v2 -> Settings -> Introspection -> On   (workspace admin; Lovable needs this)\n  [ ] shop_api_v2 -> Manage permissions -> add the service principal with 'Run Queries and Mutations'\n  [ ] once per tenant: Admin portal -> 'Service principals can call Fabric public APIs' = enabled",
+   "coverage": {
+    "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
+    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 6 links proposed, 0 counted, 0 hold; 1 column that looks like a reference is unlinked.",
+    "keys": {
+     "states": {
+      "by name only": 6
+     },
+     "with_key": 6,
+     "without_key": 1
+    },
+    "links": {
+     "counted": 0,
+     "counted_in_a_sample": 0,
+     "hold": 0,
+     "proposed": 6,
+     "states": {
+      "by name only": 6
+     }
+    },
+    "next": "validate_plan counts the keys and links (by importance, within the call's time budget)",
+    "tables": 7,
+    "unlinked_first": [
+     "orders.ship_to_id"
+    ],
+    "unlinked_reference_columns": 1
+   },
    "dry_run": false,
    "result": {
     "id": "new-graphQLApis",
@@ -1334,6 +1595,32 @@
  },
  {
   "answer": {
+   "coverage": {
+    "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
+    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 6 links proposed, 0 counted, 0 hold; 1 column that looks like a reference is unlinked.",
+    "keys": {
+     "states": {
+      "by name only": 6
+     },
+     "with_key": 6,
+     "without_key": 1
+    },
+    "links": {
+     "counted": 0,
+     "counted_in_a_sample": 0,
+     "hold": 0,
+     "proposed": 6,
+     "states": {
+      "by name only": 6
+     }
+    },
+    "next": "validate_plan counts the keys and links (by importance, within the call's time budget)",
+    "tables": 7,
+    "unlinked_first": [
+     "orders.ship_to_id"
+    ],
+    "unlinked_reference_columns": 1
+   },
    "rayfin/connectors/shop/Addresses.ts": "// rayfin/connectors/<connector>/Addresses.ts — generated by fabric-backend from shop.addresses\nimport { entity, int, one, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Customers } from './Customers.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key address_id by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Addresses extends Source({ schema: 'shop', table: 'addresses', primaryKey: ['addressId'] }) {\n  @int({ column: 'address_id' }) addressId!: number;\n  @int({ column: 'customer_id' }) customerId!: number;\n  @text() city!: string;\n\n  @one(() => Customers, { sourceFields: ['customerId'], targetFields: ['customerId'] }) customer?: Customers;    // customer_id -> customers [R1]\n}\n",
    "rayfin/connectors/shop/AuditLog.ts": "// rayfin/connectors/<connector>/AuditLog.ts — generated by fabric-backend from shop.audit_log\nimport { date, entity, int, one, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Customers } from './Customers.js';\n\n@role('authenticated', ['read'])\n@entity()\n// no key (rule K3): query only, no key-addressed operations\nexport class AuditLog extends Source({ schema: 'shop', table: 'audit_log' }) {\n  @text() event!: string;\n  @int({ column: 'customer_id' }) customerId!: number;\n  @date({ column: 'happened_at' }) happenedAt!: Date;\n\n  @one(() => Customers, { sourceFields: ['customerId'], targetFields: ['customerId'] }) customer?: Customers;    // customer_id -> customers [R1]\n}\n",
    "rayfin/connectors/shop/Categories.ts": "// rayfin/connectors/<connector>/Categories.ts — generated by fabric-backend from shop.categories\nimport { entity, int, many, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Products } from './Products.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key id by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Categories extends Source({ schema: 'shop', table: 'categories', primaryKey: ['id'] }) {\n  @int() id!: number;\n  @text() name!: string;\n\n  @many(() => Products, { sourceFields: ['id'], targetFields: ['categoryId'] }) products?: Products[];    // products.category_id [R1]\n}\n",
@@ -1657,6 +1944,32 @@
      "table": "shop.audit_log"
     }
    ],
+   "coverage": {
+    "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
+    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 6 links proposed, 0 counted, 0 hold; 1 column that looks like a reference is unlinked.",
+    "keys": {
+     "states": {
+      "by name only": 6
+     },
+     "with_key": 6,
+     "without_key": 1
+    },
+    "links": {
+     "counted": 0,
+     "counted_in_a_sample": 0,
+     "hold": 0,
+     "proposed": 6,
+     "states": {
+      "by name only": 6
+     }
+    },
+    "next": "validate_plan counts the keys and links (by importance, within the call's time budget)",
+    "tables": 7,
+    "unlinked_first": [
+     "orders.ship_to_id"
+    ],
+    "unlinked_reference_columns": 1
+   },
    "summary": {
     "entity_types": 7,
     "notes": [
@@ -1677,6 +1990,32 @@
  },
  {
   "answer": {
+   "coverage": {
+    "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
+    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 6 links proposed, 0 counted, 0 hold; 1 column that looks like a reference is unlinked.",
+    "keys": {
+     "states": {
+      "by name only": 6
+     },
+     "with_key": 6,
+     "without_key": 1
+    },
+    "links": {
+     "counted": 0,
+     "counted_in_a_sample": 0,
+     "hold": 0,
+     "proposed": 6,
+     "states": {
+      "by name only": 6
+     }
+    },
+    "next": "validate_plan counts the keys and links (by importance, within the call's time budget)",
+    "tables": 7,
+    "unlinked_first": [
+     "orders.ship_to_id"
+    ],
+    "unlinked_reference_columns": 1
+   },
    "note": "Drafted locally: the SQL endpoint host and database come from FABRIC_ODBC, the item kind from FABRIC_SOURCE_KIND. Unit-tested against Microsoft's sample definitions; not yet created in a live workspace.",
    "parts": {
     "README.generated.md": "# semantic_model: generated semantic model (TMDL)\n\nSource: Lakehouse `demo_lh`, schema `shop`, SQL analytics endpoint `abc123.datawarehouse.fabric.microsoft.com`.\nStorage mode: Direct Lake on the SQL analytics endpoint (`mode: directLake`, shared expression `DatabaseQuery` = `Sql.Database(endpoint, \"demo_lh\")`), compatibility level 1604. Chosen because the plan comes from that endpoint and Direct Lake reads the Delta tables in place; Import would add a refresh and a copy for nothing. For Direct Lake on OneLake replace the expression with `AzureStorage.DataLake(\"https://onelake.dfs.fabric.microsoft.com/<workspace id>/<item id>\", [HierarchicalNavigation=true])` as in Microsoft's fabric-samples model.\n\nTables: 7. Relationships: 6 active, 0 inactive, 0 not expressible. The active set keeps one path between any two tables and prefers the higher-confidence rule (declared/confirmed, then R1, R2, R4, R3); a relationship made inactive lost to one of a higher or equal rule.\n\n## Table roles (from the plan's graph, see analyze_schema)\n\n| Table | Role | Why |\n| --- | --- | --- |\n| `customers` | dimension | 3 reference(s) in, 0 out, few measures (0.0); out 0, in 3, betweenness 0.6, measure share 0.0 |\n| `categories` | dimension | 1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0 |\n| `products` | dimension | 1 reference(s) in, 1 out, few measures (0.0); out 1, in 1, betweenness 0.3333, measure share 0.0 |\n| `addresses` | dimension | a leaf that only refers to others (a child entity without measures); out 1, in 0, betweenness 0.0, measure share 0.0 |\n| `orders` | fact | pointed at by a fact table, 1 reference(s) out, measures 1.0 (a header table); out 1, in 1, betweenness 0.6, measure share 1.0 |\n| `order_items` | fact | nothing points at it, 2 reference(s) out, measures 1.0; out 2, in 0, betweenness 0.5333, measure share 1.0 |\n| `audit_log` | fact | nothing points at it, 1 reference(s) out, measures 0.5; out 1, in 0, betweenness 0.0, measure share 0.5 |\n\nFact tables are the many side of the model; dimensions are what they point at. A fact table's numeric columns are the ones to turn into measures.\n\n## Relationships\n\n| From | To | Rule | Active |\n| --- | --- | --- | --- |\n| `order_items.order_id` | `orders.order_id` | R1 | yes |\n| `order_items.product_id` | `products.product_id` | R1 | yes |\n| `addresses.customer_id` | `customers.customer_id` | R1 | yes |\n| `audit_log.customer_id` | `customers.customer_id` | R1 | yes |\n| `orders.customer_id` | `customers.customer_id` | R1 | yes |\n| `products.category_id` | `categories.id` | R1 | yes |\n\n## Decisions to check\n\n- `audit_log` has no key: it is in the model but nothing relates to it (rule K3). Give `keys` to change that.\n- `order_items` has a composite key (order_id+line_no): no `isKey` column and nothing can relate to it one-to-many until the lakehouse has a combined key column (a gold view); Direct Lake allows no calculated column for it.\n\n## Uncertain, written down rather than guessed\n\n- Key uniqueness: `isKey` is set from the plan's inferred keys (rules K0–K5). Power BI refuses a one-side column with duplicates when the model is framed; run `validate_plan` first.\n- `schemaName`: written for every partition (docs: direct-lake-power-bi-desktop.md; the REST property `defaultSchema` tells the two kinds of lakehouse apart). If this is wrong for your lakehouse, add or remove the `schemaName` lines.\n- Filter direction is single (dimension to fact), the TMDL default; nothing is set to both directions.\n- Dates are `dateTime` (TMDL has no date type).\n- The syntax follows Microsoft's published sample definitions (microsoft/fabric-rest-api-specs and the PBIP samples listed in fabric_backend/semantic_model.py), and nothing beyond what they use.\n\n## Suggested measures\n\n- `Rows in orders` = `COUNTROWS('orders')` on `orders`: orders is a fact table (role from the plan's graph): its row count is the first number a report asks for.\n- `Rows in order_items` = `COUNTROWS('order_items')` on `order_items`: order_items is a fact table (role from the plan's graph): its row count is the first number a report asks for.\n- `Total quantity` = `SUM('order_items'[quantity])` on `order_items`: order_items.quantity is a number in a fact table and neither a key, a reference nor an id, code or year, so its default summarization is sum (summarizeBy: sum); the measure makes that sum explicit.\n- `Rows in audit_log` = `COUNTROWS('audit_log')` on `audit_log`: audit_log is a fact table (role from the plan's graph): its row count is the first number a report asks for.\n- `Order amount` = `SUMX('order_items', 'order_items'[quantity] * RELATED('products'[list_price]))` on `order_items`: order_items has a quantity (quantity) and no amount of its own; the price is on products.list_price, reached through order_items.product_id → products (R1). The amount is quantity × price summed over the order_items rows (SUMX with RELATED), so it is at line level and SUM(quantity) alone no longer stands for the order amount. The price comes from products.list_price, one row per products, as it stands at query time: a list price, not necessarily the price paid, and a later change of it changes the history. Check against an invoiced amount if there is one.\n\n## Amounts at header level\n\n- `products.list_price`: a price on `products`, read by the measure `Order amount` through RELATED; `summarizeBy: none` and no sum of its own (a sum of prices over the line rows would count each price once per line).\n\n## Order amount (quantity × price)\n\n- `Order amount` = `SUMX('order_items', 'order_items'[quantity] * RELATED('products'[list_price]))` on `order_items`: order_items has a quantity (quantity) and no amount of its own; the price is on products.list_price, reached through order_items.product_id → products (R1). The amount is quantity × price summed over the order_items rows (SUMX with RELATED), so it is at line level and SUM(quantity) alone no longer stands for the order amount. The price comes from products.list_price, one row per products, as it stands at query time: a list price, not necessarily the price paid, and a later change of it changes the history. Check against an invoiced amount if there is one\n\nNo measure sums an id, a code, a year or a reference: they use the same rule as `summarizeBy`. Dimension tables get no sums; their numbers describe one row.\n\n## Date table\n\n`Calendar` is a calculated table (`CALENDAR` with `Year`, `Month` and `Year Month`) marked as the date table (`dataCategory: Time`, `isKey` on `Date`); a calculated table that references no Direct Lake table is allowed in Direct Lake on SQL (direct-lake-overview.md). `Year Month` is text such as 2026-10, so a chart by month keeps the years apart.\n- The range 2020-01-01 to 2030-12-31 is a placeholder: this draft reads no rows. Set it to your data's first and last year in the partition's `source`, or rows outside it have no date to filter by.\n- `orders.order_date -> Calendar.Date` (active)\n- `audit_log.happened_at` carries a time of day and is not related: Direct Lake on SQL does not relate on the date part of a datetime (direct-lake-overview.md). Add a date column (for example in a gold view) and relate that.\n\n## Opening it in Power BI Desktop\n\n- If the files came as a zip (the Power BI project from /check), extract the whole zip first and open the `.pbip` from the extracted folder. Opening the `.pbip` from inside the zip extracts that one file only, and Power BI Desktop stops with \"definition.pbism is missing\".\n- Every `.tmdl` document here starts with an object; one that would hold only comments is not written, because the TMDL parser refuses it (seen on 30 October 2026 with a relationships.tmdl of one comment line).\n- The shop project from /check was opened in Power BI Desktop 2.151 on 30 October 2026; the data shows once the tables are in a Fabric lakehouse and `expressions.tmdl` names its SQL analytics endpoint.\n\n## Files\n\n- `definition/database.tmdl`\n- `definition/model.tmdl`\n- `definition/expressions.tmdl`\n- `definition/tables/customers.tmdl`\n- `definition/tables/categories.tmdl`\n- `definition/tables/products.tmdl`\n- `definition/tables/addresses.tmdl`\n- `definition/tables/orders.tmdl`\n- `definition/tables/order_items.tmdl`\n- `definition/tables/audit_log.tmdl`\n- `definition/tables/Calendar.tmdl`\n- `definition/relationships.tmdl`\n- `definition.pbism`\n",
@@ -1805,6 +2144,32 @@
  },
  {
   "answer": {
+   "coverage": {
+    "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
+    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 6 links proposed, 0 counted, 0 hold; 1 column that looks like a reference is unlinked.",
+    "keys": {
+     "states": {
+      "by name only": 6
+     },
+     "with_key": 6,
+     "without_key": 1
+    },
+    "links": {
+     "counted": 0,
+     "counted_in_a_sample": 0,
+     "hold": 0,
+     "proposed": 6,
+     "states": {
+      "by name only": 6
+     }
+    },
+    "next": "validate_plan counts the keys and links (by importance, within the call's time budget)",
+    "tables": 7,
+    "unlinked_first": [
+     "orders.ship_to_id"
+    ],
+    "unlinked_reference_columns": 1
+   },
    "end": "categories",
    "paths": [
     {
@@ -1937,6 +2302,32 @@
  },
  {
   "answer": {
+   "coverage": {
+    "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
+    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 6 links proposed, 0 counted, 0 hold; 1 column that looks like a reference is unlinked.",
+    "keys": {
+     "states": {
+      "by name only": 6
+     },
+     "with_key": 6,
+     "without_key": 1
+    },
+    "links": {
+     "counted": 0,
+     "counted_in_a_sample": 0,
+     "hold": 0,
+     "proposed": 6,
+     "states": {
+      "by name only": 6
+     }
+    },
+    "next": "validate_plan counts the keys and links (by importance, within the call's time budget)",
+    "tables": 7,
+    "unlinked_first": [
+     "orders.ship_to_id"
+    ],
+    "unlinked_reference_columns": 1
+   },
    "markdown": "# Data dictionary: demo_lh / shop\n\nGenerated by Krusgraph from the source's metadata (table and column names and types). Keys and relationships are inferred where the source declares none; every one names its rule. Descriptions are left blank on purpose — fill them in with the business meaning.\n\n## Summary\n\n- 7 tables, 6 with keys, 6 relationships\n- Tables without a key: audit_log\n- Ambiguous columns (not applied): 0\n\n## Tables\n\n### customers\n\nKey: customer_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| customer_id | int | yes |  |  |\n| name | string |  |  |  |\n| country | string |  |  |  |\n\n### categories\n\nKey: id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| id | int | yes |  |  |\n| name | string |  |  |  |\n\n### products\n\nKey: product_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| product_id | int | yes |  |  |\n| name | string |  |  |  |\n| category_id | int |  | categories.id (R1) |  |\n| list_price | double |  |  |  |\n\n### addresses\n\nKey: address_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| address_id | int | yes |  |  |\n| customer_id | int |  | customers.customer_id (R1) |  |\n| city | string |  |  |  |\n\n### orders\n\nKey: order_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| order_id | int | yes |  |  |\n| customer_id | int |  | customers.customer_id (R1) |  |\n| order_date | date |  |  |  |\n| ship_to_id | int |  |  |  |\n\n### order_items\n\nKey: order_id+line_no (rule K5)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| order_id | int | yes | orders.order_id (R1) |  |\n| line_no | int | yes |  |  |\n| product_id | int |  | products.product_id (R1) |  |\n| quantity | double |  |  |  |\n\n### audit_log\n\nKey: none (rule K3)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| event | string |  |  |  |\n| customer_id | int |  | customers.customer_id (R1) |  |\n| happened_at | timestamp |  |  |  |\n\n## Keys\n\n| Table | Columns | Rule | Meaning |\n| --- | --- | --- | --- |\n| customers | customer_id | K2 | a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`); a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| categories | id | K2 | as above (K2) |\n| products | product_id | K2 | as above (K2) |\n| addresses | address_id | K2 | as above (K2) |\n| orders | order_id | K2 | as above (K2) |\n| order_items | order_id+line_no | K5 | line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…) |\n| audit_log | — | K3 | nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it |\n\n## Relationships\n\n| From | Columns | To | Columns | Rule | Field on from / on to |\n| --- | --- | --- | --- | --- | --- |\n| products | category_id | categories | id | R1 | category / products |\n| addresses | customer_id | customers | customer_id | R1 | customer / addresses |\n| orders | customer_id | customers | customer_id | R1 | customer / orders |\n| order_items | order_id | orders | order_id | R1 | order / order_items |\n| order_items | product_id | products | product_id | R1 | product / order_items |\n| audit_log | customer_id | customers | customer_id | R1 | customer / audit_log |\n\n## Order amount (quantity × price)\n\n- `Order amount` on order_items: `SUMX('order_items', 'order_items'[quantity] * RELATED('products'[list_price]))` (DAX, as semantic_model_draft writes it). order_items.quantity is a quantity and order_items carries no amount; the price is products.list_price, reached through order_items.product_id (R1). The price comes from products.list_price, one row per products, as it stands at query time: a list price, not necessarily the price paid, and a later change of it changes the history. Check against an invoiced amount if there is one.\n\n## Tables without a key\n\n- audit_log: can be queried and can point at other tables; nothing can point at it. Give `keys` to change that.\n\n## Ambiguous columns\n\nNone.\n\n## Roles, subject areas and ambiguity\n\n7 tables, 6 relationships; roles: 3 fact, 4 dimension; 6 relationships can be active at once, 0 would be inactive; 0 cycle(s)\n\n| Table | Role | Why |\n| --- | --- | --- |\n| customers | dimension | 3 reference(s) in, 0 out, few measures (0.0); out 0, in 3, betweenness 0.6, measure share 0.0 |\n| categories | dimension | 1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0 |\n| products | dimension | 1 reference(s) in, 1 out, few measures (0.0); out 1, in 1, betweenness 0.3333, measure share 0.0 |\n| addresses | dimension | a leaf that only refers to others (a child entity without measures); out 1, in 0, betweenness 0.0, measure share 0.0 |\n| orders | fact | pointed at by a fact table, 1 reference(s) out, measures 1.0 (a header table); out 1, in 1, betweenness 0.6, measure share 1.0 |\n| order_items | fact | nothing points at it, 2 reference(s) out, measures 1.0; out 2, in 0, betweenness 0.5333, measure share 1.0 |\n| audit_log | fact | nothing points at it, 1 reference(s) out, measures 0.5; out 1, in 0, betweenness 0.0, measure share 0.5 |\n\nSubject areas (label propagation on the relationship graph, named after the most central table):\n\n- customers area: addresses, audit_log, categories, customers, order_items, orders, products\n\nno cycles: every pair of connected tables has exactly one path.\n\n## Diagram\n\n```mermaid\nerDiagram\n  customers {\n    customer_id int PK\n    name string\n    country string\n  }\n  categories {\n    id int PK\n    name string\n  }\n  products {\n    product_id int PK\n    name string\n    category_id int\n    list_price double\n  }\n  addresses {\n    address_id int PK\n    customer_id int\n    city string\n  }\n  orders {\n    order_id int PK\n    customer_id int\n    order_date date\n    ship_to_id int\n  }\n  order_items {\n    order_id int PK\n    line_no int PK\n    product_id int\n    quantity double\n  }\n  audit_log {\n    event string\n    customer_id int\n    happened_at timestamp\n  }\n  categories ||--o{ products : \"category_id R1\"\n  customers ||--o{ addresses : \"customer_id R1\"\n  customers ||--o{ orders : \"customer_id R1\"\n  orders ||--o{ order_items : \"order_id R1\"\n  products ||--o{ order_items : \"product_id R1\"\n  customers ||--o{ audit_log : \"customer_id R1\"\n```\n\n## Rules\n\n| Rule | Meaning |\n| --- | --- |\n| K0 | declared primary key |\n| K1 | `keys` override from the caller |\n| K2 | a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`); a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| K3 | nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it |\n| K4 | junction: no column names a key and the table starts with two or more reference columns; together they are the key (not applied to history tables with a start_*/valid_from/effective_* column) |\n| K5 | line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…) |\n| R0 | declared foreign key |\n| R1 | column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key |\n| R2 | column has exactly the same name as B's single key column, and that name is not just `id` |\n| R3 | all of B's composite key columns appear in A |\n| R4 | weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table (`Kunde_ID` → `Kunden`, `cust_id` → `customers`, noted on the relationship), a role before B's name (`manager_staff_id` → staff), or an abbreviation of B of four letters or more (`o_custkey` → customer); never across suffixes (`wwi_order_id` does not point at a table keyed by `order_key`) |\n| R5 | checked against the rows: a code column `<stem>_code` / `<stem>_no` / `<stem>_key` where a table with the same stem (singular/plural, snake/camel) has the key `code`/`no`/`key`, or a role name (`ship_to_id`, `created_by`, `approved_by`) whose role word says what the table holds; planned only when every value is in that table's key, the type family is the same, there are two or more distinct values and one table qualifies, otherwise proposed with the reason |\n| confirmed | given by the caller in `confirmed=[...]`, applied as-is, before inference |\n",
    "path": "docs/shop-data-dictionary.md",
    "summary": "7 tables, 6 with keys, 6 relationships\nno key (query only; can reference others, cannot be referenced): audit_log"
@@ -1949,6 +2340,31 @@
  },
  {
   "answer": {
+   "coverage": {
+    "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 6 links proposed, 6 counted, 6 hold; 1 column that looks like a reference is unlinked.",
+    "keys": {
+     "states": {
+      "counted unique": 6
+     },
+     "with_key": 6,
+     "without_key": 1
+    },
+    "links": {
+     "counted": 6,
+     "counted_in_a_sample": 0,
+     "hold": 6,
+     "proposed": 6,
+     "states": {
+      "counted and holds": 6
+     }
+    },
+    "tables": 7,
+    "unlinked_first": [
+     "orders.ship_to_id"
+    ],
+    "unlinked_reference_columns": 1
+   },
    "markdown": "# Data dictionary: demo_lh / shop\n\nGenerated by Krusgraph from the source's metadata (table and column names and types). Keys and relationships are inferred where the source declares none; every one names its rule. Descriptions are left blank on purpose — fill them in with the business meaning.\n\n## Summary\n\n- 7 tables, 6 with keys, 6 relationships\n- Tables without a key: audit_log\n- Ambiguous columns (not applied): 0\n- Checked against the data: 6 of 6 keys unique, 6 of 6 relationships hold without orphans\n\n## Tables\n\n### customers\n\nKey: customer_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| customer_id | int | yes |  |  |\n| name | string |  |  |  |\n| country | string |  |  |  |\n\n### categories\n\nKey: id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| id | int | yes |  |  |\n| name | string |  |  |  |\n\n### products\n\nKey: product_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| product_id | int | yes |  |  |\n| name | string |  |  |  |\n| category_id | int |  | categories.id (R1) |  |\n| list_price | double |  |  |  |\n\n### addresses\n\nKey: address_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| address_id | int | yes |  |  |\n| customer_id | int |  | customers.customer_id (R1) |  |\n| city | string |  |  |  |\n\n### orders\n\nKey: order_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| order_id | int | yes |  |  |\n| customer_id | int |  | customers.customer_id (R1) |  |\n| order_date | date |  |  |  |\n| ship_to_id | int |  |  |  |\n\n### order_items\n\nKey: order_id+line_no (rule K5)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| order_id | int | yes | orders.order_id (R1) |  |\n| line_no | int | yes |  |  |\n| product_id | int |  | products.product_id (R1) |  |\n| quantity | double |  |  |  |\n\n### audit_log\n\nKey: none (rule K3)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| event | string |  |  |  |\n| customer_id | int |  | customers.customer_id (R1) |  |\n| happened_at | timestamp |  |  |  |\n\n## Keys\n\n| Table | Columns | Rule | Meaning |\n| --- | --- | --- | --- |\n| customers | customer_id | K2 | a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`); a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| categories | id | K2 | as above (K2) |\n| products | product_id | K2 | as above (K2) |\n| addresses | address_id | K2 | as above (K2) |\n| orders | order_id | K2 | as above (K2) |\n| order_items | order_id+line_no | K5 | line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…) |\n| audit_log | — | K3 | nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it |\n\n## Relationships\n\n| From | Columns | To | Columns | Rule | Field on from / on to |\n| --- | --- | --- | --- | --- | --- |\n| products | category_id | categories | id | R1 | category / products |\n| addresses | customer_id | customers | customer_id | R1 | customer / addresses |\n| orders | customer_id | customers | customer_id | R1 | customer / orders |\n| order_items | order_id | orders | order_id | R1 | order / order_items |\n| order_items | product_id | products | product_id | R1 | product / order_items |\n| audit_log | customer_id | customers | customer_id | R1 | customer / audit_log |\n\n## Order amount (quantity × price)\n\n- `Order amount` on order_items: `SUMX('order_items', 'order_items'[quantity] * RELATED('products'[list_price]))` (DAX, as semantic_model_draft writes it). order_items.quantity is a quantity and order_items carries no amount; the price is products.list_price, reached through order_items.product_id (R1). The price comes from products.list_price, one row per products, as it stands at query time: a list price, not necessarily the price paid, and a later change of it changes the history. Check against an invoiced amount if there is one.\n\n## Tables without a key\n\n- audit_log: can be queried and can point at other tables; nothing can point at it. Give `keys` to change that.\n\n## Ambiguous columns\n\nNone.\n\n## Checked against the data\n\nCounts over the whole tables at the moment of the call. They show the data agrees with the plan today; they do not prove the meaning, and new rows can change them.\n\n| Table | Key | Rows | NULLs | Distinct | Verdict |\n| --- | --- | --- | --- | --- | --- |\n| customers | customer_id | 10 | 0 | 10 | unique in all 10 rows |\n| categories | id | 3 | 0 | 3 | unique in all 3 rows |\n| products | product_id | 8 | 0 | 8 | unique in all 8 rows |\n| addresses | address_id | 17 | 0 | 17 | unique in all 17 rows |\n| orders | order_id | 60 | 0 | 60 | unique in all 60 rows |\n| order_items | order_id+line_no | 134 | 0 | 134 | unique in all 134 rows |\n\n| From | Columns | To | Rows with a value | Orphans | Verdict |\n| --- | --- | --- | --- | --- | --- |\n| products | category_id | categories | 8 | 0 | holds for all 8 rows with a value |\n| addresses | customer_id | customers | 17 | 0 | holds for all 17 rows with a value |\n| orders | customer_id | customers | 60 | 0 | holds for all 60 rows with a value |\n| order_items | order_id | orders | 134 | 0 | holds for all 134 rows with a value |\n| order_items | product_id | products | 134 | 0 | holds for all 134 rows with a value |\n| audit_log | customer_id | customers | 40 | 0 | holds for all 40 rows with a value |\n\n## Roles, subject areas and ambiguity\n\n7 tables, 6 relationships; roles: 3 fact, 4 dimension; 6 relationships can be active at once, 0 would be inactive; 0 cycle(s)\n\n| Table | Role | Why |\n| --- | --- | --- |\n| customers | dimension | 3 reference(s) in, 0 out, few measures (0.0); out 0, in 3, betweenness 0.6, measure share 0.0 |\n| categories | dimension | 1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0 |\n| products | dimension | 1 reference(s) in, 1 out, few measures (0.0); out 1, in 1, betweenness 0.3333, measure share 0.0 |\n| addresses | dimension | a leaf that only refers to others (a child entity without measures); out 1, in 0, betweenness 0.0, measure share 0.0 |\n| orders | fact | pointed at by a fact table, 1 reference(s) out, measures 1.0 (a header table); out 1, in 1, betweenness 0.6, measure share 1.0 |\n| order_items | fact | nothing points at it, 2 reference(s) out, measures 1.0; out 2, in 0, betweenness 0.5333, measure share 1.0 |\n| audit_log | fact | nothing points at it, 1 reference(s) out, measures 0.5; out 1, in 0, betweenness 0.0, measure share 0.5 |\n\nSubject areas (label propagation on the relationship graph, named after the most central table):\n\n- customers area: addresses, audit_log, categories, customers, order_items, orders, products\n\nno cycles: every pair of connected tables has exactly one path.\n\n## Diagram\n\n```mermaid\nerDiagram\n  customers {\n    customer_id int PK\n    name string\n    country string\n  }\n  categories {\n    id int PK\n    name string\n  }\n  products {\n    product_id int PK\n    name string\n    category_id int\n    list_price double\n  }\n  addresses {\n    address_id int PK\n    customer_id int\n    city string\n  }\n  orders {\n    order_id int PK\n    customer_id int\n    order_date date\n    ship_to_id int\n  }\n  order_items {\n    order_id int PK\n    line_no int PK\n    product_id int\n    quantity double\n  }\n  audit_log {\n    event string\n    customer_id int\n    happened_at timestamp\n  }\n  categories ||--o{ products : \"category_id R1\"\n  customers ||--o{ addresses : \"customer_id R1\"\n  customers ||--o{ orders : \"customer_id R1\"\n  orders ||--o{ order_items : \"order_id R1\"\n  products ||--o{ order_items : \"product_id R1\"\n  customers ||--o{ audit_log : \"customer_id R1\"\n```\n\n## Rules\n\n| Rule | Meaning |\n| --- | --- |\n| K0 | declared primary key |\n| K1 | `keys` override from the caller |\n| K2 | a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`); a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| K3 | nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it |\n| K4 | junction: no column names a key and the table starts with two or more reference columns; together they are the key (not applied to history tables with a start_*/valid_from/effective_* column) |\n| K5 | line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…) |\n| R0 | declared foreign key |\n| R1 | column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key |\n| R2 | column has exactly the same name as B's single key column, and that name is not just `id` |\n| R3 | all of B's composite key columns appear in A |\n| R4 | weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table (`Kunde_ID` → `Kunden`, `cust_id` → `customers`, noted on the relationship), a role before B's name (`manager_staff_id` → staff), or an abbreviation of B of four letters or more (`o_custkey` → customer); never across suffixes (`wwi_order_id` does not point at a table keyed by `order_key`) |\n| R5 | checked against the rows: a code column `<stem>_code` / `<stem>_no` / `<stem>_key` where a table with the same stem (singular/plural, snake/camel) has the key `code`/`no`/`key`, or a role name (`ship_to_id`, `created_by`, `approved_by`) whose role word says what the table holds; planned only when every value is in that table's key, the type family is the same, there are two or more distinct values and one table qualifies, otherwise proposed with the reason |\n| confirmed | given by the caller in `confirmed=[...]`, applied as-is, before inference |\n",
    "path": "docs/shop-data-dictionary.md",
    "summary": "7 tables, 6 with keys, 6 relationships\nno key (query only; can reference others, cannot be referenced): audit_log"
@@ -1962,6 +2378,32 @@
  },
  {
   "answer": {
+   "coverage": {
+    "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
+    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 6 links proposed, 0 counted, 0 hold; 1 column that looks like a reference is unlinked.",
+    "keys": {
+     "states": {
+      "by name only": 6
+     },
+     "with_key": 6,
+     "without_key": 1
+    },
+    "links": {
+     "counted": 0,
+     "counted_in_a_sample": 0,
+     "hold": 0,
+     "proposed": 6,
+     "states": {
+      "by name only": 6
+     }
+    },
+    "next": "validate_plan counts the keys and links (by importance, within the call's time budget)",
+    "tables": 7,
+    "unlinked_first": [
+     "orders.ship_to_id"
+    ],
+    "unlinked_reference_columns": 1
+   },
    "path": "models/sources/shop.yml",
    "summary": "7 tables, 6 with keys, 6 relationships\nno key (query only; can reference others, cannot be referenced): audit_log",
    "yaml": "version: 2\n\n# Generated by Krusgraph from the source's metadata; keys and relationships are inferred where the\n# source declares none (the rule is in the comment on each test). Fill in descriptions by hand.\n\nsources:\n  - name: shop\n    database: demo_lh\n    tables:\n      - name: customers\n        columns:\n          - name: customer_id\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: name\n            description: \"\"  # string\n          - name: country\n            description: \"\"  # string\n      - name: categories\n        columns:\n          - name: id\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: name\n            description: \"\"  # string\n      - name: products\n        columns:\n          - name: product_id\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: name\n            description: \"\"  # string\n          - name: category_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('shop', 'categories')\n                    field: id\n          - name: list_price\n            description: \"\"  # double\n      - name: addresses\n        columns:\n          - name: address_id\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: customer_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('shop', 'customers')\n                    field: customer_id\n          - name: city\n            description: \"\"  # string\n      - name: orders\n        columns:\n          - name: order_id\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: customer_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('shop', 'customers')\n                    field: customer_id\n          - name: order_date\n            description: \"\"  # date\n          - name: ship_to_id\n            description: \"\"  # int\n      - name: order_items\n        # composite key order_id+line_no (rule K5): no built-in dbt test for a combination;\n        # with the dbt_utils package: dbt_utils.unique_combination_of_columns, combination_of_columns: [order_id, line_no]\n        columns:\n          - name: order_id\n            description: \"\"  # int\n            data_tests:\n              - not_null  # key, rule K5\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('shop', 'orders')\n                    field: order_id\n          - name: line_no\n            description: \"\"  # int\n            data_tests:\n              - not_null  # key, rule K5\n          - name: product_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('shop', 'products')\n                    field: product_id\n          - name: quantity\n            description: \"\"  # double\n      - name: audit_log\n        # no key inferred (rule K3): no unique/not_null tests\n        columns:\n          - name: event\n            description: \"\"  # string\n          - name: customer_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('shop', 'customers')\n                    field: customer_id\n          - name: happened_at\n            description: \"\"  # timestamp\n"
@@ -2139,6 +2581,32 @@
       "table": "audit_log"
      }
     ]
+   },
+   "coverage": {
+    "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
+    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 6 links proposed, 0 counted, 0 hold; 1 column that looks like a reference is unlinked.",
+    "keys": {
+     "states": {
+      "by name only": 6
+     },
+     "with_key": 6,
+     "without_key": 1
+    },
+    "links": {
+     "counted": 0,
+     "counted_in_a_sample": 0,
+     "hold": 0,
+     "proposed": 6,
+     "states": {
+      "by name only": 6
+     }
+    },
+    "next": "validate_plan counts the keys and links (by importance, within the call's time budget)",
+    "tables": 7,
+    "unlinked_first": [
+     "orders.ship_to_id"
+    ],
+    "unlinked_reference_columns": 1
    },
    "inactive_relationships": [],
    "roles": {
@@ -2336,6 +2804,32 @@
     }
    ],
    "checked_against_data": 4,
+   "coverage": {
+    "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
+    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 6 links proposed, 0 counted, 0 hold; 1 column that looks like a reference is unlinked.",
+    "keys": {
+     "states": {
+      "by name only": 6
+     },
+     "with_key": 6,
+     "without_key": 1
+    },
+    "links": {
+     "counted": 0,
+     "counted_in_a_sample": 0,
+     "hold": 0,
+     "proposed": 6,
+     "states": {
+      "by name only": 6
+     }
+    },
+    "next": "validate_plan counts the keys and links (by importance, within the call's time budget)",
+    "tables": 7,
+    "unlinked_first": [
+     "orders.ship_to_id"
+    ],
+    "unlinked_reference_columns": 1
+   },
    "dropped": [],
    "dropped_count": 0,
    "join_counts": 4,
@@ -2351,6 +2845,32 @@
  },
  {
   "answer": {
+   "coverage": {
+    "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
+    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 6 links proposed, 0 counted, 0 hold; 1 column that looks like a reference is unlinked.",
+    "keys": {
+     "states": {
+      "by name only": 6
+     },
+     "with_key": 6,
+     "without_key": 1
+    },
+    "links": {
+     "counted": 0,
+     "counted_in_a_sample": 0,
+     "hold": 0,
+     "proposed": 6,
+     "states": {
+      "by name only": 6
+     }
+    },
+    "next": "validate_plan counts the keys and links (by importance, within the call's time budget)",
+    "tables": 7,
+    "unlinked_first": [
+     "orders.ship_to_id"
+    ],
+    "unlinked_reference_columns": 1
+   },
    "dry_run": true,
    "personal_data": {
     "left_out": [
@@ -2410,6 +2930,32 @@
      "status": "ok"
     }
    ],
+   "coverage": {
+    "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
+    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 6 links proposed, 0 counted, 0 hold; 1 column that looks like a reference is unlinked.",
+    "keys": {
+     "states": {
+      "by name only": 6
+     },
+     "with_key": 6,
+     "without_key": 1
+    },
+    "links": {
+     "counted": 0,
+     "counted_in_a_sample": 0,
+     "hold": 0,
+     "proposed": 6,
+     "states": {
+      "by name only": 6
+     }
+    },
+    "next": "validate_plan counts the keys and links (by importance, within the call's time budget)",
+    "tables": 7,
+    "unlinked_first": [
+     "orders.ship_to_id"
+    ],
+    "unlinked_reference_columns": 1
+   },
    "dry_run": false,
    "personal_data": {
     "left_out": [
@@ -2459,6 +3005,32 @@
  {
   "answer": {
    "assumptions": [],
+   "coverage": {
+    "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
+    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 6 links proposed, 0 counted, 0 hold; 1 column that looks like a reference is unlinked.",
+    "keys": {
+     "states": {
+      "by name only": 6
+     },
+     "with_key": 6,
+     "without_key": 1
+    },
+    "links": {
+     "counted": 0,
+     "counted_in_a_sample": 0,
+     "hold": 0,
+     "proposed": 6,
+     "states": {
+      "by name only": 6
+     }
+    },
+    "next": "validate_plan counts the keys and links (by importance, within the call's time budget)",
+    "tables": 7,
+    "unlinked_first": [
+     "orders.ship_to_id"
+    ],
+    "unlinked_reference_columns": 1
+   },
    "path": [
     {
      "certainty": 0.8,
@@ -2505,6 +3077,32 @@
  },
  {
   "answer": {
+   "coverage": {
+    "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
+    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 6 links proposed, 0 counted, 0 hold; 1 column that looks like a reference is unlinked.",
+    "keys": {
+     "states": {
+      "by name only": 6
+     },
+     "with_key": 6,
+     "without_key": 1
+    },
+    "links": {
+     "counted": 0,
+     "counted_in_a_sample": 0,
+     "hold": 0,
+     "proposed": 6,
+     "states": {
+      "by name only": 6
+     }
+    },
+    "next": "validate_plan counts the keys and links (by importance, within the call's time budget)",
+    "tables": 7,
+    "unlinked_first": [
+     "orders.ship_to_id"
+    ],
+    "unlinked_reference_columns": 1
+   },
    "not_checked": [],
    "note": "Unit-tested; the generated notebook ran on a local PySpark 4.0.1 against the shop seed; not yet run in Fabric.",
    "notebook": {

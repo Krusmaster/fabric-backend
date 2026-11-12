@@ -43,6 +43,7 @@ from . import evidence as _evidence
 from . import semantic_model as _semantic_model, paths as _paths, dictionary as _dictionary, dbt as _dbt, quality_suites as _quality, drift as _drift
 from . import views as _views, data_agent as _data_agent, app_starter as _app_starter, graphs as _graphs, readiness as _readiness
 from . import lineage as _lineage, compact as _compact, sap_pack as _sap_pack
+from . import coverage as _coverage
 from . import domains as _domains
 from . import limits as _limits, usage as _usage, entitlements as _entitlements
 from . import billing as _billing
@@ -592,9 +593,13 @@ def plan_backend(workspace: _p.Workspace, source: _p.Source, schema: _p.PlanSche
     _pictures.keep("words", lambda: _mcp_apps_words.plan_facts(p))              # n172: the card's summary in short sentences
     suggested = [s for s in _evidence.suggest_composite_keys(p) if keep is None or s["table"] in keep]
     if _compact.pick_detail(detail, len(shown.schema)) == "summary":
-        text = _bounded(_compact.plan_summary(shown, suggested, f"{len(shown.schema)} of {len(p.schema)} tables shown" if keep else ""), MAX_RESULT_CHARS, _compact.NARROW_HINT)
+        body = _coverage.attach(_compact.plan_summary(shown, suggested, f"{len(shown.schema)} of {len(p.schema)} tables shown" if keep else ""),
+                                p, first=_coverage.EVIDENCE_FIRST, keep=keep)          # n226: evidence state and coverage
+        text = _bounded(body, MAX_RESULT_CHARS, _compact.NARROW_HINT)
     else:
-        text = _bounded(_compact.plan_full(shown, suggested, mermaid=bool(mermaid)), MAX_RESULT_CHARS, _compact.NARROW_HINT, drop=("mermaid",))
+        body = _coverage.attach(_compact.plan_full(shown, suggested, mermaid=bool(mermaid), states=_coverage.entry_states(p)),
+                                p, per_item=False)
+        text = _bounded(body, MAX_RESULT_CHARS, _compact.NARROW_HINT, drop=("mermaid",))
     return _with_schema_chosen(text, chosen)
 
 
@@ -672,10 +677,11 @@ def _connected(workspace: str, source: str, schema: str, ctx):
 def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", keys: _p.Keys = None,
                   confirmed: _p.Confirmed = None, max_items: _p.MaxItems = 60, detail: _p.ValidateDetail = "summary",
                   profile: _p.Profile = False, sql_sums: _p.SqlSums = False, fixes: _p.Fixes = False, review: _p.Review = None,
-                  tables: _p.TablesShown = None, ctx: Context = None) -> str:
+                  tables: _p.CheckTables = None, resume_from: _p.ResumeFrom = 0, ctx: Context = None) -> str:
     """Checks the plan against the rows: is each key unique, non-null, how many references find no target (orphans).
-    For "check shop", "run a check". Requires workspace and source; keys, confirmed as in plan_backend. Returns counts,
-    never row values. Read-only. Errors: {error, kind, hint}."""
+    For "check shop", "run a check". Requires workspace and source; keys, confirmed as in plan_backend. Returns counts
+    and each item's evidence state, never row values; past the call's time budget, "not checked (time)" and a
+    resume_from. Read-only. Errors: {error, kind, hint}."""
     from . import privacy as _privacy, profile as _profile
     detail = _evidence.pick_detail(detail)
     _profile.options(profile)
@@ -687,14 +693,16 @@ def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema 
     schema = s.schema                                   # n175: the name the metadata returns
     try:
         p = _hosted_plan(s, keys, confirmed, execute)
-        out, prof = _profile.validate_with_profile(p, execute, max(1, min(int(max_items), 200)), profile)   # n132
+        keep = _compact.match_tables(p.schema, tables)                  # n226: tables= scopes the check
+        out, prof = _profile.validate_with_profile(p, execute, max(1, min(int(max_items), 200)), profile,   # n132
+                                                   tables=sorted(keep) if keep is not None else None,
+                                                   resume_from=max(0, int(resume_from or 0)))
         label = _privacy.label_of(getattr(execute, "source_item", None))
         if sql_sums:                                                    # n134: view definitions only, no rows
             from . import sql_sums as _sql_sums
             sums = _sql_sums.check_connection(p, execute)
         if fixes:                                                       # n155: proposes; applies nothing
             from . import fix_plan as _fix_plan
-            keep = _compact.match_tables(p.schema, tables)
             proposal = _fix_plan.propose(p, out, execute, review=review,
                                          tables=sorted(keep) if keep is not None else None)
     finally:
@@ -707,8 +715,11 @@ def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema 
     if flagged or label:
         out["personal_data"] = {"columns": flagged, "sensitivity_label": label,
                                 "note": "validate_plan returns counts and verdicts only, never a value, so nothing here is masked."}
+    full_checks = out
     if detail == "summary":
         out = _evidence.summarize(out, p)
+    out = _coverage.attach(out, p, full_checks, first=_coverage.EVIDENCE_FIRST if detail == "summary" else None,
+                           keep=keep)                                  # n226: evidence state and coverage
     if prof is not None:
         out["column_profile"] = prof
     if sql_sums:

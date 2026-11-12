@@ -80,7 +80,11 @@ def test_the_default_is_the_summary_and_full_is_the_previous_answer():
         default = next(e for e in calls if "detail" not in e["args"])
         assert "keys" in full["answer"] and "relationships" in full["answer"] and "detail" not in full["answer"]
         assert default["answer"]["detail"] == "summary"
-        assert default["answer"] == json.loads(_text(evidence.summarize(full["answer"])))
+        # n226: both answers also carry evidence and coverage (coverage.attach), which the summary does not compute
+        extra = ("evidence", "coverage", "time_budget")
+        bare = lambda a: {k: v for k, v in a.items() if k not in extra}
+        assert bare(default["answer"]) == bare(json.loads(_text(evidence.summarize(bare(full["answer"])))))
+        assert default["answer"]["coverage"] == full["answer"]["coverage"]
         assert default["rest"] == full["rest"]                      # the same calls to Fabric
 
 
@@ -154,7 +158,7 @@ def test_an_invalid_detail_from_the_tools_is_bad_input_before_any_query(monkeypa
 
 
 # The measured sizes (characters of the tool's JSON). Pinned so the documentation cannot drift from them.
-SIZES = {"shop": (6610, 3197), "adventureworks": (99676, 9946)}     # n103 added next_steps: 2246 and 8241 before; n106 the flat-table count in amount_levels: 62235 before; n108 the combined statements with their relationships' own SQL (full only): 5312 and 62634 before
+SIZES = {"shop": (6610, 3197), "adventureworks": (100004, 10905)}   # n226: counted in check_order, so the double's "second key" (the one with duplicates) is SalesOrderHeader, whose links then carry the warning: 99676 and 9946 before; n103 added next_steps: 2246 and 8241 before; n106 the flat-table count in amount_levels: 62235 before; n108 the combined statements with their relationships' own SQL (full only): 5312 and 62634 before
 
 
 @pytest.mark.parametrize("name", ["shop", "adventureworks"])
@@ -172,7 +176,11 @@ def test_the_hosted_tool_answers_measure_the_same_on_the_shop():
     n108 did not change (2 246 before n103's next_steps)."""
     calls = [e for e in json.loads((GOLDEN / "hosted_tools.json").read_text(encoding="utf-8")) if e.get("tool") == "validate_plan"]
     sizes = {e["args"].get("detail", "summary"): len(_text(e["answer"])) for e in calls if e["args"]["source"] == "demo_lh"}
-    assert sizes == {"full": 8175, "summary": 3197}
+    # n226: evidence, coverage and time_budget on both; without them the sizes are those of before
+    bare = {e["args"].get("detail", "summary"): len(_text({k: v for k, v in e["answer"].items() if k not in ("evidence", "coverage", "time_budget")}))
+            for e in calls if e["args"]["source"] == "demo_lh"}
+    assert bare == {"full": 8175, "summary": 3197}
+    assert sizes == {"full": 9479, "summary": 4501}
 
 
 def test_sap_verify_refuses_a_summary_and_asks_for_the_full_answer(tmp_path, capsys):

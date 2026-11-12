@@ -166,6 +166,34 @@ stdio server.
 The 4.6 s of `analyze()` on 1 000 tables is betweenness centrality (one shortest-path tree per table); acceptable under
 a tool timeout, and `tables=` does not shorten it (the graph is analysed whole, then filtered).
 
+## Evidence state, coverage and one time budget per call (round n226, 12 November 2026; unit tests only)
+
+From `docs/SCOPE-REVIEW.md` section 6, items 1 and 2. Not run against Fabric yet; the numbers below come from the
+tests' counting double and the shop rows in SQLite, and say nothing about speed.
+
+**Evidence state** (`fabric_backend/coverage.py`). Every key and link of a plan-derived answer has one state: `counted
+unique`, `counted, not unique`, `counted and holds`, `counted, holds; target key not unique`, `counted, does not hold`,
+`counted in a sample, holds` (R5 over the first 200 distinct values), `declared, not counted` (K0/R0), `given, not
+counted` (keys=/confirmed=), `from a pack, not counted`, `by name only` (K2–K5, R1–R4), `not counted: <reason>`, `not
+checked (time)`. plan_backend and validate_plan carry them as `evidence` ({state: [ids]}, ids as review.py writes them;
+plan_backend's full form also on each key and relationship); every tool that makes a plan (`coverage.PLAN_TOOLS`) carries
+`coverage`, one headline and its numbers, for example on the shop sample after the check: "7 tables: 6 with a counted
+key, 0 with a key by name only, 1 without a key; 6 links proposed, 6 counted, 6 hold; 1 column that looks like a
+reference is unlinked." "Counted" means over the whole table in this call; a link R5 counted in a sample is said apart.
+
+**One time budget per call** (`fabric_backend/budget.py`, `CALL_SECONDS = 45`, `KRUSGRAPH_CALL_SECONDS` overrides).
+Set once per tool call in `errors.safe`; every SQL read's statement timeout is cut to what is left (at least 5 s), no read
+starts after it, REST reads in `platforms/fabric.py` are cut the same way, R5 stops counting, and the check returns what
+it counted, `not checked (time)` for the rest and `resume_from`. A creating call (`dry_run=false`) has no budget. A
+failed counting query makes its item `not counted: <reason>`; after three failures in a row with the same error the rest
+is not tried, with that reason. The workload editor's check (`workload_api.run_check`) is not under the budget: it runs
+as an operation with its own progress.
+
+**Order and scope.** `evidence.check_order`: each link right after its target's key, links touching the most linked
+tables first, then the keys no link needs. On 260 keyed tables (260 links) with `max_items=200` the check now counts
+100 keys and 100 links (before: 200 keys, 0 links); `resume_from=200` and `400` count the rest, every item once.
+validate_plan's `tables=` scopes the check (the keys of those tables and the links with an end among them).
+
 ## Tokens per answer: the ten most used tools, before and after
 
 Measured on 26 October 2026 with Fabric mocked and the shop rows in SQLite (`validate_plan`, `sample_rows` and

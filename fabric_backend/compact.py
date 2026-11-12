@@ -103,11 +103,17 @@ def _extended(r) -> dict:
     return out
 
 
-def plan_full(p: Plan, suggested_keys: list[dict], mermaid: bool = True) -> dict:
+def plan_full(p: Plan, suggested_keys: list[dict], mermaid: bool = True, states: tuple | None = None) -> dict:
+    """`states` (n226, coverage.entry_states of the whole plan): each key and relationship also says its evidence."""
+    ks, rs = states or ({}, {})
+
+    def with_state(d: dict, state) -> dict:
+        return {**d, "evidence": state} if state else d
     out = {
         "summary": p.summary(),
-        "keys": {t: {"columns": k, "rule": r} for t, (k, r) in p.keys.items()},
-        "relationships": [{k: v for k, v in r.__dict__.items() if k != "note" or v} for r in p.relationships],   # an empty note is noise
+        "keys": {t: with_state({"columns": k, "rule": r}, ks.get(t)) for t, (k, r) in p.keys.items()},
+        "relationships": [with_state({k: v for k, v in r.__dict__.items() if k != "note" or v},     # an empty note is noise
+                                     rs.get((r.source, tuple(r.source_cols), r.target))) for r in p.relationships],
         "ambiguous": p.ambiguous, "keyless": p.keyless,
         "suggested_keys": suggested_keys,
     }

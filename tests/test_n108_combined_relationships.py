@@ -135,7 +135,8 @@ def test_browser_examples(kind):
     if kind == "sap":
         assert any("LTRIM(RTRIM(" in s for s in _combined(log))     # a blank-as-none join inside a combined statement
         ext = [s for s in log if "AS several" in s]
-        assert ext == [ev.extended_sql(p.schema.schema, r) for r in p.extended]      # extended: own statements, unchanged
+        # extended: own statements, unchanged (n226: counted in check_order, so compared without their order)
+        assert sorted(ext) == sorted(ev.extended_sql(p.schema.schema, r) for r in p.extended)
 
 
 def _sap_blank_db():
@@ -301,14 +302,17 @@ def test_an_answer_without_the_numbered_columns_falls_back():
 
 def test_max_items_still_counts_relationships():
     """max_items counts relationships, not statements: a group cut by the budget combines only what is in it, and a
-    relationship over the budget is not counted, in a combined statement or otherwise."""
+    relationship over the budget is not counted, in a combined statement or otherwise. n226: the budget takes items in
+    evidence.check_order (links by importance, each after its target's key), no longer every key first."""
     p = _shop_plan()
     order_items = [i for i, r in enumerate(p.relationships) if r.source == "order_items"]
     assert len(order_items) == 2
-    budget = len(p.keys) + order_items[1]                           # the second order_items relationship is left out
+    queue = ev.check_order(p)
+    second = max(queue.index(("rel", i)) for i in order_items)
+    budget = second                                                 # the later order_items relationship is left out
     log = []
     out = ev.validate(p, _execute(gs.shop_database(), log), max_items=budget)
-    assert len(out["relationships"]) == order_items[1]
+    assert len(out["relationships"]) == sum(1 for k, _ in queue[:budget] if k == "rel")
     assert not _combined(log) and "combined_relationship_queries" not in out
     assert "raise max_items" in out["summary"]
     log = []

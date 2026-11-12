@@ -4062,7 +4062,7 @@
     "read_only_hint": true,
     "title": "Check a schema's keys and links against the rows"
    },
-   "description": "Checks the plan against the rows: is each key unique, non-null, how many references find no target (orphans).\nFor \"check shop\", \"run a check\". Requires workspace and source; keys, confirmed as in plan_backend. Returns counts,\nnever row values. Read-only. Errors: {error, kind, hint}.",
+   "description": "Checks the plan against the rows: is each key unique, non-null, how many references find no target (orphans).\nFor \"check shop\", \"run a check\". Requires workspace and source; keys, confirmed as in plan_backend. Returns counts\nand each item's evidence state, never row values; past the call's time budget, \"not checked (time)\" and a\nresume_from. Read-only. Errors: {error, kind, hint}.",
    "input_schema": {
     "properties": {
      "confirmed": {
@@ -4133,6 +4133,12 @@
       "description": "true adds per column of the checked tables: NULL share, distinct count, number min/max below/above zero; {\"numbers\": [lo, hi], \"dates\": [from, to]} states ranges. One query per table within max_items; never values. Default false.",
       "title": "Profile"
      },
+     "resume_from": {
+      "default": 0,
+      "description": "The resume_from of an answer cut by time or max_items. Default 0.",
+      "title": "Resume From",
+      "type": "integer"
+     },
      "review": {
       "anyOf": [
        {
@@ -4180,7 +4186,7 @@
        }
       ],
       "default": null,
-      "description": "Table names or globs to show. Default all. Example: [\"sales_*\"].",
+      "description": "Names or globs: count only their keys and links. Default all.",
       "title": "Tables"
      },
      "workspace": {

@@ -35,6 +35,8 @@ Profile = Annotated[bool | dict, _d('true adds per column of the checked tables:
                                    'min/max below/above zero; {"numbers": [lo, hi], "dates": [from, to]} states ranges. '
                                    'One query per table within max_items; never values. Default false.')]
 MaxItems = Annotated[int, _d('Cap on counting queries (one per key and relationship), 1–200. Default 60.')]
+CheckTables = Annotated[list[str] | None, _d('Names or globs: count only their keys and links. Default all.')]
+ResumeFrom = Annotated[int, _d('The resume_from of an answer cut by time or max_items. Default 0.')]
 SqlSums = Annotated[bool, _d('true also reads the SQL views\' definitions (no rows) and lists views that SUM a header '
                              'amount after joining its line table, and views it could not read. Default false.')]
 Fixes = Annotated[bool, _d('true: a fix per finding; applies nothing.')]

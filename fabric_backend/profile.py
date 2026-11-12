@@ -206,13 +206,17 @@ def _column(c: dict, row: dict, n: int) -> dict:
     return e
 
 
-def validate_with_profile(plan: Plan, execute, max_items: int, profile) -> tuple[dict, dict | None]:
-    """evidence.validate, and with `profile` on, the profile of the checked tables in what is left of max_items."""
-    from . import evidence
+def validate_with_profile(plan: Plan, execute, max_items: int, profile, **scope) -> tuple[dict, dict | None]:
+    """evidence.validate, and with `profile` on, the profile of the checked tables in what is left of max_items.
+    `scope` (n226): validate's tables= and resume_from=. The profile is skipped when the call's time has run out."""
+    from . import budget, evidence
+    scope = {k: v for k, v in scope.items() if v}
     opts = options(profile)
     if opts is None:
-        return evidence.validate(plan, execute, max_items=max_items), None
+        return evidence.validate(plan, execute, max_items=max_items, **scope), None
     counting = Counting(execute)
-    out = evidence.validate(plan, counting, max_items=max_items)
+    out = evidence.validate(plan, counting, max_items=max_items, **scope)
+    if budget.expired():
+        return out, {"not_counted": budget.NOT_CHECKED}
     left = max(0, max_items - items_used(out, counting.statements))
     return out, run(plan, execute, opts, checked_tables(plan, out), left)

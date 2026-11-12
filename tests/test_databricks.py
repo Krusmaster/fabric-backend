@@ -64,7 +64,8 @@ def test_declared_constraints_win_over_inference_as_k0_and_r0(workspace):
                              + dx.fk("orders", ["ship_to_id"], "addresses", ["address_id"])
                              + dx.fk("orders", ["customer_id"], "customers", ["customer_id"], schema="workspace.other"))
     out = call("plan_backend", schema="shop")
-    assert out["keys"]["customers"]["rule"] == "K0" and out["keys"]["order_items"] == {"columns": ["order_id", "line_no"], "rule": "K0"}
+    assert out["keys"]["customers"]["rule"] == "K0" and out["keys"]["order_items"] == {"columns": ["order_id", "line_no"], "rule": "K0",
+                                                                                                       "evidence": "declared, not counted"}   # n226
     rels = {(r["source"], tuple(r["source_cols"])): r for r in out["relationships"]}
     assert rels[("orders", ("ship_to_id",))]["target"] == "addresses" and rels[("orders", ("ship_to_id",))]["rule"] == "R0"
     # a foreign key into another catalog or schema has no target here: left out, so the name rule applies

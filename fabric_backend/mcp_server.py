@@ -218,9 +218,13 @@ def plan_backend(schema: str = "dbo", keys: dict[str, list[str]] | None = None,
     keep = _compact.match_tables(p.schema, tables)
     shown = _compact.sub_plan(p, keep)
     suggested = [s for s in _evidence.suggest_composite_keys(p) if keep is None or s["table"] in keep]
+    from . import coverage as _coverage                                # n226: evidence state and coverage
     if _compact.pick_detail(detail, len(shown.schema)) == "summary":
-        return _compact.bounded(_compact.plan_summary(shown, suggested, f"{len(shown.schema)} of {len(p.schema)} tables shown" if keep else ""), MAX_RESULT_CHARS, _compact.NARROW_HINT)
-    return _compact.bounded(_compact.plan_full(shown, suggested), MAX_RESULT_CHARS, _compact.NARROW_HINT, drop=("mermaid",))
+        body = _coverage.attach(_compact.plan_summary(shown, suggested, f"{len(shown.schema)} of {len(p.schema)} tables shown" if keep else ""),
+                                p, first=_coverage.EVIDENCE_FIRST, keep=keep)
+        return _compact.bounded(body, MAX_RESULT_CHARS, _compact.NARROW_HINT)
+    body = _coverage.attach(_compact.plan_full(shown, suggested, states=_coverage.entry_states(p)), p, per_item=False)
+    return _compact.bounded(body, MAX_RESULT_CHARS, _compact.NARROW_HINT, drop=("mermaid",))
 
 
 @_tool("Create or update the GraphQL API (dry run by default)", WRITE)
@@ -314,20 +318,27 @@ def ontology_draft(name: str = "ontology", schema: str = "dbo", keys: dict[str, 
 @_tool("Check the plan against the rows", RO)
 @safe
 def validate_plan(schema: str = "dbo", keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None,
-                  max_items: int = 60, detail: str = "summary", profile: bool | dict = False) -> str:
+                  max_items: int = 60, detail: str = "summary", profile: bool | dict = False,
+                  tables: list[str] | None = None, resume_from: int = 0) -> str:
     """Check the plan's keys and relationships against the rows: is each key unique and free of NULLs, does every
     reference find its target (orphan count). One counting query per key and relationship, read-only. detail="summary"
     (default) gives the verdict line, totals, and every failing or not-counted check with its counts and rule, passing
     checks as a count; detail="full" lists every check. profile=true (n132) adds per column of the checked tables the
     NULL share, distinct count and whether number min/max are below/above zero ({"numbers": [lo, hi], "dates": [from,
-    to]} states ranges): one query per table within max_items, never a value."""
-    from . import profile as _profile
+    to]} states ranges): one query per table within max_items, never a value. n226: links are counted by importance,
+    each after its target's key, within one time budget per call; tables= scopes the check and resume_from goes on
+    where an answer cut by time or max_items stopped. Every item has an evidence state, and coverage one headline."""
+    from . import coverage as _coverage, profile as _profile
     detail = _evidence.pick_detail(detail)
     _profile.options(profile)
     with _connection(schema) as execute:
         p = _plan_on(execute, schema, keys, confirmed)
-        out, prof = _profile.validate_with_profile(p, execute, max(1, min(int(max_items), 200)), profile)
-        out = _evidence.summarize(out, p) if detail == "summary" else out
+        keep = _compact.match_tables(p.schema, tables)
+        full, prof = _profile.validate_with_profile(p, execute, max(1, min(int(max_items), 200)), profile,
+                                                    tables=sorted(keep) if keep is not None else None,
+                                                    resume_from=max(0, int(resume_from or 0)))
+        out = _evidence.summarize(full, p) if detail == "summary" else full
+        out = _coverage.attach(out, p, full, first=_coverage.EVIDENCE_FIRST if detail == "summary" else None, keep=keep)
         if prof is not None:
             out["column_profile"] = prof
         return json.dumps(out, indent=2, default=str)

@@ -227,57 +227,181 @@ def _rel_id(r) -> str:
     return f"rel:{r.source}.{'+'.join(r.source_cols)}>{r.target}"
 
 
-def validate(plan: Plan, execute, max_items: int = 60, on_step=None) -> dict:
-    """Run the checks for every key and every relationship in the plan (up to max_items checks: a key, a relationship
-    and an extended relationship count one each, however many statements count them). Since round n108 the
-    relationships of one source table are counted in one statement when there are two or more of them and their join
-    columns have the same types on both sides; the counts are those of their own statements (relationship_sql), and
-    if that statement fails their own statements run instead and combined_relationship_queries says so."""
+def _in_scope(r, keep) -> bool:
+    return keep is None or r.source in keep or r.target in keep
+
+
+def check_order(plan: Plan, tables=None) -> list[tuple[str, object]]:
+    """n226: the order validate counts in, and what `resume_from` counts from: [("key", table) | ("rel", i) | ("ext", j)],
+    i and j indexes into plan.relationships and plan.extended. Links come by importance, each right after the key of
+    its target: a link touching tables that many links touch first (degree of the target, then of the source), then plan
+    order. The keys no counted link needs come last, the most linked tables first. Before n226 every key came before
+    any link, so above max_items keyed tables no link was ever counted.
+    `tables` (names) scopes it: the keys of those tables and the links with an end among them (as compact.sub_plan)."""
+    keep = set(tables) if tables is not None else None
+    rels = list(plan.relationships)
+    ext = list(getattr(plan, "extended", []))
+    degree: dict[str, int] = {}
+    for r in rels + ext:
+        for t in {r.source, r.target}:
+            degree[t] = degree.get(t, 0) + 1
+    links = [("rel", i, r) for i, r in enumerate(rels) if _in_scope(r, keep)] + \
+            [("ext", j, r) for j, r in enumerate(ext) if _in_scope(r, keep)]
+    links.sort(key=lambda x: (-degree.get(x[2].target, 0), -degree.get(x[2].source, 0), x[0] == "ext", x[1]))
+    key_tables = [t for t in plan.keys if keep is None or t in keep]
+    queue: list[tuple[str, object]] = []
+    seen: set[str] = set()
+    for kind, i, r in links:
+        if r.target in plan.keys and r.target not in seen and (keep is None or r.target in keep):
+            queue.append(("key", r.target))
+            seen.add(r.target)
+        queue.append((kind, i))
+    order = {t: n for n, t in enumerate(plan.keys)}
+    for t in sorted((t for t in key_tables if t not in seen), key=lambda t: (-degree.get(t, 0), order[t])):
+        queue.append(("key", t))
+    return queue
+
+
+def item_id(plan: Plan, item: tuple[str, object]) -> str:
+    """The id of a queue item, as review.py writes it: key:<table>, rel:<source>.<cols>><target>."""
+    from .review import key_id, rel_id
+    kind, x = item
+    if kind == "key":
+        return key_id(x)
+    r = (plan.relationships if kind == "rel" else plan.extended)[x]
+    return rel_id(r.source, r.source_cols, r.target)
+
+
+STOP_AFTER_FAILURES = 3            # n226: so many failed queries in a row (same error) and the rest is not counted, said why
+
+
+def failed_reason(e: BaseException) -> str:
+    """n226: the state of an item whose counting query failed: "not counted: <reason>", or NOT_CHECKED when the call's
+    time ran out under it (the statement timeout is cut to the budget)."""
+    from . import budget as _budget
+    if isinstance(e, _budget.TimeUp) or _budget.expired():
+        return _budget.NOT_CHECKED
+    detail = " ".join(str(e).split())[:200]
+    return f"not counted: the counting query failed ({type(e).__name__}{': ' + detail if detail else ''})"
+
+
+def validate(plan: Plan, execute, max_items: int = 60, on_step=None, tables=None, resume_from: int = 0) -> dict:
+    """Run the checks for the keys and relationships of the plan (up to max_items checks: a key, a relationship and an
+    extended relationship count one each, however many statements count them). Since round n108 the relationships of
+    one source table are counted in one statement when there are two or more of them and their join columns have the
+    same types on both sides; the counts are those of their own statements (relationship_sql), and if that statement
+    fails their own statements run instead and combined_relationship_queries says so.
+
+    n226: the items are taken in check_order (links by importance, each after its target's key), `tables` scopes them
+    and `resume_from` skips the first so many of that order (the resume call of an answer cut by time or max_items). The
+    call's time budget (budget.py) is looked at before every item: past it, the rest is "not checked (time)" and the
+    answer says how to resume. A query that fails makes its item "not counted: <reason>" and the check goes on; after
+    STOP_AFTER_FAILURES failures in a row with the same error the rest is not counted with that reason. Both are under
+    `not_counted`, never among the counted keys and relationships, which keep the plan's order."""
+    from . import budget as _budget
     schema = plan.schema.schema
     dialect = dialect_of(execute)
-    keys, rels, budget = [], [], max_items
+    queue = check_order(plan, tables)
+    start = max(0, int(resume_from or 0))
+    selected = queue[start:start + max(max_items, 0)]
+    beyond = max(0, len(queue) - start - len(selected))
+    rels_all = list(plan.relationships)
+    ext_all = list(getattr(plan, "extended", []))
+    key_out: dict[str, dict] = {}
+    rel_out: dict[int, dict] = {}
+    ext_out: dict[int, dict] = {}
     unique: dict[str, bool] = {}
-    # n223: on_step(done, total) after each key and relationship counted (the editor shows "3 of 7 ... counted"); the
-    # total is what max_items allows, so the last call says total of total. Nothing else changes.
-    n_keys = min(len(plan.keys), max(max_items, 0))
-    n_rels = min(len(plan.relationships), max(max_items - n_keys, 0))
-    n_ext = min(len(getattr(plan, "extended", [])), max(max_items - n_keys - n_rels, 0))
-    step_total, step_done = n_keys + n_rels + n_ext, [0]
+    not_done: dict[tuple, str] = {}                                  # item -> "not counted: ..." or NOT_CHECKED
+    step_total, step_done = len(selected), [0]
+    failures = {"in_a_row": 0, "last": None, "stopped": None}
 
     def stepped(n: int = 1) -> None:
+        # n223: on_step(done, total) after each key and relationship counted (the editor shows "3 of 7 ... counted")
         step_done[0] += n
         if on_step is not None:
             on_step(min(step_done[0], step_total), step_total)
-    for table, (cols, rule) in plan.keys.items():
-        if budget <= 0:
-            break
-        budget -= 1
-        row = execute(key_sql(schema, table, cols, dialect))[0]
+
+    def failed(item, e: BaseException) -> None:
+        reason = failed_reason(e)
+        not_done[item] = reason
+        stepped()
+        if reason == _budget.NOT_CHECKED:
+            return
+        kind = type(e).__name__
+        failures["in_a_row"] = failures["in_a_row"] + 1 if failures["last"] == kind else 1
+        failures["last"] = kind
+        if failures["in_a_row"] >= STOP_AFTER_FAILURES:
+            failures["stopped"] = (f"not counted: {STOP_AFTER_FAILURES} counting queries in a row failed ({kind}); "
+                                   "the rest was not tried")
+
+    def ok() -> None:
+        failures["in_a_row"], failures["last"] = 0, None
+
+    def blocked(item) -> bool:
+        """True when the item cannot be counted now (time, or the failures stopped the check); records why."""
+        if _budget.expired():
+            not_done[item] = _budget.NOT_CHECKED
+            return True
+        if failures["stopped"]:
+            not_done[item] = failures["stopped"]
+            return True
+        return False
+
+    def count_key(table: str) -> None:
+        item = ("key", table)
+        if table in key_out or item in not_done or blocked(item):
+            return
+        cols, rule = plan.keys[table]
+        try:
+            row = execute(key_sql(schema, table, cols, dialect))[0]
+        except Exception as e:                                       # noqa: BLE001 - n226: this item, not the call
+            failed(item, e)
+            return
+        ok()
         n, nulls, distinct = _int(row.get("n")), _int(row.get("nulls")), _int(row.get("distinct_keys"))
         unique[table] = n > 0 and nulls == 0 and distinct == n
-        keys.append({"table": table, "columns": cols, "rule": rule, "rows": n, "nulls": nulls,
-                     "distinct": distinct, "verdict": key_verdict(n, nulls, distinct)})
+        key_out[table] = {"table": table, "columns": cols, "rule": rule, "rows": n, "nulls": nulls,
+                          "distinct": distinct, "verdict": key_verdict(n, nulls, distinct)}
         stepped()
-    # Round n108: the relationships max_items allows (it still counts relationships, not statements), grouped by source
-    # table; a source table with two or more of them is read once (combined_relationship_sql), the rest one by one.
-    todo = list(plan.relationships)[:max(budget, 0)]
-    budget -= len(todo)
-    args = [dict(source_cols=r.source_cols, target=r.target, target_cols=r.target_cols, blank_is_none=r.rule == "SAP pack",
-                 target_unique=target_key_unique(keys, r.target, r.target_cols)) for r in todo]
-    counts: dict[int, tuple[int, int]] = {}
-    combined: list[dict] = []
+
+    def args_of(r) -> dict:
+        return dict(source_cols=r.source_cols, target=r.target, target_cols=r.target_cols, blank_is_none=r.rule == "SAP pack",
+                    target_unique=target_key_unique(list(key_out.values()), r.target, r.target_cols))
+
+    def rel_entry(r, with_value: int, orphans: int) -> dict:
+        verdict = relationship_verdict(with_value, orphans)
+        if r.target in unique and not unique[r.target]:
+            verdict += f"; but the target key of {r.target} is not unique, so a row can match more than one"
+        return {"source": r.source, "columns": r.source_cols, "target": r.target, "target_columns": r.target_cols,
+                "rule": r.rule, "rows_with_value": with_value, "orphans": orphans, "verdict": verdict}
+
+    # Round n108: the selected relationships of one source table with two or more of them are read in one statement
+    sel_rels = [x for k, x in selected if k == "rel"]
     groups: dict[str, list[int]] = {}
-    for i, r in enumerate(todo):
-        if combinable(plan, r):
-            groups.setdefault(r.source, []).append(i)
-    for source, idx in groups.items():
-        if len(idx) < 2:
-            continue
+    for i in sel_rels:
+        if combinable(plan, rels_all[i]):
+            groups.setdefault(rels_all[i].source, []).append(i)
+    groups = {s: sorted(idx) for s, idx in groups.items() if len(idx) >= 2}
+    group_of = {i: s for s, idx in groups.items() for i in idx}
+    selected_keys = {x for k, x in selected if k == "key"}
+    combined: list[dict] = []
+    ran_group: set[str] = set()
+
+    def run_group(source: str) -> None:
+        ran_group.add(source)
+        idx = groups[source]
+        for i in idx:                                                # the targets' keys first, as before n226
+            if rels_all[i].target in selected_keys:
+                count_key(rels_all[i].target)
+        idx = [i for i in idx if ("rel", i) not in not_done]
+        if len(idx) < 2 or blocked(("rel", idx[0])):
+            not_done.pop(("rel", idx[0]), None) if idx else None    # each is looked at again on its own
+            return
+        args = {i: args_of(rels_all[i]) for i in idx}
         sql = combined_relationship_sql(schema, source, [args[i] for i in idx], dialect)
-        # each relationship's own statement, which a customer can run alone, next to the combined one that ran
         entry = {"source": source, "sql": sql, "relationships": [
-            {"id": _rel_id(todo[i]), "sql": relationship_sql(schema, todo[i].source, todo[i].source_cols, todo[i].target,
-                                                             todo[i].target_cols, dialect, **{k: args[i][k] for k in ("blank_is_none", "target_unique")})}
+            {"id": _rel_id(rels_all[i]), "sql": relationship_sql(schema, rels_all[i].source, rels_all[i].source_cols, rels_all[i].target,
+                                                                 rels_all[i].target_cols, dialect, **{k: args[i][k] for k in ("blank_is_none", "target_unique")})}
             for i in idx]}
         try:
             row = execute(sql)[0]
@@ -286,60 +410,125 @@ def validate(plan: Plan, execute, max_items: int = 60, on_step=None) -> dict:
                 if f"with_value_{n}" not in row or f"orphans_{n}" not in row:   # not the answer this statement gives
                     raise LookupError(f"no with_value_{n} or orphans_{n} in the answer")
                 got[i] = (_int(row.get(f"with_value_{n}")), _int(row.get(f"orphans_{n}")))
-            counts.update(got)
+            for i, (w, o) in got.items():
+                rel_out[i] = rel_entry(rels_all[i], w, o)
+            ok()
             stepped(len(got))
-        except Exception as e:                                       # the separate statements below count them instead
+        except Exception as e:                                       # noqa: BLE001 - the separate statements count them instead
+            if isinstance(e, _budget.TimeUp) or _budget.expired():
+                for i in idx:
+                    not_done[("rel", i)] = _budget.NOT_CHECKED
             entry["fell_back"] = (f"the combined statement failed ({type(e).__name__}); each relationship of {source} "
                                   "was counted with its own statement instead")
         combined.append(entry)
-    for i, r in enumerate(todo):
-        if i in counts:
-            with_value, orphans = counts[i]
-        else:
+
+    def count_rel(i: int) -> None:
+        item = ("rel", i)
+        if i in rel_out or item in not_done:
+            return
+        if i in group_of and group_of[i] not in ran_group:
+            run_group(group_of[i])
+            if i in rel_out or item in not_done:
+                return
+        if blocked(item):
+            return
+        r = rels_all[i]
+        a = args_of(r)
+        try:
             row = execute(relationship_sql(schema, r.source, r.source_cols, r.target, r.target_cols, dialect,
-                                           blank_is_none=args[i]["blank_is_none"], target_unique=args[i]["target_unique"]))[0]
-            with_value, orphans = _int(row.get("with_value")), _int(row.get("orphans"))
-            stepped()
-        verdict = relationship_verdict(with_value, orphans)
-        if r.target in unique and not unique[r.target]:
-            verdict += f"; but the target key of {r.target} is not unique, so a row can match more than one"
-        rels.append({"source": r.source, "columns": r.source_cols, "target": r.target, "target_columns": r.target_cols,
-                     "rule": r.rule, "rows_with_value": with_value, "orphans": orphans, "verdict": verdict})
-    for r in getattr(plan, "extended", []):                          # a knowledge pack's joins that are not key joins
-        if budget <= 0:
-            break
-        budget -= 1
+                                           blank_is_none=a["blank_is_none"], target_unique=a["target_unique"]))[0]
+        except Exception as e:                                       # noqa: BLE001 - n226: this item, not the call
+            failed(item, e)
+            return
+        ok()
+        rel_out[i] = rel_entry(r, _int(row.get("with_value")), _int(row.get("orphans")))
+        stepped()
+
+    def count_ext(j: int) -> None:
+        item = ("ext", j)
+        if j in ext_out or item in not_done or blocked(item):
+            return
+        r = ext_all[j]
         entry = {"source": r.source, "columns": r.source_cols, "target": r.target, "target_columns": r.target_cols,
                  "rule": r.rule, "kind": r.kind, "join": r.join_sql(quote=dialect.quote)}
-        row = execute(extended_sql(schema, r, dialect))[0]
+        try:
+            row = execute(extended_sql(schema, r, dialect))[0]
+        except Exception as e:                                       # noqa: BLE001 - n226: this item, not the call
+            failed(item, e)
+            return
+        ok()
         with_value, orphans, several = _int(row.get("with_value")), _int(row.get("orphans")), _int(row.get("several"))
         verdict = relationship_verdict(with_value, orphans)
         if several:
             verdict += (f"; but {several} row(s) fall in more than one validity period of {r.target}, so a join repeats them"
                         if r.kind == "valid_on" else f"; but {several} row(s) match more than one row of {r.target}, so a join repeats them")
         entry.update({"rows_with_value": with_value, "orphans": orphans, "several": several})
-        stepped()
         if r.valid_on:
             entry["valid_on"] = r.valid_on
         if r.where:
             entry["where"] = r.where
         entry["verdict"] = verdict
-        rels.append(entry)
+        ext_out[j] = entry
+        stepped()
+
+    for kind, x in selected:
+        if kind == "key":
+            count_key(x)
+        elif kind == "rel":
+            count_rel(x)
+        else:
+            count_ext(x)
+
+    keys = [key_out[t] for t in plan.keys if t in key_out]                         # the plan's order, as before n226
+    rels = [rel_out[i] for i in range(len(rels_all)) if i in rel_out] + [ext_out[j] for j in range(len(ext_all)) if j in ext_out]
     checked = len(keys) + len(rels)
-    total = len(plan.keys) + len(plan.relationships) + len(getattr(plan, "extended", []))
+    in_scope = len(queue)
     ok_keys = sum(1 for k in keys if k["verdict"].startswith("unique"))
     ok_rels = sum(1 for r in rels if r["verdict"].startswith("holds"))
+    timed = [it for it in selected if not_done.get(it) == _budget.NOT_CHECKED]
+    failed_items = [it for it in selected if it in not_done and not_done[it] != _budget.NOT_CHECKED]
     summary = (f"{ok_keys} of {len(keys)} keys unique, {ok_rels} of {len(rels)} relationships hold without orphans"
-               + ("" if checked == total else f" (checked {checked} of {total}; raise max_items to check the rest)"))
+               + ("" if checked == in_scope and start == 0 else
+                  f" (checked {checked} of {in_scope}" + (f", from item {start}" if start else "")
+                  + ("; raise max_items to check the rest)" if beyond and not timed and not failed_items else ")")))
+    if failed_items:
+        summary += f"; {len(failed_items)} not counted because the query failed (see not_counted)"
+    resume_at = None
+    if timed:
+        resume_at = start + selected.index(timed[0])
+        summary += (f"; the time budget ran out: {len(timed)} not checked (time)"
+                    + (f" and {beyond} beyond max_items" if beyond else "") + f", resume with resume_from={resume_at}")
+    elif beyond:
+        resume_at = start + len(selected)
     from . import amounts
-    levels = amounts.check(plan, execute if budget > 0 else None, max_items=min(20, max(budget, 0)))
+    left = max_items - len(selected)
+    levels = amounts.check(plan, execute if left > 0 and not _budget.expired() else None, max_items=min(20, max(left, 0)))
     out = {"summary": summary, "keys": keys, "relationships": rels, "amount_levels": levels}
     if combined:
         # Round n108: the statement that ran, once per source table with two or more relationships, and each of its
         # relationships' own statement (relationship_sql), which gives the same counts and can be run alone.
         out["combined_relationship_queries"] = combined
+    if not_done:
+        out["not_counted"] = [{"id": item_id(plan, it), "kind": {"key": "key", "rel": "relationship", "ext": "extended relationship"}[it[0]],
+                               "evidence": not_done[it]} for it in selected if it in not_done]
+    if beyond:
+        out["not_checked_beyond_max_items"] = beyond
+    if tables is not None or start:
+        out["scope"] = {"items": in_scope, "resume_from": start, **({"tables": sorted(set(tables))} if tables is not None else {})}
+    d = _budget.current()
+    if d is not None or resume_at is not None:
+        tb = {**(d.as_dict() if d is not None else {}), "ran_out": bool(timed), "counted": checked,
+              "not_checked_time": len(timed)}
+        if resume_at is not None:
+            tb["resume_from"] = resume_at
+            tb["resume"] = (f"validate_plan with resume_from={resume_at} and the same other arguments counts the next "
+                            f"{in_scope - resume_at} item(s) in the same order"
+                            + (" (tables= keeps the same scope)" if tables is not None else ""))
+        out["time_budget" if d is not None else "resume"] = tb if d is not None else {k: tb[k] for k in ("resume_from", "resume")}
     out["note"] = ( "Counts over the whole tables at the moment of the call. They show the data agrees with the plan "
                     "today; they do not prove the meaning, and new rows can change them.")
+    from . import coverage
+    coverage.note(plan, out)                                       # n226: the call's answer gets the counted coverage
     return out
 
 
@@ -409,13 +598,20 @@ def summarize(full: dict, plan: Plan | None = None) -> dict:
             attention[name] = shown
         left[name] = t["passed"]
     if plan is not None:
-        total = len(plan.keys) + len(plan.relationships) + len(getattr(plan, "extended", []))
-        skipped = total - len(full.get("keys", [])) - len(full.get("relationships", []))
+        # n226: validate says how many items max_items left out (its scope may be narrower than the plan)
+        skipped = full.get("not_checked_beyond_max_items", 0)
         if skipped > 0:
             totals["not_checked_beyond_max_items"] = skipped
+    nc = list(full.get("not_counted") or [])
+    if nc:                                                           # n226: time ran out, or a query failed: never "passed"
+        attention["not_counted"] = nc
+        totals["not_counted_items"] = len(nc)
     passing = sum(left.values())
     skipped = totals.get("not_checked_beyond_max_items", 0)
     out = {"detail": "summary", "summary": full.get("summary", "")}
+    for k in ("time_budget", "resume", "scope"):
+        if k in full:
+            out[k] = full[k]
     if attention:
         n = sum(len(v) for v in attention.values())
         out["needs_attention"] = n
@@ -460,7 +656,8 @@ def next_steps(full: dict, totals: dict | None = None) -> list[dict]:
       2. a relationship with orphans: review_plan with validate=true on its two tables, to record a decision on it;
       3. a header amount that a join repeats: answer_query_draft for its total per header over header and line;
       4. a relationship that holds with a warning (a target matched more than once): sample_rows on the target;
-      5. checks left out by max_items: validate_plan with a max_items that covers them (at most 200);
+      5. checks left out by time (n226: validate_plan with resume_from) or by max_items: validate_plan with a max_items
+         that covers them (at most 200), or resume_from with 200 when more are left;
       6. a relationship with orphans: suggest_relationships, for another target of the column;
       7. nothing failed, nothing left out and at least one check passed: semantic_model_draft, then ontology_draft;
       8. no check ran at all: plan_backend, then list_tables;
@@ -505,10 +702,19 @@ def next_steps(full: dict, totals: dict | None = None) -> list[dict]:
         add("sample_rows", {"table": r["target"], "n": 10},
             f"{rel_id(r['source'], r['columns'], r['target'])} holds, but a row can match more than one row of "
             f"{r['target']}; a few rows of {r['target']} show why.")
-    if skipped:
+    resume = (full.get("time_budget") or full.get("resume") or {}).get("resume_from")
+    timed = (full.get("time_budget") or {}).get("not_checked_time", 0)
+    if timed and resume is not None:                                  # n226: the call's time ran out
+        add("validate_plan", {"resume_from": resume},
+            f"{timed} check(s) were not checked because the call's time budget ran out; this counts on from there.")
+    elif skipped:
         checked = len(keys) + len(rels)
-        add("validate_plan", {"max_items": min(200, checked + skipped)},
-            f"{skipped} check(s) did not run because max_items was reached.")
+        if checked + skipped <= 200 or resume is None:
+            add("validate_plan", {"max_items": min(200, checked + skipped)},
+                f"{skipped} check(s) did not run because max_items was reached.")
+        else:                                                         # n226: more than one call can count
+            add("validate_plan", {"resume_from": resume, "max_items": 200},
+                f"{skipped} check(s) did not run because max_items was reached; this counts the next 200.")
     if orphans:
         r = orphans[0]
         add("suggest_relationships", {},

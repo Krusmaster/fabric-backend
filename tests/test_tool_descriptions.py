@@ -69,4 +69,6 @@ def test_read_only_listing_stays_small():
     # 64 500 since n155/n156: validate_plan's fixes, review and tables and the fixes of three tools took the last headroom
     # 66 500 since n219: the start tool (Start Krusgraph, about 1 900 characters) came on top of n218's listing at 64 482;
     # its descriptions and parameters were cut to the minimum first, and the guard stays tight above that
-    assert size <= 66_500, f"read-only tools/list is {size} characters"
+    # 66 700 since n226: validate_plan's resume_from and its words on evidence states and the time budget (66 390 before,
+    # 66 637 after; the parameter descriptions were cut to one short sentence each first)
+    assert size <= 66_700, f"read-only tools/list is {size} characters"

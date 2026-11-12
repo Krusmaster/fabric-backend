@@ -225,6 +225,10 @@ def explain(exc: BaseException, where: str = "the request") -> dict:
         req_exc = timeout_exc = conn_exc = http_exc = ()
     text = scrub(str(exc))
     low = text.lower()
+    if type(exc).__name__ == "TimeUp":                                  # n226: the call's one time budget (budget.py)
+        return {"error": text, "kind": "time_limit",
+                "hint": "Nothing more was read after the budget ran out. Narrow the call (tables=[...], a schema with fewer "
+                        "tables) or call again; a check (validate_plan) returns what it counted and a resume_from instead."}
     if isinstance(exc, TimeLimit):
         return {"error": text, "kind": "time_limit", "hint": "Not read: the tool's time limit was reached first."}
     if isinstance(exc, SchemaEmpty):
@@ -322,18 +326,41 @@ def with_schema_used(text):
     return json.dumps({"schema_used": used, **data}, indent=2, default=str)
 
 
+def _bounded_call(fn, sig, args, kwargs) -> bool:
+    """n226: whether this call runs under the time budget: every call but a creating one (dry_run false)."""
+    if sig is None or "dry_run" not in sig.parameters:
+        return True
+    default = sig.parameters["dry_run"].default
+    try:
+        dry = sig.bind_partial(*args, **kwargs).arguments.get("dry_run", default)
+    except TypeError:
+        dry = default
+    return bool(dry) if dry is not inspect.Parameter.empty else True
+
+
 def safe(fn):
-    """Decorator for MCP tools: exceptions become the JSON answer; the signature stays intact for the schema."""
+    """Decorator for MCP tools: exceptions become the JSON answer; the signature stays intact for the schema.
+    n226: the call runs under one time budget (budget.py; not a creating call), and an answer made from a plan gets
+    `coverage` (coverage.py), both here so that every tool has them."""
+    from . import budget, coverage
+    try:
+        sig = inspect.signature(fn)
+    except (TypeError, ValueError):
+        sig = None
+
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
         token = SCHEMA_USED.set(None)
+        noted = coverage.begin()
         try:
-            return with_schema_used(fn(*args, **kwargs))
+            with budget.call(bounded=_bounded_call(fn, sig, args, kwargs)):
+                return coverage.with_coverage(with_schema_used(fn(*args, **kwargs)), fn.__name__)
         except Exception as exc:  # noqa: BLE001 — every failure gets the same treatment: explained, never leaked
             answer = explain(exc, where_from(fn, args, kwargs))
             if os.environ.get("KRUSGRAPH_DEBUG_ERRORS"):
                 answer["debug"] = f"{type(exc).__module__}.{type(exc).__name__}"
             return json.dumps(answer, indent=2)
         finally:
+            coverage.end(noted)
             SCHEMA_USED.reset(token)
     return wrapper

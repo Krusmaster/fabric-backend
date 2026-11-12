@@ -18,6 +18,7 @@ import struct
 import time
 
 from ..deploy import ENDPOINT_ITEM_ROUTES, FABRIC, find_item_by_name
+from .. import budget
 from ..dialects import TSQL
 from .base import Builder, Platform, connection
 
@@ -34,7 +35,7 @@ def workspaces(headers: dict) -> list[dict]:
     import requests
     out, url = [], f"{FABRIC}/v1/workspaces"
     while url:
-        r = requests.get(url, headers=headers, timeout=30)
+        r = requests.get(url, headers=headers, timeout=budget.http_timeout(30))
         r.raise_for_status()
         body = r.json()
         out += [{"name": w.get("displayName"), "id": w.get("id"), "type": w.get("type"), "capacity_id": w.get("capacityId")}
@@ -65,14 +66,14 @@ def resolve_source(workspace: str, source: str, headers: dict, find=find_item_by
     item = find(workspace, source, headers)
     if item is None:
         for t, route in (("Lakehouse", "lakehouses"), ("Warehouse", "warehouses"), ("SQLDatabase", "sqlDatabases"), *ENDPOINT_ITEM_ROUTES.items()):
-            r = requests.get(f"{FABRIC}/v1/workspaces/{workspace}/{route}/{source}", headers=headers, timeout=30)
+            r = requests.get(f"{FABRIC}/v1/workspaces/{workspace}/{route}/{source}", headers=headers, timeout=budget.http_timeout(30))
             if r.status_code == 200:
                 item = {"type": t, **r.json()}
                 break
     if item is None:
         raise LookupError(f"no lakehouse/warehouse/SQL database named or with id {source!r} in workspace {workspace}")
     route = SOURCE_ROUTES[item["type"]]
-    r = requests.get(f"{FABRIC}/v1/workspaces/{workspace}/{route}/{item['id']}", headers=headers, timeout=30)
+    r = requests.get(f"{FABRIC}/v1/workspaces/{workspace}/{route}/{item['id']}", headers=headers, timeout=budget.http_timeout(30))
     r.raise_for_status()
     body = r.json()
     props = body.get("properties", {})
@@ -129,7 +130,7 @@ def connect(item: dict, sql_token: str, login_timeout: int = LOGIN_TIMEOUT, quer
                     state["conn"] = open_()
                 return run(state["conn"])
             except Exception as e:                                           # noqa: BLE001 - raised again unless transient
-                if i >= len(delays) or not transient(e):
+                if i >= len(delays) or not transient(e) or budget.expired():   # n226: no retry past the budget
                     raise
                 try:
                     if state["conn"] is not None:
@@ -143,6 +144,8 @@ def connect(item: dict, sql_token: str, login_timeout: int = LOGIN_TIMEOUT, quer
     state = {"conn": None}
 
     def read(conn, sql):
+        budget.check("a SQL read")                                          # n226: no read starts after the call's budget
+        conn.timeout = budget.statement_timeout(query_timeout)               # and none runs past it (by more than the floor)
         cur = conn.cursor()
         cur.execute(sql)
         cols = [d[0] for d in cur.description]

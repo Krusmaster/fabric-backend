@@ -1277,7 +1277,7 @@
    "open_world_hint": true,
    "read_only_hint": true
   },
-  "description": "Check the plan's keys and relationships against the rows: is each key unique and free of NULLs, does every\nreference find its target (orphan count). One counting query per key and relationship, read-only. detail=\"summary\"\n(default) gives the verdict line, totals, and every failing or not-counted check with its counts and rule, passing\nchecks as a count; detail=\"full\" lists every check. profile=true (n132) adds per column of the checked tables the\nNULL share, distinct count and whether number min/max are below/above zero ({\"numbers\": [lo, hi], \"dates\": [from,\nto]} states ranges): one query per table within max_items, never a value.",
+  "description": "Check the plan's keys and relationships against the rows: is each key unique and free of NULLs, does every\nreference find its target (orphan count). One counting query per key and relationship, read-only. detail=\"summary\"\n(default) gives the verdict line, totals, and every failing or not-counted check with its counts and rule, passing\nchecks as a count; detail=\"full\" lists every check. profile=true (n132) adds per column of the checked tables the\nNULL share, distinct count and whether number min/max are below/above zero ({\"numbers\": [lo, hi], \"dates\": [from,\nto]} states ranges): one query per table within max_items, never a value. n226: links are counted by importance,\neach after its target's key, within one time budget per call; tables= scopes the check and resume_from goes on\nwhere an answer cut by time or max_items stopped. Every item has an evidence state, and coverage one headline.",
   "input_schema": {
    "properties": {
     "confirmed": {
@@ -1337,10 +1337,30 @@
      "default": false,
      "title": "Profile"
     },
+    "resume_from": {
+     "default": 0,
+     "title": "Resume From",
+     "type": "integer"
+    },
     "schema": {
      "default": "dbo",
      "title": "Schema",
      "type": "string"
+    },
+    "tables": {
+     "anyOf": [
+      {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Tables"
     }
    },
    "title": "validate_planArguments",

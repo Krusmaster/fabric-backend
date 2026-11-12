@@ -154,7 +154,8 @@ print(json.dumps({"n": len(tools), "ro_size": len(json.dumps({"tools": ro}, sepa
                                    capture_output=True, text=True, check=True).stdout)
     off = json.loads(subprocess.run([sys.executable, "-c", code], env=env, cwd=ROOT,
                                     capture_output=True, text=True, check=True).stdout)
-    assert on["n"] == off["n"] and on["ro_size"] <= 66_500 and on["ro_size"] - off["ro_size"] < 400
+    # 66 700 since n226 (validate_plan's resume_from and its words on evidence and time), as test_tool_descriptions.py
+    assert on["n"] == off["n"] and on["ro_size"] <= 66_700 and on["ro_size"] - off["ro_size"] < 400
 
 
 # ------------------------------------------------------------------ only the image's files ----------------------------

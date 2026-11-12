@@ -165,6 +165,10 @@ class Plan:
                          + (f", at most {c['sample']} distinct values of a column each" if c.get("sample") else "")
                          + (f"; {c['not_counted']} candidate(s) left for validate_plan or suggest_relationships (limit {c['max_queries']} queries)"
                             if c.get("not_counted") else ""))
+        if self.counted and (self.counted.get("not_checked_time") or self.counted.get("scan")):    # n226
+            lines.append(f"R5: {self.counted.get('not_checked_time', 0)} candidate(s) not checked (time)"
+                         + ("; " + self.counted["scan"] if self.counted.get("scan") else "")
+                         + ": validate_plan or suggest_relationships count them in a call of their own")
         failed = [x for x in self.proposed if x.get("not_counted") == "failed"]
         if failed:                                                     # n172: said plainly, never as "not supported"
             lines.append(f"{len(failed)} candidate link(s) could not be counted because the counting query could not run: "
@@ -640,9 +644,12 @@ def _r5_candidates(schema: Schema, keys: dict[str, tuple[list[str], str]], linke
     """Columns R0–R4 left unlinked that R5 could link, each with every table that answers to its name:
     {"source", "column", "kind": "code"|"role", "targets": [(table, key column, needs_key)]}."""
     from .graphs import ROLE_WORDS                                    # lazily: graphs imports this module
+    from . import budget
     single = {t: k[0] for t, (k, _) in keys.items() if len(k) == 1}
     out = []
     for t in schema:
+        if budget.expired():                                          # n226: the scan stops with the call's time
+            break
         prefix = _table_prefix(t)
         own = {c.lower() for c in keys.get(t.name, ([], ""))[0]}
         for c in t.column_names:
@@ -700,8 +707,11 @@ def _r5_check(schema: Schema, execute, source: str, column: str, target: str, ke
     fa, fb = _family(types[0][column]), _family(types[1][key])
     if fa != fb:
         return False, f"{source}.{column} is {fa}, {target}.{key} is {fb}"
+    from . import budget as _time
     dialect = dialect_of(execute)
     need = 2 if needs_key else 1
+    if _time.expired():                                            # n226: the call's time budget, before any query
+        return False, _time.NOT_CHECKED
     if budget is not None and budget[0] < need:
         return False, R5_NOT_COUNTED
     if budget is not None:
@@ -714,6 +724,8 @@ def _r5_check(schema: Schema, execute, source: str, column: str, target: str, ke
                 return False, f"{target}.{key} is not unique and non-NULL in the rows ({n} rows, {d} distinct, {nulls} NULL), so it is no key"
         row = (list(execute(evidence.inclusion_sql(schema.schema, source, column, target, key, dialect, sample))) or [{}])[0]
     except Exception as e:                                         # noqa: BLE001 - a candidate the rows could not answer stays a proposal
+        if isinstance(e, _time.TimeUp) or _time.expired():
+            return False, _time.NOT_CHECKED
         return False, count_failed(e)
     with_value, matched, distinct = (evidence._int(row.get(x)) for x in ("with_value", "matched", "distinct_values"))
     what = f"of the first {sample} distinct values of {source}.{column}" if sample and distinct >= sample else f"value(s) of {source}.{column}"
@@ -747,6 +759,8 @@ def not_counted(reason: str) -> str | None:
         return "failed"
     if reason == R5_NOT_COUNTED:
         return "budget"
+    if reason == "not checked (time)":                             # n226: budget.NOT_CHECKED
+        return "time"
     return None
 
 
@@ -763,13 +777,16 @@ def infer_from_rows(schema: Schema, keys: dict[str, tuple[list[str], str]], rels
     new_keys: dict[str, tuple[list[str], str]] = {}
     proposed: list[dict] = []
     budget = [int(max_queries)] if max_queries is not None else None
+    from . import budget as _time
     cands = _r5_candidates(schema, keys, linked, pack_tables or set())
-    n_budget = failed = 0
+    scan_cut = _time.expired()                                      # n226: the scan itself stopped with the call's time
+    n_budget = failed = timed = 0
     for cand in cands:
         src, col = cand["source"], cand["column"]
         results = [(b, k, nk) + _r5_check(schema, execute, src, col, b, k, nk, sample, budget) for b, k, nk in cand["targets"]]
         n_budget += sum(1 for r in results if r[4] == R5_NOT_COUNTED)
         failed += sum(1 for r in results if r[4].startswith(R5_COUNT_FAILED))
+        timed += sum(1 for r in results if r[4] == _time.NOT_CHECKED)
         ok = [r for r in results if r[3]]
         if len(ok) == 1:
             b, k, nk, _, why = ok[0]
@@ -789,6 +806,10 @@ def infer_from_rows(schema: Schema, keys: dict[str, tuple[list[str], str]], rels
                         sum(2 if nk else 1 for c in cands for _, _, nk in c["targets"]), "not_counted": n_budget})
         if failed:
             counted["failed"] = failed
+        if timed or scan_cut:                                       # n226: said, never passed off as "nothing found"
+            counted["not_checked_time"] = timed
+            if scan_cut:
+                counted["scan"] = "the search for code and role columns stopped when the call's time budget ran out"
     return new_rels, new_keys, proposed
 
 
@@ -1009,8 +1030,11 @@ def plan(schema: Schema, keys: dict[str, list[str]] | None = None, confirmed: li
                                      note=r.get("note", ""), kind=r.get("kind", "key"), valid_on=r.get("valid_on"),
                                      cardinality=r.get("cardinality", "many-to-one"), where=list(r.get("where") or []))
                 for r in special if k.get(r["target"], ([], ""))[1] == PACK_RULE]
-    return Plan(schema, k, rels, amb, keyless=[t.name for t in schema if t.name not in k], synonyms=notes + rel_notes, pack=summary,
-                extended=extended, proposed=proposed, counted=counted)
+    out = Plan(schema, k, rels, amb, keyless=[t.name for t in schema if t.name not in k], synonyms=notes + rel_notes, pack=summary,
+               extended=extended, proposed=proposed, counted=counted)
+    from . import coverage                                          # n226: the call's answer gets this plan's coverage
+    coverage.note(out)
+    return out
 
 
 def _m(s: str) -> str:

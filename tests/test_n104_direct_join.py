@@ -119,9 +119,13 @@ def test_the_direct_form_runs_only_after_a_unique_verdict_in_the_same_run():
         else:
             assert own in rel_sql
         assert (DISTINCT not in own) == (r.target in unique)
-    # every key query ran before the first relationship query, as before
-    first_rel = log.index(rel_sql[0])
-    assert all("distinct_keys" in s for s in log[:first_rel]) and len(log[:first_rel]) == len(p.keys)
+    # n226: each relationship query ran after its target's key query (check_order), not after every key
+    for r in p.relationships:
+        if r in combined:
+            continue
+        own = next(s for s in rel_sql if f"FROM [shop].[{r.source}] AS s" in s and f"[{r.target}]" in s)
+        key = next(i for i, s in enumerate(log) if "distinct_keys" in s and s.endswith(f"FROM [shop].[{r.target}]"))
+        assert key < log.index(own)
 
 
 def test_a_verdict_from_another_run_does_not_count():
@@ -185,7 +189,8 @@ def test_a_key_left_out_by_max_items_keeps_distinct():
     p = plan(seed.schema("shop"))
     log = []
     out = ev.validate(p, _execute(gs.shop_database(), log), max_items=2)
-    assert len(out["keys"]) == 2 and not out["relationships"]
+    # n226: check_order takes a link right after its target's key, so two items are one key and one link
+    assert len(out["keys"]) == 1 and len(out["relationships"]) == 1
     left_out = [t for t in p.keys if t not in {k["table"] for k in out["keys"]}]
     for r in p.relationships:
         if r.target in left_out:
@@ -205,7 +210,8 @@ def test_extended_relationships_keep_their_own_query():
         log.append(sql)
         return src.execute(sql)
     ev.validate(p, execute, max_items=200)
-    assert [s for s in log if "AS several" in s] == [ev.extended_sql(p.schema.schema, r) for r in p.extended]
+    # n226: counted in check_order, so compared without their order
+    assert sorted(s for s in log if "AS several" in s) == sorted(ev.extended_sql(p.schema.schema, r) for r in p.extended)
 
 
 def test_the_sql_the_demo_shows_is_the_sql_that_ran():
