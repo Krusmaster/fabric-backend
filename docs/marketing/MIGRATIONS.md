@@ -118,7 +118,7 @@ Three things we say in every first meeting:
 | **Buyer** | Head of BI or data platform owner, often with the finance function close by, in an organisation where Snowflake holds the warehouse and Power BI is the report tool. The CFO or CIO is the economic buyer |
 | **Trigger** | Consolidation on Microsoft. A contract renewal that makes someone ask what the warehouse is for. A wish to have the warehouse, the semantic model and the reports under one security model. *The buyer brings the cost question* |
 | **What they fear** | SQL that behaves differently: upper-case names, time zones, semi-structured columns, numbers with 38 digits. A semantic layer that lives in views and in people's heads. Finance closing on two sets of numbers |
-| **The first honest answer** | Fabric can mirror Snowflake tables into OneLake and keep them up to date, so both sides can run in parallel while the numbers are compared. Mirroring copies tables; it does not move views, procedures, tasks or the meaning of a KPI (design, section 3) |
+| **The first honest answer** | Fabric can mirror Snowflake tables into OneLake and keep them up to date, so both sides can run in parallel while the numbers are compared. Mirroring copies data (a view's result can be mirrored as data too); it does not move the SQL of a view, procedures, tasks or the meaning of a KPI (design, section 3) |
 | **Offer** | Assessment of one database. Pilot on one schema (finance or sales) with a reconciliation per KPI. Migration in waves |
 
 **One-page pitch: Snowflake**
@@ -132,8 +132,8 @@ Three things we say in every first meeting:
 > **What we do.** Kruse Consulting migrates with Krusgraph, an open-source method that counts instead of guessing.
 >
 > - **Inventory, read-only.** Databases, schemas, tables, views, tasks and what is queried at all, counted.
-> - **Keys and links checked against the rows.** Snowflake does not enforce primary and foreign keys, so we count
->   them, in Snowflake and again in OneLake.
+> - **Keys and links checked against the rows.** A declared key is a statement, not a check, so we count them, in
+>   Snowflake and again in OneLake.
 > - **Your KPIs held constant.** Each one computed on both sides. The same number, or the reason: a type, a time
 >   zone, a NULL, a decimal, upper and lower case, a leading zero.
 > - **Rebuilt from the checked plan**: silver and gold, a Power BI semantic model, a report, an ontology, and a data
@@ -246,7 +246,8 @@ needed. Rows 1 and 2 of section 6.
 > What do you check before you switch the old platform off?
 
 *Proof needed before it goes out:* "Neither platform enforces them" is the vendors' own documentation, cited in the
-design, sections 2 and 3: check the citations are still marked Verified. "Steps 2, 4 and 5 are where Krusgraph helps"
+design, sections 2.2 and 3.2. **Today only the Databricks half is Verified** [S15]; the Snowflake page could not be
+opened [U5]. Until it is read, write "A declared key is not a check" instead. "Steps 2, 4 and 5 are where Krusgraph helps"
 needs B1 (the two-sided check) built and unit-tested on the synthetic pair; until then write "where Krusgraph is meant
 to help; step 2 works today on tables already in Fabric". Rows 2, 3 and 4 of section 6.
 
