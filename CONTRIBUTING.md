@@ -41,7 +41,7 @@ owner of an area is listed here. Change an area you do not own only when the mai
 | Deployment | `deploy/`, `Dockerfile`, `.github/` | open |
 | Pipeline jobs and permissions | `fabric_backend/pipeline_jobs.py`, `fabric_backend/access.py`, `fabric_backend/report.py` | open |
 | SAP pack | `fabric_backend/packs/`, `fabric_backend/sap_pack.py`, `fabric_backend/sap_demo.py`, `fabric_backend/exports.py` | | open |
-| Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | open; W7 holds the one new file `docs/MIGRATION-DESIGN.md`; W8 holds the one new file `docs/DOMAINS-DESIGN.md` |
+| Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | open; W7 holds the one new file `docs/MIGRATION-DESIGN.md`; W8 holds the one new file `docs/DOMAINS-DESIGN.md`; A1 holds the one new file `docs/ANALYSIS-2026-11.md` |
 | Tests | `tests/` | open; n226 holds the new `tests/test_n226_*` files and the engine tests it changes; W7 holds the new `tests/test_w7_migration_read.py` and `tests/fixtures/w7/` |
 | Workload | `workload/` (the Fabric workload, a fork of Microsoft's starter kit), `fabric_backend/workload_api.py`, the workload routes in `server.py`, `docs/WORKLOAD-DEV.md` | open |
 | Marketplace | `fabric_backend/marketplace.py`, `fabric_backend/entitlements.py`, the marketplace routes in `server.py`, `docs/MARKETPLACE-SETUP.md`, `tests/test_marketplace.py` | open |
