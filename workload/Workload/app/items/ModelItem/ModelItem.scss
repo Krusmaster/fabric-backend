@@ -411,3 +411,108 @@
   white-space: pre-wrap;
   user-select: all;
 }
+
+// ------------------------------------------------------------------ n225: the editor on a phone
+// The founder's phone test in Fabric of 12 November 2026: at 375-412 px the editor rendered at desktop width and its text
+// was tiny. index.html now has a viewport (a page without one is laid out 980 px wide on a phone). Here, at 600 px and
+// below: one column (a review row's six columns stack), long item names wrap, body text at least 14 px (Fluent's
+// Caption1 and Caption2 are 12 and 10 px), every button, field, checkbox, radio, switch and tab at least 44 px tall.
+@media (max-width: 600px) {
+  .krusgraph-view {
+    padding: 12px;
+    gap: var(--spacingVerticalM);
+    font-size: 14px;
+    line-height: 20px;
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+
+  .krusgraph-view .fui-Caption1,
+  .krusgraph-view .fui-Caption2,
+  .krusgraph-view .fui-Caption1Strong,
+  .krusgraph-view .fui-Field__hint,
+  .krusgraph-view .fui-Field__validationMessage,
+  .krusgraph-view .fui-Badge,
+  .krusgraph-view small {
+    font-size: 14px;
+    line-height: 20px;
+  }
+
+  .krusgraph-view .fui-Badge {
+    height: auto;
+    min-height: 24px;
+    white-space: normal;
+  }
+
+  .krusgraph-row {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: var(--spacingVerticalXS);
+  }
+
+  .krusgraph-row-holds,
+  .krusgraph-row-lost {
+    grid-column: 1;
+    justify-self: start;
+    text-align: start;
+  }
+
+  .krusgraph-empty-form,
+  .krusgraph-outputs {
+    max-width: none;
+  }
+
+  .krusgraph-output,
+  .krusgraph-product {
+    padding: var(--spacingVerticalS);
+    min-width: 0;
+  }
+
+  .krusgraph-view .fui-Button,
+  .krusgraph-view .fui-Input,
+  .krusgraph-view .fui-Dropdown,
+  .krusgraph-view .fui-Combobox,
+  .krusgraph-view .fui-Select,
+  .krusgraph-view .fui-Tab,
+  .krusgraph-view .fui-Link,
+  .krusgraph-view summary,
+  .krusgraph-view button,
+  .krusgraph-view select,
+  .krusgraph-view input[type="text"] {
+    min-height: 44px;
+  }
+
+  .krusgraph-view .fui-Button {
+    max-width: 100%;
+    white-space: normal;
+    height: auto;
+  }
+
+  .krusgraph-view .fui-Checkbox,
+  .krusgraph-view .fui-Radio,
+  .krusgraph-view .fui-Switch {
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .krusgraph-view .fui-Link {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .krusgraph-actions,
+  .krusgraph-choices {
+    align-items: stretch;
+  }
+
+  .krusgraph-map,
+  .krusgraph-flow {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .krusgraph-code pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+}

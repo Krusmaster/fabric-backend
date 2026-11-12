@@ -74,8 +74,10 @@ import { OntoWait } from "./OntoWait";
 import { Wait, WaitSignal, checkLabel, newWait, reviewLabel, withSignal } from "./waitWords";
 import { accessLine } from "./accessWords";
 import {
-  LeftoversAnswer, OutOfDate, ProductRow, RetireAnswer, StatusAnswer, healthWords, outOfDate, withAdopted, withOwner, withRemoved,
+  LeftoversAnswer, OutOfDate, ProductRow, RetireAnswer, StatusAnswer, createdAtOf, healthFor, outOfDate, planOf, withAdopted, withOwner,
+  withPlan, withRemoved,
 } from "./productWords";
+import { SaveStatus, saveWithRetry } from "./saveState";
 import { CreatedItem, ItemCache, RemovedItem, ReviewFile } from "./ModelItemDefinition";
 
 const VIEWS: ModelView[] = ["empty", "review", "outputs", "preview", "result", "product"];
@@ -344,6 +346,7 @@ export function ModelItemEditor(props: PageProps) {
   // ---------------------------------------------------------------- actions
   async function save(d: ModelDefinition = def) {
     const ok = await callUpdateItemDefinition(workloadClient, itemMeta.id, toParts(d) as never, false);
+    setSaveStatus(ok ? { state: "saved", at: new Date().toISOString() } : { state: "failed", at: new Date().toISOString(), tries: 1 });   // n225
     if (ok) {
       setDirty(false);
       callNotificationOpen(workloadClient, "Saved", `${itemMeta.displayName} was saved.`);
@@ -514,15 +517,30 @@ export function ModelItemEditor(props: PageProps) {
   metaRef.current = itemMeta;
   const cardsRef = useRef<engine.BuildCard[]>([]);
   const saving = useRef<Promise<unknown>>(Promise.resolve());
+  /** n225: whether the definition this editor shows is saved in Fabric (the Data product page says it) */
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>({ state: "loaded" });
+  /** n225: the number of the newest save asked for (an older copy is not sent once a newer one is queued) */
+  const saveSeq = useRef(0);
 
-  /** setDef and a save after the previous save (two saves never race); resolves when this one has been sent. */
+  /** setDef and a save after the previous save (two saves never race); resolves when this one has been sent.
+   * n225: callUpdateItemDefinition answers undefined when Fabric refuses a save, which used to pass for saved; now a save
+   * Fabric did not confirm is tried again (saveState.saveWithRetry), a copy a newer one supersedes is not sent, and the
+   * outcome is shown (Saved, Saving, Not saved with Save again). */
   function persist(next: ModelDefinition): Promise<unknown> {
     defRef.current = next;
     setDef(next);
     const meta = metaRef.current;
     if (!meta) return saving.current;
+    const seq = ++saveSeq.current;
+    const newest = () => saveSeq.current === seq;
+    setSaveStatus({ state: "saving", since: new Date().toISOString() });
     saving.current = saving.current
-      .then((): Promise<unknown> => callUpdateItemDefinition(workloadClient, meta.id, toParts(next) as never, false))
+      .then(async () => {
+        if (!newest()) return;                                   // a newer copy is queued behind this one and carries it
+        const got = await saveWithRetry(() => callUpdateItemDefinition(workloadClient, meta.id, toParts(next) as never, false), newest);
+        if (got.outcome === "saved" && newest()) setSaveStatus({ state: "saved", at: new Date().toISOString() });
+        if (got.outcome === "failed") setSaveStatus({ state: "failed", at: new Date().toISOString(), tries: got.tries });
+      })
       .catch((): undefined => undefined);
     return saving.current;
   }
@@ -667,6 +685,9 @@ export function ModelItemEditor(props: PageProps) {
       last_create: lastCreateOf(cards, metaRef.current?.displayName ?? "", at) } };
     if (a.product && d.outputs.product) d = { ...d, outputs: { ...d.outputs, product: { ...d.outputs.product, items: markEarlier(d.outputs.product.items, thisRun) } } };
     d = withJobRecords(d, cards);                                // n185: run and schedule ids, for a later cleanup
+    // n225: the plan of this Create, recorded even when the finish (the data product) did not answer, so the Data product
+    // page shows it and its health is read for this plan, not an older one
+    if (thisRun.length) d = { ...d, outputs: withPlan(d.outputs, d.review?.plan_id, at) };
     if (d.source && crossWorkspace(d.source, metaRef.current?.workspaceId)) {
       // n221: the lakehouse silver and gold were written to (chosen, made or the first of the workspace), kept in
       // source.json so the next Create uses it and the health table (n200) is read there
@@ -927,12 +948,15 @@ export function ModelItemEditor(props: PageProps) {
 
   async function loadProduct() {
     // n210: the Model item's own workspace, where its definition is read (the source's workspace can be another one)
+    // n225: the health of this data product's plan (sent, so an older plan's result is never read for it)
+    const plan = planOf(defRef.current.outputs, defRef.current.review?.plan_id);
     const h = engine.health(workloadClient, { workspace: metaRef.current?.workspaceId ?? defRef.current.source?.workspaceId,
-      item_id: metaRef.current?.id, product: productName() });
+      item_id: metaRef.current?.id, product: productName(), ...(plan ? { plan_id: plan } : {}) });
     const s = await productStep("Reading the items in Fabric…", (o) => engine.product<StatusAnswer>(workloadClient, productBody("status"), undefined, o),
       { cancellable: true });
     const health = await h;
-    setDp((x) => ({ ...x, ...(s ? { status: s } : {}), health: healthWords(health as never) }));
+    setDp((x) => ({ ...x, ...(s ? { status: s } : {}),
+      health: healthFor(health as never, planOf(defRef.current.outputs, defRef.current.review?.plan_id), createdAtOf(defRef.current.outputs)) }));
   }
 
   async function saveOwner(name: string) {
@@ -1136,6 +1160,9 @@ export function ModelItemEditor(props: PageProps) {
       <DataProductPage
         productName={productName(def)}
         outputs={def.outputs}
+        plan={planOf(def.outputs, def.review?.plan_id)}
+        saved={saveStatus}
+        onSaveAgain={() => void persist({ ...defRef.current })}
         status={dp.status}
         health={dp.health}
         busy={dp.busy}

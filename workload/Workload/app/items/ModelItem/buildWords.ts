@@ -51,7 +51,7 @@ export const KINDS: KindInfo[] = [
     what: "A data agent with the plan as its instructions and example questions, left unpublished as a draft." },
   { kind: "rayfin_app", label: "App (Rayfin, preview)", type: "AppBackend", suffix: "app", updates: false,
     needs: ["Item.ReadWrite.All"],
-    what: "A Fabric App (preview): key figures, list pages and charts you tick, over a read-only connector with every link. Create makes the App item; its pages are published with the package and three commands." },
+    what: "A Fabric App (preview) over a read-only connector with every link: the key figures, list pages and charts you tick go into its package." },
 ];
 
 export const ORDER: OutputKind[] = KINDS.map((k) => k.kind);

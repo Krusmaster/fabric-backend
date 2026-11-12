@@ -2640,7 +2640,13 @@ def health_request(body) -> dict:
             raise BadRequest("'workspace' and 'item_id' are the Krusgraph Model's workspace and item ids (GUIDs)")
         name = body.get("product")
         name = name.strip()[:200] if isinstance(name, str) and name.strip() else "this data product"
-        return {"workspace": ws.lower(), "item_id": item.lower(), "source": "", "source_name": "", "product_name": name}
+        out = {"workspace": ws.lower(), "item_id": item.lower(), "source": "", "source_name": "", "product_name": name}
+        plan = body.get("plan_id")                                # n225: the plan of the data product's latest Create
+        if plan is not None:
+            if not isinstance(plan, str) or not H.PLAN_ID.match(plan):
+                raise BadRequest("'plan_id' is the data product's plan as outputs.json records it (plan-<hex>)")
+            out["plan_id"] = plan
+        return out
     req = {"workspace": _text(body, "workspace"), "source": _text(body, "source"),
            "source_name": _text(body, "source_name", body.get("source"))}
     products = body.get("products")
@@ -2703,7 +2709,8 @@ def _health_target(req: dict, headers: dict) -> dict | None:
                 source = json.loads(base64.b64decode(p.get("payload") or "").decode("utf-8"))
             except (ValueError, UnicodeDecodeError):
                 source = {}
-    plan = ((outputs.get("product") or {}).get("plan") or {}).get("plan_id")
+    # n225: the plan the page sent (its latest Create's), else outputs.json's latest Create, else the product's
+    plan = req.get("plan_id") or (outputs.get("plan") or {}).get("plan_id") or ((outputs.get("product") or {}).get("plan") or {}).get("plan_id")
     if not plan:
         marks = [(c.get("plan") or {}).get("plan_id") for c in outputs.get("created") or [] if isinstance(c, dict)]
         plan = next((m for m in reversed(marks) if m), None)
@@ -2725,4 +2732,6 @@ def _with_word(out: dict) -> dict:
     words = ("every check passed in the latest run" if p.get("health") == "green" else
              ", ".join(x for x in (f"{fails} failed" if fails else "", f"{warns} warning(s)" if warns else "") if x) + " in the latest run"
              if p.get("findings") else "the pipeline has not written a health row for this plan yet")
-    return {**out, "word": p.get("health"), "status": p.get("health"), "words": words, "checked_at": p.get("checked_at")}
+    # n225: the run and the plan the word comes from, so the page never shows an older run's result as current
+    return {**out, "word": p.get("health"), "status": p.get("health"), "words": words, "checked_at": p.get("checked_at"),
+            "run_id": p.get("run_id"), "plan_id": p.get("plan_id")}

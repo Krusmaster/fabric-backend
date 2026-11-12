@@ -61,12 +61,41 @@ export interface Person {
   upn?: string;
 }
 
-/** The rows of the page: outputs.json alone (status undefined: Fabric not read yet), or with the engine's states. */
-export function rowsOf(outputs: OutputsDefinition, status?: StatusAnswer): ProductRow[] {
+/** n225: why the owner matters, in one sentence (the founder: keep the owner, but say why). */
+export const OWNER_WHY = "The owner is the person people ask when a number in this data product looks wrong, and who decides on "
+  + "Update and Retire.";
+
+/** n225: the data product's plan: the plan of the latest Create (outputs.json's plan, recorded by every Create since
+ * n225), else the product's, else the review's (the plan the next Create sends), else the newest plan mark of a built
+ * item. undefined when none is known. */
+export function planOf(outputs: OutputsDefinition, reviewPlan?: string | null): string | undefined {
+  const marks = outputs.created.map((c) => c.plan?.plan_id).filter((x): x is string => !!x);
+  return outputs.plan?.plan_id || outputs.product?.plan?.plan_id || reviewPlan || marks[marks.length - 1] || undefined;
+}
+
+/** n225: the plan line: its id and the Create that recorded it. */
+export function planWords(outputs: OutputsDefinition, plan: string | undefined): string {
+  if (!plan) return "Plan id: not recorded yet. The next Create records it.";
+  const at = outputs.plan?.plan_id === plan ? outputs.plan.at : outputs.product?.plan?.plan_id === plan ? outputs.product.built_at : undefined;
+  return `Plan id: ${plan}` + (at ? ` (the plan of the Create of ${dayOf(at)})` : "") + ".";
+}
+
+/** n225: does this item belong to the plan? An item without a plan mark (built before n180) belongs to no plan. */
+function ofPlan(c: CreatedItem, plan: string | undefined): boolean {
+  return plan === undefined || c.plan?.plan_id === plan;
+}
+
+export const NO_ID_SAVED = "The latest Create built it, but this item has no id saved for it. Look for leftovers below finds it "
+  + "by Krusgraph's plan marker, and Adopt adds it here.";
+
+/** The rows of the page: outputs.json alone (status undefined: Fabric not read yet), or with the engine's states.
+ * n225: with a plan, only what that plan built (old and new Creates alike); otherPlanRows lists the rest apart. The
+ * outputs the latest Create built that have no saved item are listed too (NO_ID_SAVED), never dropped. */
+export function rowsOf(outputs: OutputsDefinition, status?: StatusAnswer, plan?: string): ProductRow[] {
   const rows: ProductRow[] = [];
   const removed = outputs.removed ?? [];
   const gone = new Set(removed.map((r) => r.id));
-  const live = outputs.created.filter((c) => c.id && !gone.has(c.id));
+  const live = outputs.created.filter((c) => c.id && !gone.has(c.id) && ofPlan(c, plan));
   const said = new Map((status?.items ?? []).filter((s) => s.id).map((s) => [s.id as string, s]));
   for (const c of live) {
     const s = said.get(c.id);
@@ -92,12 +121,34 @@ export function rowsOf(outputs: OutputsDefinition, status?: StatusAnswer): Produ
     rows.push({ key: `failed:${o.output}`, type: "", typeLabel: o.label, name: o.name, output: o.output, state: "failed",
       why: o.reason ? o.reason : o.state === "lost" ? "The last Create got no answer for it." : "The last Create did not build it.", openable: false });
   }
+  if (last && plan !== undefined) {
+    const have = new Set(rows.map((r) => r.output).filter(Boolean));
+    for (const o of last.outputs) {
+      if ((o.state !== "created" && o.state !== "todo") || have.has(o.output)) continue;
+      rows.push({ key: `unsaved:${o.output}`, type: "", typeLabel: o.label, name: o.name, output: o.output, state: "built",
+        why: NO_ID_SAVED, openable: false });
+    }
+  }
   for (const r of removed) {
     rows.push({ key: `removed:${r.id}`, id: r.id, type: r.type, typeLabel: itemTypeLabel(r.type, r.output), name: r.name, workspace: r.workspace,
       output: r.output, state: "removed", why: `Deleted from Fabric on ${dayOf(r.removed_at)}${r.by ? ` by ${r.by}` : ""}.`,
       removed: { at: r.removed_at, by: r.by }, openable: false });
   }
   return rows;
+}
+
+/** n225: items this Model built from another plan (or with no plan recorded): listed apart, never mixed in. */
+export function otherPlanRows(outputs: OutputsDefinition, status: StatusAnswer | undefined, plan: string | undefined): ProductRow[] {
+  if (plan === undefined) return [];
+  const gone = new Set((outputs.removed ?? []).map((r) => r.id));
+  const said = new Map((status?.items ?? []).filter((s) => s.id).map((s) => [s.id as string, s]));
+  return outputs.created.filter((c) => c.id && !gone.has(c.id) && !ofPlan(c, plan)).map((c) => {
+    const s = said.get(c.id);
+    const state: ItemState = s?.state && s.state in STATE ? s.state : "built";
+    return { key: `other:${c.id}`, id: c.id, type: c.type, typeLabel: itemTypeLabel(c.type, c.output), name: c.name, workspace: c.workspace,
+      output: c.output, state, why: c.plan?.plan_id ? `Built from another plan (${c.plan.plan_id}).` : "Built before plans were recorded.",
+      openable: state !== "missing" };
+  });
 }
 
 export function dayOf(iso: string | undefined): string {
@@ -135,6 +186,52 @@ export function healthWords(h: { word?: string; status?: string; words?: string;
   if (!h || !word) return NOT_CHECKED;
   const said = h.words ? h.words.charAt(0).toUpperCase() + h.words.slice(1) : "";       // n210: a sentence after the period
   return `Health: ${word}` + (said ? `. ${said}` : "") + (h.checked_at ? ` (checked ${dayOf(h.checked_at)})` : "");
+}
+
+/** n225: the health answer as the Data product page reads it (workload_api._with_word). */
+export interface HealthAnswer {
+  word?: string | null;
+  status?: string | null;
+  words?: string;
+  checked_at?: string | null;
+  run_id?: string | null;
+  plan_id?: string | null;
+}
+
+/**
+ * n225: the health line, never an old result shown as current. The founder's test of 12 November 2026 read "Health: red.
+ * 7 failed in the latest run (checked 2026-11-11 19:23 UTC)" on the day after, for a Create that run had not seen. Now:
+ * the run and its date are said; a result of another plan, or one older than this data product's latest Create, says
+ * "not checked since this Create" first and then what that older run found.
+ */
+export function healthFor(h: HealthAnswer | undefined | null, plan: string | undefined, createdAt: string | undefined): string {
+  const word = h?.word ?? h?.status;
+  if (!h || !word || word === "not checked yet") return NOT_CHECKED + (createdAt ? " since this Create." : ".");
+  const said = h.words ? h.words.charAt(0).toUpperCase() + h.words.slice(1) : "";
+  const run = h.run_id ? `run ${h.run_id}` : "a run";
+  const when = h.checked_at ? `checked ${dayOf(h.checked_at)}` : "date not recorded";
+  const found = `${word}${said ? `. ${said}` : ""}`;
+  if (plan && h.plan_id && h.plan_id !== plan) {
+    return `Health: not checked since this Create. The latest health result is for another plan (${h.plan_id}), ${run}, ${when}: ${found}.`;
+  }
+  const t = (x: string | undefined | null) => (x ? new Date(x).getTime() : NaN);
+  if (createdAt && h.checked_at && t(h.checked_at) < t(createdAt)) {
+    return `Health: not checked since this Create (${dayOf(createdAt)}). The latest result is from ${run}, ${when}: ${found}.`;
+  }
+  return `Health: ${found} (${run}, ${when}).`;
+}
+
+/** n225: when this data product's latest Create was (the time its health is compared with). */
+export function createdAtOf(outputs: OutputsDefinition): string | undefined {
+  return readLastCreate(outputs.last_create)?.at ?? outputs.plan?.at ?? outputs.product?.built_at;
+}
+
+/** n225: the plan of a Create, into outputs.json (and into the stored product, so its health is read for this plan). */
+export function withPlan(outputs: OutputsDefinition, plan: string | undefined, at: string): OutputsDefinition {
+  if (!plan) return outputs;
+  const p = outputs.product;
+  return { ...outputs, plan: { plan_id: plan, at },
+    ...(p ? { product: { ...p, plan: { ...(p.plan?.plan_id === plan ? p.plan : {}), plan_id: plan }, built_at: at } } : {}) };
 }
 
 // ------------------------------------------------------------------ owner, removals, adoptions into outputs.json -------

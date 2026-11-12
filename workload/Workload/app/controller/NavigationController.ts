@@ -213,6 +213,13 @@ const FabricItemMappings: Record<string, FabricItemMapping> = {
     frontendTypePath: "synapsenotebooks",
     apiType: "Notebook"
   },
+  // Krusgraph (n225): the Fabric IQ ontology (preview). Learn, "Use Ontology MCP Server" (ms.date 2026-04-14, read on
+  // 12 November 2026): the item's browser address is https://app.fabric.microsoft.com/groups/<workspace-ID>/ontologies/<ontology-item-ID>.
+  // Without this entry the fallback made "/ontologys/", which Fabric answers with its error page.
+  "Ontology": {
+    frontendTypePath: "ontologies",
+    apiType: "Ontology"
+  },
   "PaginatedReport": {
     frontendTypePath: "datasets",
     apiType: "PaginatedReport"
@@ -263,7 +270,7 @@ const FabricItemMappings: Record<string, FabricItemMapping> = {
  * @param itemId The item ID
  * @returns The complete frontend path or undefined if the item type is not recognized
  */
-function getFrontendPath(itemType: string, workspaceId: string, itemId: string): string | undefined {
+export function getFrontendPath(itemType: string, workspaceId: string, itemId: string): string | undefined {
   const mapping = FabricItemMappings[itemType];
   let frontendPath = mapping?.frontendTypePath;
   if(!frontendPath) {

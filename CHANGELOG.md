@@ -9,6 +9,23 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n225: **the Krusgraph Model editor, from the founder's phone test in Fabric of 12 November 2026** (package
+  1.0.1074). The Data product page: the plan of every Create is recorded in outputs.json (`plan`, `productWords.withPlan`)
+  even when the finish did not answer, and shown with its date; the items are every item that plan built, from every
+  Create, with another plan's items listed apart and an output the latest Create built without a saved id listed too
+  (Look for leftovers finds it); Retire with nothing chosen takes this plan's items only. The editor's saves:
+  `callUpdateItemDefinition` answers undefined when Fabric refuses a save, which the editor took for saved; now such a
+  save is tried again (`saveState.saveWithRetry`, an older copy is never sent after a newer one) and the page says Saved,
+  Saving or Not saved with Save again. Health: the page sends its plan id (`/workload/v1/health` takes `plan_id`), the
+  answer names the run and the plan, and a result older than the latest Create, or another plan's, reads "not checked
+  since this Create" before what that run found. The owner says why it matters. Open in Fabric for an ontology goes to
+  `/groups/<workspace>/ontologies/<id>` (Learn, "Use Ontology MCP Server"; it went to `/ontologys/`, an error page). The
+  App card says before Create, in one sentence by Builder, that Create makes an empty App item, that the package's
+  command is the one step left, and that the app opens inside Fabric only; the App stays unticked by default. On a
+  phone: the editor's page has a viewport, and at 600 px and below its pages stack to one column, wrap long names, keep
+  text at 14 px or more and tap targets at 44 px or more. Tests: `n225DataProduct.test.ts`, `phonePages.test.tsx` (pages in
+  `tests/fixtures/n225/`), `tests/test_n225_phone.py` with `tests/n225_browser.js` (Chromium at 375, 412 and 1280 px);
+  the n198 pages rendered again.
 - Round n223: **the Krusgraph Model editor says what it waits for, and opens with less to wait for**. One loading component
   (`OntoWait.tsx`, words in `waitWords.ts`) for the first load, the review, the check, the dry run, the schema list and
   the Data product page: Onto at the top with a gentle motion (still under reduced motion; a spinner with the mascots

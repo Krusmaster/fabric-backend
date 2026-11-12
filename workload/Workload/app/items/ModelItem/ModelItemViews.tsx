@@ -34,7 +34,7 @@ import { CheckmarkCircle20Filled, CheckmarkStarburst24Regular, ErrorCircle20Fill
 import { ItemEditorEmptyView } from "../../components/ItemEditor";
 import { AppChoices, BuildCard, DataProduct, EngineError, JobsCard, ManyAnswer, SchemasAnswer } from "./engineClient";
 import {
-  AppApi, AppDesign, AppPackageRecord, AppPreflight, BUILT_APP_NOTE, BUILT_APP_UNKNOWN, CHART_TYPE_WORDS, EDIT_NOTE, EDIT_TITLE, GROUPS, PREVIEW_NOTE, apiLines, builtChoices,
+  AppApi, AppDesign, AppPackageRecord, AppPreflight, APP_BEFORE_CREATE, BUILT_APP_NOTE, BUILT_APP_UNKNOWN, CHART_TYPE_WORDS, EDIT_NOTE, EDIT_TITLE, GROUPS, PREVIEW_NOTE, apiLines, builtChoices,
   builtWithoutPackage, chartTypes, choiceLines, designLines, editHref, featureOff, isApp, movePage, optionsOf, packageHref,
   pagesInOrder, preflightWords, readAppRecord, setAccent, setChartType, tickWarning, ticked, toggle,
 } from "./appWords";
@@ -531,6 +531,9 @@ export function OutputsView(props: {
               <Checkbox checked={c.enabled} label={<ItemTitle kind={k.kind}>{k.label}</ItemTitle>}
                 onChange={(_, d) => set(k.kind, { enabled: !!d.checked })} />
               <Caption1>{k.what}</Caption1>
+              {k.kind === "rayfin_app" && (
+                <Body1 className="krusgraph-app-before" data-say="builder"><strong>Builder:</strong> {APP_BEFORE_CREATE}</Body1>
+              )}
               {c.enabled && (
                 <>
                   <Field label={`Name of the ${k.label.toLowerCase()}`} validationState={valid ? "none" : "error"}

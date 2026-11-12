@@ -82,6 +82,12 @@ export const EDIT_NOTE = "Open the project in Claude (with Krusgraph for Claude)
 
 export const PREVIEW_NOTE = "Fabric Apps and Rayfin are in preview.";
 
+/** n225: Builder's one sentence on the App card before Create. The founder's test of 12 November 2026: Create made an
+ * empty App item, opening it showed Fabric's own template chooser, and its live link said "Can't open this app outside
+ * Fabric". So the card says exactly that much and no more. */
+export const APP_BEFORE_CREATE = "Create makes an empty App item; the one step left is to run the package's command (shown after "
+  + "Create), and the app opens inside Fabric only, never from its link outside Fabric.";
+
 export function isApp(c: BuildCard): boolean {
   return c.output === "rayfin_app";
 }

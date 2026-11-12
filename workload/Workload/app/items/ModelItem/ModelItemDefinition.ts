@@ -199,6 +199,8 @@ export interface OutputsDefinition {
   removed?: RemovedItem[];
   /** n222: the suggested data products the person ticked (productSuggestions.ts); optional */
   products?: { id: string; name: string }[];
+  /** n225: the plan of the latest Create and when it ran (productWords.withPlan); optional */
+  plan?: { plan_id: string; at: string };
 }
 
 /** n184: as createWords.LastCreate; read through createWords.readLastCreate, which checks its shape. */
@@ -335,6 +337,8 @@ export function migrate(def: ModelDefinition): ModelDefinition {
       ...(Array.isArray(def.outputs?.pending) ? { pending: def.outputs.pending.filter((x) => x && typeof x.name === "string" && typeof x.type === "string") } : {}),   // n197
       ...(def.outputs?.create_run && typeof def.outputs.create_run === "object" ? { create_run: def.outputs.create_run } : {}),   // n197
       ...(Array.isArray(def.outputs?.removed) ? { removed: def.outputs.removed.filter((x) => x && typeof x.id === "string" && typeof x.removed_at === "string") } : {}),   // n198
+      ...(def.outputs?.plan && typeof def.outputs.plan.plan_id === "string" && typeof def.outputs.plan.at === "string"
+        ? { plan: { plan_id: def.outputs.plan.plan_id, at: def.outputs.plan.at } } : {}),   // n225
       ...(Array.isArray(def.outputs?.products) ? { products: def.outputs.products.filter((x) => x && typeof x.id === "string" && typeof x.name === "string") } : {}),   // n222
     },
     review: def.review,

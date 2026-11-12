@@ -10,9 +10,10 @@ import { BuildCard } from "./engineClient";
 import { itemTypeLabel } from "./createWords";
 import { OutputsDefinition } from "./ModelItemDefinition";
 import {
-  KEEPS_DATA, LeftoversAnswer, OutOfDate, Person, ProductRow, RetireAnswer, STATE, StatusAnswer, healthWords, lastRunWords,
-  leftoverWords, outOfDateSummary, ownerWords, resultWords, rowsOf, summary, typedNameOk,
+  KEEPS_DATA, LeftoversAnswer, OWNER_WHY, OutOfDate, Person, ProductRow, RetireAnswer, STATE, StatusAnswer, healthWords, lastRunWords,
+  leftoverWords, otherPlanRows, outOfDateSummary, ownerWords, planOf, planWords, resultWords, rowsOf, summary, typedNameOk,
 } from "./productWords";
+import { SaveStatus, savedWords } from "./saveState";
 
 export const PRODUCT_CSS = `
 .kg-dp{--kg-fg:var(--colorNeutralForeground1,#1f1f1f);--kg-fg2:var(--colorNeutralForeground2,#424242);
@@ -49,6 +50,13 @@ box-sizing:border-box;max-width:960px;padding:16px;overflow-wrap:anywhere}
 .kg-dp .kg-dp-sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .kg-dp .kg-dp-facts{display:grid;grid-template-columns:minmax(0,1fr);gap:2px}
 @media (min-width:640px){.kg-dp .kg-dp-facts{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+.kg-dp .kg-dp-saved{display:flex;gap:6px;align-items:baseline;font-weight:600;margin:4px 0 8px}
+.kg-dp details summary{cursor:pointer;min-height:32px;padding:4px 0}
+@media (max-width:600px),(pointer:coarse){.kg-dp{padding:12px}
+.kg-dp button,.kg-dp input[type=text],.kg-dp details summary{min-height:44px}
+.kg-dp label{min-height:44px;display:flex;align-items:center}.kg-dp input[type=checkbox]{width:24px;height:24px}
+.kg-dp .kg-dp-actions button,.kg-dp .kg-dp-field button{flex:1 1 100%}
+.kg-dp input[type=text]{max-width:none}}
 `;
 
 export interface DataProductProps {
@@ -78,23 +86,31 @@ export interface DataProductProps {
   onRetire?: (scope: "soft" | "delete", ids: string[] | null, opts: { leftovers?: boolean; confirm?: string; typed?: string }) => void;
   onFindLeftovers?: () => void;
   onAdopt?: (id: string) => void;
+  /** n225: the data product's plan (productWords.planOf, with the review's plan); derived from outputs when absent */
+  plan?: string;
+  /** n225: whether this list is saved in the item in Fabric; Save again when it is not */
+  saved?: SaveStatus;
+  onSaveAgain?: () => void;
   /** the typed name and the chosen rows, for a rendering of a given moment (tests); the page keeps its own otherwise */
   initialTyped?: string;
   initialChosen?: string[];
 }
 
 export function DataProductView(props: DataProductProps) {
-  const rows = rowsOf(props.outputs, props.status);
+  const plan = props.plan ?? planOf(props.outputs);
+  const rows = rowsOf(props.outputs, props.status, plan);
+  const others = otherPlanRows(props.outputs, props.status, plan);
+  const saved = savedWords(props.saved);
   const [chosen, setChosen] = useState<string[]>(props.initialChosen ?? []);
   const [typed, setTyped] = useState(props.initialTyped ?? "");
   const [owner, setOwner] = useState(props.outputs.product?.owner ?? "");
   const busy = !!props.busy;
   const people: Person[] = props.status?.people ?? [];
-  const ids = chosen.length ? chosen : null;
+  // n225: with nothing chosen, Retire is this data product's: its plan's items, never those of another plan
+  const ids = chosen.length ? chosen : others.length ? rows.filter((x) => x.id && x.state !== "removed").map((x) => x.id!) : null;
   const toggle = (id: string) => setChosen((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
   const r = props.retire;
-  const plan = props.outputs.product?.plan?.plan_id;
-  const deletable = rows.filter((x) => x.id && x.state !== "removed");
+  const deletable = chosen.length ? chosen : rows.filter((x) => x.id && x.state !== "removed");
   return (
     <div className="kg-dp" aria-busy={busy}>
       <style>{PRODUCT_CSS}</style>
@@ -103,7 +119,7 @@ export function DataProductView(props: DataProductProps) {
         <p>{ownerWords(props.outputs.product)}</p>
         <p>{props.health ?? healthWords(undefined)}</p>
         <p>{lastRunWords(props.outputs)}</p>
-        <p>Plan id: {plan ?? "not recorded"}</p>
+        <p>{planWords(props.outputs, plan)}</p>
       </div>
       {props.busy && props.waiting ? props.waiting
         : <p className="kg-dp-muted" aria-live="polite">{props.busy ? `${props.busy}` : summary(rows)}</p>}
@@ -124,32 +140,26 @@ export function DataProductView(props: DataProductProps) {
           <button type="button" onClick={() => props.onOwner?.(owner)} disabled={busy || owner.trim() === (props.outputs.product?.owner ?? "")}>Save owner</button>
           {props.status?.you && <button type="button" onClick={() => { setOwner(props.status!.you!); props.onOwner?.(props.status!.you!); }} disabled={busy}>Me ({props.status.you})</button>}
         </div>
+        <p>{OWNER_WHY}</p>
         <p className="kg-dp-muted">{people.length ? `${people.length} people and groups have a role in this workspace.` : "Kept in this item (outputs.json)."}</p>
       </section>
 
       <section aria-labelledby="kg-dp-items">
         <h3 id="kg-dp-items">Items</h3>
-        <ul>
-          {rows.map((x) => {
-            const s = STATE[x.state];
-            return (
-              <li key={x.key} className="kg-dp-row" data-state={x.state}>
-                <span className={`kg-dp-state tone-${s.tone}`}><span className="kg-dp-mark" aria-hidden="true">{s.mark}</span>{s.label}</span>
-                <span>{x.typeLabel}</span>
-                <span className="kg-dp-name">{x.name}</span>
-                {x.why && <span className="kg-dp-why">{x.why}</span>}
-                {(x.openable && x.id) || (x.id && x.state !== "removed") ? (
-                  <span className="kg-dp-actions">
-                    {x.openable && x.id && <button type="button" onClick={() => props.onOpen?.(x)}>Open in Fabric<span className="kg-dp-sr">: {x.name}</span></button>}
-                    {x.id && x.state !== "removed" && (
-                      <label><input type="checkbox" checked={chosen.includes(x.id)} onChange={() => toggle(x.id!)} disabled={busy} />Choose {x.name} for Retire</label>
-                    )}
-                  </span>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
+        <p className="kg-dp-saved" data-saved={props.saved?.state ?? "loaded"} aria-live="polite">
+          <span className={`kg-dp-mark tone-${saved.tone}`} aria-hidden="true">{saved.mark}</span><span>{saved.words}</span>
+        </p>
+        {props.saved?.state === "failed" && (
+          <div className="kg-dp-actions"><button type="button" className="kg-dp-primary" onClick={() => props.onSaveAgain?.()} disabled={busy}>Save again</button></div>
+        )}
+        <p className="kg-dp-muted">{plan ? `Every item plan ${plan} built, from every Create of this item.` : "Every item this item's Creates built."}</p>
+        <ItemRows rows={rows} chosen={chosen} toggle={toggle} busy={busy} onOpen={props.onOpen} />
+        {others.length > 0 && (
+          <details data-other-plans="">
+            <summary>{others.length} item(s) this item built from another plan: not part of this data product</summary>
+            <ItemRows rows={others} chosen={chosen} toggle={toggle} busy={busy} onOpen={props.onOpen} />
+          </details>
+        )}
       </section>
 
       <section aria-labelledby="kg-dp-update">
@@ -224,6 +234,33 @@ export function DataProductView(props: DataProductProps) {
         )}
       </section>
     </div>
+  );
+}
+
+function ItemRows(props: { rows: ProductRow[]; chosen: string[]; toggle: (id: string) => void; busy: boolean; onOpen?: (row: ProductRow) => void }) {
+  const { chosen, toggle, busy } = props;
+  return (
+    <ul>
+      {props.rows.map((x) => {
+        const s = STATE[x.state];
+        return (
+          <li key={x.key} className="kg-dp-row" data-state={x.state}>
+            <span className={`kg-dp-state tone-${s.tone}`}><span className="kg-dp-mark" aria-hidden="true">{s.mark}</span>{s.label}</span>
+            <span>{x.typeLabel}</span>
+            <span className="kg-dp-name">{x.name}</span>
+            {x.why && <span className="kg-dp-why">{x.why}</span>}
+            {(x.openable && x.id) || (x.id && x.state !== "removed") ? (
+              <span className="kg-dp-actions">
+                {x.openable && x.id && <button type="button" onClick={() => props.onOpen?.(x)}>Open in Fabric<span className="kg-dp-sr">: {x.name}</span></button>}
+                {x.id && x.state !== "removed" && (
+                  <label><input type="checkbox" checked={chosen.includes(x.id)} onChange={() => toggle(x.id!)} disabled={busy} />Choose {x.name} for Retire</label>
+                )}
+              </span>
+            ) : null}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
