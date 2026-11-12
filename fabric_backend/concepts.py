@@ -426,7 +426,7 @@ def _vision(inner: str) -> str:
     p = E(_product())
     cards = [
         ("cx-v-now", "Available today", "Check and create",
-         ["Map how your tables connect", "Count every link against the rows", "Create Fabric items when you ask"]),
+         ["Map how your tables connect", "Count keys and links against the rows (up to 200 per call)", "Create Fabric items when you ask"]),
         ("cx-v-next", "Next", "Check what comes in",
          ["See if incoming data matches its source", "Set up Fabric's own tools, with your approval"]),
         ("cx-v-vision", "Vision", "One place for the whole chain",

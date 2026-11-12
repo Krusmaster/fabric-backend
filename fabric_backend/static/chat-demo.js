@@ -15,7 +15,7 @@
   'use strict';
   var PLAN_URL = '/demo/plan.json';
   var KEY = 'krusgraph.chat';                                   // the one sessionStorage key: {open, steps}
-  var STEPS = ['scan', 'yes', 'no', 'model', 'ontology', 'domains', 'fixes', 'dbt'];
+  var STEPS = ['scan', 'yes', 'no', 'model', 'flow', 'ontology', 'domains', 'fixes', 'dbt'];
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
   var narrow = window.matchMedia('(max-width: 560px)');
   var NAMES = { onto: 'Onto', thinker: 'Thinker', builder: 'Builder' };
@@ -573,6 +573,8 @@
   function suggestions() {
     var left = [
       { key: 'model', label: 'Create a semantic model', why: 'For reports in Power BI: tables, links and measures.', go: model },
+      // n224: the data flow, moved here from the home page's replay card (the founder, 12 November 2026)
+      { key: 'flow', label: 'See the data flow', why: 'Bronze to silver to gold, as boxes you can open.', go: dataFlow },
       { key: 'ontology', label: 'Create an ontology', why: 'For meaning: what things are and how they relate.', go: ontology },
       { key: 'domains', label: 'Draft data products', why: 'Group the tables, with a contract for each.', go: products }
     ].filter(function (p) { return !S[p.key]; });
@@ -716,6 +718,45 @@
       done('dbt', html, '', note);
       var slots = log.querySelectorAll('.kgf-slot'), slot = slots[slots.length - 1], f = KGF.build(document, x.flow);
       if (slot && f) slot.appendChild(f);
+    });
+  }
+
+  // n224: the data flow of one build on the example (demo.py, data_flow.flow(): the silver notebook, the gold views and
+  // the semantic model), drawn with the dbt flow's boxes: one column under another in the chat, each box a button that
+  // opens its code (a silver cell, a gold view's SQL, the model's relationships and measures)
+  function flowView(f) {
+    var ids = {}, bronze = f.nodes.filter(function (n) { return n.column === 'bronze'; }).map(function (n) { return n.id; });
+    f.nodes.forEach(function (n) { ids[n.id] = true; });
+    var edges = [];
+    f.edges.forEach(function (e) {             // "bronze" is the whole source column: what reads it reads each source table
+      (e.from === 'bronze' ? bronze : [e.from]).forEach(function (from) { if (ids[from] && ids[e.to]) edges.push({ from: from, to: e.to }); });
+    });
+    return {
+      columns: f.columns.filter(function (c) { return f.nodes.some(function (n) { return n.column === c.id; }); })
+                        .map(function (c) { return { id: c.id, label: c.title }; }),
+      nodes: f.nodes.map(function (n) {
+        return { id: n.id, column: n.column, label: n.kind_label ? n.kind_label + ': ' + n.label : n.label, lines: n.lines,
+                 built: n.built, code: n.code || '', code_title: n.code_title || n.label };
+      }),
+      edges: edges
+    };
+  }
+  function dataFlow() {
+    work('builder', ['Reading the source tables', 'Drafting the silver tables', 'Drafting the gold views'], function () {
+      var f = drafts().flow, n = function (c) { return f.nodes.filter(function (x) { return x.column === c; }).length; };
+      var model = f.nodes.filter(function (x) { return x.column === 'built'; })[0];
+      KGF.wire(document);
+      var html = '<h3>The data flow</h3><p>' + plural(n('bronze'), 'source table') + ' (bronze) become ' +
+        plural(n('silver'), 'silver table') + (n('gold') ? ', and ' + plural(n('gold'), 'gold view') + ' join them' : '') + '.' +
+        (model ? ' The semantic model ' + code(model.label) + ' reads the source tables directly.' : '') +
+        ' Choose a box to see its code.</p><div class="kgf-slot"></div>';
+      var does = data('flow', 'does');
+      var note = 'This is a demo, so nothing was created or run. ' + (does === 'creates'
+        ? 'Connected to ' + product + ', your agent creates the silver and gold notebooks in your Fabric workspace when you ask.'
+        : 'Connected to ' + product + ', your agent drafts the silver and gold notebooks from your own tables when you ask.');
+      done('flow', html, '', note);
+      var slots = log.querySelectorAll('.kgf-slot'), slot = slots[slots.length - 1], v = KGF.build(document, flowView(f));
+      if (slot && v) { v.setAttribute('aria-label', 'The data flow'); v.classList.add('kgc-flow'); slot.appendChild(v); }
     });
   }
 

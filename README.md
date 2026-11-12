@@ -2,12 +2,12 @@
 
 The package is called `fabric-backend`: the engine, the MCP server, the website and the deployment of [Krusgraph](https://krusgraph.com), open source under the MIT licence.
 
-**See how your business tables really connect – with the proof behind every link – so your reports, apps and agents get the numbers right.**
+**See how your tables connect: the rule behind every proposed link, and the row counts once you run the check.**
 
 - Checked against your rows: every link shows its basis and the checks you run show their counts.
 - Errors before anyone sees them: the total that doubles, keys that are not unique, references with no matching row.
 - SAP knowledge from public sources ([krusgraph.com/sap](https://krusgraph.com/sap)): keys with MANDT and the order-to-cash links for VBAK, VBAP and their neighbours, each with its source. A second pack describes Younium subscription billing beside Salesforce (accounts and their External CRM Id, subscription versions, charges, invoices with lines, payments); its sources could not be opened from the session that wrote it and it is marked unverified throughout; the engine applies it since round n78 when a schema has a table of the systems' own (subscription versions, charge plans, opportunity line items), never on tables called accounts or invoices alone ([docs/YOUNIUM-SALESFORCE.md](docs/YOUNIUM-SALESFORCE.md)). The pack for the Nordic ERP systems is a spike so far ([docs/NORDIC-PACK-SPIKE.md](docs/NORDIC-PACK-SPIKE.md)).
-- One checked plan, every starting point: in Fabric, Krusgraph creates silver and gold notebooks, a pipeline, a semantic model, a report, an ontology, a data agent, an API for GraphQL and an App (preview) from the plan you reviewed; the silver and gold tables fill when the pipeline runs. On /check, in your browser, the same plan gives drafts.
+- One checked plan, every starting point: in Fabric, from the plan you reviewed, Krusgraph creates silver and gold notebooks, a pipeline, a semantic model, a report and an ontology (each created live on synthetic data); creating a data agent or a new item for an API for GraphQL is experimental (an existing API was updated in place live), and an App (preview) is built by Krusgraph for Fabric only; the silver and gold tables fill when the pipeline runs. On /check, in your browser, the same plan gives drafts.
 
 Hosted as **[Krusgraph](https://krusgraph.com)**: `https://krusgraph.com/mcp/connect` for Claude (with "Register
 automatically") and for VS Code, Cursor and other MCP clients that register themselves (signed in and used on

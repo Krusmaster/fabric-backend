@@ -2,13 +2,13 @@
 
 **What {{PRODUCT}} does**
 
-See how your business tables really connect – with the proof behind every link – so your reports, apps and agents get the numbers right.
+See how your tables connect: the rule behind every proposed link, and the row counts once you run the check.
 
 - Checked against your rows: every link shows its basis and the checks you run show their counts.
 - Errors before anyone sees them: the total that doubles, keys that are not unique, references with no matching row.
-- One checked plan, every starting point: in Fabric, Krusgraph creates silver and gold notebooks, a pipeline, a semantic model, a report, an ontology, a data agent, an API for GraphQL and an App (preview) from the plan you reviewed; the silver and gold tables fill when the pipeline runs. On /check, in your browser, the same plan gives drafts.
+- One checked plan, every starting point: in Fabric, from the plan you reviewed, Krusgraph creates silver and gold notebooks, a pipeline, a semantic model, a report and an ontology (each created live on synthetic data); creating a data agent or a new item for an API for GraphQL is experimental (an existing API was updated in place live), and an App (preview) is built by Krusgraph for Fabric only; the silver and gold tables fill when the pipeline runs. On /check, in your browser, the same plan gives drafts.
 
-[SAP tables: keys with MANDT and the order-to-cash links, each with its public source](/sap).
+[SAP tables: keys with MANDT and the order-to-cash links, each citing a public SAP page](/sap).
 
 {{WHICH_KRUSGRAPH}}
 
@@ -158,7 +158,7 @@ Here is one example per tool. They are in the order a first session usually goes
 - `list_tables`: *"Which tables are in demo_lh, schema shop?"*
 - `plan_backend`: *"Plan a backend over demo_lh, schema shop."* Nothing is deployed. You get keys, relationships, the rule for each, ambiguous columns, suggested composite keys and an ER diagram. *"Treat order_id plus line_no as the key of order_items"* passes `keys`.
 - `sample_rows`: *"Show me a few rows of orders."* Use it when a column's meaning is unclear before you decide on keys.
-- `validate_plan`: *"Check the plan against the data."* Every key is counted for uniqueness and NULLs, and every relationship for orphans. The [example on /check](/check?example=sample) shows what the answer looks like.
+- `validate_plan`: *"Check the plan against the data."* Keys are counted for uniqueness and NULLs and relationships for orphans, over whole tables: up to 60 per call (200 at most), keys first, and the answer lists what it did not count. The [example on /check](/check?example=sample) shows what the answer looks like.
 - `create_backend`: *"Create it as shop_api."* This creates the API for GraphQL item. If the name exists, it updates that item in place. It does a dry run first.
 - `describe_backend`: *"What can I query in shop_api?"* You get the types, fields and relationship names a query uses.
 - `query_graphql`: *"Using shop_api, which customers ordered a trail bike in October?"* The query is read-only. Relationships nest.
@@ -324,7 +324,7 @@ Where {{PRODUCT}} is today, and where it is going.
 **Available today: Check and create**
 
 - Map how your tables connect
-- Count every link against the rows
+- Count keys and links against the rows (up to 200 per call)
 - Create Fabric items when you ask
 
 **Next: Check what comes in**
@@ -492,10 +492,9 @@ synthetic sample: the suggestion, its data check and the decision that stays you
 SAP tables do not follow general naming rules: `VBAP.VBELN` is the order an item belongs to, `LIPS.VBELN` a delivery,
 `VBRP.VBELN` an invoice, and every key starts with the client `MANDT`. For these tables Krusgraph uses its SAP pack:
 declarative files with the keys and the order-to-cash relationships of `KNA1`, `KNVV`, `MARA`, `MAKT`, `TVKO`, `VBAK`,
-`VBAP`, `VBEP`, `VBPA`, `LIKP`, `LIPS`, `VBRK`, `VBRP`, `VBFA`, and the procure-to-pay relationships of `LFA1`, `EBAN`, `EKKO`, `EKPO`, `EKET`, `EKBE`, `RBKP`, `RSEG`, and the finance relationships of `BKPF`, `BSEG`, `ACDOCA`, `SKA1`, `SKB1`, `BSID`, `BSIK`, `CSKS`, the pricing conditions `KONV`/`PRCD_ELEMENTS`, and the business partner `BUT000` with its links to customers and suppliers, each with the public source it rests
-on, for ECC and S/4HANA. It does not depend on how the tables arrive: Fabric mirroring of SAP (through SAP
-Datasphere), Databricks, a pipeline of your own; names are recognised with or without a prefix (`VBAK`, `vbak`,
-`sap_vbak`). Every relationship it adds carries the rule `SAP pack`; `sap_pack_draft` shows what it recognises and
+`VBAP`, `VBEP`, `VBPA`, `LIKP`, `LIPS`, `VBRK`, `VBRP`, `VBFA`, and the procure-to-pay relationships of `LFA1`, `EBAN`, `EKKO`, `EKPO`, `EKET`, `EKBE`, `RBKP`, `RSEG`, and the finance relationships of `BKPF`, `BSEG`, `ACDOCA`, `SKA1`, `SKB1`, `BSID`, `BSIK`, `CSKS`, the pricing conditions `KONV`/`PRCD_ELEMENTS`, and the business partner `BUT000` with its links to customers and suppliers, each citing a public SAP
+page, written for raw ECC and S/4HANA table names (`VBAK`, `vbak`, `sap_vbak`). It has not yet been run on an SAP
+extract, mirrored or otherwise, and other naming is not recognised yet. Every relationship it adds carries the rule `SAP pack`; `sap_pack_draft` shows what it recognises and
 what is missing, and `validate_plan` checks it against the rows, because a pack is a sourced suggestion, not proof.
 
 A synthetic example (no data from any SAP system):
@@ -519,8 +518,8 @@ an SAP system or a real installation. Contents, sources and how to contribute:
 [docs/SAP.md](https://github.com/Krusmaster/fabric-backend/blob/main/docs/SAP.md).
 
 **Does Krusgraph work on customised SAP tables (Z tables)?**
-Yes, for keys and links that use SAP's standard field names, and the rows decide which of those links hold. A Z table
-that carries `MANDT` and `VBELN` is linked by the general name rule R3 to every table keyed by those fields, and
+Partly. A Z table gets no key from the pack; you add it in the review. Next to standard tables its standard fields are
+linked by the general name rule R3, and the rows decide which of those links hold. A Z table that carries `MANDT` and `VBELN` is linked by the general name rule R3 to every table keyed by those fields, and
 `validate_plan` counts the rows: on our synthetic sample the link to the sales order header held, and the links to the
 delivery and billing headers matched no row, so you reject them in the review. A Z table gets no key from its name: you
 give it in the review, for example `MANDT` + `VBELN`. A link through a custom-named column (`ZZ_KUNDE_NR` holding

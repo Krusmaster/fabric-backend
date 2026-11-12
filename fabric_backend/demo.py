@@ -156,6 +156,30 @@ def _dbt_result(p, db) -> dict:
             "flow": dbt_flow.flow(files, with_code=True)}                   # n177: sources -> staging -> marts -> model
 
 
+# n224: the chat's "See the data flow" (moved from the home page's replay card, the founder's decision of 12 November
+# 2026): data_flow.flow(), the function the Model editor's build calls, for one build on the demo plan: the silver
+# notebook, the gold views and the chat's semantic model. The lakehouse is described as in the editor's fixture
+# (workload/scripts/build_flow_fixture.py): synthetic ids, schema shop.
+FLOW_INFO = {"workspace_id": "00000000-0000-0000-0000-000000000000", "item_id": "00000000-0000-0000-0000-000000000001",
+             "item_name": "demo_lh", "item_kind": "Lakehouse", "schema": "shop", "sql_endpoint": "", "sql_db": "demo_lh",
+             "schemas_enabled": True}
+FLOW_CHOSEN = {"silver_notebook": "silver_shop", "gold_views": "gold_shop", "semantic_model": "shop_model"}
+
+
+def _flow(p) -> dict:
+    from . import data_flow, semantic_model
+    name = FLOW_CHOSEN["semantic_model"]
+    parts = semantic_model.draft(p, FLOW_INFO, name)["parts"]
+    items = [{"output": "semantic_model", "label": "Semantic model", "name": name,
+              "reads": "reads the source tables in shop (bronze) directly, not the gold views built in this run",
+              "code": data_flow.tmdl_excerpt(parts), "language": "tmdl", "code_title": f"{name}: relationships and measures"}]
+    f = data_flow.flow(p, FLOW_INFO, FLOW_CHOSEN, items=items)
+    keep = ("id", "column", "label", "kind_label", "lines", "built", "code", "code_title")
+    return {"tool": "data_flow", "columns": f["columns"], "said": f["said"], "notes": f["notes"],
+            "nodes": [{k: n[k] for k in keep if k in n} for n in f["nodes"]],
+            "edges": [{"from": e["from"], "to": e["to"], "built": e["built"]} for e in f["edges"]]}
+
+
 def _drafts(p) -> dict:
     """What the engine's drafts say about one plan, in counts: ontology_draft, semantic_model_draft, domain_draft, and
     validate_plan on the synthetic rows."""
@@ -191,6 +215,7 @@ def _drafts(p) -> dict:
                     "unassigned": [u["table"] for u in d["unassigned"]]},
         "fixes": _fix_result(p, _demo_db()),                                                      # n161
         "dbt": _dbt_result(p, _demo_db()),                                                        # n161
+        "flow": _flow(p),                                                                         # n224
     }
 
 

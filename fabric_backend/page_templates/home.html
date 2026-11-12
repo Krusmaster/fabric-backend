@@ -34,7 +34,6 @@
           <p class="session-ask" aria-hidden="true"><span class="session-text">Build a Power BI model from my lakehouse.</span><span class="session-send">↑</span></p>
         </li>
       </ol>
-{{HOME_REPLAY_FLOW}}
       <p class="session-dots" aria-hidden="true"><span></span><span></span><span></span><span></span></p>
       <p class="session-links"><a href="/check">{{LABEL_CHECK}}</a><a href="/start">{{LABEL_CONNECT}}</a></p>
       <figcaption id="session-cap">Answers shortened from Krusgraph's checks on synthetic shop data. Questions 1 and 2: plan_backend and validate_plan run read only on that data (8 November 2026). Questions 3 and 4: real runs in Claude against the same data in a Fabric lakehouse, which created an ontology (28 October 2026) and a semantic model (29 October 2026).</figcaption>
@@ -91,7 +90,7 @@
   <details><summary>Can I try it without Fabric?</summary>
     <p>Yes. <a href="/check">/check</a> runs the same engine in your browser on CSV or Excel exports, or on a list of columns, with no account. The <a href="/check?example=sample&amp;guide=1">guided demo</a> uses synthetic sample data.</p></details>
   <details><summary>How is this different from asking a chat assistant directly?</summary>
-    <p>The proof. Every key and relationship comes with the named rule that produced it, or its source, such as the public source behind an SAP pack link, and the checks you run count against your rows: whether a key is unique, how many rows point at nothing, whether a total doubles in a join. What a check has not covered is listed in the <a href="/start#access">set-up guide</a>. The rules are in the <a href="{{GITHUB}}" rel="noopener">open source code</a>.</p></details>
+    <p>The basis. Every key and relationship comes with the named rule that produced it, or its source, such as the public SAP page an SAP pack link cites (nothing in the pack is verified against an SAP system), and the checks you run count against your rows: whether a key is unique, how many rows point at nothing, whether a total doubles in a join. What a check has not covered is listed in the <a href="/start#access">set-up guide</a>. The rules are in the <a href="{{GITHUB}}" rel="noopener">open source code</a>.</p></details>
 </section>
 
 <section class="wrap" style="padding-top:0">

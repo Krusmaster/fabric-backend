@@ -196,6 +196,18 @@ WAYS = (
 # item creates (APP_NOTE; docs/RAYFIN-APP.md).
 BUILT = ("Semantic model", "Report", "Ontology", "API for GraphQL", "Pipeline and notebooks", "Data agent", "App (Rayfin, preview)",
          "Data product")
+# n224 (S1 section 4 #5): each item with its status, the chips of claims.py (derived from tool_status), so the list does
+# not read as one evidence class. The data product, like the App, is made by Krusgraph for Fabric only (a pilot).
+BUILT_CLAIM = {"Semantic model": "semantic_model", "Report": "report", "Ontology": "ontology", "API for GraphQL": "graphql",
+               "Pipeline and notebooks": "pipeline", "Data agent": "data_agent", "App (Rayfin, preview)": "app"}
+
+
+def built_status(item: str) -> str:
+    from . import claims
+    key = BUILT_CLAIM.get(item)
+    return claims.status(key) if key else "Preview"
+
+
 APP_NOTE = ("The App (Rayfin, preview) is built by Krusgraph for Fabric only: Create makes the empty App item, and its pages "
             "and read-only connector come as a package you publish (no App item definition is documented).")
 
@@ -347,14 +359,14 @@ def diagram_html(heading: str = "One engine, four products", level: int = 2, hid
         f'<span class="off-way-who">{_e(val(w, "who"))}</span>'
         f'<span class="off-way-data"><span class="off-k">Data passes:</span> {_e(w["data_short"])}</span></a></li>'
         for w in WAYS)
-    built = "".join(f"<li>{_e(b)}</li>" for b in BUILT)
+    built = "".join(f'<li>{_e(b)} <span class="off-src-st">{_e(built_status(b))}</span></li>' for b in BUILT)
     src = sources()
     source_items = "".join(f'<li>{_e(n)} <span class="off-src-st">{_e(w)}</span></li>' for n, w in src)
     source_words = ", ".join(f"{n[0].lower() + n[1:] if n != 'SQL database' else n} ({w})" for n, w in src)
     words = "".join(
         f'<li><a href="{val(w, "docs")}">{_e(w["name"])}</a>: for {_e(val(w, "who")[0].lower() + val(w, "who")[1:])} '
         f'Data passes: {_e(w["data_short"])}.</li>' for w in WAYS)
-    built_words = ", ".join(b if b.startswith(("API", "App")) else b.lower() for b in BUILT)
+    built_words = ", ".join((b if b.startswith(("API", "App")) else b.lower()) + f" ({built_status(b).lower()})" for b in BUILT)
     return f"""<section class="wrap offering" id="offering" aria-labelledby="{hid}">
   <h{level} id="{hid}">{_e(heading)}</h{level}>
   <p class="intro">Your tables in Fabric go into one Krusgraph engine, which proposes keys and links with the rule behind each and checks them against your rows. What it builds lands in Fabric. Four products are the ways to drive it.</p>
@@ -433,8 +445,8 @@ def choose_vars() -> dict[str, str]:
 def choose_md() -> str:
     """/choose.md: the same facts as Markdown."""
     out = ["# Which Krusgraph should I use?", "",
-           "One Krusgraph engine, four products: " + ", ".join(w["name"] for w in WAYS) + ". Each builds the same items in "
-           "Microsoft Fabric.", "",
+           "One Krusgraph engine, four products: " + ", ".join(w["name"] for w in WAYS) + ". They share one engine and one plan; "
+           "what each builds is listed below, and the App (Rayfin, preview) is built by Krusgraph for Fabric only.", "",
            "## Decision guide", ""]
     from .pages import site_url
     o = site_url()
@@ -447,7 +459,7 @@ def choose_md() -> str:
             out.append(f"- **{label}:** " + ("; ".join(v) if isinstance(v, (list, tuple)) else v))
         out += [f"- **Docs:** {o}{val(w, 'docs')}", ""]
     out += alternatives_md()
-    out += ["## Built in Microsoft Fabric", "", ", ".join(BUILT) + ".", "", APP_NOTE, "", NOT_PRODUCTS, "",
+    out += ["## Built in Microsoft Fabric", "", ", ".join(f"{b} ({built_status(b).lower()})" for b in BUILT) + ".", "", APP_NOTE, "", NOT_PRODUCTS, "",
             f"Security, data and what is in place: {o}/trust.md", ""]
     return "\n".join(out)
 
@@ -475,7 +487,7 @@ ALTERNATIVES = (
      "it can sit beside them in the same AI client."),
     ("Power BI's automatic relationships",
      "Power BI Desktop can detect relationships when data is loaded.",
-     "Shows the rule behind each relationship and the counts from all rows: keys that are not unique, references with no "
+     "Shows the rule behind each relationship and the counts over whole tables (up to 200 keys and links per call): keys that are not unique, references with no "
      "matching row and the total that doubles after a join; the same plan then builds more than a Power BI model."),
     ("dbt tests",
      "unique, not_null and relationships tests run in your dbt project on the columns you name.",

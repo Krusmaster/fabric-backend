@@ -41,6 +41,8 @@ EXAMPLES = [
 # No "typical tables" and no map here: the maps are the three examples above. Each entry stays under
 # INDUSTRY_WORD_CAP words on the page (tests/test_use_cases.py). No logistics, warehouse or supply-chain theme.
 INDUSTRY_WORD_CAP = 120
+# n224 (S1 section 3.2): no dataset stands behind the ten cards, so each says so, on the page and in the Markdown
+ILLUSTRATIVE = "Illustrative, not run on customer data"
 INDUSTRIES: list[dict] = [
     {"slug": "retail", "name": "Retail and e-commerce", "example": "sample",
      "problem": "Our order total in the sales report is twice what finance has, and a return never finds its order line.",
@@ -174,6 +176,7 @@ def industries_html() -> str:
     e = html.escape
     return "".join(
         f'<li class="card soft uc-ind" id="{e(i["slug"])}"><h3>{e(i["name"])}</h3>'
+        f'<p class="uc-ind-tag"><span class="chip chip-planned">{e(ILLUSTRATIVE)}</span></p>'
         f'<p class="uc-task-q">“{e(i["problem"])}”</p>'
         f'<p><strong>What you get.</strong> {e(i["get"])}</p>'
         f'<p class="uc-ind-go"><a class="btn secondary small" href="/check?example={e(i["example"])}" data-try-like="{e(i["example"])}">Try a similar example</a>'
@@ -235,7 +238,7 @@ def markdown(product: str, origin: str, contact: str) -> str:
     out += [f"- **{n}**: {w}{' (' + t + ')' if t else ''}" for n, w, t in OUTPUTS]
     out.append("\n## Industries: the problem a customer brings\n")
     for i in INDUSTRIES:
-        out += [f"### {i['name']}\n", f"**“{i['problem']}”**\n", f"- **What you get.** {i['get']}",
+        out += [f"### {i['name']}\n", f"*{ILLUSTRATIVE}.*\n", f"**“{i['problem']}”**\n", f"- **What you get.** {i['get']}",
                 f"- Try a similar example ({_example_title(i['example'])}, synthetic data): [{origin}/check?example={i['example']}]({origin}/check?example={i['example']})\n"]
     out.append(f"\nThe rules behind every key and relationship: [{origin}/docs#how-relationships-are-inferred]({origin}/docs#how-relationships-are-inferred). "
                f"What each tool builds from a plan: [{origin}/use-cases/build]({origin}/use-cases/build).")

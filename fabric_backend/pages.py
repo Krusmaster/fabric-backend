@@ -59,7 +59,7 @@ PAGES = {
     "/choose": ("choose.html", "Which Krusgraph should I use? — {{PRODUCT}}",
                 "Krusgraph for Fabric, Krusgraph for Claude, Krusgraph for Lovable or Krusgraph Open Source: who each is for, what it needs, where your data passes, its status and what it lacks today.", "product"),
     "/sap": ("sap.html", "SAP tables: keys and order-to-cash links — {{PRODUCT}}",
-             "Keys with MANDT and the order-to-cash links for VBAK, VBAP and their neighbours, each with its public source, from {{PRODUCT}}'s SAP pack.", "product"),
+             "Keys with MANDT and the order-to-cash links for VBAK, VBAP and their neighbours, each citing a public SAP page, from {{PRODUCT}}'s SAP pack.", "product"),
     "/use-cases": ("use_cases.html", "Use cases — {{PRODUCT}}",
                    "Start from an undocumented lakehouse, a join to check or an app to build. Three synthetic examples drawn as maps show what {{PRODUCT}} proposes and what still needs your judgement.", "usecases"),
     "/use-cases/build": ("use_cases_build.html", "What you can build from a plan — {{PRODUCT}}",
@@ -826,9 +826,9 @@ def build_path() -> list[dict]:
 
 
 def build_path_html() -> str:
-    """The row of steps above the cards, with the counts from the path, the demo plan and the 20-minute demo's budget."""
+    """The row of steps above the cards, with the counts from the path and the demo plan (n224: no minutes; the 20-minute
+    demo's budget is a script, not a measured time)."""
     from .demo import demo_plan
-    from .demo_app import STEPS
     from .tool_status import short
     e = html.escape
     path = build_path()
@@ -840,15 +840,14 @@ def build_path_html() -> str:
         f'<li><span class="path-n" aria-hidden="true">{i}</span><h3>{e(s["title"])}</h3>'
         f'<p class="path-tools">{", ".join(f"<code>{e(t)}</code>" for t in s["tools"])}</p><p>{e(s["you"])}</p></li>'
         for i, s in enumerate(path, 1))
-    minutes = sum(s["minutes"] for s in STEPS)
-    budget = ", ".join(f'{s["title"].lower()} {s["minutes"]} min' for s in STEPS)
     return (f'<ol class="path-steps" aria-label="From tables to Fabric items in {len(path)} steps">{items}</ol>'
             f'<p class="path-facts">{len(path)} steps. {before} tool calls take you from your tables to a checked plan; '
             f'then one call per part, {parts} parts in all. On the shop schema the plan has {len(d["tables"])} tables, '
             f'{keyed} with keys and {len(d["relationships"])} relationships, without anyone writing code or configuration.</p>'
-            f'<p class="path-facts">From your tables to a checked plan in about {minutes} minutes; each part after that is one call '
-            f'when you ask for it. The {minutes} minutes are the budget of the <a href="/local#the-20-minute-demo">20-minute demo</a> '
-            f'({e(budget)}), which ends with the plan checked against the rows and the exports in your hands.</p>'
+            f'<p class="path-facts">Each part after the checked plan is one call when you ask for it. The '
+            f'<a href="/local#the-20-minute-demo">20-minute demo</a> walks the same steps on the seven-table sample and ends '
+            f'with the plan checked against the rows and the exports in your hands; it is a script, not a measured time on your '
+            f'schema.</p>'
             f'<p class="muted tiny">Status of creating: {"; ".join(f"<code>{e(t)}</code> {e(short(t))}" for t in path[-1]["tools"])}. '
             f'The runs behind each: <a href="/docs#test-status">test status per tool</a>.</p>')
 
@@ -923,6 +922,9 @@ def before_after_mini_html() -> str:
 # own text.
 CHAT_RESULTS = (("model", "semantic_model_draft", "create_semantic_model"), ("ontology", "ontology_draft", "create_ontology"),
                 ("domains", "domain_draft", ""),
+                # n224: the data flow (bronze -> silver -> gold -> the model), moved here from the home page's replay card;
+                # its status is the gold views' (the step's last stage, drafted by gold_views_draft)
+                ("flow", "gold_views_draft", "create_gold_views"),
                 # n161: the two runnable steps after them. Fixes: validate_plan proposes them, create_silver_notebook
                 # applies the accepted ones; dbt: dbt_schema writes the project's files and nothing creates or runs it.
                 ("fixes", "validate_plan", "create_silver_notebook"), ("dbt", "dbt_schema", ""))
@@ -1035,13 +1037,7 @@ def _home_vars() -> dict[str, str]:
     # four-products diagram (HOME_OFFERING) says. hub_html stays for anyone who needs it.
     return {"HOME_BEFORE_AFTER": before_after_html(),
             "HOME_FILM": film_html(hero=True),                                    # n157; n196: under the headline
-            "HOME_OFFERING": _offering().diagram_html(),                         # n177
-            "HOME_REPLAY_FLOW": _replay_flow_html()}                             # n217: the flow of the replay's build
-
-
-def _replay_flow_html() -> str:
-    from .replay_flow import replay_flow_html
-    return replay_flow_html()
+            "HOME_OFFERING": _offering().diagram_html()}                         # n177
 
 
 def _offering():
@@ -1060,9 +1056,8 @@ def check_download_bytes() -> int:
             + sum((STATIC_DIR / n).stat().st_size for n in ("check.js", "check-worker.js")))
 
 
-# measured with tests' Chromium and DevTools network throttling (40 ms latency) against a local server; see the n38 report
-CHECK_TIMES = ("about 13.5 s the first time on a 5 Mbit/s line, 5.5 s on 20 Mbit/s, and 2.5 s once the engine is in the "
-               "browser's cache")
+# n224 (S1 section 3.2): the seconds measured on a local server (n38) are no longer on /check; they held for seven synthetic
+# tables on one machine, not for a visitor's files.
 
 
 def check_vars() -> dict[str, str]:
@@ -1071,7 +1066,7 @@ def check_vars() -> dict[str, str]:
     # n49: the start page may fetch these ahead of a visit to /check, at exactly the URLs the worker asks for, so the
     # browser's cache answers the worker (site.js, checkPrefetch)
     urls = [f"/static/pyodide/{n}" for n in CHECK_DOWNLOAD] + [f"/check/engine.zip?v={v}"]
-    return {"CHECK_MB": str(round(check_download_bytes() / 1e6)), "CHECK_TIMES": CHECK_TIMES, "CHECK_ENGINE_V": v, "CHECK_PREFETCH": " ".join(urls)}
+    return {"CHECK_MB": str(round(check_download_bytes() / 1e6)), "CHECK_ENGINE_V": v, "CHECK_PREFETCH": " ".join(urls)}
 
 
 SAP_CORE = ("VBAK", "VBAP")
