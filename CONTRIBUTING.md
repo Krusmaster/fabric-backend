@@ -35,14 +35,14 @@ owner of an area is listed here. Change an area you do not own only when the mai
 
 | Area | Files | Owner now |
 | --- | --- | --- |
-| Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/concepts.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | n224 |
+| Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/concepts.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | open |
 | MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | n226 |
 | Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | n226 (also `evidence.py`, `compact.py`, `silver.py`, `gold.py`, `semantic_model.py`, `ontology.py`, a new `budget.py` and `coverage.py`); W7 holds the one new file `fabric_backend/migration_read.py` (a reader for a synthetic Qlik load script and Tableau workbook, the proof in `docs/MIGRATION-DESIGN.md`; no tool, nothing else in Engine) |
 | Deployment | `deploy/`, `Dockerfile`, `.github/` | open |
 | Pipeline jobs and permissions | `fabric_backend/pipeline_jobs.py`, `fabric_backend/access.py`, `fabric_backend/report.py` | open |
 | SAP pack | `fabric_backend/packs/`, `fabric_backend/sap_pack.py`, `fabric_backend/sap_demo.py`, `fabric_backend/exports.py` | | open |
-| Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | open; n224 holds `README.md`'s promise lines only (the USP and its three points, which tests keep equal to the site's) and `server.json`'s description (equal to the server card's); W7 holds the one new file `docs/MIGRATION-DESIGN.md`; W8 holds the one new file `docs/DOMAINS-DESIGN.md` |
-| Tests | `tests/` | n224; n226 holds the new `tests/test_n226_*` files and the engine tests it changes; W7 holds the new `tests/test_w7_migration_read.py` and `tests/fixtures/w7/` |
+| Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | open; W7 holds the one new file `docs/MIGRATION-DESIGN.md`; W8 holds the one new file `docs/DOMAINS-DESIGN.md` |
+| Tests | `tests/` | open; n226 holds the new `tests/test_n226_*` files and the engine tests it changes; W7 holds the new `tests/test_w7_migration_read.py` and `tests/fixtures/w7/` |
 | Workload | `workload/` (the Fabric workload, a fork of Microsoft's starter kit), `fabric_backend/workload_api.py`, the workload routes in `server.py`, `docs/WORKLOAD-DEV.md` | open |
 | Marketplace | `fabric_backend/marketplace.py`, `fabric_backend/entitlements.py`, the marketplace routes in `server.py`, `docs/MARKETPLACE-SETUP.md`, `tests/test_marketplace.py` | open |
 | Hub readiness | `docs/HUB-ATTESTATION.md`, `docs/HUB-READINESS.md`, `tools/hub_readiness.py`, `.github/workflows/hub-readiness.yml` (new files only; no `workload/` code, no site, no engine) | open |
