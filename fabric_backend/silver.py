@@ -26,6 +26,10 @@ twice is two real rows. The key is still proposed as before; the notebook, its s
 duplicates were removed because the key was not checked, and the check notebook reports such a key without failing.
 A fix accepted from validate_plan (keep_one_per_key, n115) is a person's decision and still de-duplicates.
 
+Round n226: when a relationship needs a composite key (SAP's MANDT + VBELN), each table gets its combined key columns
+(combined_keys.py) just before it is written: one text column per composite key and per composite link, which the
+semantic model and the ontology relate on. A plan without such a relationship gets no new column.
+
 `spec()` is the plan of the notebook as data; `cells()` renders it as PySpark; `simulate()` runs the same steps on
 Python rows (the tests run both on the shop seed and compare). Nothing here talks to Fabric.
 
@@ -184,6 +188,8 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", order_by: dict |
             raise PlanInputError(f"the silver table for {t} would be {full}, which is a source table; choose another silver_schema")
 
     label = getattr(plan, "label", None) or (lambda rule: rule)
+    from . import combined_keys as _combined                           # n226: composite keys carried through
+    combined = _combined.columns(plan, chosen)
     edges = [(r.target, r.source) for r in plan.relationships if r.source in chosen]
     order = _topological(chosen, [(p, c) for p, c in edges if p in chosen])
     out_tables = []
@@ -209,7 +215,9 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", order_by: dict |
                            **({"key_rule_text": _rule_text(key_rule)} if key and label(key_rule) != key_rule else {}),
                            "dedupe": dedupe, **({"key_basis": basis} if key else {}),
                            **({"key_checked": {"how": got.get("how"), "on": checked_on(got.get("checked_at"))}} if got else {}),
-                           "order_by": col, "order_why": why, "checks": checks})
+                           "order_by": col, "order_why": why, "checks": checks,
+                           **({"combined": [{"name": c.name, "columns": list(c.columns), "for": list(c.why)} for c in combined[t]]}
+                              if combined.get(t) else {})})
     owner = f"{(read_from or {}).get('item_id') or info.get('item_id') or info.get('item_name') or 'lakehouse'}/{schema}"
     from . import privacy
     personal: dict[str, list[str]] = {}
@@ -616,8 +624,22 @@ def _table_cell(t: dict) -> str:
         out.append(f"df = {_ref_call(c, parent, name, reason)}")
     for m in t.get("moves", []):                                         # n115: a flat table's header amount
         out += _move_lines(t, m)
+    out += _combined_lines(t)
     out.append(f"silver[{_py(name)}] = write_silver(df, {_py(name)})")
     return "\n".join(out)
+
+
+def _combined_lines(t: dict) -> list[str]:
+    """n226: the combined key columns of the table (combined_keys.py), after every check: one text column per composite
+    key and per composite link, the parts joined with the unit separator chr(31); NULL when a part is NULL."""
+    from . import combined_keys as _combined
+    out = []
+    for c in t.get("combined", []):
+        out.append(_comment(f"Combined key column {c['name']} = {' + '.join(c['columns'])} (for {'; '.join(c['for'])}): a relationship in "
+                            "the semantic model and the ontology uses one column per side, so the composite key is joined into one "
+                            "text column here, the parts separated by chr(31); NULL when a part is NULL."))
+        out.append(f"df = df.withColumn({_py(c['name'])}, {_combined.spark_expr(c['columns'])})")
+    return out
 
 
 FINISH = '''# ---- quarantine and summary ----
@@ -803,6 +825,8 @@ def steps(s: dict) -> list[dict]:
         else:
             entry["deduplicate_on"] = "no key (K3): rows kept as they are"
         entry["checks"] = [{"columns": c["columns"], "parent": c["parent"], "rule": c["rule"]} for c in t["checks"]]
+        if t.get("combined"):                                            # n226
+            entry["combined_key_columns"] = [{"column": c["name"], "combines": c["columns"]} for c in t["combined"]]
         out.append(entry)
     return out
 
@@ -976,6 +1000,9 @@ def simulate(s: dict, data: dict[str, list[dict]], given: dict | None = None) ->
                         e[a] = r[a]
             silver[m["target_table"]] = list(level.values())
             rows = [{k: v for k, v in r.items() if k not in m["amounts"]} for r in rows]
+        if t.get("combined"):                                            # n226: as the notebook's withColumn
+            from . import combined_keys as _combined
+            rows = [{**r, **{c["name"]: _combined.value(r, c["columns"]) for c in t["combined"]}} for r in rows]
         silver[name] = rows
     if s.get("mask_personal_data", True) and s.get("personal"):                # as the notebook's to_quarantine writes row_json
         for q in quarantine:

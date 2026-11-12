@@ -356,15 +356,25 @@ def envelope(parts: dict[str, str], name: str, description: str = "") -> dict:
 
 
 def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str] | None = None, validation: dict | None = None,
-          date_range: tuple[str, str] | None = None, whole_quantities: set[tuple[str, str]] = frozenset()) -> dict:
+          date_range: tuple[str, str] | None = None, whole_quantities: set[tuple[str, str]] = frozenset(),
+          combined: bool | None = None) -> dict:
     """info: item_name, item_kind, schema, sql_endpoint, sql_db, schemas_enabled (from server._source_inputs); returns
     {"parts": {path: content}, "summary": {...}}. `validation` (evidence.validate's answer) raises the certainty of the
     links it confirmed when the active set is chosen. `date_range` (first, last date of the related date columns, read
     by create_semantic_model) sets the calendar's range; without it the range is a placeholder (n151).
     `whole_quantities`: (table, column) of quantity columns of a decimal type whose rows hold whole numbers only (counted
-    by create_semantic_model, `quantity_columns` and `whole_sql`); their sum is formatted as a whole number (n151)."""
-    from . import graphs
-    analysis = graphs.analyze(plan, validation)
+    by create_semantic_model, `quantity_columns` and `whole_sql`); their sum is formatted as a whole number (n151).
+    n226: when a relationship among the tables needs a composite key (combined_keys.py), the model reads the silver layer,
+    where the silver step writes one combined key column per composite key and link, and relates on those columns; the
+    summary's `reads` says so. `combined=False` keeps the source tables and leaves such relationships not expressible.
+    A plan without one is drafted exactly as before."""
+    from . import combined_keys as _combined, graphs
+    original = plan
+    plan, carried = _combined.carry(original, tables) if combined is not False else (original, {})
+    layer = _combined.layer(info, carried)
+    if not layer:                                                # nothing combined, or no silver step for this source
+        plan, carried = original, {}
+    analysis = graphs.analyze(original, validation)
     role_of = {t: r["role"] for t, r in analysis["roles"].items()}
     wanted = {t.lower() for t in tables} if tables else None
     chosen = [t for t in plan.schema if not wanted or t.name.lower() in wanted]
@@ -378,12 +388,15 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
     # dbo included. Without that flag, a lakehouse's dbo is taken as "no schemas" and any other schema as schema-enabled.
     schemas_enabled = info.get("schemas_enabled")
     with_schema = bool(schemas_enabled) if schemas_enabled is not None else not (kind == "Lakehouse" and schema.lower() == "dbo")
+    prefix = ""
+    if layer:                                                    # n226: the silver tables, which hold the combined columns
+        schema, with_schema, prefix = layer["schema"] or schema, layer["schemas_enabled"], layer["prefix"]
 
-    dup = keys_not_unique(plan, validation)                      # n150: a key the rows show is not unique is no one side
+    dup = keys_not_unique(original, validation)                     # n150: a key the rows show is not unique is no one side
     single = [r for r in plan.relationships if r.source in names and r.target in names and r.target not in dup
               and len(r.source_cols) == 1 and len(r.target_cols) == 1 and len(plan.keys.get(r.target, ([], ""))[0]) == 1]
     composite = [r for r in plan.relationships if r.source in names and r.target in names and r not in single]
-    why_not = lambda r: not_unique_why(r.target, dup[r.target]) if r.target in dup else not_expressible_why(plan, r)
+    why_not = lambda r: not_unique_why(r.target, dup[r.target]) if r.target in dup else not_expressible_why(original, r)
     active, inactive = active_relationships(plan, single, validation)
     ref_cols = {(r.source, r.source_cols[0].lower()) for r in single}
 
@@ -447,7 +460,7 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
     for t in chosen:
         key = plan.keys.get(t.name, ([], ""))[0]
         lines = [f"table {tmdl_name(t.name)}", f"\tlineageTag: {_tag(name, 'table', t.name)}",
-                 f"\tsourceLineageTag: [{schema}].[{t.name}]", ""]
+                 f"\tsourceLineageTag: [{schema}].[{prefix}{t.name}]", ""]
         for m in by_table.get(t.name, []):
             lines += [f"\t/// Suggested by Krusgraph: {m['why']}.", f"\tmeasure {tmdl_name(m['name'])} = {m['expression']}",
                       f"\t\tformatString: {m['format']}", f"\t\tlineageTag: {_tag(name, 'measure', t.name, m['name'])}", ""]
@@ -476,7 +489,7 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
             lines += [f"\t\tlineageTag: {_tag(name, 'column', t.name, c.name)}", f"\t\tsourceLineageTag: {c.name}",
                       f"\t\tsummarizeBy: {summarize}", f"\t\tsourceColumn: {c.name}", "",
                       "\t\tannotation SummarizationSetBy = Automatic", ""]
-        lines += [f"\tpartition {tmdl_name(t.name)} = entity", "\t\tmode: directLake", "\t\tsource", f"\t\t\tentityName: {t.name}"]
+        lines += [f"\tpartition {tmdl_name(t.name)} = entity", "\t\tmode: directLake", "\t\tsource", f"\t\t\tentityName: {prefix}{t.name}"]
         if with_schema:
             lines.append(f"\t\t\tschemaName: {schema}")
         lines += [f"\t\t\texpressionSource: {EXPRESSION}", "", "\tannotation PBI_ResultType = Table", "",
@@ -554,6 +567,14 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                                   "Decisions to check with what the lakehouse needs." if composite else "The plan found no relationship between these tables.")]
     elif composite:
         readme += ["", f"{len(composite)} relationship(s) of the plan are not in the file: see Decisions to check."]
+    if layer:                                                    # n226
+        readme += ["", "## Combined key columns", "", layer["said"], "",
+                   "| Table | Column | Combines | For |", "| --- | --- | --- | --- |"]
+        readme += [f"| `{c['table']}` | `{c['column']}` | {' + '.join(c['combines'])} | {'; '.join(c['for'])} |"
+                   for c in _combined.describe(carried)]
+        readme += ["", "Each is the parts as text joined by the character U+001F, and empty (NULL) when a part is NULL, on both sides "
+                   "of a relationship, so a row relates exactly when every part matches. A key taken from names or a pack is not "
+                   "counted here: validate_plan counts whether it is unique, and Power BI refuses a one side with duplicates."]
     readme += ["", "## Decisions to check", ""]
     for r, why in inactive:
         readme.append(f"- `{r.source}.{r.source_cols[0]} -> {r.target}` is inactive: {why}. Use USERELATIONSHIP in DAX or pick another active one.")
@@ -649,6 +670,9 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                                "not_related": [{"fact": f, "column": c, "why": "datetime with a time of day"} for f, c in timed],
                                "range": (f"{cal_first}-01-01 to {cal_last}-12-31 (the data's years, {date_range[0]} to {date_range[1]})" if cal_from_data
                                          else f"{CALENDAR_FIRST_YEAR}-01-01 to {CALENDAR_LAST_YEAR}-12-31 (placeholder; see README)")} if calendar else None)}
+    if layer:                                                      # n226: only when columns are combined
+        summary["reads"] = {"layer": "silver", "schema": schema, "tables": f"{prefix}<table>", "said": layer["said"]}
+        summary["combined_key_columns"] = _combined.describe(carried)
     if flat:
         summary["flat_amounts"] = [{"table": t, "column": c, "header": h, "summarize_by": "none"} for (t, c), h in flat.items()]
     if dup.keys() & names:                                         # n150: only when the rows showed one

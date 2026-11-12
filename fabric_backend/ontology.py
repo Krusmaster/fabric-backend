@@ -89,6 +89,19 @@ def _ident(s: str) -> str:
     return s if s[0].isalpha() else "x_" + s
 
 
+def _carry(plan: Plan, tables: list[str] | None, schema: str = "dbo", item_kind: str = "Lakehouse"):
+    """n226: (plan, layer, schema, prefix) as the ontology reads it. When a relationship needs a composite key
+    (combined_keys.py), the plan with one combined key column per composite key and link, read from the silver layer
+    the silver step writes them into; otherwise the plan itself, the source schema and no prefix, exactly as before."""
+    from . import combined_keys as _combined
+    carried, combined = _combined.carry(plan, tables)
+    lay = _combined.layer({"schema": schema, "item_kind": item_kind}, combined)
+    if not lay:
+        return plan, None, schema, ""
+    lay["columns"] = _combined.describe(combined)
+    return carried, lay, lay["schema"] or schema, lay["prefix"]
+
+
 def _model(plan: Plan, tables: set[str] | None):
     """The entity types this ontology gets, in plan order, with their key column (None when composite or missing)."""
     out = []
@@ -108,8 +121,9 @@ def _type_of(t, col: str) -> str:
     return "string"
 
 
-def summary(plan: Plan, tables: list[str] | None = None) -> dict:
+def summary(plan: Plan, tables: list[str] | None = None, schema: str | None = None) -> dict:
     """What the ontology will contain and what needs a hand in the portal."""
+    plan, lay, _, _ = _carry(plan, tables, schema or plan.schema.schema or "dbo")
     wanted = {x.lower() for x in tables} if tables else None
     model = _model(plan, wanted)
     names = {t.name for t, *_ in model}
@@ -129,21 +143,26 @@ def summary(plan: Plan, tables: list[str] | None = None) -> dict:
         if r not in single:
             notes.append(f"{entity_name(r.source)} → {entity_name(r.target)} ({r.rule}, {'+'.join(r.source_cols)}): a composite-column relationship; "
                          f"bind it in the portal with a mapping table, it is not in relationships.tmdl.")
-    return {
+    out = {
         "entity_types": len(model), "with_key": sum(1 for _, key, *_ in model if key), "relationship_types": len(single),
         "skipped_relationships": len(rels) - len(single), "notes": notes,
     }
+    if lay:                                                    # n226: only when composite keys are carried
+        out["reads"] = lay["said"]
+        out["combined_key_columns"] = lay["columns"]
+    return out
 
 
 def bindings(plan: Plan, source_name: str, schema: str = "dbo", tables: list[str] | None = None) -> list[dict]:
     """The checklist for binding in the portal (or for reading the definition): one entry per entity type."""
+    plan, _, schema, prefix = _carry(plan, tables, schema)
     wanted = {x.lower() for x in tables} if tables else None
     model = _model(plan, wanted)
     names = {t.name for t, *_ in model}
     out = []
     for t, key, cols, rule in model:
         out.append({
-            "entity_type": entity_name(t.name), "table": f"{schema}.{t.name}", "source": source_name,
+            "entity_type": entity_name(t.name), "table": f"{schema}.{prefix}{t.name}", "source": source_name,
             "key": key, "key_rule": rule or "K3", "key_columns": cols,
             "properties": [{"name": c.name, "column": c.name, "type": prop_type(c.data_type)[1], "source_type": c.data_type} for c in t.columns],
             "relationships": [{"name": _entity_relationship_name(r, plan), "to": entity_name(r.target), "from_columns": r.source_cols,
@@ -157,6 +176,7 @@ def ontology_parts(plan: Plan, name: str, *, workspace_id: str, item_id: str, it
                    schema: str = "dbo", sql_endpoint: str = "", tables: list[str] | None = None, namespace: str = "default") -> dict[str, str]:
     """The item definition as {part path: text}. Generation 2 (TMDL)."""
     check_tables(plan.schema, tables)
+    plan, _, schema, prefix = _carry(plan, tables, schema, item_kind)
     wanted = {x.lower() for x in tables} if tables else None
     model = _model(plan, wanted)
     if not model:
@@ -193,7 +213,7 @@ def ontology_parts(plan: Plan, name: str, *, workspace_id: str, item_id: str, it
         for c in t.columns:
             lines += [f"\tcolumn {_tmdl(c.name)}", f"\t\tdataType: {prop_type(c.data_type)[0]}",
                       f"\t\tlineageTag: {_tag(name, 'column', e, c.name)}", f"\t\tsourceColumn: {c.name}", ""]
-        lines += [f"\tpartition {_tmdl(e)} = entity", "\t\tmode: directLake", "\t\tsource", f"\t\t\tentityName: {t.name}",
+        lines += [f"\tpartition {_tmdl(e)} = entity", "\t\tmode: directLake", "\t\tsource", f"\t\t\tentityName: {prefix}{t.name}",
                   f"\t\t\tschemaName: {schema}", f"\t\t\texpressionSource: {_tmdl(expr)}", ""]
         for k, v in (("ONT_WorkspaceId", workspace_id), ("ONT_ItemId", item_id), ("ONT_ItemKind", item_kind), ("ONT_ItemName", item_name),
                      ("ONT_SqlEndpoint", sql_endpoint), ("ONT_SqlDatabase", item_name)):
@@ -246,6 +266,7 @@ def ontology_ttl(plan: Plan, name: str, schema: str = "dbo", tables: list[str] |
     """Turtle for the portal's Import ontology (an empty item): classes, datatype properties, object properties, with
     the rule in every description and the table in the class description. Bindings are not part of a TTL import."""
     check_tables(plan.schema, tables)
+    plan, _, schema, prefix = _carry(plan, tables, schema)
     wanted = {x.lower() for x in tables} if tables else None
     model = _model(plan, wanted)
     names = {t.name for t, *_ in model}
@@ -259,7 +280,7 @@ def ontology_ttl(plan: Plan, name: str, schema: str = "dbo", tables: list[str] |
         e = entity_name(t.name)
         keytxt = f"key {'+'.join(cols)} ({rule})" if cols else "no key (K3)"
         out += [f":{e} a owl:Class ;", f"    rdfs:label {_ttl_str(e)} ;", f"    skos:altLabel {_ttl_str(t.name)} ;",
-                f"    rdfs:comment {_ttl_str(f'Table {schema}.{t.name}; {keytxt}.')} .", ""]
+                f"    rdfs:comment {_ttl_str(f'Table {schema}.{prefix}{t.name}; {keytxt}.')} .", ""]
         for c in t.columns:
             comment = f"Column {c.name} ({c.data_type})" + ("; key." if c.name in cols else ".")
             out += [f":{e}__{_ident(c.name)} a owl:DatatypeProperty ;", f"    rdfs:label {_ttl_str(c.name)} ;", f"    rdfs:domain :{e} ;",
@@ -308,11 +329,12 @@ def ontology_rdfxml(plan: Plan, name: str, schema: str = "dbo", tables: list[str
     IRIs only. Ids are made unique after the Playground's own rule (first letter lower-cased), across classes and
     relationships, so its importer never has to number them. Schema only: no rows, no bindings."""
     check_tables(plan.schema, tables)
+    plan, _, schema, _prefix = _carry(plan, tables, schema)
     wanted = {x.lower() for x in tables} if tables else None
     model = _model(plan, wanted)
     if not model:
         raise ValueError("the ontology would be empty: no tables")
-    ns = (base or f"urn:krusgraph:ontology:{_ident(name)}").rstrip("#") + "#"
+    ns =(base or f"urn:krusgraph:ontology:{_ident(name)}").rstrip("#") + "#"
     rule = plan.label if hasattr(plan, "label") else (lambda r: r)
     graph_ids: set[str] = set()
     iris: set[str] = set()
@@ -345,7 +367,7 @@ def ontology_rdfxml(plan: Plan, name: str, schema: str = "dbo", tables: list[str
         keytxt = f"key {'+'.join(cols)} ({rule(krule)})" if cols else "no key (K3)"
         out += [f'    <owl:Class rdf:about="{_xml(classes[t.name])}">',
                 f"        <rdfs:label>{_xml(classes[t.name][len(ns):])}</rdfs:label>",
-                f"        <rdfs:comment>{_xml(f'Table {schema}.{t.name}; {keytxt}.')}</rdfs:comment>",
+                f"        <rdfs:comment>{_xml(f'Table {schema}.{_prefix}{t.name}; {keytxt}.')}</rdfs:comment>",
                 "    </owl:Class>", ""]
     for t, key, cols, krule in model:
         cls = classes[t.name]
@@ -393,7 +415,7 @@ def ontology_files(plan: Plan, name: str, *, workspace_id: str, item_id: str, it
     files[f"{folder}/{_ident(name)}.ttl"] = ontology_ttl(plan, name, schema, tables)
     files[f"{folder}/{_ident(name)}.rdf"] = ontology_rdfxml(plan, name, schema, tables)
     files[f"{folder}/bindings.json"] = json.dumps(bindings(plan, item_name, schema, tables), indent=2) + "\n"
-    files[f"{folder}/README.generated.md"] = _readme(name, summary(plan, tables), workspace_id)
+    files[f"{folder}/README.generated.md"] = _readme(name, summary(plan, tables, schema), workspace_id)
     return files
 
 
@@ -403,7 +425,7 @@ def _readme(name: str, s: dict, workspace_id: str) -> str:
 
 {s['entity_types']} entity types ({s['with_key']} with a key), {s['relationship_types']} relationship types
 ({s['skipped_relationships']} composite-column relationships left for the portal).
-
+{chr(10) + s['reads'] + chr(10) if s.get('reads') else ''}
 Two ways in:
 
 1. **REST / Git:** `definition/` is a generation-2 ontology item definition. Create the item with
