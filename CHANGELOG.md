@@ -26,6 +26,18 @@ next deploy.
   text at 14 px or more and tap targets at 44 px or more. Tests: `n225DataProduct.test.ts`, `phonePages.test.tsx` (pages in
   `tests/fixtures/n225/`), `tests/test_n225_phone.py` with `tests/n225_browser.js` (Chromium at 375, 412 and 1280 px);
   the n198 pages rendered again.
+- Round n226: **evidence state and coverage, one time budget per call, composite keys carried through**
+  (`docs/SCOPE-REVIEW.md` section 6, items 1 to 3; unit tests only, not run in Fabric). Every key and link of
+  plan_backend and validate_plan says its evidence state (counted unique, counted and holds, by name only, not counted:
+  <reason>, not checked (time), ...) and every tool that makes a plan carries one `coverage` headline. Each read-only call
+  has one 45 s budget (`budget.py`): SQL and REST reads are cut to it, the check returns what it counted, "not checked
+  (time)" for the rest and a `resume_from`; a failed query is "not counted: <reason>" for its item, not an aborted call.
+  The check counts links by importance, each after its target's key (260 keyed tables, max_items=200: 100 keys and 100
+  links, before 200 keys and 0 links), and `tables=` scopes it. The silver step writes one combined key column per
+  composite key and link, and the semantic model and the ontology relate on them, reading silver: on the synthetic SAP
+  sample sap_sd the model goes from 0 relationships (19 not expressible) to 19, the ontology from 0 keyed entity types
+  and 0 relationships to 10 and 19. AdventureWorks name-rule scores unchanged (keys 47 of 71, 4 wrong, 20 missed; links
+  62 of 90, 17 wrong). Needs a redeploy; no new package or setting.
 - Round n223: **the Krusgraph Model editor says what it waits for, and opens with less to wait for**. One loading component
   (`OntoWait.tsx`, words in `waitWords.ts`) for the first load, the review, the check, the dry run, the schema list and
   the Data product page: Onto at the top with a gentle motion (still under reduced motion; a spinner with the mascots

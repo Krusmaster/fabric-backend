@@ -194,6 +194,17 @@ tables first, then the keys no link needs. On 260 keyed tables (260 links) with 
 100 keys and 100 links (before: 200 keys, 0 links); `resume_from=200` and `400` count the rest, every item once.
 validate_plan's `tables=` scopes the check (the keys of those tables and the links with an end among them).
 
+**Composite keys carried through** (`fabric_backend/combined_keys.py`, SCOPE-REVIEW item 3). A Power BI relationship
+and a Fabric IQ relationship take one column per side. When a link of the plan needs a composite key (SAP's MANDT +
+VBELN), the silver step writes one combined text column per composite key and per composite link (the parts joined by
+U+001F, NULL when a part is NULL), and the semantic model and the ontology read the silver layer and relate on those
+columns; their answers say so (`reads`, `combined_key_columns`). A plan with single-column links only gets no new column
+and is drafted as before; a warehouse source (no silver step) and /check's project keep the source tables. On the
+repository's synthetic SAP sample (not SAP data, not an SAP system): sap_sd model 0 relationships and 19 not
+expressible before, 19 (10 active, 9 inactive) and 0 after; ontology 0 of 12 entity types with a key and 0 relationships
+before, 10 and 19 after. sap_mm: model 0 and 8 before, 8 (7 active, 1 inactive) and 0 after; ontology 0 of 8 and 0
+before, 7 and 8 after. The keys themselves are still by name or from the pack until validate_plan counts them.
+
 ## Tokens per answer: the ten most used tools, before and after
 
 Measured on 26 October 2026 with Fabric mocked and the shop rows in SQLite (`validate_plan`, `sample_rows` and
