@@ -36,7 +36,7 @@ owner of an area is listed here. Change an area you do not own only when the mai
 | Area | Files | Owner now |
 | --- | --- | --- |
 | Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/concepts.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | open |
-| MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | n226 |
+| MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | open |
 | Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | n226 (also `evidence.py`, `compact.py`, `silver.py`, `gold.py`, `semantic_model.py`, `ontology.py`, a new `budget.py` and `coverage.py`); W7 holds the one new file `fabric_backend/migration_read.py` (a reader for a synthetic Qlik load script and Tableau workbook, the proof in `docs/MIGRATION-DESIGN.md`; no tool, nothing else in Engine) |
 | Deployment | `deploy/`, `Dockerfile`, `.github/` | open |
 | Pipeline jobs and permissions | `fabric_backend/pipeline_jobs.py`, `fabric_backend/access.py`, `fabric_backend/report.py` | open |
