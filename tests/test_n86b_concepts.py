@@ -14,7 +14,7 @@ from fabric_backend.infer import plan
 CONCEPTS = ["/docs/concepts", "/docs/concepts/how-it-works", "/docs/concepts/ontologies", "/docs/concepts/data-products",
             "/docs/concepts/how-they-connect", "/docs/concepts/where-it-runs", "/docs/concepts/vision"]
 VISION = ["One place for your Fabric data. Proof at every step.", "Where Krusgraph is today, and where it is going.",
-          "Available today", "Check and create", "Map how your tables connect", "Count every link against the rows",
+          "Available today", "Check and create", "Map how your tables connect", "Count keys and links against the rows (up to 200 per call)",
           "Create Fabric items when you ask", "Next", "Check what comes in", "See if incoming data matches its source",
           "Set up Fabric's own tools, with your approval", "Vision", "One place for the whole chain",
           "From source system to report", "Any source, with the tool you choose",

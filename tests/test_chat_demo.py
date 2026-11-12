@@ -249,7 +249,7 @@ def test_the_chat_fetches_the_plan_and_nothing_else_and_keeps_only_its_steps_in_
     assert "try {" in write and "catch (e)" in write
     # what is written: open as a boolean, and step names from the fixed list; nothing from the page or the plan
     assert "JSON.stringify({ open: !!(box && !box.hidden), steps: steps.filter(function (s) { return STEPS.indexOf(s) >= 0; }) })" in write
-    assert "var STEPS = ['scan', 'yes', 'no', 'model', 'ontology', 'domains', 'fixes', 'dbt'];" in CHAT_JS   # n162: fix and dbt run
+    assert "var STEPS = ['scan', 'yes', 'no', 'model', 'flow', 'ontology', 'domains', 'fixes', 'dbt'];" in CHAT_JS   # n162: fix and dbt run; n224: the data flow
     # what is read back is checked: an object, open a boolean, steps known names at most once, a short string at all
     for check in ("raw.length > 400", "typeof o.open !== 'boolean'", "!Array.isArray(o.steps)", "STEPS.indexOf(o.steps[i]) < 0",
                   "o.steps.indexOf(o.steps[i]) !== i", "Array.isArray(o)"):

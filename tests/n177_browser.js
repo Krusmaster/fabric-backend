@@ -66,7 +66,7 @@ async function site(base) {
         return {
           ways: ways.map((a) => ({ href: a.getAttribute('href'), name: a.querySelector('.off-way-n').textContent, data: a.querySelector('.off-way-data').textContent })),
           words: [...box.querySelectorAll('.off-words-l li')].map((li) => ({ text: li.textContent, href: li.querySelector('a').getAttribute('href') })),
-          built: [...box.querySelectorAll('.off-built li')].map((li) => li.textContent),
+          built: [...box.querySelectorAll('.off-built li')].map((li) => li.firstChild.textContent.trim()),   // n224: the item, without its status
           // n183: ways in -> tables -> engine -> built
           stacked: ins.bottom <= src.top + 1 && src.bottom <= eng.top + 1 && eng.bottom <= built.top + 1,
           flow: ins.bottom <= Math.min(src.top, eng.top, built.top) + 1 && src.right <= eng.left + 1 && eng.right <= built.left + 1

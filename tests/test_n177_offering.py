@@ -126,7 +126,7 @@ def test_the_diagram_lists_the_four_ways_in_words_and_links_each_to_its_docs(cli
         assert [re.sub(r"<[^>]+>", "", x) for x in re.findall(r'<li><a href="[^"]+">([^<]+)</a>', words)] == WAY_NAMES
         for href, _ in ways:
             assert client.get(href).status_code == 200, href
-        built = re.findall(r"<li>([^<]+)</li>", box[box.index('class="off-built"'):box.index('class="off-words"')])
+        built = re.findall(r"<li>([^<]+?) <span class=\"off-src-st\">", box[box.index('class="off-built"'):box.index('class="off-words"')])   # n224: each with its status
         assert built == list(offering.BUILT)
         assert 'aria-describedby="offering-words"' in box and 'aria-hidden="true"' in box    # n183: the words in a <details>
     # the trademark line stays in the footer, and the diagram uses no logo file

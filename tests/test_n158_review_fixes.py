@@ -498,7 +498,7 @@ def test_l19_repo_docs_follow_the_permissions_and_the_code():
     site = read("docs/SITE.md")
     assert "`domains`, `fix`, `dbt`" not in site and "Write dbt tests" not in site
     chat = read("fabric_backend/static/chat-demo.js")
-    assert "var STEPS = ['scan', 'yes', 'no', 'model', 'ontology', 'domains', 'fixes', 'dbt'];" in chat and "Draft a dbt project" in chat
+    assert "var STEPS = ['scan', 'yes', 'no', 'model', 'flow', 'ontology', 'domains', 'fixes', 'dbt'];" in chat and "Draft a dbt project" in chat
     assert "| offers `create_ontology` |" not in read("docs/DEPLOY-NEXT.md")
     assert not any("KRUSGRAPH_ONTOLOGY_WRITE" in (root / "fabric_backend" / f).read_text(encoding="utf-8")
                    for f in ("server.py", "switches.py", "tool_status.py"))

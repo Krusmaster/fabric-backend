@@ -74,10 +74,10 @@ def test_home_says_what_it_helps_with_before_how_it_connects(client):
     assert lede == "Krusgraph checks keys and joins in your Fabric tables, and shows the rule and the row counts behind every link."
     # n196: the USP sentence and its points moved to the top of /docs ("What Krusgraph does")
     docs = client.get("/docs").text
-    first = re.search(r"<p>(See how your business tables really connect.*?)</p>", docs).group(1)
-    assert first.startswith("See how your business tables really connect – with the proof behind every link")      # n39: the USP
+    first = re.search(r"<p>(See how your tables connect:.*?)</p>", docs).group(1)
+    assert first.startswith("See how your tables connect: the rule behind every proposed link")      # n39: the USP; n224: S1 section 4 #1
     assert "connect" in first and "MCP" not in first and "GraphQL" not in first and len(first.split()) <= 30
-    assert "See how your business tables really connect" not in html
+    assert "See how your tables connect:" not in html
     assert 'href="/check?example=sample&amp;guide=1">Try the guided demo<' in html and 'href="/start">Connect to my Fabric<' in html
     # n149: the status is said once, by the tools list, not in the steps
     step3 = re.search(r'<span class="step-n lav">3</span>(.*?)</li>', html, re.S).group(1)

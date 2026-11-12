@@ -42,10 +42,9 @@ def test_the_three_points_and_the_sap_line_left_the_home_page_for_the_docs(clien
     """n196: the sentence, the three points and the SAP line moved from the home page to the top of /docs
     (tests/test_n196_home_film.py pins their place there)."""
     html = client.get("/").text
-    assert "See how your business tables really connect" not in html and 'class="usp"' not in html and "usp-sap" not in html
+    assert "See how your tables connect:" not in html and 'class="usp"' not in html and "usp-sap" not in html
     docs = client.get("/docs").text
-    assert ("See how your business tables really connect – with the proof behind every link – so your reports, apps and "
-            "agents get the numbers right.") in docs
+    assert "See how your tables connect: the rule behind every proposed link, and the row counts once you run the check." in docs   # n224: S1 section 4 #1
     line = re.search(r'<a href="/sap">(SAP tables[^<]*)</a>', docs).group(1)
     assert "MANDT" in line and len(line.split()) <= 16
 
@@ -68,7 +67,7 @@ def test_sap_page_exists_with_sources_and_its_links_resolve(client):
     assert r.status_code == 200
     html = r.text
     assert "<h1>SAP keys and order-to-cash links</h1>" in html
-    assert "Keys with MANDT and the order-to-cash links for VBAK, VBAP and their neighbours, each with its public source." in html
+    assert "Keys with MANDT and the order-to-cash links for VBAK, VBAP and their neighbours, each citing a public SAP page (not all of them re-read yet; nothing is verified against an SAP system)." in html
     assert "Draft only" in html and "not on an SAP system" in html
     body = html[html.index('data-page="sap"'):]
     body = body[:body.index("</main>")] if "</main>" in body else body
@@ -183,7 +182,7 @@ def test_docs_start_page_has_which_krusgraph_after_what_krusgraph_does(client):
     art = html[html.index('<article class="prose docs">'):]
     after_h1 = art[art.index("</h1>"):]
     which = after_h1[after_h1.index("<p><strong>Which Krusgraph should I use?</strong></p>"):]
-    assert after_h1.index("See how your business tables really connect") < after_h1.index("Which Krusgraph should I use?")
+    assert after_h1.index("See how your tables connect:") < after_h1.index("Which Krusgraph should I use?")
     rows = re.search(r"<ul>(.*?)</ul>", which, re.S).group(1)
     lis = re.findall(r"<li>(.*?)</li>", rows, re.S)
     assert len(lis) == 5 == len(offering.DECIDE)
@@ -191,7 +190,7 @@ def test_docs_start_page_has_which_krusgraph_after_what_krusgraph_does(client):
         assert q in _plain(li) and offering.way(key)["name"] in li, li
     assert 'href="/choose"' in which[:which.index("</ul>") + 200]
     md = client.get("/docs.md").text
-    assert md.index("See how your business tables really connect") < md.index("Which Krusgraph should I use?")
+    assert md.index("See how your tables connect:") < md.index("Which Krusgraph should I use?")
 
 
 def test_docs_menu_starts_with_which_krusgraph(client):

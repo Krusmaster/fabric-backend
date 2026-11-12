@@ -27,8 +27,7 @@ QUOTE_EN = ("Krusgraph has changed how my team works with data engineering. What
             "data engineering.")
 QUOTE_BY = "Data engineer at a Swedish company (anonymous by request)"
 
-USP_LEAD = ("See how your business tables really connect – with the proof behind every link – so your reports, apps and agents "
-            "get the numbers right.")
+USP_LEAD = "See how your tables connect: the rule behind every proposed link, and the row counts once you run the check."   # n224
 USP = ("Checked against your rows.", "Errors before anyone sees them.", "One checked plan, every starting point.")
 DATA_P = "Planning uses schema metadata. If you ask for data checks, samples or queries"
 DATA_STAYS = "stores no table contents. Names, counts and the sample rows you ask for pass through the service in memory"
@@ -103,7 +102,7 @@ def test_the_three_blocks_are_no_longer_on_the_home_page(client):
     main = _main(client.get("/").text)
     # a) the chip, the sentence, the three points and the SAP line
     assert 'class="ba-mini"' not in main and "One order, 2 lines, sample data" not in main
-    assert "See how your business tables really connect" not in main and 'class="usp"' not in main
+    assert "See how your tables connect:" not in main and 'class="usp"' not in main
     assert not any(u in main for u in USP) and "usp-sap" not in main and "MANDT" not in main
     # b) Which Krusgraph should I use? with its rows and the paragraph, and the status line
     assert '<h2 id="choose-short-home"' not in main and 'class="wrap choose-short"' not in main
@@ -141,8 +140,8 @@ def test_docs_starts_with_what_krusgraph_does_then_which_krusgraph(client):
     ul = re.search(r"<ul>(.*?)</ul>", after_h1[after_h1.index(USP_LEAD):], re.S).group(1)
     items = [_plain(x) for x in re.findall(r"<li>(.*?)</li>", ul, re.S)]
     assert items == list(discovery.USP_POINTS)                # the docs' wording of the three points, as in llms.txt
-    assert '<a href="/sap">SAP tables: keys with MANDT and the order-to-cash links, each with its public source</a>' in after_h1
-    assert html.count("See how your business tables really connect") == 1                # once, not twice
+    assert '<a href="/sap">SAP tables: keys with MANDT and the order-to-cash links, each citing a public SAP page</a>' in after_h1
+    assert html.count("See how your tables connect:") == 1                # once, not twice
     md = client.get("/docs.md").text
     assert md.index("What Krusgraph does") < md.index(USP_LEAD) < md.index("Which Krusgraph should I use?")
 

@@ -49,7 +49,7 @@ def test_the_diagram_is_a_data_flow_in_the_founders_order(client, path):
     assert "Keys and links, checked against your rows" in box and ">Built in Fabric<" in box
     src = re.findall(r"<li>([^<]+?) <span", box[box.index('class="off-src"'):box.index('class="off-engine"')])
     assert src == ["Lakehouse", "Warehouse", "SQL database"]        # n206: from tool_status.SOURCES (test_n206_home_tidy.py)
-    built = re.findall(r"<li>([^<]+)</li>", box[box.index('class="off-built"'):box.index("</figure>")])
+    built = re.findall(r"<li>([^<]+?) <span class=\"off-src-st\">", box[box.index('class="off-built"'):box.index("</figure>")])   # n224: each with its status
     assert built == ["Semantic model", "Report", "Ontology", "API for GraphQL", "Pipeline and notebooks", "Data agent",
                      "App (Rayfin, preview)", "Data product"]
     # each product keeps its "Data passes:" line

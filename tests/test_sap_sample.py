@@ -307,7 +307,9 @@ def test_the_qa_answer_matches_the_measured_z_table_results(facts):
     assert sd["z"]["links"][0]["rule"] == "R3" and sd["not_found"][0]["by_rows"] is False and sd["r5"] == []
     for text in (_qa(docs), _qa(DOC)):
         flat = " ".join(text.split())
-        assert flat.startswith("Yes") or flat.startswith("**Yes") or flat.split(" ", 1)[1].startswith("Yes"), flat[:80]
+        # n224 (S1 section 4 #3): the site's answer starts "Partly" (a Z table gets no key from the pack)
+        first = flat.lstrip("*").strip()
+        assert first.startswith(("Yes", "Partly")) or flat.split(" ", 1)[1].startswith(("Yes", "Partly")), flat[:80]
         for must in ("R3", "MANDT", "the rows", "no key", "review", "standard tables only", "synthetic", "not on a real SAP system"):
             assert must in flat, must
         assert "ZZ_KUNDE_NR" in flat or "custom" in flat

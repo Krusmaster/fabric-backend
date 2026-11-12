@@ -104,7 +104,7 @@ async function flowByMouse(page, f, v) {
     return a ? { tag: a.tagName, key: a.getAttribute('data-key'), href: a.getAttribute('href'), planned: a.classList.contains('planned'), why: (a.querySelector('small') || {}).textContent || '' } : null;
   }));
   await shot(page, `chat-further@${v}`);
-  for (const label of ['Create a semantic model', 'Create an ontology', 'Draft data products']) {
+  for (const label of ['Create a semantic model', 'Create an ontology', 'Draft data products', 'See the data flow']) {   // n224: the data flow
     await waitPick(page, label);
     await page.click(`.kgc-pick[data-pick="${label}"]`);
   }
@@ -168,8 +168,8 @@ async function flowByMouse(page, f, v) {
   });
   await shot(page, `chat-dbt-flow@${v}`);
   await shot(page, `chat-dbt@${v}`);
-  f.extra = (await wins(page)).slice(4);
-  f.extraHtml = await page.evaluate(() => [...document.querySelectorAll('.kgc-msg.win .kgc-bub')].slice(4).map((b) => ({
+  f.extra = (await wins(page)).slice(5);   // n224: after the data flow
+  f.extraHtml = await page.evaluate(() => [...document.querySelectorAll('.kgc-msg.win .kgc-bub')].slice(5).map((b) => ({
     asks: [...b.querySelectorAll('.kgc-ask')].map((x) => x.textContent), opts: [...b.querySelectorAll('.kgc-opts li')].map((x) => x.textContent),
     facts: [...b.querySelectorAll('.kgc-facts b')].map((x) => x.textContent), pre: [...b.querySelectorAll('pre')].map((x) => x.textContent),
     links: b.querySelectorAll('a').length, pics: b.querySelectorAll('.kgc-pic').length,
@@ -226,6 +226,7 @@ async function flowByKeyboard(page, f, v) {
     await page.keyboard.press('Tab');
   }
   await enterOn('Create a semantic model');
+  await enterOn('See the data flow');                // n224: the first suggestion once the model is made
   await enterOn('Create an ontology');
   await enterOn('Draft data products');
   // n177: the end comes after the last step; first Onto asks what next, with the steps left first
@@ -473,7 +474,7 @@ async function flowByKeyboard(page, f, v) {
     const f = {};
     await page.goto(base + '/use-cases', { waitUntil: 'load' });
     await stepsToLink(page);
-    for (const label of ['Create a semantic model', 'Create an ontology', 'Draft data products']) {
+    for (const label of ['Create a semantic model', 'Create an ontology', 'Draft data products', 'See the data flow']) {   // n224: the data flow
       await waitPick(page, label);
       await page.click(`.kgc-pick[data-pick="${label}"]`);
     }
@@ -487,7 +488,7 @@ async function flowByKeyboard(page, f, v) {
     f.stored = JSON.parse(await stored(page));
     f.after = await chatState(page);
     await page.click('#kgcLaunch');
-    await until(page, () => document.querySelectorAll('.kgc-msg.win').length === 4, null, 'results back');
+    await until(page, () => document.querySelectorAll('.kgc-msg.win').length === 5, null, 'results back');   // n224: the data flow is the fifth
     await wait(300);
     f.reopened = await chatState(page);
     f.endPicks = await picks(page);

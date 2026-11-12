@@ -252,7 +252,9 @@ def test_chat_makes_no_request_but_the_plan_and_keeps_only_its_steps_in_the_tab(
         assert f["storeAfter"]["local"] == {} and f["storeAfter"]["cookie"] == "" and list(f["storeAfter"]["session"]) == ["krusgraph.chat"], v
         st = _stored(f)
         assert st == {"open": False, "steps": st["steps"]} and st["open"] is False, (v, st)
-        assert st["steps"] == ["scan", "yes", "model", "ontology", "domains", "fixes", "dbt"], (v, st)     # n162: fix and dbt run
+        # n162: fix and dbt run; n224: the data flow (by mouse it is clicked last of the four; by keyboard first after the model)
+        assert st["steps"] == (["scan", "yes", "model", "flow", "ontology", "domains", "fixes", "dbt"] if v.endswith("keyboard") else
+                               ["scan", "yes", "model", "ontology", "domains", "flow", "fixes", "dbt"]), (v, st)
         assert f["cookies"] == [], v
 
 
@@ -265,7 +267,8 @@ def test_chat_the_whole_flow_by_mouse_says_the_engines_numbers(chat):
         assert f["facts"] == ["7", "6", "1"] and len(f["links"]) == 6, v
         assert "All 15 of its values exist in addresses.address_id, in 60 of 60 rows." in f["question"], v
         assert "The plan now has 7 links." in f["linkAdded"], v
-        assert f["nextPicks"] == ["Create a semantic model", "Create an ontology", "Draft data products", "Fix data issues", "Draft a dbt project"], v
+        assert f["nextPicks"] == ["Create a semantic model", "See the data flow", "Create an ontology", "Draft data products", "Fix data issues",
+                                  "Draft a dbt project"], v   # n224: the data flow, after the model
         model, onto, products = f["results"][1:4]
         assert "7 tables and 7 relationships; all 7 hold" in model and "1 inactive: addresses.customer_id → customers would close a cycle" in model, v
         assert "7 entity types (5 with a key) and 7 relationship types" in onto, v
@@ -378,7 +381,8 @@ def test_chat_fix_and_dbt_run_as_steps_with_the_engines_output(chat):
             for h in (h_fix, h_dbt):
                 assert h["links"] == 0 and h["pics"] == 0 and h["inside"], (v, h)
             assert f["extraLogOverflowX"] <= 0, v
-            fx_note, dbt_note = f["notes"][3:]
+            flow_note, fx_note, dbt_note = f["notes"][3:]   # n224: the data flow's note first
+            assert flow_note.startswith("This is a demo, so nothing was created or run."), (v, flow_note)
             assert fx_note.endswith("business decisions stay yours. Created in a live Fabric workspace."), (v, fx_note)
             assert "Proposing fixes: tested with unit tests, not yet against a live Fabric workspace; the check itself ran against one." in fx_note, (v, fx_note)
             assert "silver notebook it creates in your Fabric workspace" in fx_note, (v, fx_note)
@@ -398,9 +402,9 @@ def test_chat_the_whole_flow_by_keyboard_with_visible_focus(chat):
         assert f["tabbedToLaunch"] == "kgcLaunch" and f["launchFocus"].startswith("solid"), v
         assert f["openFocus"]["cls"] == "kgc-close" and f["openFocus"]["outline"].startswith("solid"), v
         assert f["firstTab"]["pick"] == "Check the tables" and f["firstTab"]["outline"].startswith("solid"), v
-        assert f["keyboardSteps"] == ["Check the tables", "Yes, add the link", "Create a semantic model", "Create an ontology", "Draft data products",
-                                      "Fix data issues", "Draft a dbt project"], v
-        assert len(f["keyboardResults"]) == 6 and f["keyboardEndFocus"] == "Check my tables", v
+        assert f["keyboardSteps"] == ["Check the tables", "Yes, add the link", "Create a semantic model", "See the data flow", "Create an ontology",
+                                      "Draft data products", "Fix data issues", "Draft a dbt project"], v
+        assert len(f["keyboardResults"]) == 7 and f["keyboardEndFocus"] == "Check my tables", v
         assert f["escape"] == {"hidden": True, "focus": "kgcLaunch"} and f["reopenedKept"] > 0, v
         assert f["escapeEnd"] == {"hidden": True, "focus": "kgcLaunch"}, v
         if v.startswith("375"):
@@ -472,7 +476,7 @@ def test_chat_a_link_inside_closes_it_and_connect_goes_to_the_set_up_guide(chat)
     for w in (1280, 375):
         f = chat[f"link@{w}"]
         assert f["url"] == "/start" and "set-up guide" in f["title"], f
-        assert f["stored"] == {"open": False, "steps": ["scan", "yes", "model", "ontology", "domains"]}, f["stored"]
+        assert f["stored"] == {"open": False, "steps": ["scan", "yes", "model", "ontology", "domains", "flow"]}, f["stored"]
         assert not f["after"]["open"] and not f["after"]["loaded"], f["after"]
         assert f["reopened"]["open"] and f["reopened"]["pics"] == 5 and f["endPicks"][2:] == ["Check my tables", "Connect to my Fabric"], f
 

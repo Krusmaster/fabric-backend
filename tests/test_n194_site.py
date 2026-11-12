@@ -52,7 +52,7 @@ def test_docs_start_page_has_what_you_can_build_after_which_krusgraph(client):
     html = _main(client.get("/docs").text)
     which, build = html.index("<strong>Which Krusgraph should I use?</strong>"), html.index('id="what-you-can-build"')   # n196: the guide in the article, not the menu
     # n196: "What Krusgraph does" (the sentence and the three points) now opens the page, before the guide
-    assert html.index("See how your business tables really connect") < which < html.index('id="film"') < build
+    assert html.index("See how your tables connect:") < which < html.index('id="film"') < build
     sec = html[build:html.index("</section>", build)]
     assert sec.count('class="out-tile"') == len(claims.OUTPUTS) == 7
     found = re.findall(r'data-claim="(\w+)" data-status="([^"]+)"[^>]*>([^<]+)</a>', sec)
@@ -67,7 +67,7 @@ def test_markdown_twin_carries_the_same_table(client):
     md = client.get("/docs.md").text
     assert "**What you can build.**" in md and claims.RUNS in md and claims.CHECK_LINE in md
     assert all(f"| {r['name']} | {r['status']} |" in md for r in claims.table())
-    assert md.index("See how your business tables really connect") < md.index("**What you can build.**")   # n196
+    assert md.index("See how your tables connect:") < md.index("**What you can build.**")   # n196
 
 
 def test_only_the_docs_carry_the_chips(client):
