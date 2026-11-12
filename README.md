@@ -697,6 +697,14 @@ the maintainer confirms the Glama listing (served only when `MCP_PUBLIC_URL` is 
 The auth guard covers exactly `/mcp`. `server.json` is the MCP Registry entry; publishing it is described in
 `docs/PUBLISHING.md` (published as `com.krusgraph/krusgraph`, verified 26 October 2026).
 
+### In the MCP Registry
+
+The hosted server is in the official MCP Registry (registry.modelcontextprotocol.io) as `com.krusgraph/krusgraph`; the
+name is proven with a DNS record on krusgraph.com. It is not on github.com/mcp (checked 12 November 2026): that page
+reads the official registry and shows the entries GitHub chooses. What is left to do, the founder's steps and the
+other directories are in [docs/MCP-REGISTRY.md](docs/MCP-REGISTRY.md). The Python package is not on PyPI, so
+`server.json` lists the remote server and no package.
+
 ## Works on
 
 | | |
