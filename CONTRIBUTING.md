@@ -35,14 +35,14 @@ owner of an area is listed here. Change an area you do not own only when the mai
 
 | Area | Files | Owner now |
 | --- | --- | --- |
-| Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/concepts.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | open |
+| Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/concepts.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | open; n231 holds the two SAP-shaped sample cards on /check only (`fabric_backend/page_templates/check.html`, their labels in `fabric_backend/static/check.js`) |
 | MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | open |
 | Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | open; W7 holds the one new file `fabric_backend/migration_read.py` (a reader for a synthetic Qlik load script and Tableau workbook, the proof in `docs/MIGRATION-DESIGN.md`; no tool, nothing else in Engine) |
 | Deployment | `deploy/`, `Dockerfile`, `.github/` | open |
 | Pipeline jobs and permissions | `fabric_backend/pipeline_jobs.py`, `fabric_backend/access.py`, `fabric_backend/report.py` | open |
 | SAP pack | `fabric_backend/packs/`, `fabric_backend/sap_pack.py`, `fabric_backend/sap_demo.py`, `fabric_backend/exports.py` | | open |
 | Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | open; W7 holds the one new file `docs/MIGRATION-DESIGN.md`; A1 holds the one new file `docs/ANALYSIS-2026-11.md`; M1 holds new files under `docs/marketing/` only (marketing drafts: a fictional industrial case on synthetic data, LinkedIn posts, a film script, taglines, a home page section; nothing applied to the site or `llms.txt`); P1 holds the one new file `docs/PRICING-DESIGN.md` (a cost and pricing model before the Marketplace go-live; docs only, no prices decided); W9 holds the one new file `docs/INTEGRATE-AND-HEAL-DESIGN.md` (a design for connecting sources to OneLake and for self-healing data products by rules; docs only, nothing built) |
-| Tests | `tests/` | open; W7 holds the new `tests/test_w7_migration_read.py` and `tests/fixtures/w7/` |
+| Tests | `tests/` | open; n231 holds the assertions on the SAP-shaped sample card texts in `tests/test_check.py` and `tests/check_browser.js`; W7 holds the new `tests/test_w7_migration_read.py` and `tests/fixtures/w7/` |
 | Workload | `workload/` (the Fabric workload, a fork of Microsoft's starter kit), `fabric_backend/workload_api.py`, the workload routes in `server.py`, `docs/WORKLOAD-DEV.md` | open |
 | Marketplace | `fabric_backend/marketplace.py`, `fabric_backend/entitlements.py`, the marketplace routes in `server.py`, `docs/MARKETPLACE-SETUP.md`, `tests/test_marketplace.py` | open |
 | Hub readiness | `docs/HUB-ATTESTATION.md`, `docs/HUB-READINESS.md`, `tools/hub_readiness.py`, `.github/workflows/hub-readiness.yml` (new files only; no `workload/` code, no site, no engine) | open |
