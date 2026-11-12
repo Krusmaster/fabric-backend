@@ -94,13 +94,16 @@ def test_the_shop_and_sap_plans_pass_the_playground_rules(which, shop, sap):
     p = shop if which == "shop" else sap
     r = pr.validate(ontology.ontology_rdfxml(p, which).encode("utf-8"))
     assert r["errors"] == []
-    assert [w["code"] for w in r["warnings"]] == ["designer-identifiers"]        # keyless or composite-key tables, said as a warning
+    # keyless or composite-key tables, said as a warning; n226 (intended): the SAP plan's composite keys are carried by
+    # combined key columns, so every SAP table has one identifier and the warning is gone there
+    assert [w["code"] for w in r["warnings"]] == (["designer-identifiers"] if which == "shop" else [])
     m = r["model"]
     assert len(m["entities"]) == len(p.schema.tables) and len(m["relationships"]) == len(p.relationships)
     ids = [e["id"] for e in m["entities"]] + [x["id"] for x in m["relationships"]]
     assert len(set(ids)) == len(ids) and not any(re.search(r"-\d+$", i) for i in ids)     # the importer numbered nothing
-    assert sum(len(e["properties"]) for e in m["entities"]) == sum(len(t.columns) for t in p.schema)
-    keyed = {ontology.entity_name(t.name) for t, key, *_ in ontology._model(p, None) if key}
+    cp = ontology._carry(p, None, which)[0]                   # n226: the plan with its combined key columns (SAP), else p itself
+    assert sum(len(e["properties"]) for e in m["entities"]) == sum(len(t.columns) for t in cp.schema)
+    keyed = {ontology.entity_name(t.name) for t, key, *_ in ontology._model(cp, None) if key}
     assert {e["name"] for e in m["entities"] if any(x["isIdentifier"] for x in e["properties"])} == keyed
 
 

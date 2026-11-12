@@ -290,7 +290,10 @@ def build(kind: str = "sample", files: list | None = None, text: str = "", confi
                 validation = evidence.validate(p, src.execute)
             except Exception:                                      # noqa: BLE001 - the draft by names still comes
                 validation = None
-        sm = semantic_model.draft(p, {"schema": p.schema.schema, "item_kind": "Lakehouse"}, f"{name}_model", validation=validation)
+        # n226: combined=False: /check's project has no silver step to write combined key columns, so a composite link
+        # stays "needs a combined key column" here; semantic_model_draft and create_semantic_model read the silver layer
+        sm = semantic_model.draft(p, {"schema": p.schema.schema, "item_kind": "Lakehouse"}, f"{name}_model", validation=validation,
+                                  combined=False)
         roles = graphs.analyze(p)["roles"]
         facts = [t.name for t in p.schema if roles.get(t.name, {}).get("role") == "fact" and t.name in p.keys] or \
                 [t.name for t in p.schema if t.name in p.keys] or [t.name for t in p.schema]

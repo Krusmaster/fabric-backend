@@ -138,8 +138,8 @@
   "WorkOrderRouting": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [WorkOrderID] IS NULL OR [OperationSequence] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [WorkOrderID], [OperationSequence] FROM [dbo].[WorkOrderRouting] WHERE [WorkOrderID] IS NOT NULL AND [OperationSequence] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[WorkOrderRouting]"
  },
  "ontology_ttl": {
-  "bytes": 137426,
-  "sha256": "002560d3c3279f5065f6f68af4ef210aec1d4944b42b054ca8f5f9cdce85c301"
+  "bytes": 141605,
+  "sha256": "8cd7abd2bcdeff061f46db9d5d28e4ec42087f19bc1866f527e84494bbb2ac03"
  },
  "plan": {
   "bytes": 39763,
@@ -227,12 +227,12 @@
   "WorkOrderRouting": "SELECT TOP (10) [WorkOrderID], [ProductID], [OperationSequence], [LocationID], [ScheduledStartDate], [ScheduledEndDate], [ActualStartDate], [ActualEndDate], [ActualResourceHrs], [PlannedCost], [ActualCost], [ModifiedDate] FROM [dbo].[WorkOrderRouting]"
  },
  "semantic_model": {
-  "bytes": 318747,
-  "sha256": "f5a3f60c00579a0b043e598fb4425b7e545bc51cdf9140a59efa70bee88d0d60"
+  "bytes": 326838,
+  "sha256": "3f397807dbe27488633bb26f14b3b59408fe47d594e514c54e65c8370a734011"
  },
  "silver": {
-  "bytes": 124246,
-  "sha256": "366f8d3738a87c6d77bf0d0aa16e724be854ceb38c1baaa84b6db44c1ab5283f"
+  "bytes": 130683,
+  "sha256": "dc4b3311032f7d03e446ad712aad6a38464e174b8e23e1cf1b4cc6255c8d4626"
  },
  "views": {
   "bytes": 59558,

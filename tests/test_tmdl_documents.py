@@ -29,11 +29,13 @@ def check_document(path: str, text: str) -> None:
     assert not real[0][0].isspace(), f"{path}: the first object is indented: {real[0]!r}"
 
 
-def _draft(kind: str) -> dict:
+def _draft(kind: str, combined: bool | None = False) -> dict:
+    """n226: combined=False by default, the model on the source tables as /check's project builds it (no silver step
+    there); semantic_model_draft itself carries composite links through combined key columns (test_n226_composite_keys)."""
     src, folder = bc._source(kind, None, "")
     try:
         p = plan(src.schema)
-        out = semantic_model.draft(p, {"schema": p.schema.schema, "item_kind": "Lakehouse"}, f"{kind}_model")
+        out = semantic_model.draft(p, {"schema": p.schema.schema, "item_kind": "Lakehouse"}, f"{kind}_model", combined=combined)
         out["plan"] = p
         return out
     finally:
@@ -73,6 +75,15 @@ def test_relationships_tmdl_is_left_out_when_nothing_is_expressible_and_the_read
     assert "`sap_vbap.MANDT+VBELN -> sap_vbak.MANDT+VBELN` (SAP pack) is not in the model" in readme
     assert "or a calculated column" not in readme                            # the old advice: not allowed in Direct Lake
     assert "relationships.tmdl`\n" not in readme.split("## Files", 1)[1]
+    # n226: by default the draft reads the silver layer, where the silver step writes the combined key columns, and all
+    # 24 links are relationships there (an intended change: before n226 this default was the answer above)
+    carried = _draft("sap", combined=None)
+    cs = carried["summary"]
+    assert cs["relationships_not_expressible"] == 0 and cs["relationships_active"] + cs["relationships_inactive"] == 24
+    assert carried["parts"]["definition/relationships.tmdl"].startswith("relationship ") and cs["reads"]["layer"] == "silver"
+    for path, text in carried["parts"].items():
+        if path.endswith(".tmdl"):
+            check_document(path, text)
     # the two examples with single-column keys keep the file, with objects in it
     for kind in ("sample", "crm"):
         out = _draft(kind)
@@ -100,10 +111,18 @@ def test_the_rule_and_the_reason_for_a_single_column_that_points_at_a_composite_
     s = Schema.from_information_schema([
         ("dbo", "Heads", "Client", "varchar", 1), ("dbo", "Heads", "DocNo", "varchar", 2), ("dbo", "Heads", "Amount", "decimal", 3),
         ("dbo", "Lines", "Client", "varchar", 1), ("dbo", "Lines", "DocNo", "varchar", 2), ("dbo", "Lines", "ItemNo", "int", 3)])
-    out = semantic_model.draft(plan(s, keys={"Heads": ["Client", "DocNo"], "Lines": ["Client", "DocNo", "ItemNo"]},
-                                    confirmed=[{"source": "Lines", "source_cols": ["Client", "DocNo"], "target": "Heads", "target_cols": ["Client", "DocNo"]}]),
-                               {"schema": "dbo", "item_kind": "Lakehouse"}, "m")
+    hp = plan(s, keys={"Heads": ["Client", "DocNo"], "Lines": ["Client", "DocNo", "ItemNo"]},
+              confirmed=[{"source": "Lines", "source_cols": ["Client", "DocNo"], "target": "Heads", "target_cols": ["Client", "DocNo"]}])
+    out = semantic_model.draft(hp, {"schema": "dbo", "item_kind": "Lakehouse"}, "m", combined=False)   # n226: on the source tables
     assert "definition/relationships.tmdl" not in out["parts"] and out["summary"]["relationships_not_expressible"] == 1
+    for path, text in out["parts"].items():
+        if path.endswith(".tmdl"):
+            check_document(path, text)
+    # n226 (intended): by default the link is a relationship on the combined key columns of the silver tables
+    out = semantic_model.draft(hp, {"schema": "dbo", "item_kind": "Lakehouse"}, "m")
+    assert out["summary"]["relationships_not_expressible"] == 0
+    assert "fromColumn: Lines.Client_DocNo_key\n\ttoColumn: Heads.Client_DocNo_key" in out["parts"]["definition/relationships.tmdl"]
+    assert "entityName: silver_Heads" in out["parts"]["definition/tables/Heads.tmdl"]         # dbo lakehouse: no schemas
     for path, text in out["parts"].items():
         if path.endswith(".tmdl"):
             check_document(path, text)
