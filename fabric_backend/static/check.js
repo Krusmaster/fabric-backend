@@ -66,7 +66,7 @@
     return r;
   });
 
-  const LABELS = { sample: "the example “A total that doubles”", sap: "the example “SAP sales tables”", crm: "the example “Salesforce + ERP”", billing: "the example “Subscription billing”", mill: "the example “Manufacturing sample”", sap_sd: "the example “SAP-shaped sample (synthetic): order to invoice”", sap_mm: "the example “SAP-shaped sample (synthetic): purchase to pay”", columns: "the list of columns" };
+  const LABELS = { sample: "the example “A total that doubles”", sap: "the example “SAP sales tables”", crm: "the example “Salesforce + ERP”", billing: "the example “Subscription billing”", mill: "the example “Manufacturing sample”", sap_sd: "the example “SAP-shaped sample: order to invoice”", sap_mm: "the example “SAP-shaped sample: purchase to pay”", columns: "the list of columns" };
 
   async function start(kind, files, text) {
     if (busy) return;

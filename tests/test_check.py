@@ -159,7 +159,10 @@ def test_check_page_policy_worker_and_files(client):
     assert r.text.count("Synthetic Data") == 5 and "Synthetic data<" not in r.text and "A total that doubles" in r.text and "SAP sales tables" in r.text and "Salesforce + ERP" in r.text
     assert "Subscription billing" in r.text and 'data-example="billing"' in r.text                                 # n78
     assert "Manufacturing sample" in r.text and 'data-example="mill"' in r.text                                     # n192
-    assert r.text.count("SAP-shaped sample (synthetic)") == 2 and r.text.count("Synthetic, not SAP data") == 2         # n202
+    assert r.text.count("<strong>SAP-shaped sample</strong>") == 2 and r.text.count("<em>Example data, not from an SAP system</em>") == 2   # n202, n231
+    # n231: a sample card says what its data is once, in its badge; no "(synthetic)" in a card title, no SAP-certified wording
+    cards = r.text.split('class="check-examples"')[1].split("</div>")[0]
+    assert "(synthetic)" not in cards.lower() and "Synthetic, not SAP data" not in cards and "certified" not in cards.lower() and "compatible" not in cards.lower()
     assert 'data-example="sap_sd"' in r.text and 'data-example="sap_mm"' in r.text
     assert "<input type=\"text\"" not in r.text and "chat" not in r.text.lower().split("<main")[1].split("</main>")[0]   # n154: the chat's button and plan come after the footer
     assert "are not uploaded" in r.text and 'href="/check?example=sample&amp;guide=1"' in r.text and 'href="/local"' in r.text and "Get help" in r.text
@@ -288,11 +291,11 @@ def test_in_a_browser_no_request_carries_the_files(site):
         assert (m["full"] and not m["withSap"]) if w == "375" else (m["half"] and m["withSap"]), (w, m)
     assert "Done: the example “Manufacturing sample”" in r["mill"]["status"] and r["mill"]["ms"] > 0, r["mill"]["status"]
     assert "stg_supplier_prices" in r["mill"]["text"] and "machine_events" in r["mill"]["text"] and "orphan" in r["mill"]["text"]
-    # n202: the SAP-shaped sample (synthetic) beside the shop and the mill, inside the viewport, and it loads and runs
+    # n202: the SAP-shaped sample beside the shop and the mill, inside the viewport, and it loads and runs
     for w in ("375", "1280"):
         sp = r["sap_sd"][w]
-        assert "SAP-shaped sample (synthetic)" in sp["label"] and "not SAP data" in sp["label"] and sp["inside"] and not sp["overflow"], (w, sp)
-    assert "Done: the example “SAP-shaped sample (synthetic): order to invoice”" in r["sap_sd"]["status"] and r["sap_sd"]["ms"] > 0, r["sap_sd"]["status"]
+        assert "SAP-shaped sample" in sp["label"] and "(synthetic)" not in sp["label"] and "Example data, not from an SAP system" in sp["label"] and sp["inside"] and not sp["overflow"], (w, sp)
+    assert "Done: the example “SAP-shaped sample: order to invoice”" in r["sap_sd"]["status"] and r["sap_sd"]["ms"] > 0, r["sap_sd"]["status"]
     assert "VBAK.NETWR" in r["sap_sd"]["text"] and "ZSD_ORDER_EXT" in r["sap_sd"]["text"] and "SAP pack" in r["sap_sd"]["text"]
     assert len(r["finding_marks"]) == 1 and "audit_log" in r["finding_marks"][0]
     # n73: one order through "A total that doubles": order_id 1, 1 000 on the order, 2 000 over its two lines, in the

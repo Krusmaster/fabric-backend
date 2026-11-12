@@ -221,7 +221,7 @@ const { chromium } = require("playwright");
   out.mill.status = await page.textContent("#check-status");
   out.mill.text = await page.textContent("#check-run");
   out.mill.ms = Number(await page.evaluate(() => document.documentElement.dataset.checkMs));
-  // n202: the SAP-shaped sample (synthetic), order to invoice, beside the shop and the mill; it loads and runs to the end
+  // n202: the SAP-shaped sample (example data, not from an SAP system), order to invoice, beside the shop and the mill; it loads and runs to the end
   out.sap_sd = {};
   for (const w of [375, 1280]) {
     await page.setViewportSize({ width: w, height: 900 });
