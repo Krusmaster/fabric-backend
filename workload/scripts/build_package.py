@@ -20,7 +20,12 @@ and the item files all take the name from here, through the {{WORKLOAD_NAME}} pl
 
   workload/scripts/build-package --frontend-app-id <the workload app's Application (client) ID> [--version 1.0.N]
                                  [--name Krusgraph.Modeler] [--frontend-url https://workload.krusgraph.com]
-                                 [--out workload/build/package]
+                                 [--out workload/build/package] [--offer-url <the live Marketplace offer's URL>]
+
+W11: --offer-url puts the production Marketplace offer's page in Product.json's license link (requirements 1.3.1 and
+1.3.2, docs/PUBLISHING-READINESS.md). It takes only a Microsoft Marketplace or AppSource address, and refuses the DEV
+offer (krusgraph-dev, which never goes live, docs/MARKETPLACE-SETUP.md section 5) and a preview-audience link
+(flightCodes). Without it the license link stays the MIT licence on GitHub and the build says the offer is missing.
 """
 from __future__ import annotations
 
@@ -75,6 +80,9 @@ PUBLISHER = "Kruse Consulting AB"
 # none yet, so that one is reported by publishing_gaps(), not refused.
 SUPPORT_LINKS = ("terms", "privacy", "license", "certification", "documentation", "help")
 MARKETPLACE_HOSTS = ("azuremarketplace.microsoft.com", "appsource.microsoft.com", "marketplace.microsoft.com")
+# W11: the license link in the Product.json template, replaced by --offer-url; and the offer that must never be linked
+LICENSE_URL = "https://github.com/Krusmaster/fabric-backend/blob/main/LICENSE"
+DEV_OFFER = "krusgraph-dev"
 # The validator's ImageValidator default sizes for icons and its banner size (78e17c3; tests/test_workload_manifest.py)
 ICON_SIZES = {(n, n) for n in (16, 20, 24, 32, 40, 48, 64)}
 BANNER_SIZE = (1920, 240)
@@ -144,6 +152,36 @@ def values(frontend_app_id: str, version: str, frontend_url: str, name: str = WO
             "ATTESTATION_URL": CERTIFICATION_URL[name],
             "FRONTEND_APPID": frontend_app_id.lower(), "FRONTEND_URL": url, "FRONTEND_REDIRECT_URI": url + "/close",
             "ITEM_NAMES": ",".join(ITEM_NAMES), "WORKLOAD_HOSTING_TYPE": "FERemote", "ENVIRONMENT_DISPLAY_NAME_SUFFIX": ""}
+
+
+def check_offer_url(url: str) -> str:
+    """W11: the live production SaaS offer's page on Microsoft's storefront (1.3.1, 1.3.2), never the DEV offer."""
+    url = (url or "").strip()
+    m = re.fullmatch(r"https://([a-z.]+)(/[^\s?#]*)(\?[^\s#]*)?", url)
+    if not m or m.group(1) not in MARKETPLACE_HOSTS:
+        raise PackageError(f"--offer-url must be an https address on {', '.join(MARKETPLACE_HOSTS)}, not {url!r}")
+    if DEV_OFFER in url.lower():
+        raise PackageError(f"--offer-url names the DEV offer {DEV_OFFER}, which never goes live "
+                           "(docs/MARKETPLACE-SETUP.md section 5); use the production offer's address")
+    if "flightcodes" in url.lower():
+        raise PackageError("--offer-url is a preview-audience link (flightCodes); 1.3.1 needs the live offer's address")
+    if len(m.group(2).strip("/")) == 0:
+        raise PackageError("--offer-url is the storefront's front page, not an offer's page")
+    return url
+
+
+def with_offer(files: dict[str, bytes], offer_url: str | None) -> dict[str, bytes]:
+    """W11: Product.json with the license link set to the offer's page; unchanged when no offer URL is given."""
+    if not offer_url:
+        return files
+    url = check_offer_url(offer_url)
+    product = files["FE/Product.json"].decode("utf-8")
+    quoted = json.dumps(LICENSE_URL)
+    if product.count(quoted) != 1:
+        raise PackageError(f"Product.json does not hold the license link {LICENSE_URL} exactly once")
+    out = dict(files)
+    out["FE/Product.json"] = product.replace(quoted, json.dumps(url)).encode("utf-8")
+    return out
 
 
 def fill(text: str, vals: dict, where: str) -> str:
@@ -309,7 +347,7 @@ def publishing_gaps(files: dict[str, bytes]) -> list[str]:
     gaps = []
     if host not in MARKETPLACE_HOSTS:
         gaps.append(f"license link {license_url} is not a Microsoft Marketplace offer (requirements 1.3.1 and 1.3.2, "
-                    "required at Preview): no offer exists yet")
+                    "required at Preview): build again with --offer-url <the live production offer's page>")
     return gaps
 
 
@@ -323,10 +361,11 @@ def content_types(names) -> str:
 
 
 def build(frontend_app_id: str, version: str | None = None, frontend_url: str = FRONTEND_URL,
-          out_dir: Path | None = None, manifest: Path = MANIFEST, name: str = WORKLOAD_NAME) -> Path:
+          out_dir: Path | None = None, manifest: Path = MANIFEST, name: str = WORKLOAD_NAME,
+          offer_url: str | None = None) -> Path:
     vals = values(frontend_app_id, version or default_version(), frontend_url, name)
     wname = vals["WORKLOAD_NAME"]
-    files = staged_files(vals, manifest)
+    files = with_offer(staged_files(vals, manifest), offer_url)
     check(files, vals)
     spec_name = f"{wname}.nuspec"
     spec = nuspec(vals, manifest)
@@ -373,9 +412,11 @@ def main(argv=None) -> int:
     ap.add_argument("--version", help="the package version, 1.0.N; default 1.0.<commits on this checkout>")
     ap.add_argument("--frontend-url", default=FRONTEND_URL, help=f"default {FRONTEND_URL}")
     ap.add_argument("--out", type=Path, help="output folder; default workload/build/package (git-ignored)")
+    ap.add_argument("--offer-url", help="the live production Marketplace offer's page, for the license link (1.3.1); "
+                                        "never the DEV offer")
     a = ap.parse_args(argv)
     try:
-        path = build(a.frontend_app_id, a.version, a.frontend_url, a.out, name=a.name)
+        path = build(a.frontend_app_id, a.version, a.frontend_url, a.out, name=a.name, offer_url=a.offer_url)
     except PackageError as e:
         print(f"STOP: {e}", file=sys.stderr)
         return 1

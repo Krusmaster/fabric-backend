@@ -26,13 +26,13 @@ especially on security, compliance, privacy, or the design guidelines [H1].
 
 | Description | Value | Required or Optional |
 | --- | --- | --- |
-| Company Name: | Kruse Consulting AB (the publisher display name recorded for the verified Entra app in `docs/SCOPES.md`; **founder to confirm** the legal name as registered) | (Required) |
+| Company Name: | Kruse Consulting AB, org. no. 559174-8719 (W11, 15 November 2026: the company's public registry details, given by the founder) | (Required) |
 | Company Website: | https://krusgraph.com | (Required) |
-| Address: | **founder to confirm** | (Required) |
-| City: | **founder to confirm** (the site's /it page says "Based in Uppsala, Sweden, and Bern, Switzerland") | (Required) |
-| State: | **founder to confirm** (Sweden has no states; "Uppsala län" or "n/a") | (Required) |
-| Postal Code: | **founder to confirm** | (Required) |
-| County: | **founder to confirm** (the template's word; probably "Country": Sweden) | (Required) |
+| Address: | Svartmangatan 4 D | (Required) |
+| City: | Uppsala | (Required) |
+| State: | n/a (Sweden has no states) | (Required) |
+| Postal Code: | 753 12 | (Required) |
+| County: | Sweden (the template's word; read as "Country") | (Required) |
 | Phone: | **founder to confirm** or leave empty | (Optional) |
 
 #### Primary Contact
@@ -41,7 +41,7 @@ especially on security, compliance, privacy, or the design guidelines [H1].
 | --- | --- | --- |
 | Name: | **founder to confirm** | (Required) |
 | Title: | **founder to confirm** | (Required) |
-| Email: | hello@krusgraph.com (the contact in `CONTRIBUTING.md` and `docs/SECURITY.md`; **founder to confirm** it is the alias Microsoft should use) | (Required / Email Alias OK) |
+| Email: | hello@krusgraph.com, the support and contact address (W11, 15 November 2026: the company's public registry details, given by the founder) | (Required / Email Alias OK) |
 
 ## Section II
 
