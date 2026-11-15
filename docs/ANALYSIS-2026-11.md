@@ -151,11 +151,68 @@ read with the signed-in person's own Fabric permissions and the items are create
 
 ### 1.6 Quality of tests
 
-*The reader of this section had not finished when the first commit was made; the next A1 commit fills it in.*
+The test sub-reader ran the suite on Python 3.12 from `deploy/constraints.txt` with the browser tests skipped
+(Node and Playwright were stubbed in its scratch environment): **3 632 passed, 3 failed, 171 skipped** in about four
+minutes; 3 805 tests are collected. Of the three failures one is an artefact of the stub, one
+(`tests/test_n200_health.py:139`) is probably clock-dependent (the fixture pins 11 November 2026 while
+`health.py:429` reads the wall clock; not confirmed), and one (`tests/test_n123_switches.py:124`) is undetermined. B1
+should run the suite in CI's own set-up before treating either as a bug.
+
+- **Size.** 224 test files and 37 Playwright scripts; about 49 000 lines of tests against 52 000 of package code.
+  The workload has 30 vitest files with about 257 cases, a type check and a production build in CI.
+- **What they run against.** No test touches Fabric: `tests/conftest.py:5-10` stubs the Fabric lookup for every test.
+  "pyodbc" is a fake backed by SQLite with a hand-written T-SQL to SQLite translation
+  (`tests/golden_support.py:146-253`), so no T-SQL is executed by a T-SQL engine in CI. The Fabric REST double is a
+  hand-written router over about ten routes with canned bodies; no recorded responses were found. One SQL Server test
+  exists and is skipped in CI. The notebooks run on local Spark writing parquet, not Delta.
+- **What they assert.** By a rough count per test function: about half are pure tests on synthetic data, about a
+  third pin text (19 per cent assert on served HTML, 10 per cent read the repository's own docs, 5 per cent drive a
+  browser), 16 per cent are mock-based. `tests/test_site.py` alone holds 217 tests.
+- **Golden files.** 23 files, regenerated with one environment variable, after which every golden test passes. The
+  only guard is reading the diff, and one person writes and reviews.
+- **Absent.** Property or fuzz tests, mutation testing, coverage measurement, a Python linter, Python type checking,
+  an end-to-end test of the editor inside Fabric. Microsoft's workload validator is not run in CI.
+- **CI.** One Python version; four jobs (tests with Chromium, notebooks, licence notices, workload); a weekly
+  dependency audit; an SBOM kept as a workflow artifact and published nowhere.
+
+Judgement: the suite is large and it protects against regressions in what the project already believes. It does not
+test the two things that can embarrass the product: Fabric's real behaviour, and schemas the rules were not written
+for. A third of the effort guards sentences. The benchmark measures the rules against an answer key and a rival
+written by the same project.
 
 ### 1.7 Security and privacy posture
 
-*As 1.6: the next A1 commit fills it in.*
+What the documents say honestly, and it is to their credit: no security certification, no penetration test, no
+privacy review, no service level, one maintainer with no fixed response time, a data processing agreement that is an
+unreviewed draft, a workload attestation written but not signed or sent, and an ISO 27001 self-assessment that names
+its own gaps (no segregation of duties, no independent review, recovery never run against Azure).
+
+- **Data path.** The hosted service reads with the signed-in person's delegated permissions (on-behalf-of tokens;
+  delegated scopes only, of which `Item.ReadWrite.All` is broad). Table and column names, counts, **sample rows and
+  query results** pass through the hosted process to the person's MCP client and are not stored. With Krusgraph for
+  Claude the AI client's vendor then receives whatever the tools return (`RISK-REGISTER` R2). Masking of personal data
+  is by column name only: `privacy.py:21-22` says a column of e-mail addresses called `contact` is not found.
+- **Stored.** Usage lines (tool, outcome, duration, an optional salted tenant hash). When client registration is on:
+  Entra refresh tokens, encrypted, for up to 90 days, in Azure Table Storage; consent hashes; answers of background
+  operations including item names for two days. Trial rows are keyed by the raw tenant id (trial not switched on).
+- **Where the documents and the code disagree** (each small, each the kind a buyer's security reviewer finds):
+  `SECURITY.md:21-23` says nothing is kept on disk, "no tokens", while encrypted refresh tokens persist;
+  "no IP logged" depends on a deploy setting, not on the code's default (`server.py:3598`); "no customer data" against
+  stored item names and tenant ids; alerts and log analytics "not set up yet".
+- **Done with care.** Token validation (signature, audience, per-tenant issuer, scope); PKCE and exact redirect
+  matching in the own OAuth server; CSRF protection; a guarded fetch for the one user-supplied URL; identifiers
+  quoted and GraphQL limited to queries; a non-root container; pinned dependencies; the 8 November review's findings
+  fixed in n158.
+- **Soft spots.** All SQL is built as strings with hand-escaping and no parameter binding; it holds as long as every
+  path quotes, and one draft path (`sap_mirror.py:140`) interpolates a value unescaped (not seen executed).
+  Dependencies are pinned without hashes and base images by tag. A 60-second overlap in refresh-token rotation (R9).
+  Rate limits are per replica. The server trusts forwarded headers from any address (`server.py:3602`), which is
+  right only behind the platform's ingress.
+
+Judgement: careful engineering for a one-person service, described more honestly than most. The gaps are
+organisational, not technical: nobody independent has looked, nobody else can act, and three sentences in
+`SECURITY.md` say more than the code does. For a mid-size industrial buyer the practical answer is the route where
+nothing passes through the publisher: the open-source engine run in the customer's own tenant, or a notebook edition.
 
 ### 1.8 The process itself
 
@@ -354,8 +411,7 @@ can disprove in an hour. In order:
 5. **One run on SAP data that is not written from the pack**: a public demo or training data set that the publisher
    may describe, landed in a lakehouse, with the pack's links recorded as verified or wrong per link. Without a real
    SAP system this is the nearest honest thing; with access to a sandbox, `docs/LIVE-TEST-SAP.md` is the script.
-6. **A one-page statement of limits** they can forward: what is read, with which permission, what leaves the tenant
-   (names and counts, per section 1.7), what is preview, what is not supported, who answers and how fast (stated
+6. **A one-page statement of limits** they can forward: what is read, with which permission, what passes through the hosted service and what is stored (section 1.7), what is preview, what is not supported, who answers and how fast (stated
    honestly: one person, no promised response time).
 7. **A way to try it without the publisher's tenant:** the hosted connector with admin-consent steps, and for the
    workload either the test-tenant route or a recorded walk-through, said plainly.
