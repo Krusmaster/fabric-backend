@@ -152,8 +152,22 @@ class WaitInterrupted(KeyboardInterrupt):
 
 
 def token_from_az() -> str:
-    r = subprocess.run(["az", "account", "get-access-token", "--resource", FABRIC, "--query", "accessToken", "-o", "tsv"],
-                       capture_output=True, text=True, check=True)
+    """A Fabric token from the Azure CLI. F1: a missing or signed-out CLI is said in the user's words with the next
+    step (it was "FileNotFoundError ... 'az'" with "Try again"); the CLI's own message is kept, scrubbed by explain()."""
+    from .errors import PlatformError
+    cmd = ["az", "account", "get-access-token", "--resource", FABRIC, "--query", "accessToken", "-o", "tsv"]
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, check=True)
+    except FileNotFoundError:
+        raise PlatformError("sign_in", "Fabric needs a sign-in for this step, and the Azure CLI (az) was not found on this machine.",
+                            "Install the Azure CLI and run `az login`, or set FABRIC_TOKEN to a Fabric access token. The tools "
+                            "that only read the database behind FABRIC_ODBC need neither.") from None
+    except subprocess.CalledProcessError as e:
+        said = " ".join((e.stderr or "").split())[:300]
+        raise PlatformError("sign_in", "Fabric needs a sign-in for this step, and the Azure CLI gave no token"
+                            + (f": {said}" if said else "."),
+                            "Run `az login` (with --tenant for the tenant the workspace is in), or set FABRIC_TOKEN to a Fabric "
+                            "access token.") from None
     return r.stdout.strip()
 
 

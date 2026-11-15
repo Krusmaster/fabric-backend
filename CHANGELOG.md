@@ -9,6 +9,15 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round F1: **A first-user test without Fabric, and its small fixes.** `docs/FINDINGS-13NOV.md` ranks what a first user
+  meets in the hosted and the local MCP server (on the synthetic shop and the synthetic SAP tables), on the site at 375,
+  768 and 1280 px and in the Model editor, each with where it is, the fix and the round that should take it, and ends
+  with five ideas. Fixed: `fabric-backend-mcp --help` and `--version` answer and return (they started the stdio server,
+  which waits and prints nothing); the local server says what to set or install when `FABRIC_ODBC`, the ODBC driver or
+  the Azure CLI is missing (kind `server_config` or `sign_in` with the step, where it said "Contact the operator" or
+  "Try again"); `docs/LOCAL.md` section 4 lists the 24 local tools as the code has them; four texts in the Model editor
+  (the page title, "1 person or group has", "1 try", the source sentence); the health test that read the real clock and
+  failed from 14 November 2026 on. Tests: `tests/test_f1_findings_fixes.py`, `f1Words.test.ts`.
 - Round n228: **Krusgraph's diagrams as draw.io files.** The founder, 12 November 2026, looking at the semantic model
   draft card in claude.ai: "can I see this as a draw.io file/flow if I want?" The new `fabric_backend/drawio.py` writes
   three diagrams as draw.io's uncompressed mxfile XML, by rules, with the standard library only: the map (tables with

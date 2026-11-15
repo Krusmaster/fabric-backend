@@ -130,6 +130,11 @@ def test_no_row_value_reaches_the_health_table():
 def test_the_health_step_reads_no_source_rows():
     """Freshness comes from Delta's table history (a commit time); the step never selects from a source table."""
     lh = hc.shop()
+    # F1: the notebook's cells read the real clock (HEALTH_CTX's checked_at), and the fixture's commits are three hours
+    # before hc.NOW (11 November 2026), so from 14 November on the tables were stale and this failed. The commits are
+    # set three hours before the real now, as the fixture sets them against its own.
+    for name in list(lh.commits):
+        lh.commit(name, dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=3))
     seen = []
     real = lh.execute
     lh.execute = lambda sql: seen.append(sql) or real(sql)

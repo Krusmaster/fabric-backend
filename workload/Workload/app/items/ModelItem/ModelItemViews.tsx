@@ -99,6 +99,12 @@ import {
   rejectedRowText,
 } from "./modelWords";
 
+/** F1: the empty view's sentence ("SAP via SAP Datasphere among it" read as a slip). */
+export const CHOOSE_SOURCE_WORDS =
+  "Krusgraph reads the table and column names of a lakehouse, a warehouse, a SQL database or a mirrored database " +
+  "(data mirrored into Fabric, for example SAP through SAP Datasphere) and proposes keys and relationships, each with the " +
+  "rule that found it. Nothing is created until you choose Create.";
+
 export type MascotKind = "onto" | "thinker" | "builder";
 import "./ModelItem.scss";
 
@@ -191,9 +197,7 @@ export function EmptyView(props: {
     <ItemEditorEmptyView
       title="Choose a source"
       description={
-        "Krusgraph reads the table and column names of a lakehouse, a warehouse, a SQL database or a mirrored database " +
-        "(data mirrored into Fabric, SAP via SAP Datasphere among it) and proposes keys and relationships, each with the " +
-        "rule that found it. Nothing is created until you choose Create."
+        CHOOSE_SOURCE_WORDS
       }
       imageSrc="/assets/items/ModelItem/EditorEmpty.svg"
       imageAlt=""

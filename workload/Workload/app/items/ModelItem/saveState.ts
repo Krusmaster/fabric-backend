@@ -65,7 +65,7 @@ export function savedWords(s: SaveStatus | undefined): { mark: string; tone: "ok
   if (s.state === "saved") return { mark: "✓", tone: "ok", words: `Saved in this item in Fabric (${hhmm(s.at)}).` };
   return {
     mark: "✕", tone: "bad",
-    words: `Not saved: Fabric did not confirm the save after ${s.tries} tries (${hhmm(s.at)}). This list is only in this browser tab ` +
+    words: `Not saved: Fabric did not confirm the save after ${s.tries} ${s.tries === 1 ? "try" : "tries"} (${hhmm(s.at)}). This list is only in this browser tab ` +
       "until Save again works; closing the item loses it.",
   };
 }
