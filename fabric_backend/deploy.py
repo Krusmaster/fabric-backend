@@ -151,9 +151,24 @@ class WaitInterrupted(KeyboardInterrupt):
     """The wait for an operation was interrupted (Ctrl-C); the operation itself goes on in Fabric."""
 
 
+NO_TOKEN_HINT = ("Set FABRIC_TOKEN to a Fabric access token, or install the Azure CLI and run `az login`, then try again. "
+                 "Only the calls to Fabric's REST API need it: planning, checking and the drafts read over ODBC.")
+
+
 def token_from_az() -> str:
-    r = subprocess.run(["az", "account", "get-access-token", "--resource", FABRIC, "--query", "accessToken", "-o", "tsv"],
-                       capture_output=True, text=True, check=True)
+    """A Fabric token from the Azure CLI's sign-in. A missing or signed-out CLI is said as such (F1, 15 November 2026):
+    a bare FileNotFoundError or CalledProcessError reached the user as kind 'unexpected'."""
+    from .errors import PlatformError
+    try:
+        r = subprocess.run(["az", "account", "get-access-token", "--resource", FABRIC, "--query", "accessToken", "-o", "tsv"],
+                           capture_output=True, text=True, check=True)
+    except FileNotFoundError as e:
+        raise PlatformError("sign_in", "No Fabric token: FABRIC_TOKEN is not set and the Azure CLI (az) is not installed "
+                                       "or not on the PATH.", NO_TOKEN_HINT) from e
+    except subprocess.CalledProcessError as e:
+        said = " ".join((e.stderr or "").split())[:200]
+        raise PlatformError("sign_in", "No Fabric token: FABRIC_TOKEN is not set and the Azure CLI gave none"
+                                       + (f" ({said})" if said else "") + ".", NO_TOKEN_HINT) from e
     return r.stdout.strip()
 
 
