@@ -3,6 +3,7 @@
 the same narration with the same timing) and one poster (16:9; a poster cannot be swapped without script). n160's
 aria-label and the rest of n157 stay: preload="none", controls, playsinline, no autoplay, nothing from another host."""
 import json
+import os
 import re
 import subprocess
 
@@ -71,5 +72,8 @@ def test_in_a_browser_phones_pick_4x5_and_larger_screens_16x9(site):
         # n163: where the browser honours media on <source> (current Chromium, Firefox, Safari) a phone gets the 4:5
         # file; where it does not (the older Chromium of CI's Playwright), the page still plays the 16:9 one
         assert phone["src"] == (four_five if phone["mediaHonoured"] else sixteen_nine), phone
+        # n235: CI's Playwright (1.63.0) honours media, so CI always checks the 4:5 path; an older local Chromium may not
+        if os.environ.get("CI"):
+            assert phone["mediaHonoured"] and phone["src"] == four_five, phone
         assert wide["src"] == sixteen_nine, wide
         assert not phone["overflow"] and not wide["overflow"] and phone["external"] == 0 and wide["external"] == 0

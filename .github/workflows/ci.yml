@@ -3,7 +3,9 @@ on: { push: { branches: [main] }, pull_request: {} }
 jobs:
   test:
     runs-on: ubuntu-latest
-    env: { PLAYWRIGHT_VERSION: "1.49.1" }
+    # n235: 1.63.0 (Chromium build 1243) honours media on a video's <source>, so tests/test_n161_film_by_device.py checks
+    # the 4:5 film on phones here; 1.49.1 (Chromium 131) played the 16:9 one. The same build as the cloud sessions' browser.
+    env: { PLAYWRIGHT_VERSION: "1.63.0" }
     steps:
       - uses: actions/checkout@v7
       # pip's cache (downloaded wheels) is kept per Python version and the hash of the pins; pip still installs every run
