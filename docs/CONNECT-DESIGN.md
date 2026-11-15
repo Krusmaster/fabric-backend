@@ -186,6 +186,15 @@ item shows a **read-only metadata query** (`INFORMATION_SCHEMA` and the key cata
 `sqlserver.py` reads) that the customer's administrator runs and uploads as a file. It holds names and types only.
 It feeds the table picker, the pack match and the plan. After the first load, the lakehouse itself is the schema.
 
+**Built (B2, 15 November 2026), unit tests only.** `fabric_backend/connect_export.py`: `export_sql()` is the query
+(every schema of the database in one result set: column rows and primary and foreign key rows, from INFORMATION_SCHEMA
+views only), `parse(text, schema)` turns the saved CSV or JSON into the same `Schema` that `Schema.from_sql` reads over
+ODBC, and `schemas(text)` lists the schemas with their table counts. A file with any column besides the export's own,
+or any row other than a column or a key, is refused. `tests/test_b2_connect_export.py` parses the query as T-SQL and
+checks that it reads only INFORMATION_SCHEMA and selects no defaults or check clauses, and compares the plan from a
+synthetic export of the mill sample with the plan from the same metadata. Not run against a live SQL Server; no tool,
+workload screen or upload route uses it yet (that is round C1).
+
 ### 1.6 SaaS systems with Microsoft's own link
 
 **Dynamics 365 and Power Apps (Dataverse): Link to Fabric.** Learn `power-apps/maker/data-platform/
