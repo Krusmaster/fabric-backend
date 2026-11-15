@@ -345,11 +345,11 @@ def test_build_gives_a_power_bi_project_and_an_app_starter_from_the_same_plan(ki
     assert pbir["datasetReference"]["byPath"]["path"] == f"../{r['name']}_model.SemanticModel"
     assert f"{r['name']}_model.SemanticModel/definition/model.tmdl" in names and f"{r['name']}_model.SemanticModel/definition.pbism" in names
     readme = model.read("README.md").decode()
-    assert ts.label("semantic_model_draft") in readme and "Opened in Power BI Desktop on 30 October 2026" in readme
+    assert "Status: a draft for you to review" in readme and "last tried live" not in readme and "docs/" not in readme   # n234
+    assert "Opened in Power BI Desktop on 30 October 2026" in readme
     app = zipfile.ZipFile(io.BytesIO(__import__("base64").b64decode(r["downloads"][f"{r['name']}_app.zip"])))
     assert "app/rayfin/connectors/data/schema.ts" in app.namelist() and "app/lovable-prompt.md" in app.namelist()
-    assert r["status"] == {"model": ts.label("semantic_model_draft"), "report": "Draft only", "create_model": ts.short("create_semantic_model"),
-                           "rayfin": ts.label("rayfin_connector"), "app_starter": ts.label("app_starter")}
+    assert r["status"] == {"model": "Draft", "app_starter": "Draft"}          # n234: one plain word, no test record
     assert r["report"]["has_data"] and r["report"]["measures"] and r["app"]["kpis"]
 
 
@@ -384,7 +384,7 @@ def test_one_example_row_runs_through_the_finding_the_contract_and_the_preview()
     assert f["saw"].endswith("For example order_id 1: 1 000 on its orders row; 2 order_lines rows point at it, so the join counts it twice: 2 000.")
     c = r["domains"]["contracts"]["customers"]
     assert c.count("amountLevel.orders.order_amount") == 1 and "order_id 1 is 1 000 on its orders row and 2 order_lines rows point at it, so the join counts it twice (2 000)" in c
-    assert "A synthetic example beside these tables (fabric_backend.seed.AMOUNT_DEMO)" in c and r["domains"]["status"] == ts.label("domain_draft")
+    assert "A synthetic example beside these tables (fabric_backend.seed.AMOUNT_DEMO)" in c and r["domains"]["status"] == "Draft"
     other = next(x for x in r["findings"] if x["check"] == "amount_level" and x["amount"]["column"] == "list_price")
     assert other["amount"]["example"] == {"key": "product_id", "id": "4", "amount": 5.9, "lines": 27, "repeated": 159.3}
     assert "amountLevel.products.list_price" in r["domains"]["contracts"]["products"] and "product_id 4 is 5.90 on its products row" in c
@@ -444,7 +444,7 @@ def test_in_a_browser_the_mascot_hops_while_loading_and_the_drafts_download_with
         o = r[motion]
         assert o["loading_at_start"] and o["mascot_drawn"] and o["hop_animation"] == anim, o
         assert o["loading_after_result"] is False and o["build_shown"]
-        assert "Draft only" in o["model_text"] and "Summed once per header (sales_orders)" in o["model_text"]
+        assert "A preview drawn here from your rows." in o["model_text"] and "no report tool" not in o["model_text"] and "Summed once per header (sales_orders)" in o["model_text"]
         assert "Summed over the joined lines (sales_order_lines)" in o["model_text"] and "14,400" in o["model_text"]
         for w in ("at_1280", "at_375"):                              # n73: finding, folded list, map, the two choices, the folded steps
             assert o[w] == {"in_map_col": True, "below_map": True, "verdict_above_map": True, "engine_below_choices": True, "engine_closed": True, "dom_order": True}, (w, o[w])
@@ -453,7 +453,7 @@ def test_in_a_browser_the_mascot_hops_while_loading_and_the_drafts_download_with
         assert o["requests_while_building"] == [], o["requests_while_building"]
         assert o["app_rows"] > 0 and "Download app starterFor Lovable, with Rayfin connector entities from the same plan; the API itself does not exist yet." in o["app_text"]
         assert "Supabase" not in o["app_text"] and "an app starter for Lovable" in o["app_text"]       # n80: the word stays in /docs and /lovable
-        assert "This file is " + ts.label("semantic_model_draft")[0].lower() + ts.label("semantic_model_draft")[1:] + "." in o["model_text"]   # n95: said once, above
+        assert "This file is a draft for you to review." in o["model_text"] and "last tried live" not in o["model_text"]   # n95; n234: plain words
         assert "Download Power BI projectThe model (.pbip) with the plan's keys and relationships as checked in the rows, and an empty report page." in o["model_text"]
         assert "sales_order_no SO5001" in o["model_text"] and "counts it 3 times" in o["model_text"] and "The model's measure sums it the right way." in o["model_text"]   # n73: the row the finding names
         assert o["next_links"] == ["Connect to my Fabric /start", "Get help /support"]

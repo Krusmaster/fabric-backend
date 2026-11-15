@@ -81,13 +81,16 @@ def test_the_cards_show_the_engine_output(fresh):
 
 def test_status_words_come_from_tool_status(fresh, monkeypatch):
     html = _section(pages.render("/use-cases/build"))
-    found = re.findall(r'data-tool="(\w+)">.*?<span class="build-status">([^<]+)</span>', html)
-    assert [t for t, _ in found] == ["join_path", "semantic_model_draft", "rayfin_connector", "app_starter"]
-    import html as _html
-    assert all(_html.unescape(word) == tool_status.label(t) for t, word in found)
-    monkeypatch.setattr(tool_status, "label", lambda name: f"STATUS-OF-{name}")
+    # n234: a card says a plain word at most (tool_status.plain), never the test record or the tool's name
+    cards = re.findall(r'data-tool="(\w+)"><header>.*?<p class="build-meta">(.*?)</p>', html, re.S)
+    assert [t for t, _ in cards] == ["join_path", "semantic_model_draft", "rayfin_connector", "app_starter"]
+    for t, meta in cards:
+        word = tool_status.plain(t)
+        assert (f'<span class="build-status">{word[:1].upper() + word[1:]}</span>' in meta) is bool(word), t
+        assert t not in meta and "last tried live" not in meta and "docs/" not in meta.replace('href="/docs', ""), t
+    monkeypatch.setattr(tool_status, "plain", lambda name: f"status-of-{name}")
     html = _section(pages.render("/use-cases/build"))
-    assert all(f"STATUS-OF-{t}" in html for t, _ in found)
+    assert all(f"Status-of-{t}" in html for t, _ in cards)
 
 
 def test_each_card_links_to_a_docs_section_that_exists():

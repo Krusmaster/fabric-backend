@@ -17,9 +17,8 @@ def test_local_tools_are_the_hosted_tools_the_local_server_has():
 def test_every_tool_once_every_word_a_status_word_and_the_clients_of_the_brief():
     md = ts.overview_md()
     for t in ts.STATUS:
-        assert md.count(f"| `{t}` | {ts.word(t)} | {ts.where(t)} | ") == 1, t                # n146: the fields in their own columns
-        date, op, result = ts.live_fields(t)
-        assert (f" | {date} | {result} | " in md) is bool(date), t
+        assert md.count(f"| `{t}` | {ts.plain(t) or '—'} | {ts.where(t)} |") == 1, t       # n234: plain words, no test record
+    assert "last tried live" not in md.lower() and "docs/" not in md and "2026" not in md
     assert ts.overview_words() <= set(ts.WORDS)
     clients = [(c.name, c.status, c.path) for c in ts.CLIENTS]
     assert clients == [("Claude", "Tested end to end", "/mcp"), ("VS Code", "Tested end to end", "/mcp/connect"),

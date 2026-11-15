@@ -11,6 +11,7 @@ to end as a dry run" while creating keeps its status.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 HOSTED, OPERATOR = "hosted", "operator"          # operator: needs a permission the hosted app does not ask for today
@@ -425,6 +426,35 @@ def create_api_word() -> str:
     return "Experimental" if s.live and "create_backend" in LIVE_RUN_PARTLY else word("create_backend")
 
 
+# n234, the founder's marks of 12 November 2026: visitor pages carry no test-status badges, no "last tried live" lines,
+# no docs/ file names and no tool names in a status line; that record stays in docs/ and the tests. Where a visitor still
+# needs a qualifier, these few plain words are all a page says.
+def plain(name: str) -> str:
+    """The plain qualifier for one tool on a visitor page: "draft" for a tool that creates nothing, "experimental" when
+    experimental() says so, the operator's switch when it needs one, else nothing."""
+    s = STATUS[name]
+    if s.available == OPERATOR:
+        return "available when enabled by the operator"
+    if s.kind == DRAFT:
+        return "draft"
+    return "experimental" if experimental(name) else ""
+
+
+def create_api_plain() -> str:
+    """create_backend on a visitor page: only whether creating a new API is experimental."""
+    s = STATUS["create_backend"]
+    if (s.live and "create_backend" in LIVE_RUN_PARTLY) or experimental("create_backend"):
+        return "Creating a new API is experimental"
+    return "Creating the API is available"
+
+
+def experimental_builds() -> str:
+    """"creating views and a data agent is experimental": the BUILDS whose creating tool plain() calls experimental."""
+    names = [n for n, t in BUILDS if t != "create_backend" and plain(t) == "experimental"]
+    return (f"creating {_listed(['the ' + n for n in names])} is experimental" if names
+            else "the other items are available")
+
+
 def task_status(tools: list[str]) -> str:
     """One line for a group of tools: the live date when all ran live, otherwise each tool with its word."""
     if all(word(t).startswith("Tested end to end") and not STATUS[t].dry_run_only and t not in OPEN for t in tools):
@@ -588,26 +618,34 @@ def where(name: str) -> str:
     return "hosted, local" if name in LOCAL_TOOLS else "hosted"
 
 
+def _plain_word(w: str) -> str:
+    """A WORDS entry as the visitor pages say it (n234): experimental, draft, planned, the operator's switch, or nothing."""
+    if w.startswith("Tested end to end"):
+        return ""
+    if w.startswith("Draft"):
+        return "draft"
+    if w.startswith(("Planned", "Available when")):
+        return w[0].lower() + w[1:]
+    return "experimental"                                  # Experimental, Tried live
+
+
 def overview_md(registration_on: bool = True) -> str:
-    """The table, as Markdown. With client registration off (a server hosted elsewhere), the clients that would use
-    /mcp/connect cannot sign in, and the table says so."""
-    # n146: each tool with separate fields: its status word, where it is available, its last operation tried live with
-    # the date and the result, and what is still open
-    rows = [
-            "| Tool | Status | Available | Last operation tried live | Date | Result | Still open |",
-            "| --- | --- | --- | --- | --- | --- | --- |"]
-    for t in STATUS:
-        date, op, result = live_fields(t)
-        rows.append(f"| `{t}` | {word(t)} | {where(t)} | {op or 'none'} | {date or '—'} | {result or '—'} | "
-                    f"{OPEN.get(t, '') or ('not run against a live workspace' if not date else '—')} |")
+    """The table, as Markdown, for /docs and llms-full.txt. n234: plain words only (tool_status.plain); the test record,
+    its dates and the docs/ files stay in docs/ and the tests. With client registration off (a server hosted elsewhere),
+    the clients that would use /mcp/connect cannot sign in, and the table says so."""
+    rows = ["| Tool | Status | Available |", "| --- | --- | --- |"]
+    rows += [f"| `{t}` | {plain(t) or '—'} | {where(t)} |" for t in STATUS]
     rows += ["", "| Function or client | Status | Where |", "| --- | --- | --- |"]
-    rows += [f"| {n} | {w}: {what} | {at} |" for n, w, at, what in FUNCTIONS]
+    for n, w, at, what in FUNCTIONS:
+        what = (what.replace(f" ({LOCAL_TRIED_NOTE})", "").replace(f"; unit-tested, and run with synthetic data", "; unit-tested")
+                .replace("; see docs/DATABRICKS.md", ""))
+        what = re.sub(r"; over ODBC run on [^;]*$", "", what)
+        what = re.sub(r"; `plan_backend`.*$", "", what)                  # fabric-backend-mcp: the tools that ran, and when
+        rows.append(f"| {n} | {(_plain_word(w) + ': ') if _plain_word(w) else ''}{what} | {at} |")
     for c in CLIENTS:
-        status = c.status + (f" (works since {c.works_since})" if c.works_since and c.status != "Tested end to end" else
-                             f" (since {c.works_since})" if c.works_since else "") + (f"; {c.note}" if c.note else "")
-        at = c.where
+        status, at = _plain_word(c.status) or "—", c.where
         if c.path == "/mcp/connect" and not registration_on:
-            status, at = c.status + "; cannot sign in to this server: client registration is not switched on here", "hosted elsewhere"
+            status, at = "cannot sign in to this server: client registration is not switched on here", "hosted elsewhere"
         rows.append(f"| {c.name} (client) | {status} | {at} |")
     return "\n".join(rows)
 

@@ -1,9 +1,9 @@
 # Security and data
 
 For a buyer's security, privacy and procurement team: what passes through {{PRODUCT}}, what is stored, where it runs,
-the permissions it asks for, how to take them back, and what is and is not in place today. Written from the trust pack
-in the repository ([docs/TRUST-PACK.md]({{GITHUB}}/blob/main/docs/TRUST-PACK.md)), where every statement names the file
-that shows it.
+the permissions it asks for, how to take them back, and what is and is not in place today. Written from the
+[trust pack]({{GITHUB}}/blob/main/docs/TRUST-PACK.md) in the repository, where every statement names the file that
+shows it.
 
 **{{PRODUCT}} holds no certification.** There is no ISO 27001 certificate, no SOC 2 report and no penetration test yet.
 Nothing on this page claims a certification, an audit or a partnership with Microsoft or anyone else. {{PRODUCT}} is
@@ -71,7 +71,7 @@ own agreement with them: {{PRODUCT}} sends no data to an AI provider itself. Kru
 
 The permissions the Krusgraph app asks for, and why each one, are listed on
 [For your IT department](/it#permissions); per tool, with the Fabric REST operation behind each, in
-[docs/SCOPES.md]({{GITHUB}}/blob/main/docs/SCOPES.md). The Fabric workload's permissions are in the
+[the permission list in the repository]({{GITHUB}}/blob/main/docs/SCOPES.md). The Fabric workload's permissions are in the
 [trust pack]({{GITHUB}}/blob/main/docs/TRUST-PACK.md) (section 5).
 
 ## How to revoke access

@@ -67,9 +67,9 @@ def test_the_hero_has_the_replay_under_the_buttons_and_keeps_n149(client):
     assert "Answers shortened from Krusgraph's checks on synthetic shop data" in fig
     assert re.findall(r'class="session-tool">(\w+)<', fig) == ["plan_backend", "validate_plan", "create_ontology", "create_semantic_model"]
     assert html.count('<figure class="session"') == 1 and ".replay{" not in CSS
-    # what n149 kept: Blog in the navigation, /check's card after a result, /start's line for people from /check
+    # what n149 kept: Blog in the navigation, /check's card after a result (n234 removed /start's line for people from /check)
     assert re.search(r'<a href="/blog">Blog</a>', re.search(r'<nav id="site-nav".*?</nav>', html, re.S).group(0))
-    assert 'id="check-live"' in client.get("/check").text and "Coming from /check?" in client.get("/start").text
+    assert 'id="check-live"' in client.get("/check").text
 
 
 def test_the_replay_keeps_its_layout():

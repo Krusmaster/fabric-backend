@@ -1,7 +1,7 @@
 """What /check offers under its result (n49): a Power BI model and a small app from the same plan, previewed on the
 visitor's own rows and downloaded as files, all in the browser (Pyodide), nothing sent anywhere.
 
-Both are drafts and say so with the status words of `tool_status`:
+Both are drafts and say so in one plain word (n234: no test record, file name or tool name in the status):
 - the model is `semantic_model.draft` unchanged (the TMDL that semantic_model_draft returns), packed as a Power BI
   project (.pbip): the semantic model folder plus a report with one blank page that points at it by path. The report
   preview here is drawn from the rows by this module, with the draft's own measures (create_report, n144, draws a page
@@ -21,9 +21,8 @@ import json
 import re
 import zipfile
 
-from . import tool_status as ts
 
-DRAFT_WORD = "Draft only"            # the status word for the report part: there is no report tool to give it another
+DRAFT_WORD = "Draft"                 # n234: the one plain word /check and the zips' READMEs say about these drafts
 ENDPOINT = "<your API for GraphQL endpoint, after Connect to my Fabric>"
 WORKSPACE = "<workspace id>"
 
@@ -201,7 +200,7 @@ def pbip_files(name: str, parts: dict[str, str]) -> dict[str, str]:
     out[f"{rp}/.platform"] = platform("Report")
     out["README.md"] = "\n".join([
         f"# {name}: a Power BI project drafted by Krusgraph /check", "",
-        f"Status: {ts.label('semantic_model_draft')} (the model, from semantic_model_draft); the report: {DRAFT_WORD}, an empty page.",
+        "Status: a draft for you to review; the report is an empty page.",
         "Made in your browser from the plan /check showed; nothing was sent anywhere.", "",
         f"- `{sm}/`: the semantic model in TMDL, Direct Lake on a Fabric SQL analytics endpoint, exactly as semantic_model_draft writes it.",
         f"- `{rp}/`: a report with one blank page, bound to the model by path; the preview on /check was drawn there, not here.",
@@ -250,7 +249,7 @@ def app_files(name: str, plan) -> dict[str, str]:
     out[f"app/{s['backend']['frontend']['path']}"] = s["backend"]["frontend"]["source"]
     out["app/README.md"] = "\n".join([
         f"# {name}: an app starter drafted by Krusgraph /check", "",
-        f"Status: Rayfin connector {ts.label('rayfin_connector')}; app starter {ts.label('app_starter')}.",
+        "Status: a draft for you to review.",
         "Made in your browser from the plan /check showed; nothing was sent anywhere.", "",
         "- `rayfin/connectors/data/`: Rayfin (Fabric Apps) entity classes with the plan's keys and relationships (rayfin_connector).",
         "- `lovable-prompt.md`, `queries.graphql`, `checklist.md`, `supabase/`, `src/`: app_starter for an API for GraphQL over the same plan.",
@@ -327,8 +326,7 @@ def build(kind: str = "sample", files: list | None = None, text: str = "", confi
         downloads = {f"{name}_model.zip": base64.b64encode(zip_bytes(pbip_files(f"{name}_model", sm["parts"]))).decode(),
                      f"{name}_app.zip": base64.b64encode(zip_bytes(app_files(name, p))).decode()}
         return {"name": name, "report": report, "app": app, "downloads": downloads,
-                "status": {"model": ts.label("semantic_model_draft"), "report": DRAFT_WORD, "create_model": ts.short("create_semantic_model"),
-                           "rayfin": ts.label("rayfin_connector"), "app_starter": ts.label("app_starter")}}
+                "status": {"model": DRAFT_WORD, "app_starter": DRAFT_WORD}}       # n234: no test record on /check
     finally:
         if folder is not None:
             shutil.rmtree(folder, ignore_errors=True)

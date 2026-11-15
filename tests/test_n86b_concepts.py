@@ -76,15 +76,14 @@ def test_the_examples_are_the_engines_output_on_the_shop_schema(client):
 
 def test_statuses_come_from_tool_status(client):
     onto, dp = (_plain(_main(client.get(x).text)) for x in CONCEPTS[2:4])
-    assert f"Creating the ontology item from the plan: {ts.short('create_ontology')}." in onto and "preview" in onto
-    assert f"domain_draft : {ts.label('domain_draft')}" in dp or f"domain_draft: {ts.label('domain_draft')}" in dp
-    assert ts.label("domain_draft") == "Draft only" and "drafts to review" in dp
+    assert "The ontology item is in preview in Fabric" in onto and "Creating the ontology item from the plan" not in onto
+    assert "Status: a draft." in dp and "drafts to review" in dp and "Status: `domain_draft`" not in dp   # n234: no tool name in a status line
     how = _plain(_main(client.get(CONCEPTS[1]).text))
     for name, tool in ts.BUILDS:
         assert concepts._item_tag(tool) in how, tool
     for name, tested in ts.SOURCES:
         assert name in how
-    assert ts.task_status(["plan_backend", "validate_plan"]) in how
+    assert "last tried live" not in how and "tested end to end" not in how.lower() and "docs/" not in how   # n234
 
 
 def test_the_pages_link_to_the_rdfxml_download_the_example_and_each_other(client):

@@ -144,13 +144,12 @@ def parts_md() -> str:
     at = [c for c in working if ts.CLIENTS_TESTED[c][0] == "/mcp/connect"]
     cl = (f"- **Clients**: where you ask. {_listed(working)} {'connects' if one else 'connect'} to {{{{PRODUCT}}}} through MCP and "
           f"{'signs' if one else 'sign'} in with your Microsoft work account"
-          + (f" ({_listed(at)} at `/mcp/connect`)" if at else "")
-          + f": tested end to end as {'a client' if one else 'clients'}."
+          + (f" ({_listed(at)} at `/mcp/connect`)" if at else "") + "."
           + (f" {_listed(other)} {'is' if len(other) == 1 else 'are'} experimental as {'a client' if len(other) == 1 else 'clients'}." if other else "")
           + " Lovable builds an app on the GraphQL API {{PRODUCT}} creates, not on {{PRODUCT}} itself.")
     kg = ("- **{{PRODUCT}}**: the MCP server in the middle. It makes the plan from table and column metadata (keys and "
           "relationships, each with the rule behind it), counts the checks as queries in Fabric and writes the drafts; it "
-          "stores no table contents. Reading, planning and checking: " + ts.task_status(["plan_backend", "validate_plan"]) + ".")
+          "stores no table contents.")
     items = ", ".join(f"the {n if n != 'GraphQL API' else 'API for GraphQL'} ({_item_tag(tool)})" for n, tool in ts.BUILDS)
     ops = _operator_items()
     fab = (f"- **Fabric items**: what {{{{PRODUCT}}}} creates in your workspace when you ask, each from the same plan and each "
@@ -158,8 +157,7 @@ def parts_md() -> str:
            + (f" On the hosted service, the {_listed(ops)} need a permission the operator enables." if ops else ""))
     src = ("- **OneLake**: Fabric's storage, where your lakehouse and warehouse tables live (a SQL database in Fabric is "
            "replicated there). {{PRODUCT}} reads your tables where they are and copies none of them. "
-           + (f"{_listed(tested)} {'is' if len(tested) == 1 else 'are'} tested end to end as a source" if tested else "")
-           + (f"; {_listed(exp)} {'is' if len(exp) == 1 else 'are'} experimental." if exp else "."))
+           + (f"As a source, {_listed(exp)} {'is' if len(exp) == 1 else 'are'} experimental." if exp else ""))   # n234
     return "\n".join([cl, kg, fab, src])
 
 
@@ -242,14 +240,13 @@ def plan_counts_md() -> str:
 
 def status_md() -> dict[str, str]:
     from . import tool_status as ts
-    ont = ts.short("create_ontology")
     op = ts.STATUS["create_ontology"].available == ts.OPERATOR
+    # n234: plain words only on the docs pages: no test record, dates or tool names in a status line
     return {
-        "CONCEPT_ONTOLOGY_STATUS": (f"Creating the ontology item from the plan: {ont}. The ontology item is in preview in Fabric, "
-                                    f"and its definition format can change"
+        "CONCEPT_ONTOLOGY_STATUS": ("The ontology item is in preview in Fabric, and its definition format can change"
                                     + ("; on the hosted service, creating it needs a permission the operator enables." if op else ".")),
-        "CONCEPT_RDFXML_STATUS": f"{ts.ONTOLOGY_RDFXML.lower()}; {ts.ONTOLOGY_RDFXML_TRIED}",
-        "CONCEPT_DOMAIN_STATUS": f"`domain_draft`: {ts.label('domain_draft')}",
+        "CONCEPT_RDFXML_STATUS": ts.ONTOLOGY_RDFXML.lower(),
+        "CONCEPT_DOMAIN_STATUS": "a draft",
     }
 
 
@@ -559,7 +556,7 @@ def mark(tool: str) -> tuple[str, str]:
     if bw == "updates":
         return "live", "updated in place live"
     if s.kind == ts.CREATES and s.live and s.dry_run_only:
-        return "dry", "dry run tested end to end; not yet created live"
+        return "dry", "dry run only; not yet created live"
     return "draft", "draft; creates nothing"
 
 
@@ -588,10 +585,10 @@ def outputs() -> list[tuple[str, str, str]]:
 
 def connect_flow_md() -> str:
     from . import tool_status as ts
-    lines = ["How a plan becomes Fabric items, with how far each has come in the words of the [test status](#test-status):", "",
-             f"1. **The plan**: keys and relationships, each with the rule behind it (`plan_backend`: {ts.task_status(['plan_backend'])}).",
-             f"2. **Checked against the rows**: duplicate keys, empty keys and references with no matching row, counted in Fabric "
-             f"(`validate_plan`: {ts.task_status(['validate_plan'])}); you correct the plan with `keys` and `confirmed`.",
+    lines = ["How a plan becomes Fabric items:", "",
+             "1. **The plan**: keys and relationships, each with the rule behind it.",
+             "2. **Checked against the rows**: duplicate keys, empty keys and references with no matching row, counted in Fabric; "
+             "you correct the plan with `keys` and `confirmed`.",
              "3. **Drafts or created items**, each from that plan, as listed below.", "",
              "Each item, created live, a dry run or a draft:", ""]
     lines += [f"- {n}: {w}" for n, _m, w in outputs()]
@@ -698,12 +695,12 @@ def _how_svg(inner: str) -> str:
     p = _product()
     working, other = clients()
     status = {c.name: c.status for c in ts.CLIENTS if c.path}
-    tag = lambda w: "tested end to end" if w == "Tested end to end" else w.lower()
+    tag = lambda w: "" if w == "Tested end to end" else w.lower()          # n234: only "experimental" is said
     lov = next(c for c in ts.CLIENTS if c.name == "Lovable" and not c.path)
     cl = [(c, tag(status[c]), "none") for c in working + other] + [("Lovable, on the API", tag(lov.status), "none")]
     items = [(n[:1].upper() + n[1:], _item_tag(t), "none") for n, t in ts.BUILDS]
-    src = [(n, "tested end to end" if t else "experimental", "none") for n, t in ts.SOURCES]
-    plan = ts.task_status(["plan_backend", "validate_plan"])
+    src = [(n, "" if t else "experimental", "none") for n, t in ts.SOURCES]
+    plan = "counted in your rows"
 
     def make(width: int, cols: int) -> str:
         bands = [{"title": "Clients", "sub": "where you ask", "items": cl, "tone": "c"},
@@ -717,8 +714,7 @@ def _how_svg(inner: str) -> str:
     said = (f"Four layers. Clients ({_listed(working + other)}, and Lovable on the API) connect through MCP to {p}, which makes one plan "
             f"and checks it ({plan}). {p} creates Fabric items from that plan when you ask, and reads metadata and counts rows in "
             f"OneLake, where your tables stay. The list below gives each part's status.")
-    return _two("cx-how", make, said, "The four layers and how far each has been tested, from the same list as the "
-                "<a href=\"/docs/reference/test-status#test-status\">test status</a>.", inner)
+    return _two("cx-how", make, said, "The four layers.", inner)
 
 
 def _connect_svg(inner: str) -> str:
@@ -728,9 +724,9 @@ def _connect_svg(inner: str) -> str:
 
     def make(width: int, cols: int) -> str:
         bands = [{"title": "1  The plan", "sub": f"{plan_counts_md()} on the shop schema, each with its rule", "tone": "a",
-                  "items": [("plan_backend", ts.task_status(["plan_backend"]), "none")]},
+                  "items": [("Keys and relationships", "each with its rule", "none")]},
                  {"title": "2  Checked against the rows", "sub": "duplicate keys, empty keys, references with no matching row; you decide", "tone": "d",
-                  "items": [("validate_plan", ts.task_status(["validate_plan"]), "none")]},
+                  "items": [("The checks", "counted in Fabric", "none")]},
                  {"title": "3  Drafts or created items", "sub": "each from the same plan", "tone": "b",
                   "items": [(n, w if m == "live" else MARK_WORDS[m], m) for n, m, w in outs]}]
         links = [{"text": "counted in Fabric"}, {"text": "the reviewed plan"}]
@@ -739,8 +735,7 @@ def _connect_svg(inner: str) -> str:
             + "; ".join(f"{n}, {w}" for n, _m, w in outs) + ".")
     legend = ('<span class="cx-legend"><span class="cx-lg cx-mk-live">created live</span><span class="cx-lg cx-mk-dry">dry run</span>'
               '<span class="cx-lg cx-mk-draft">draft</span></span>')
-    return _two("cx-flow", make, said, legend + " The marks come from the "
-                "<a href=\"/docs/reference/test-status#test-status\">test status</a>; the list below has each one in words.", inner)
+    return _two("cx-flow", make, said, legend + " The list below has each one in words.", inner)
 
 
 def _ontology_list_svg() -> str:
@@ -882,9 +877,6 @@ def where_cells() -> dict:
     w = f["where"]
     product = v["PRODUCT"]
     check_said = re.search(r'<p class="check-private"[^>]*><strong>(.*?)</strong>', _src("page_templates/check.html")).group(1)
-    claude = next(x for x in ts.CLIENTS if x.name == "Claude")
-    mcp_w, _at, mcp_what = _fn("`fabric-backend-mcp`")
-    amt_w, amt_at, _what = _fn("`validate_plan` → `amount_levels`")
     hosted_where = w[_hosted_key(f)].split(".")[0]
     ops = [t for t in c["hosted_creating"] if ts.STATUS[t].available == ts.OPERATOR]
     d = c["downloads"]
@@ -902,20 +894,19 @@ def where_cells() -> dict:
     # status
     cells["status", "browser"] = [f"Live ({WHERE_NOT_IN_CODE['check_live']} as of {WHERE_AS_OF})."]
     cells["status", "computer"] = ["Available in the open-source package (MIT).",
-                                   f"`fabric-backend-mcp`: {_lowfirst(mcp_w)}; {mcp_what}."]
+                                   "`fabric-backend-mcp`: experimental."]
     cells["status", "tenant"] = [f"Available: `deploy/krusgraph.sh` deploys the same server.",
                                  f"{WHERE_NOT_IN_CODE['tenant_not_run'].capitalize()} (as of {WHERE_AS_OF})."]
-    cells["status", "hosted"] = [f"Live: Claude as a client since {claude.works_since}; status per client and tool in the "
-                                 f"[test status](#test-status)."]
+    cells["status", "hosted"] = ["Live: Claude as a client."]
     # check
     cells["check", "browser"] = ["Counted on your files' rows in the browser: duplicate and empty keys, references with no "
                                  "matching row, and header totals a join with its lines would repeat.",
                                  "A pasted columns list gives the plan without counts: there are no rows to count."]
     cells["check", "computer"] = ["`validate_plan` over ODBC, in the local stdio server and the library."]
     cells["check", "tenant"] = ["The same tools as hosted, against your Fabric, as the signed-in person."]
-    cells["check", "hosted"] = [f"`validate_plan`: {ts.task_status(['validate_plan'])}."]
+    cells["check", "hosted"] = ["`validate_plan`, as the signed-in person."]
     for col in ("computer", "hosted"):
-        cells["check", col].append(f"`validate_plan` → `amount_levels` (totals a join repeats): {_lowfirst(amt_w)}.")
+        cells["check", col].append("`validate_plan` → `amount_levels`: totals a join repeats.")
     # draft
     files = [x for x, ok in (("the Power BI model as a project (.pbip)", d["model"]), ("the ontology as RDF/XML", d["ontology"]),
                              ("an app starter", d["app"]), ("an evidence report", d["evidence"])) if ok]
@@ -927,7 +918,7 @@ def where_cells() -> dict:
     if not_local:
         cells["draft", "computer"].append("Hosted only: " + ", ".join(f"`{t}`" for t in not_local) + " and the pipeline.")
     cells["draft", "tenant"] = ["The same tools as hosted."]
-    cells["draft", "hosted"] = [f"`{t}`: {ts.phrase(t)}." for _n, t in WHERE_DRAFTS]
+    cells["draft", "hosted"] = [f"`{t}`: {ts.plain(t) or 'available'}." for _n, t in WHERE_DRAFTS]
     cells["draft", "hosted"].append(f"The pipeline: {_pipeline_words().replace('export_item_definitions', '`export_item_definitions`')}.")
     # create and review
     cells["create", "browser"] = ["Cannot write to Fabric: nothing on /check calls Fabric.",
@@ -940,7 +931,7 @@ def where_cells() -> dict:
                                   "in your own tenant, you decide what your own Entra app may do.") if ops else ""]
     cells["create", "hosted"] = [f"`{t}`: {mark(t)[1]}." for t in c["hosted_creating"]]
     cells["create", "hosted"] += [f"Every creating tool is a dry run unless you pass `dry_run=false`.",
-                                  f"`review_plan`: {ts.phrase('review_plan')}."]
+                                  "`review_plan`: the plan with your decisions and its checks as a file."]
     if set(c["hosted_dry_default"]) != set(c["hosted_creating"]) or c["local_no_dry"]:
         raise ValueError("a creating tool no longer defaults to a dry run; the Where it runs page says every one does")
     return {k: [x for x in items if x] for k, items in cells.items()}
@@ -976,9 +967,8 @@ def where_notes_md() -> str:
         "agreement with its provider. One tool writes for a model you run elsewhere: `create_data_agent` sets up a Fabric "
         "data agent's instructions and examples, and that agent answers with Fabric's own model; {{PRODUCT}} sends it no "
         f"questions. MCP clients that have signed in to the hosted service: "
-        + _listed(f"{c} (at {ts.CLIENTS_TESTED[c][0]} since {ts.CLIENTS_TESTED[c][1]})" for c in working)
-        + "." + (f" Experimental as {'a client' if len(other) == 1 else 'clients'}: {_listed(other)}." if other else "")
-        + " Each client's status is in the [test status](#test-status).",
+        + _listed(f"{c} (at {ts.CLIENTS_TESTED[c][0]})" for c in working)
+        + "." + (f" Experimental as {'a client' if len(other) == 1 else 'clients'}: {_listed(other)}." if other else ""),
         "",
         f"**Not there yet, as of {WHERE_AS_OF}:** {n['clients_not_tried']}, and {n['no_packaging']}. "
         "{{PRODUCT}} is an independent open-source project of Kruse Consulting AB, not a Microsoft product.",
@@ -1013,6 +1003,5 @@ def _where(inner: str) -> str:
             f'<div class="wr-frame"><table class="wr-table" aria-describedby="wr-said"><caption id="wr-cap">Where {E(p)} runs, '
             f'and what each place does with a task</caption><thead><tr><td class="wr-corner"></td>{head}</tr></thead>'
             f'<tbody>{"".join(body)}</tbody></table></div>'
-            f'<figcaption class="muted tiny">Every status here is read from the code when this page is rendered (the same '
-            f'list as the <a href="#test-status">test status</a>); what the code cannot say is dated, '
-            f'once, under the table.</figcaption></figure>')
+            f'<figcaption class="muted tiny">Every status here is read from the code when this page is rendered; what the '
+            f'code cannot say is dated, once, under the table.</figcaption></figure>')

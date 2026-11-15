@@ -68,19 +68,23 @@ def test_the_fabric_item_says_plainly_it_uses_no_ai_and_where_data_passes():
 
 
 def test_status_lines_say_no_more_than_tool_status_and_live_test():
-    claude = next(c for c in ts.CLIENTS if c.name == "Claude")
-    assert offering.val(offering.way("claude"), "status").startswith(f"Claude: {claude.status} since {claude.works_since} (docs/LIVE-TEST.md).")
+    """n234: the Status row says plain words only: no docs/ file, no date, no tool name (the founder, 12 November 2026)."""
+    for w in offering.WAYS:
+        s = offering.val(w, "status")
+        assert "docs/" not in s and "2026" not in s and "tested end to end" not in s.lower() and "tried live" not in s.lower(), w["key"]
+        assert not any(t in s for t in ts.STATUS), w["key"]
+    assert offering.val(offering.way("claude"), "status").startswith("Available in Claude")
     fabric = offering.val(offering.way("fabric"), "status")
-    assert "Not yet among the runs docs/LIVE-TEST.md records" in fabric and "planned, not available" in fabric
+    assert "pilot (preview)" in fabric and "planned, not available" in fabric
     live = (ROOT / "docs" / "LIVE-TEST.md").read_text(encoding="utf-8")
     assert "Krusgraph Model" not in live and "workload" not in live.lower()      # if a run is recorded, say it here too
     me = offering.val(offering.way("self"), "status")
-    assert ts.LOCAL_TRIED_NOTE in me and all(t in me for t in ts.LOCAL_TRIED_TOOLS)
+    assert me.startswith("Local server: experimental.")
     claude_status = offering.val(offering.way("claude"), "status")
     if not offering._mcp_clients():                                           # client registration off: only Claude signs in
         assert "Other MCP clients" not in claude_status
     lovable = offering.val(offering.way("lovable"), "status")
-    assert "Lovable's own Fabric connector: Tested end to end" in lovable
+    assert "Lovable's own Fabric connector: available" in lovable
     # no speed or compliance claims anywhere in the offering
     text = offering.choose_md().lower()
     for word in ("faster", "fast ", "seconds", "gdpr", "compliant", "compliance", "certified", "secure", "soc 2", "iso"):
@@ -354,11 +358,11 @@ def test_with_client_registration_on_krusgraph_for_claude_names_the_other_mcp_cl
     names = set(offering._mcp_clients())
     for c in ts.CLIENTS:
         if c.path == "/mcp/connect" and c.status == "Tested end to end" and c.works_since and c.name in names:
-            assert f"{c.name} (since {c.works_since})" in s
+            assert c.name in s and c.works_since not in s                       # n234: no dates on /choose
         elif c.path == "/mcp/connect" and c.status != "Tested end to end":
             assert c.name in s and "Experimental" in s
     assert "/mcp/connect" in offering.val(offering.way("claude"), "who")
-    assert "In Lovable's chat (MCP): Tested end to end since 30 October 2026." in offering.val(offering.way("lovable"), "status")
+    assert "In Lovable's chat (MCP): available." in offering.val(offering.way("lovable"), "status")     # n234: no dates
 
 
 # ------------------------------------------------------------------ n177 follow-up: the four product names -------------

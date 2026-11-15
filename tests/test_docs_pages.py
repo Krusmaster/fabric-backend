@@ -78,7 +78,9 @@ def test_old_anchors_have_a_page(client):
 
 def test_links_inside_the_text_go_to_the_page_with_the_heading(client):
     t = client.get("/docs/build-from-a-plan").text
-    assert 'href="/docs/reference/test-status#test-status"' in t        # "Each tool's status is in the tool reference"
+    assert "test-status" not in t.split("<article", 1)[-1].split("</article>", 1)[0]   # n234: no test-status link in the text
+    t = client.get("/docs/concepts/how-they-connect").text
+    assert 'href="/docs/build-from-a-plan/one-plan-five-fabric-pieces#one-plan-five-fabric-pieces"' in t
 
 
 def test_sub_pages_keep_the_docs_policy_and_chat_rules(client):

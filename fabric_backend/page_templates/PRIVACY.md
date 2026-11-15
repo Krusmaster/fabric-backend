@@ -125,8 +125,8 @@ HMAC-SHA256 of the tenant id and the person's object id, with a secret salt that
 seen. Entries older than 30 days are deleted at the next use. With the salt, a known object id could be hashed and
 compared; without it, the hashes say nothing. Kruse Consulting receives a notice with the tenant id when an organisation
 starts a trial, 7 days before it ends, and when an organisation uses more people than its plan covers. If you subscribe,
-Microsoft Marketplace handles the purchase and billing; what the service keeps of the subscription is described in
-`docs/MARKETPLACE-SETUP.md` (subscription id, offer, plan and status per tenant, no user data).
+Microsoft Marketplace handles the purchase and billing; the service keeps of the subscription
+the subscription id, offer, plan and status per tenant, and no user data.
 
 ## Technical logs
 

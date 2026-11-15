@@ -1485,9 +1485,6 @@ table.wr-table{min-width:0;width:100%;border-collapse:collapse;font-size:14.5px;
 .check-live{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between;margin-top:16px}
 .check-live h3{margin:0 0 4px}
 .check-live p{margin:0}
-.start-from-check{margin:0 auto 6px;font-weight:700}
-.start-needs{max-width:62ch;margin:0 auto;text-align:left}
-.start-needs>summary{cursor:pointer;font-weight:600;text-align:center}
 .connect-start{display:block;margin:14px 0}
 .connect-start .connect-panel{width:auto;box-shadow:none}
 .usp-lead{max-width:60ch;margin:0 auto 10px;font-weight:600}

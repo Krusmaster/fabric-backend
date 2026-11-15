@@ -86,7 +86,7 @@ def test_the_status_is_said_once_by_the_tools_list(client):
     # n196: the one status line moved from the home page to the footer of every page
     assert "home-status" not in main
     foot = html[html.index('<footer class="site-footer">'):]
-    assert re.findall(r'<a href="/docs#test-status">Test status per tool</a>', foot) and foot.count("is a preview service") == 1
+    assert re.findall(r'<a href="/docs#tool-reference">The tools</a>', foot) and foot.count("is a preview service") == 1   # n234
 
 
 def test_the_client_chooser_is_on_start_in_the_step_that_adds_the_connector(client):
@@ -97,13 +97,23 @@ def test_the_client_chooser_is_on_start_in_the_step_that_adds_the_connector(clie
     assert "Open Claude’s connectors" in step3 and "Copy a note to your admin" in step3
 
 
-def test_start_has_a_jump_for_people_coming_from_check_and_folds_the_requirements(client):
+def test_start_has_no_check_line_and_no_what_you_need_box_and_step_3_still_works(client):
+    """n234: the founder marked the /check line and the What you need box for removal (12 November 2026). The
+    requirements stay in the steps a user meets before failing (admin approval in step 1, a workspace on a capacity in
+    step 2, the work account in step 3), and #step-3 still opens the step that adds the connector."""
     html = client.get("/start").text
     hero = re.search(r'<section class="hero wrap".*?</section>', html, re.S).group(0)
-    assert '<p class="start-from-check">Coming from /check? <a href="#step-3">' in hero
+    assert "Coming from /check?" not in html and "start-from-check" not in html
+    assert "start-needs" not in html and "What you need</summary>" not in html
     assert 'id="step-3"' in html and "Add the connector" in html
-    assert hero.index("start-from-check") < hero.index('<details class="start-needs"><summary>What you need</summary>')
-    assert "Microsoft work account" in hero.split('<details class="start-needs">', 1)[1]
+    steps = html.split('id="step-1"', 1)[1].split('<details id="access"', 1)[0]
+    assert "admin" in steps and "capacity" in steps and "Microsoft work account" in steps
+    assert "start-from-check" not in CSS_TEXT() and "start-needs" not in CSS_TEXT()
+
+
+def CSS_TEXT() -> str:
+    from pathlib import Path
+    return (Path(__file__).resolve().parents[1] / "fabric_backend" / "static" / "site.css").read_text(encoding="utf-8")
 
 
 def test_check_offers_the_live_lakehouse_after_a_result(client):

@@ -77,19 +77,16 @@ def _claude_how() -> str:
             "has them turned on" + (f"; in {_or(names).replace(' or ', ' and ')}, signed in at /mcp/connect, as text." if names else "."))
 
 
+# n234: the Status row on /choose says plain words only: no test record, no dates, no docs/ file names (they stay in
+# docs/ and tool_status); "experimental" where a client's row says so.
 def _status_claude() -> str:
     from . import tool_status as ts
-    c = next(x for x in ts.CLIENTS if x.name == "Claude")
-    out = f"Claude: {c.status} since {c.works_since} (docs/LIVE-TEST.md)."
-    names = set(_mcp_clients())
-    tested = [(x.name, x.works_since) for x in ts.CLIENTS
-              if x.path == "/mcp/connect" and x.status == "Tested end to end" and x.works_since and x.name in names]
-    if tested:
-        out += " Other MCP clients, tested end to end: " + ", ".join(f"{n} (since {d})" for n, d in tested) + "."
+    names = _mcp_clients()
+    out = "Available in Claude" + (f", and in {_or(names).replace(' or ', ' and ')} at /mcp/connect" if names else "") + "."
     other = [x.name for x in ts.CLIENTS if x.path == "/mcp/connect" and x.status != "Tested end to end"]
     if names and other:
         out += f" Experimental: {' and '.join(other)}."
-    return out + " GitHub Copilot has no row of its own in the test status."
+    return out
 
 
 def _status_lovable() -> str:
@@ -99,26 +96,21 @@ def _status_lovable() -> str:
     api = next((x for x in rows if not x.path), None)
     out = []
     if mcp and _lovable_on():
-        out.append(f"In Lovable's chat (MCP): {mcp.status} since {mcp.works_since}.")
+        out.append("In Lovable's chat (MCP): available" + (" (experimental)." if mcp.status == "Experimental" else "."))
     elif mcp:
         out.append("In Lovable's chat (MCP): not supported on this service today, because client registration is off.")
     if api:
-        out.append(f"An app reading the API for GraphQL with Lovable's own Fabric connector: {api.status} "
-                   "(docs/LOVABLE-END-TO-END.md).")
+        out.append("An app reading the API for GraphQL with Lovable's own Fabric connector: available"
+                   + (" (experimental)." if api.status == "Experimental" else "."))
     return " ".join(out)
 
 
 def _status_self() -> str:
-    from . import tool_status as ts
-    tools = ts.LOCAL_TRIED_TOOLS
-    return (f"Local server: Tried live for {', '.join(tools[:-1])} and {tools[-1]} ({ts.LOCAL_TRIED_NOTE}); its other "
-            "tools are Experimental. In your own Azure: the same deploy script the hosted service is deployed with "
-            "(deploy/krusgraph.sh).")
+    return ("Local server: experimental. In your own Azure: the same deploy script the hosted service is deployed with.")
 
 
 def _status_fabric() -> str:
-    return ("A pilot, on request, for up to 20 selected organisations. Not yet among the runs docs/LIVE-TEST.md records. "
-            "Workload Hub listing: planned, not available.")
+    return "A pilot (preview), on request, for up to 20 selected organisations. Workload Hub listing: planned, not available."
 
 
 # The four products, in the founder's order. `colour` is a site token (n183: the colour of the product's mascot, mustard

@@ -15,7 +15,7 @@ import json
 import re
 from functools import lru_cache
 
-from .tool_status import create_api_status, phrase, task_status
+from .tool_status import create_api_plain, plain
 
 FOOTNOTE = "The examples are synthetic: invented tables and rows, not customer projects."
 WORD_CAP = 2200          # tests/test_use_cases.py keeps the page's main text under this (n68: 1 000 plus the ten industries at up to 120 words each)
@@ -103,14 +103,13 @@ TASKS = [
      "example": ("try-sap", "the SAP order-to-cash tables")},
 ]
 
-OUTPUTS = [   # (what, for what, status in the docs' words, from tool_status; "planned" draws the chip dashed)
+OUTPUTS = [   # (what, for what, a plain qualifier from tool_status.plain, n234: no test record; "planned" draws the chip dashed)
     ("GraphQL API", "an API for GraphQL item in your workspace, for an app or for questions in Claude",
-     f"{create_api_status()[0].lower() + create_api_status()[1:]}; querying an existing one: {phrase('query_graphql')}"),
-    ("SQL views", "wide T-SQL views over the plan's joins on the SQL analytics endpoint", phrase("create_views")),
-    ("Fabric IQ ontology draft", "entity types, keys and relationships (preview)", phrase("ontology_draft")),
-    ("Semantic model", "a Power BI model in TMDL from the same keys",
-     f"the draft: {phrase('semantic_model_draft')}; the item: {phrase('create_semantic_model')}"),
-    ("Data agent", "a Fabric data agent with the plan as instructions", phrase("create_data_agent")),
+     create_api_plain()[0].lower() + create_api_plain()[1:]),
+    ("SQL views", "wide T-SQL views over the plan's joins on the SQL analytics endpoint", plain("create_views")),
+    ("Fabric IQ ontology draft", "entity types, keys and relationships (preview)", plain("ontology_draft")),
+    ("Semantic model", "a Power BI model in TMDL from the same keys", plain("create_semantic_model")),
+    ("Data agent", "a Fabric data agent with the plan as instructions", plain("create_data_agent")),
 ]
 
 
@@ -204,7 +203,6 @@ def tasks_html() -> str:
     e = html.escape
     return "".join(
         f'<li class="uc-task" id="task-{e(t["slug"])}"><p class="uc-task-q">“{e(t["quote"])}”</p><p>{_inline(t["shows"])}</p>'
-        f'<p class="muted tiny">Tools: {_inline(_tools(t))}. Status: {_inline(task_status(t["tools"]))}.</p>'
         f'<p class="tiny">For example: <a href="#{e(t["example"][0])}">{e(t["example"][1])}</a>.</p></li>'
         for t in TASKS)
 
@@ -228,12 +226,12 @@ def markdown(product: str, origin: str, contact: str) -> str:
         out.append(f"- **{title}**: {text} {m['tables']} tables, {m['relationships']} relationships. "
                    f"Run it: [{origin}/check?example={kind}]({origin}/check?example={kind})")
     out.append("\n## Start from your task\n")
-    out += [f"- **“{t['quote']}”** {t['shows']} Tools: {_tools(t)}. Status: {task_status(t['tools'])}." for t in TASKS]
+    out += [f"- **“{t['quote']}”** {t['shows']}" for t in TASKS]
     out.append("\n## Problems we see in first reports\n")
     for p in PROBLEMS:
         out += [f"### {p['title']}\n", f"**“{p['question']}”**\n", f"- **Why it matters.** {p['why']}",
                 f"- **How {product} shows it.** {p['how']}", f"- **What we do not know.** {p['unknown']}",
-                f"- Run it on your laptop: [{origin}/local]({origin}/local). Tools: {_tools(p)}. Status: {task_status(p['tools'])}.\n"]
+                f"- Run it on your laptop: [{origin}/local]({origin}/local).\n"]
     out.append("## What comes out\n")
     out += [f"- **{n}**: {w}{' (' + t + ')' if t else ''}" for n, w, t in OUTPUTS]
     out.append("\n## Industries: the problem a customer brings\n")
@@ -268,8 +266,7 @@ def problems_html() -> str:
                    f'<p class="uc-task-q">“{e(p["question"])}”</p>'
                    f'<p><strong>Why it matters.</strong> {_inline(p["why"])}</p>'
                    f'<p><strong>How {{{{PRODUCT}}}} shows it.</strong> {_inline(p["how"])}</p>'
-                   f'<p><strong>What we do not know.</strong> {_inline(p["unknown"])} <a href="/local#the-20-minute-demo">Run the demo on your laptop</a>.</p>'
-                   f'<p class="muted tiny">Tools: {_inline(_tools(p))}. Status: {_inline(task_status(p["tools"]))}.</p></article>')
+                   f'<p><strong>What we do not know.</strong> {_inline(p["unknown"])} <a href="/local#the-20-minute-demo">Run the demo on your laptop</a>.</p></article>')
     return "".join(out)
 
 

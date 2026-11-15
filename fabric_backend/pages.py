@@ -134,11 +134,13 @@ def _vars() -> dict[str, str]:
                                else "an Azure Table Storage table of ours in the service's Azure region"),
         # the test status, from tool_status: the live run's date and what it covered, and each tool's status in a sentence
         "LIVE_RUN_DATE": ts.LIVE_RUN_DATE, "LIVE_RUN_SUMMARY": ts.LIVE_RUN_SUMMARY, "CREATE_API_STATUS": ts.create_api_status(), "CREATE_API_WORD": ts.create_api_word(),
-        **{f"STATUS_{name.upper()}": ts.phrase(name) for name in ts.STATUS},
-        # the short form next to an offer on the home page; the long form, with its history, is on /docs#test-status
-        **{f"SHORT_{name.upper()}": ts.short(name) for name in ts.STATUS},
+        "CREATE_API_PLAIN": ts.create_api_plain(),           # n234: the visitor pages' few plain words
+        "EXPERIMENTAL_BUILDS": ts.experimental_builds(),
+        # n234: a visitor page says at most a plain qualifier per tool (tool_status.plain); the record stays in docs/
+        **{f"STATUS_{name.upper()}": ts.plain(name) for name in ts.STATUS},
+        **{f"SHORT_{name.upper()}": ts.plain(name) for name in ts.STATUS},
         # the sources with their status, as the hub and the docs' "Why" section give it (tool_status.SOURCES)
-        "SOURCES_STATUS": _listed([f"a {n[0].lower() + n[1:] if n != 'SQL database' else n} ({ts.source_word(t)})"
+        "SOURCES_STATUS": _listed([f"a {n[0].lower() + n[1:] if n != 'SQL database' else n}" + ("" if t else " (experimental)")
                                     for n, t in ts.SOURCES]).replace(" and a ", " or a "),
     }
 
@@ -190,10 +192,11 @@ def _counting_limits() -> dict[str, str]:
 
 
 def _client_status(name: str, where: str) -> str:
-    """One client row of tool_status.CLIENTS as a sentence: its status word, since when it works, and its note."""
+    """One client row of tool_status.CLIENTS on a visitor page (n234): "experimental" when its row says so, else nothing;
+    the dates and notes behind it stay in tool_status and docs/."""
     from .tool_status import CLIENTS
     c = next(c for c in CLIENTS if c.name == name and c.where.startswith(where))
-    return c.status + (f" (works since {c.works_since})" if c.works_since else "") + (f"; {c.note}" if c.note else "")
+    return "experimental" if c.status == "Experimental" else ""
 
 
 def _registration_on() -> bool:
@@ -218,9 +221,10 @@ def _clients_sentence() -> str:
 
 
 def _connect_tested() -> str:
-    """"Tested on 27 October 2026 with VS Code, Cursor and Glama": the clients recorded as signed in at /mcp/connect."""
-    from .tool_status import connect_sentence
-    return connect_sentence()
+    """n234: which clients at /mcp/connect are experimental, in plain words (no dates, no test record)."""
+    from .tool_status import CLIENTS
+    other = [c.name for c in CLIENTS if c.path == "/mcp/connect" and c.status != "Tested end to end"]
+    return f"{_listed(other)} {'is' if len(other) == 1 else 'are'} experimental" if other else ""
 
 
 # n68: one click per client. The deep links follow the clients' documented install links: VS Code's
@@ -757,7 +761,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
       <div class="brand small">{_LOGO}<span class="wordmark">{html.escape(v['PRODUCT_LOWER'])}</span></div>
       <p class="muted">{html.escape(v['PRODUCT'])} by Kruse Consulting AB{html.escape(v['ORGNR_DOT'])} · Open source under the MIT licence.</p>
       <p class="muted tiny footer-facts">{html.escape(v['BEHIND'])}.<br>{html.escape(v['BUILT'])}. <a href="/it">For your IT department</a>.</p>
-      <p class="muted tiny footer-status">{html.escape(v['PRODUCT'])} is a preview service. <a href="/docs#test-status">Test status per tool</a> · <a href="/privacy">How data and access are handled</a> · <a href="/trust">Security and data</a>.</p>
+      <p class="muted tiny footer-status">{html.escape(v['PRODUCT'])} is a preview service. <a href="/docs#tool-reference">The tools</a> · <a href="/privacy">How data and access are handled</a> · <a href="/trust">Security and data</a>.</p>
       <p class="muted tiny">Microsoft Fabric and Fabric IQ are trademarks of Microsoft Corporation. {html.escape(v['PRODUCT'])} is an independent product, not made by Microsoft.</p>
     </div>
     <nav class="footer-links" aria-label="Footer">
@@ -801,11 +805,14 @@ def _bar_chart(chart: dict) -> str:
 
 
 def _card(tool: str, title: str, body: str) -> str:
-    from .tool_status import label
+    """n234: the card's line says a plain qualifier at most (tool_status.plain) and links the docs; no tool name, no
+    test record."""
+    from .tool_status import plain
     e = html.escape
+    word = plain(tool)
+    status = f'<span class="build-status">{e(word[:1].upper() + word[1:])}</span> · ' if word else ""
     return (f'<article class="build-card" data-tool="{e(tool)}"><header><h3>{e(title)}</h3>'
-            f'<p class="build-meta"><code>{e(tool)}</code> · <span class="build-status">{e(label(tool))}</span> · '
-            f'<a href="{build_doc_anchor(tool)}">docs</a></p></header>{body}</article>')
+            f'<p class="build-meta">{status}<a href="{build_doc_anchor(tool)}">docs</a></p></header>{body}</article>')
 
 
 # The path from tables to Fabric items, as the hosted tools walk it (the server's instructions): each step with the tools
@@ -829,7 +836,6 @@ def build_path_html() -> str:
     """The row of steps above the cards, with the counts from the path and the demo plan (n224: no minutes; the 20-minute
     demo's budget is a script, not a measured time)."""
     from .demo import demo_plan
-    from .tool_status import short
     e = html.escape
     path = build_path()
     before = sum(len(s["tools"]) for s in path[:-1])
@@ -847,9 +853,7 @@ def build_path_html() -> str:
             f'<p class="path-facts">Each part after the checked plan is one call when you ask for it. The '
             f'<a href="/local#the-20-minute-demo">20-minute demo</a> walks the same steps on the seven-table sample and ends '
             f'with the plan checked against the rows and the exports in your hands; it is a script, not a measured time on your '
-            f'schema.</p>'
-            f'<p class="muted tiny">Status of creating: {"; ".join(f"<code>{e(t)}</code> {e(short(t))}" for t in path[-1]["tools"])}. '
-            f'The runs behind each: <a href="/docs#test-status">test status per tool</a>.</p>')
+            f'schema.</p>')
 
 
 def build_html() -> str:
@@ -1104,14 +1108,12 @@ def sap_vars() -> dict[str, str]:
                                        + "".join(f'<th scope="col">{h}</th>' for h in head) + f"</tr></thead><tbody>{body}</tbody></table></div>")
     docs = docs_anchors().get("sap-on-fabric", "/docs")
     return {
-        "SAP_STATUS": e(f"Status of sap_pack_draft, the tool that shows what the pack recognises: {ts.word('sap_pack_draft')}. "
-                        "Tested on a synthetic SAP schema, not on an SAP system or a real installation."),
+        "SAP_STATUS": e("A draft, tried on a synthetic SAP schema, not on an SAP system or a real installation."),   # n234
         "SAP_KEYS": table(("Table", "What it holds", "Key", "Source"), keys, "Keys of the SAP tables"),
         "SAP_LINKS": table(("Link", "Cardinality", "Applied or listed", "Source"), links, "Links of VBAK and VBAP"),
         "SAP_SOURCES": '<ol class="sap-sources">' + "".join(src(i) for i in used) + "</ol>",
-        "SAP_MORE": (f'In the docs: <a href="{docs}#sap-on-fabric">SAP on Fabric</a>. All {len(pack["tables"])} tables and '
-                     f'{len(pack["relationships"])} relationships of the pack, its traps and how to contribute: '
-                     f'<a href="{GITHUB}/blob/main/docs/SAP.md"{NEW_TAB}>docs/SAP.md</a>.'),
+        "SAP_MORE": (f'In the docs: <a href="{docs}#sap-on-fabric">SAP on Fabric</a>. The pack has {len(pack["tables"])} tables and '
+                     f'{len(pack["relationships"])} relationships.'),
     }
 
 
@@ -1171,7 +1173,7 @@ def _tool_statuses(md: str) -> str:
     def row(m: re.Match) -> str:
         name = m.group(1)
         seen.add(name)
-        return f"| `{name}` | {ts.label(name)} | {ts.STATUS[name].changes} | "
+        return f"| `{name}` | {ts.plain(name) or '—'} | {ts.STATUS[name].changes} | "     # n234: no test record
     md = re.sub(r"^\| `(\w+)` \| \{\{status\}\} \| \{\{changes\}\} \| ", row, md, flags=re.M)
     if seen != set(ts.STATUS):                                                # every tool once, no tool without a status
         raise ValueError(f"tool table and tool_status differ: {sorted(seen ^ set(ts.STATUS))}")

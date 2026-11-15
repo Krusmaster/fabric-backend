@@ -180,7 +180,6 @@
   choices.app.addEventListener("click", () => openBuild("app"));
 
   const fmt = (v) => v == null ? "–" : typeof v === "number" ? v.toLocaleString("en-US") : String(v);
-  const tag = (t) => el("span", { class: "status-tag" }, t);
   // n73: a download says what the file holds; n95: the button is short ("Download" and what the file is), the
   // description stands under it as plain text, and the status is said once above the list (statusLines)
   function dlItem(a, desc) {
@@ -243,7 +242,7 @@
   function drawModel(b) {
     const r = b.report, dbl = doubledFinding(lastResult);
     const kids = [el("h3", { id: "check-model-h", tabindex: "-1" }, "A simple report from your rows"),
-      el("p", { class: "tiny" }, tag(b.status.report), " The report preview is drawn here: Krusgraph has no report tool. The model: ", tag(b.status.model), " (semantic_model_draft).")];
+      el("p", { class: "tiny" }, "A preview drawn here from your rows.")];
     if (!r.has_data) kids.push(noRows());
     else {
       kids.push(figures(r.measures));
@@ -261,7 +260,7 @@
       notBuilt(r), decisionsInModel(r),
       ...statusLines([{ what: "the Power BI project", status: b.status.model }]),
       el("div", { class: "ctas" }, download(zip, b.downloads[zip], "Power BI project", "The model (.pbip) with the plan's keys and relationships" + (r.has_data ? " as checked in the rows" : "") + ", and an empty report page.")),
-      el("p", { class: "muted tiny" }, "Creating the model in Fabric (create_semantic_model): ", tag(b.status.create_model), "."));
+      null);
     fill(panels.model, ...kids);       // review M3: notBuilt and decisionsInModel give null when there is nothing to say
   }
   // n150: the count is what the model holds; a relationship of the plan that is not in it is said with its reason
@@ -296,7 +295,7 @@
   function drawApp(b) {
     const a = b.app;
     const kids = [el("h3", { id: "check-app-h", tabindex: "-1" }, "A small app over the same data"),
-      el("p", { class: "tiny" }, tag("Draft only"), " A preview drawn here from your rows. The code: Rayfin connector ", tag(b.status.rayfin), "; app starter ", tag(b.status.app_starter), ".")];
+      el("p", { class: "tiny" }, "A preview drawn here from your rows.")];
     if (!a.has_data) kids.push(noRows());
     else {
       kids.push(figures(a.kpis));

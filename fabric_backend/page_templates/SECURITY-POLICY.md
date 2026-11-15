@@ -39,11 +39,11 @@ answered as soon as possible; we keep you informed and agree a disclosure date w
 service runs the current code). You are credited in the changelog if you wish.
 
 If a report shows that customers may be affected, they are told under the incident process in
-[docs/INCIDENT-RESPONSE.md]({{GITHUB}}/blob/main/docs/INCIDENT-RESPONSE.md).
+[incident process]({{GITHUB}}/blob/main/docs/INCIDENT-RESPONSE.md).
 
 ## More
 
 - [Security and data](/trust): what passes through {{PRODUCT}}, what is stored, and what is and is not in place.
 - [SECURITY.md]({{GITHUB}}/blob/main/SECURITY.md) in the repository: the same policy, with supported versions.
-- [docs/SECURITY-SUPPLIER.md]({{GITHUB}}/blob/main/docs/SECURITY-SUPPLIER.md): for customers asking a supplier about
+- [Supplier security pack]({{GITHUB}}/blob/main/docs/SECURITY-SUPPLIER.md): for customers asking a supplier about
   security under NIS2 and the Swedish cybersecurity act.

@@ -90,7 +90,7 @@ def test_home_keeps_hero_diagram_short_guide_and_demo_and_one_status_line(client
     order = [main.index(m) for m in ('class="hero"', 'id="demo"', 'id="offering"')]
     assert order == sorted(order)
     foot = h[h.index('<footer class="site-footer">'):]
-    assert 'Krusgraph is a preview service. <a href="/docs#test-status">Test status per tool</a>' in foot
+    assert 'Krusgraph is a preview service. <a href="/docs#tool-reference">The tools</a>' in foot     # n234
     choose = _plain(client.get("/choose").text)
     assert "“We code in VS Code or Cursor” → Krusgraph for Claude (" in choose
     assert "any MCP client" not in choose                   # n216: the clients that sign in today are named, or none
@@ -117,8 +117,8 @@ def test_the_moved_blocks_are_in_the_docs(client):
     assert "registry.modelcontextprotocol.io" in docs and "com.krusgraph/krusgraph" in docs
     t = _plain(docs)
     # the status is true today: the Model item creates these, App included; nothing beyond the tests and docs
-    assert ("creates a semantic model, a report, an ontology, an API for GraphQL, a pipeline, notebooks, a data agent and, "
-            "since round n181, an App (Rayfin, preview)") in t
+    assert ("creates a semantic model, a report, an ontology, an API for GraphQL, a pipeline, notebooks, a data agent and "
+            "an App (Rayfin, preview)") in t
     assert "covered by unit tests against test doubles of Fabric" in t
     assert "data agent and App (Rayfin, preview)" in t and "Enable Fabric App Items (preview)" in t
 
