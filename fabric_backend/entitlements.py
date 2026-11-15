@@ -5,10 +5,10 @@ on, a call to a paid feature from an organisation without it answers in the usua
 `kind: upgrade` and a hint that links to the pricing page. Dry runs of the creating tools stay free: the dry run is
 how someone sees what a paid feature would do.
 
-Paid features (the split in docs/PRICING-NOTES.md: reading is free, creating and operating is paid):
+Paid features (docs/ENTITLEMENTS.md; reading is free, creating and operating is paid):
   create         the creating tools with dry_run=false: create_semantic_model, create_views, create_data_agent,
                  create_ontology, create_silver_notebook (create_backend stays free: one API per workspace is the free
-                 tier, and counting APIs needs the store PRICING-NOTES describes, which does not exist)
+                 tier, and counting APIs needs a store of call records, which does not exist)
   lineage        lineage
   drift_monitor  drift_monitor_draft and create_drift_monitor, its dry run included (the dry run returns the same
                  notebook and pipeline as the draft, so a free dry run would give the paid feature away)

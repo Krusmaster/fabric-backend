@@ -4,7 +4,7 @@ Round W10. A design text, docs only, nothing implemented here. Written 12 Novemb
 with no live user, from the founder's line of the same day: "we need to be able to sell how to migrate from Databricks
 and Snowflake by using Krusgraph; the same with migrating from Qlik to Power BI by using Krusgraph."
 
-The sales side is [`marketing/MIGRATIONS.md`](marketing/MIGRATIONS.md) (W10). This text is what stands behind it.
+The sales side (W10) is a business note kept outside this repository. This text is the method behind it.
 
 It builds on, and does not repeat:
 
@@ -339,7 +339,7 @@ defined on the SQL endpoint makes Direct Lake on SQL fall back to DirectQuery (V
 | **A, both sides** | Counts on one connection: `evidence.py`, `profile.py`, `coverage.py`, `amounts.py`, `sql_sums.py`, one dialect layer (`dialects.py`), the time budget (`budget.py`) | Two connections in one answer; fingerprints beyond NULL share and distinct count; the truths file; the difference rules |
 | **A, rebuild** | `silver.py`, `gold.py`, `pipeline.py`, `semantic_model.py`, `report.py`, `ontology.py`, `dbt.py`, `product_life.py`; items created live on synthetic data | Cutover sheet; usage read; owner field |
 | **B, Qlik** | W7's reader for a synthetic `.qvs`: **claimed, not on `main`**. `combined_keys.py` for composite keys; `graphs.py` for cycles; `model_compare.py` and `dax_refs.py` read TMDL and DAX references | Everything in part B |
-| **C, sales** | `docs/PILOT.md`, `docs/FAQ-COMPETITION.md`, `docs/MISSING-EVIDENCE.md` | See `marketing/MIGRATIONS.md` section 7 |
+| **C, sales** | `docs/PILOT.md`, `docs/MISSING-EVIDENCE.md` | Kept with the business material, outside this repository |
 
 ---
 
@@ -368,7 +368,7 @@ Qlik Sense environment, synthetic data, about half a round each once the founder
 - **Part A:** B1, then B2, then B3 (four rounds). B1 first because every source, Qlik included, needs it, and because
   it can be proven without any vendor account.
 - **Part B:** B6, then the "translated by rule" half of B7, then B8 (about three rounds). They wait for W7's reader.
-- **Part C:** S1, S2, S3 in `marketing/MIGRATIONS.md` section 7 (about two and a half rounds). S1 waits for B1.
+- **Part C:** S1, S2, S3, kept with the business material outside this repository (about two and a half rounds). S1 waits for B1.
 
 The order across parts that gets to something showable soonest: **B1, B3, S1**. After those three there is a
 before-and-after sheet on synthetic data to put in front of a buyer, for all three sources.

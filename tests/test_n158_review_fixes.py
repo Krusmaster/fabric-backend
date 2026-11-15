@@ -492,7 +492,6 @@ def test_l19_repo_docs_follow_the_permissions_and_the_code():
     root = Path(__file__).resolve().parents[1]
     read = lambda p: " ".join((root / p).read_text(encoding="utf-8").split())
     assert "The app does not ask for them today" not in read("docs/NOTEBOOKS.md")
-    assert "`OPERATOR` in `tool_status.py`) are the customer's" not in read("docs/SEGMENTATION.md")
     assert "`create_semantic_model`, `create_ontology`, `create_data_agent` (creating) and" not in read("docs/DEPLOY-NEXT.md")
     assert "Every parameter of the 36 hosted tools" not in read("docs/INFERENCE.md")
     site = read("docs/SITE.md")

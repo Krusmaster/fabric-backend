@@ -1,4 +1,4 @@
-"""Round n212: standards on /trust, robots.txt that opts out of AI training crawlers, the trust page comparison.
+"""Round n212: standards on /trust, robots.txt that opts out of AI training crawlers (the trust page comparison moved out of this repository with K1).
 
 - /trust (and /trust.md) has a Standards section with one row each for ISO/IEC 27001, NIS2 and the Swedish
   cybersecurity act, GDPR and Microsoft's publisher requirements; each row links its file and says what is not in
@@ -7,7 +7,7 @@
 - /robots.txt keeps search engines and the AI answer fetchers in and asks the documented AI training crawlers out of
   everything; a standard parser reads it that way; /llms.txt and the .md twins are untouched.
 - The trust pack has the same rows; the stale "no tool deletes anything" lines are gone; the self-assessment knows the
-  incident process; docs/TRUST-PAGE-COMPARISON.md says which host was blocked and gives five improvements.
+  incident process.
 """
 from __future__ import annotations
 
@@ -24,7 +24,6 @@ ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
 TRUST_PACK = (DOCS / "TRUST-PACK.md").read_text(encoding="utf-8")
 ISO = (DOCS / "ISO27001-SELF-ASSESSMENT.md").read_text(encoding="utf-8")
-COMPARISON = (DOCS / "TRUST-PAGE-COMPARISON.md").read_text(encoding="utf-8")
 SITE_MD = (DOCS / "SITE.md").read_text(encoding="utf-8")
 CLAIM_WORDS = re.compile(r"\b(certified|compliant|compliance with|approved|endorsed)\b", re.I)
 
@@ -139,12 +138,3 @@ def test_self_assessment_knows_what_n211_added():
     assert "/security" in row("6.8") and "docs/SECURITY-SUPPLIER.md" in row("5.19")
     assert "never delete" in row("8.27") and "Delete from Fabric" in row("8.27")
     assert "not ISO 27001 certified" in ISO                               # the opening disclaimer stays
-
-
-def test_comparison_names_the_blocked_hosts_marks_snippets_and_gives_five_improvements():
-    assert "www.modernrequirements.com" in COMPARISON and "allowed" in COMPARISON
-    assert COMPARISON.count("[snippet]") >= 10
-    improvements = _section(COMPARISON, "## Five improvements")
-    assert len(re.findall(r"^\d\. \*\*", improvements, re.M)) == 5
-    assert "/trust" in improvements and "/pricing" in improvements
-    assert not re.search(r"\bKrusgraph (?:is|are) (?!not\b)[^.\n]{0,40}\b(certified|compliant|approved|endorsed)\b", COMPARISON, re.I)

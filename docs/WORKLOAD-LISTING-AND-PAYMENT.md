@@ -158,10 +158,10 @@ What that means for us, all of it our own code:
    token's `tid` and can read an Azure Table; the webhook writes the row, the engine reads it.
 4. **Gate in the engine API**: `/workload/v1/build` (real, not dry run) answers `kind: upgrade` for a tenant without an
    active subscription, as the MCP tools would with the flag on. Reading and dry runs stay free, which is also the
-   in-Fabric trial Microsoft expects [L6] (the split in `docs/PRICING-NOTES.md`).
+   in-Fabric trial Microsoft expects [L6] (the paid features in `docs/ENTITLEMENTS.md`).
 5. **Metering**, only if a metered dimension is chosen: hourly usage events to the metering service [L13], from the
    anonymous counts `fabric_backend/usage.py` already keeps, extended with the tenant id. That changes what the privacy
-   policy must say (`docs/PRICING-NOTES.md`).
+   policy must say (`docs/ENTITLEMENTS.md`).
 
 ## 3. Partner programme benefits
 

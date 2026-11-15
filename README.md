@@ -281,7 +281,7 @@ Operations ([docs/OPERATIONS.md](docs/OPERATIONS.md); unit-tested, not deployed)
 organisation (`kind: rate_limited` with `retry_after`; `KRUSGRAPH_RATE_*`), one anonymous usage line per tool call and a
 token-protected `/metrics` (off by default), `/health` for uptime checks, the client secret optionally from Azure Key Vault
 (`ENTRA_CLIENT_SECRET_KEYVAULT_URI`, set up by `deploy/krusgraph.sh --key-vault`), and a dormant paid-plan check
-(`KRUSGRAPH_ENTITLEMENTS`, off; [docs/PRICING-NOTES.md](docs/PRICING-NOTES.md)). For the person on duty,
+(`KRUSGRAPH_ENTITLEMENTS`, off; [docs/ENTITLEMENTS.md](docs/ENTITLEMENTS.md)). For the person on duty,
 `deploy/krusgraph.sh --doctor` (one table of the service's state, reads only), `--budget` (a cost budget with e-mail)
 and `--backup` (the registration table's consent records to a file), with a continuity checklist, are sections 8
 and 9 of the same file.

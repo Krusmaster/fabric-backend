@@ -1,7 +1,6 @@
 # Krusgraph and Fabric IQ at scale
 
-Round n182 (section 8: round n186). A design note, docs only, nothing implemented here. Written 9 November 2026, ahead of a meeting with Microsoft on
-11 or 13 November.
+Round n182 (section 8: round n186). A design note, docs only, nothing implemented here. Written 9 November 2026.
 
 This is Krusgraph's own view. Every statement about Microsoft products rests on public sources cited here; anything
 we could not check in a public source is marked Unverified. Our observation: Fabric IQ has many building blocks, and
@@ -328,41 +327,13 @@ into it instead of competing with it.
 
 ---
 
-## 7. For the Microsoft meeting
+## 7. Open questions to Microsoft
 
-**The story in five bullets**
-
-- Fabric IQ has the right building blocks. Customers find them complex to assemble.
-- Krusgraph reads the tables, proposes keys and links with the rule behind each, and counts them against the rows.
-- One reviewed plan becomes the semantic model, report, ontology, data agent, GraphQL API and app, consistent with
-  each other.
-- Everything is a dry run until Create, inside the customer's Fabric, as the signed-in user.
-- Next: ontologies across several sources, where checking shared keys on the rows matters most.
-
-**Demo path** (synthetic shop data)
-
-1. Plan: open the Krusgraph Model item, pick the lakehouse; keys and links appear with their rules.
-2. Check: count every key and link on the rows; show one that fails and why.
-3. Dry run: pick outputs (model, report, ontology, data agent); show what would be created.
-4. Create: build them; open the ontology and the report in Fabric.
-
-**Questions to ask Microsoft**
-
-1. Which ontology features are writable via the definition API, and which will stay portal-only (graph from
-   ontology, named versions, data agent with an ontology source)? Is the `entities/{ns}#{name}.tmdl` naming required?
-2. What is the roadmap for namespaces across items, versioning and a health signal for ontologies? Is there an API
-   planned for version history?
-3. Can a partner workload item (the Krusgraph Model) publish to or sit behind the Fabric IQ MCP endpoint, and when
-   will service principals work there?
-4. How does Copilot's grounding choose between a semantic model's prep-for-AI settings and an ontology over the same
-   tables? Is writing the `Copilot/` folder through the semantic model definition supported?
-5. What does a Workload Hub listing need for a workload that creates IQ items, and is there a preview path for
-   partners?
-6. For an MCP server knowledge source in Foundry IQ, which auth is planned beyond static headers and a Foundry
-   connection: will an end user's token (on-behalf-of) be passed to the MCP server, as it is for the Fabric ontology
-   source?
-7. How do you want partners to build data products so they fit with Purview and the OneLake catalog: which item
-   metadata, domains and access flows should a partner workload write to?
+The questions this design depends on (which ontology features the definition API writes, versioning and health of
+ontologies, partner items behind the Fabric IQ MCP endpoint, Copilot grounding, a Workload Hub listing for IQ items,
+Foundry IQ authentication, how partner data products fit Purview and the OneLake catalog) are kept with the
+business material, outside this repository. Until Microsoft documents the answers, the points above and below that
+depend on them stay unconfirmed.
 
 ---
 

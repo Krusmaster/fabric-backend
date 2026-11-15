@@ -50,5 +50,5 @@ untouched.
 
 - Nothing about what Microsoft's servers cannot do; the rows quote what their own pages say they do.
 - No measurement comparing Krusgraph's checks with any Microsoft tool on the same data; none exists
-  (`docs/FAQ-COMPETITION.md`, `docs/MISSING-EVIDENCE.md`).
+  (`docs/MISSING-EVIDENCE.md`).
 - No partnership, endorsement or certification. "Microsoft Fabric" is used descriptively.
