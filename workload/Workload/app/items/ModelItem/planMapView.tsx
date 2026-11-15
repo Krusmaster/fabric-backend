@@ -7,6 +7,7 @@ import { Body1 } from "@fluentui/react-components";
 import { MapData, drawPlanMap, overlay } from "./cardMap";
 import { MAP_CSS } from "./cardMap.generated";
 import { ReviewFile } from "./ModelItemDefinition";
+import { DrawioButton } from "./drawioDownload";
 
 export function PlanMap(props: { map?: MapData; review?: ReviewFile }) {
   const box = useRef<HTMLDivElement>(null);
@@ -24,6 +25,7 @@ export function PlanMap(props: { map?: MapData; review?: ReviewFile }) {
     <div className="krusgraph-map">
       <style>{MAP_CSS}</style>
       <div ref={box} />
+      <DrawioButton what="map" request={() => ({ diagram: "map", map: shown })} />
     </div>
   );
 }

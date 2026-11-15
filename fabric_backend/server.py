@@ -570,14 +570,14 @@ def _with_schemas(text: str, schemas: list[dict] | None) -> str:
 @safe
 def plan_backend(workspace: _p.Workspace, source: _p.Source, schema: _p.PlanSchema = None, keys: _p.Keys = None,
                  confirmed: _p.Confirmed = None, tables: _p.TablesShown = None, detail: _p.Detail = "auto",
-                 mermaid: _p.Mermaid = True, ctx: Context = None) -> str:
-    """Infers primary keys and relationships for the tables in a schema and proposes them as a plan. Requires workspace and
+                 mermaid: _p.Mermaid = True, drawio: _p.Drawio = "", ctx: Context = None) -> str:
+    """Infers primary keys and relationships for a schema's tables and proposes them as a plan. Requires workspace and
     source. Returns JSON: summary, keys and relationships each with the rule behind it (K0–K5, R0–R5), ambiguous
     columns, keyless tables, suggested composite keys and a Mermaid ER diagram. Rule R5 counts code and role columns
     the names left unlinked against the rows (read-only counting queries, at most 20, over the first 200 distinct values
     of a column); candidates it could not confirm are listed as proposed. Changes nothing in Fabric. validate_plan
-    checks it against the rows; create_backend builds the API. Without schema, a source with several schemas that
-    hold tables gets {choose_schema, schemas: [{schema, tables}], summary, hint} and nothing is planned (n169).
+    checks it against the rows; create_backend builds the API. Without schema, a source with several schemas
+    gets {choose_schema, schemas: [{schema, tables}], summary, hint} and nothing is planned.
     Errors: {error, kind, hint}."""
     chosen = None
     if not (schema or "").strip():                                    # n169: the call named no schema
@@ -585,6 +585,8 @@ def plan_backend(workspace: _p.Workspace, source: _p.Source, schema: _p.PlanSche
         if len(schemas) > 1:
             return json.dumps(_schema_choice(source, schemas), indent=2)
         schema = chosen = schemas[0]["schema"] if schemas else "dbo"
+    if (drawio or "").strip():                                        # n228: the map, the model draft or the data flow as a file
+        return _with_schema_chosen(_drawio_file(drawio, workspace, source, schema, keys, confirmed, tables, ctx), chosen)
     p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx, rows=True)
     schema = p.schema.schema                                   # n175: the name the metadata returns
     keep = _compact.match_tables(p.schema, tables)
@@ -601,6 +603,23 @@ def plan_backend(workspace: _p.Workspace, source: _p.Source, schema: _p.PlanSche
                                 p, per_item=False)
         text = _bounded(body, MAX_RESULT_CHARS, _compact.NARROW_HINT, drop=("mermaid",))
     return _with_schema_chosen(text, chosen)
+
+
+def _drawio_file(which: str, workspace: str, source: str, schema: str, keys, confirmed, tables, ctx) -> str:
+    """n228: plan_backend(drawio=...): one of Krusgraph's diagrams as a draw.io file (drawio.py), from the same plan the
+    JSON answer gives. Read-only: the map needs the plan; the model draft and the data flow also what the drafts read of
+    the source item (its name, its SQL endpoint, whether it has schemas). Answers {filename, mime_type, content, ...}."""
+    from . import drawio as _drawio
+    from .infer import PlanInputError
+    if str(which).strip().lower() not in _drawio.WHICH:
+        raise PlanInputError('drawio: "map", "model" or "flow"')
+    if _drawio.WHICH[str(which).strip().lower()] == "map":
+        p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx, rows=True)
+        info = None
+    else:
+        p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
+    keep = _compact.match_tables(p.schema, tables)
+    return json.dumps(_drawio.export(which, p, info, f"{source}.{p.schema.schema}", keep, MAX_RESULT_CHARS - 1500), indent=2)
 
 
 # n169: the schemas of a source that hold tables, for plan_backend called without a schema. INFORMATION_SCHEMA.TABLES

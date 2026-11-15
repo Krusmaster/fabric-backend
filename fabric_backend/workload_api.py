@@ -2607,7 +2607,46 @@ def routes(cfg, validator=None, obo=None) -> list:
             Route(f"{PREFIX}/operation", endpoint(operation_request, run_operation, "operation"), methods=["POST", "OPTIONS"]),
             Route(f"{PREFIX}/product", endpoint(product_request, run_product, "product"), methods=["POST", "OPTIONS"]),
             Route(f"{PREFIX}/health", endpoint(health_request, run_health, "health"), methods=["POST", "OPTIONS"]),
+            Route(f"{PREFIX}/drawio", endpoint(drawio_request, run_drawio, "drawio"), methods=["POST", "OPTIONS"]),   # n228
             Route(f"{PREFIX}/access", endpoint(access_request, None, "access"), methods=["POST", "OPTIONS"])]
+
+
+def _rows(v, what: str, need: tuple[str, ...], lists: tuple[str, ...] = (), limit: int = 20000) -> list[dict]:
+    if not isinstance(v, list) or len(v) > limit or not all(
+            isinstance(x, dict) and all(isinstance(x.get(k), str) and x[k] for k in need)
+            and all(isinstance(x.get(k, []), list) and all(isinstance(c, str) for c in x.get(k, [])) for k in lists) for x in v):
+        raise BadRequest(f"{what}: a list of at most {limit} objects, each with {', '.join(need)}")
+    return v
+
+
+def drawio_request(body) -> dict:
+    """n228: POST /workload/v1/drawio {diagram: "map" | "data_flow", map | flow, name?} - the map or the data flow the
+    editor is showing, as a draw.io file (drawio.py). The editor sends what an earlier answer gave it (/review's map,
+    /build's flow), so this route reads nothing in Fabric and writes nothing: it turns that data into a file."""
+    if not isinstance(body, dict) or body.get("diagram") not in ("map", "data_flow"):
+        raise BadRequest('diagram: "map" or "data_flow"')
+    diagram = body["diagram"]
+    data = body.get("map" if diagram == "map" else "flow")
+    if not isinstance(data, dict):
+        raise BadRequest("map: the map of a review" if diagram == "map" else "flow: the data flow of a build")
+    if diagram == "map":
+        data = {"tables": _rows(data.get("tables"), "map.tables", ("name",), ("key",)),
+                "relationships": _rows(data.get("relationships") or [], "map.relationships", ("source", "target"), ("source_cols", "target_cols")),
+                **({"left_out": data["left_out"]} if isinstance(data.get("left_out"), str) else {})}
+    else:
+        data = {"columns": _rows(data.get("columns") or [], "flow.columns", ("id", "title"), limit=20),
+                "nodes": _rows(data.get("nodes"), "flow.nodes", ("id", "column"), ("lines",)),
+                "edges": _rows(data.get("edges") or [], "flow.edges", ("from", "to")),
+                "notes": [n for n in data.get("notes") or [] if isinstance(n, str)][:50],
+                "said": data.get("said") if isinstance(data.get("said"), str) else ""}
+    return {"diagram": diagram, "data": data, "name": _text(body, "name", "krusgraph", 120), "workspace": "", "source_name": ""}
+
+
+def run_drawio(req: dict) -> dict:
+    from . import drawio
+    title = f"{req['name']}: the map" if req["diagram"] == "map" else f"{req['name']}: the data flow"
+    text = drawio.map_file(req["data"], title) if req["diagram"] == "map" else drawio.flow_file(req["data"], title)
+    return drawio.answer(req["diagram"], req["name"], text)
 
 
 def access_request(body) -> dict:

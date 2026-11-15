@@ -9,6 +9,25 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n228: **Krusgraph's diagrams as draw.io files.** The founder, 12 November 2026, looking at the semantic model
+  draft card in claude.ai: "can I see this as a draw.io file/flow if I want?" The new `fabric_backend/drawio.py` writes
+  three diagrams as draw.io's uncompressed mxfile XML, by rules, with the standard library only: the map (tables with
+  their key, "no key" marked, composite keys in full; arrows labelled with the column and the rule: R1, R5, SAP pack),
+  the semantic model draft (fact and dimension tables in two colours, many-to-one relationships, inactive ones dashed,
+  the ones a tabular model cannot express dotted red with the reason, the date table, the measures in their table's
+  box; read from the draft's own relationships.tmdl and summary) and the data flow (data_flow.py's nodes and edges:
+  bronze, silver, gold, the items on the source, a report on the model, an app on the API). Left to right in columns;
+  an edge runs in the gutters between columns and passes a column in a row of its own, so no edge goes through a box
+  and no boxes overlap (checked by `drawio.problems()` on 60 and 200 synthetic tables). Ids come from the names and
+  every cell is one line, so a re-export of an unchanged plan is the same text. **In the chat:**
+  `plan_backend(..., drawio="map" | "model" | "flow")` answers `{filename, mime_type, content, boxes, arrows}` and reads
+  what the plain call reads; no tool was added (40 tools, 30 read-only) and the read-only listing is at its cap of
+  66 700 characters, which took three small cuts in `plan_backend`'s own words. A file over the answer's 60 000
+  characters is left out with how to get a part (`tables`). **In the Model editor:** "Download as draw.io" under the map
+  and under the data flow; `POST /workload/v1/drawio` turns what the editor shows into the file and calls nothing in
+  Fabric. Not done, because n227 holds the chat cards: the button on the MCP Apps cards and the card map's own routing
+  (sap_vbap -> sap_vbak drawn through sap_t001). Verified by unit tests (`tests/test_n228_drawio.py`, golden files in
+  `tests/golden/drawio/`; the editor's `drawioDownload.test.tsx`); not yet opened in draw.io itself, and not deployed.
 - Round n225: **the Krusgraph Model editor, from the founder's phone test in Fabric of 12 November 2026** (package
   1.0.1074). The Data product page: the plan of every Create is recorded in outputs.json (`plan`, `productWords.withPlan`)
   even when the finish did not answer, and shown with its date; the items are every item that plan built, from every

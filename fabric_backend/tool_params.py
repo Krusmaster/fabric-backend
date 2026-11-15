@@ -73,7 +73,8 @@ def _name(item: str, example: str, default: str | None = None) -> Field:
 
 # ------------------------------------------------------------------ per tool -------------------
 
-Mermaid = Annotated[bool, _d('false leaves the Mermaid ER diagram out of a full answer. Default true. Example: false.')]
+Mermaid = Annotated[bool, _d('false leaves the Mermaid ER diagram out. Default true.')]
+Drawio = Annotated[str, _d('map, model or flow: that diagram as a draw.io file.')]   # n228
 Decisions = Annotated[list[dict] | None, _d(
     'Review decisions, [{"item", "review", "reason"}]; review is accepted, rejected, open or proposed; item ids are '
     'in the file. Default: none. Example: [{"item": "rel:orders.ship_to_id>addresses", "review": "accepted", '
