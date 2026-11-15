@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:krusgraph:case-record:1",
+  "title": "Krusgraph case record",
+  "description": "One case: a schema-level pattern Krusgraph met in a source, the fix that was tried and what the counts said after it. Scope 'tenant' is the record as it is kept in the customer's own tenant. Scope 'shared' is the only form that may leave the tenant, and only when a person there chose to share it: counts and ratios as bands, no date, no reference into the plan. Neither scope has a field that can hold a row value, a sample, a free text, a person or a token; table and column names are present only when the tenant opted in (names_opt_in true). docs/EVOLUTION.md, part 2.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "version", "scope", "case_id", "kind", "rule_ids", "tables", "columns", "before", "fix", "after", "outcome", "decision", "engine"],
+  "properties": {
+    "format": {"const": "krusgraph-case"},
+    "version": {"const": 1},
+    "scope": {"enum": ["tenant", "shared"]},
+    "case_id": {"type": "string", "pattern": "^[0-9a-f]{16}$", "description": "The first 16 hex characters of the SHA-256 of the record without this field, as canonical JSON."},
+    "kind": {"enum": ["key_not_unique", "orphans", "amount_repeated_on_lines", "ids_matched_through_mapping", "client_column_missing", "type_mismatch", "check_not_counted"]},
+    "rule_ids": {"type": "array", "minItems": 1, "maxItems": 8, "uniqueItems": true, "items": {"type": "string", "pattern": "^[A-Z]{1,2}[0-9]{1,2}$"}, "description": "The engine rules behind the key or link the case is about (K0 to K5, R0 to R5, O1, O2)."},
+    "pack": {"type": ["string", "null"], "pattern": "^[a-z][a-z0-9_]{0,31}$", "description": "The id of a published pack the tables matched, or null. A pack id is a public name."},
+    "tables": {"type": "array", "minItems": 1, "maxItems": 4, "items": {"$ref": "#/$defs/table"}},
+    "columns": {"type": "array", "minItems": 1, "maxItems": 8, "items": {"$ref": "#/$defs/column"}},
+    "before": {"description": "What the counting query said before the fix."},
+    "fix": {"$ref": "#/$defs/fix"},
+    "after": {"description": "What the same count said after the fix."},
+    "outcome": {"enum": ["holds", "improved", "unchanged", "worse", "not_counted"]},
+    "decision": {"description": "What a person decided, by role; never who."},
+    "engine": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "names_opt_in": {"type": "boolean", "description": "True only when the tenant chose to keep or share real table and column names with its cases."},
+    "names": {
+      "type": "object", "minProperties": 1,
+      "propertyNames": {"pattern": "^t[1-4](\\.c[1-8])?$"},
+      "additionalProperties": {"type": "string", "pattern": "^[A-Za-z_/][A-Za-z0-9_/$.-]{0,127}$"},
+      "description": "Real names by reference (t1, t1.c1). Identifier characters only, so a value or a sentence does not fit."
+    },
+    "local_ref": {"type": "string", "pattern": "^(key|rel|ext):[A-Za-z0-9_/$.>+-]{1,200}$", "description": "Tenant scope only: the id of the key or link in the tenant's own review file."},
+    "created": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$", "description": "Tenant scope only."},
+    "share_id": {"type": "string", "pattern": "^[0-9a-f]{32}$", "description": "Shared scope: a random id made in the tenant and kept in its list of what it shared; what a deletion request names."},
+    "contributor": {"type": "string", "pattern": "^[0-9a-f]{16}$", "description": "Shared scope: a keyed hash that stands for the organisation, so organisations can be counted; never the tenant id."},
+    "consent": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,39}$", "description": "Shared scope: the id of the consent text the sharing rests on."}
+  },
+  "allOf": [
+    {
+      "if": {"required": ["scope"], "properties": {"scope": {"const": "tenant"}}},
+      "then": {
+        "properties": {
+          "before": {"$ref": "#/$defs/measure_exact"}, "after": {"$ref": "#/$defs/measure_exact"},
+          "decision": {"$ref": "#/$defs/decision_tenant"},
+          "share_id": false, "contributor": false, "consent": false
+        }
+      },
+      "else": {
+        "required": ["share_id", "contributor", "consent"],
+        "properties": {
+          "before": {"$ref": "#/$defs/measure_banded"}, "after": {"$ref": "#/$defs/measure_banded"},
+          "decision": {"$ref": "#/$defs/decision_shared"},
+          "local_ref": false, "created": false
+        }
+      }
+    },
+    {
+      "if": {"required": ["names"]},
+      "then": {"required": ["names_opt_in"], "properties": {"names_opt_in": {"const": true}}}
+    }
+  ],
+  "$defs": {
+    "table": {
+      "type": "object", "additionalProperties": false, "required": ["ref", "role"],
+      "properties": {
+        "ref": {"type": "string", "pattern": "^t[1-4]$"},
+        "role": {"enum": ["header", "line", "master", "mapping", "fact", "dimension", "staging", "view", "other"]},
+        "entity": {"enum": ["customer", "supplier", "product", "order", "order_line", "invoice", "invoice_line", "delivery", "payment", "account", "cost_center", "plant", "warehouse", "currency", "calendar", "organisation_unit", "other"]}
+      }
+    },
+    "column": {
+      "type": "object", "additionalProperties": false, "required": ["ref", "table", "role", "type"],
+      "properties": {
+        "ref": {"type": "string", "pattern": "^c[1-8]$"},
+        "table": {"type": "string", "pattern": "^t[1-4]$"},
+        "role": {"enum": ["key", "reference", "amount", "quantity", "client", "code", "date", "other"]},
+        "type": {"$ref": "#/$defs/type"},
+        "length": {"type": ["integer", "null"], "minimum": 1, "maximum": 8000},
+        "char_class": {"enum": ["digits", "letters", "alphanumeric", "mixed", null]},
+        "leading_zeros": {"type": "boolean"},
+        "padded": {"type": "boolean", "description": "Values carry blanks before or after."}
+      }
+    },
+    "type": {"enum": ["string", "integer", "decimal", "float", "date", "datetime", "boolean", "binary", "other"]},
+    "fix": {
+      "type": "object", "additionalProperties": false, "required": ["id"],
+      "properties": {
+        "id": {"enum": ["none", "trim", "case_fold", "strip_leading_zeros", "pad_leading_zeros", "cast", "add_client_column", "composite_key", "mapping_table", "sum_at_header_level", "deduplicate"]},
+        "from_type": {"$ref": "#/$defs/type"},
+        "to_type": {"$ref": "#/$defs/type"},
+        "to_length": {"type": "integer", "minimum": 1, "maximum": 8000}
+      }
+    },
+    "count": {"type": "integer", "minimum": 0},
+    "count_band": {"enum": ["0", "1-9", "10-99", "100-999", "1e3-1e4", "1e4-1e5", "1e5-1e6", "1e6-1e7", "1e7+"]},
+    "ratio_band": {"enum": ["0", "0-1%", "1-10%", "10-50%", "50-100%", "100%"]},
+    "sum_ratio_band": {"enum": ["below 1", "1", "1-2", "2", "2-5", "5+"]},
+    "measure_exact": {
+      "type": "object", "additionalProperties": false, "required": ["rows"],
+      "properties": {
+        "rows": {"$ref": "#/$defs/count"}, "distinct": {"$ref": "#/$defs/count"}, "nulls": {"$ref": "#/$defs/count"},
+        "duplicates": {"$ref": "#/$defs/count"}, "orphans": {"$ref": "#/$defs/count"}, "matched": {"$ref": "#/$defs/count"},
+        "sum_ratio": {"type": "number", "minimum": 0, "maximum": 1000000, "description": "The sum over the lines divided by the sum over the headers; a ratio of two totals, never a total."}
+      }
+    },
+    "measure_banded": {
+      "type": "object", "additionalProperties": false, "required": ["rows"],
+      "properties": {
+        "rows": {"$ref": "#/$defs/count_band"}, "distinct": {"$ref": "#/$defs/count_band"}, "nulls": {"$ref": "#/$defs/count_band"},
+        "duplicates": {"$ref": "#/$defs/count_band"}, "orphans": {"$ref": "#/$defs/count_band"}, "matched": {"$ref": "#/$defs/count_band"},
+        "duplicate_ratio": {"$ref": "#/$defs/ratio_band"}, "orphan_ratio": {"$ref": "#/$defs/ratio_band"}, "match_ratio": {"$ref": "#/$defs/ratio_band"},
+        "sum_ratio": {"$ref": "#/$defs/sum_ratio_band"}
+      }
+    },
+    "decision_tenant": {
+      "type": "object", "additionalProperties": false, "required": ["review"],
+      "properties": {
+        "review": {"enum": ["proposed", "accepted", "rejected", "open"]},
+        "role": {"enum": ["steward", "owner", "analyst", "consultant", "unknown"]},
+        "date": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"}
+      }
+    },
+    "decision_shared": {
+      "type": "object", "additionalProperties": false, "required": ["review"],
+      "properties": {
+        "review": {"enum": ["proposed", "accepted", "rejected", "open"]},
+        "role": {"enum": ["steward", "owner", "analyst", "consultant", "unknown"]}
+      }
+    }
+  }
+}
