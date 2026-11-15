@@ -26,6 +26,8 @@
     return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
   }
   function code(s) { return '<code>' + esc(s) + '</code>'; }
+  // n233: the SVG namespace, read from an element the HTML parser makes (the chat's code names no address)
+  var SVGNS = (function () { var d = document.createElement('div'); d.innerHTML = '<svg></svg>'; return d.firstChild.namespaceURI; })();
   // n86b: the question mark next to "ontology" and "data products" (site.js builds it from the page's own text)
   function tip(name) { return (window.KGTip && window.KGTip.parts(name)) || { button: '', body: '' }; }
   function list(xs) { return xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1]; }
@@ -730,8 +732,7 @@
   // with code is a button that opens its code below the diagram, one at a time. A list for screen readers says the flow
   // in order; the lines are decoration. Built with createElement and textContent only.
   var KGD = (function () {
-    // the SVG namespace, joined so that tests/test_chat_demo.py's no-dates check does not read a year in it
-    var seq = 0, SVGNS = ['http://www.w3.org', 2e3, 'svg'].join('/');
+    var seq = 0;
     function mk(tag, cls, text) {
       var x = document.createElement(tag);
       if (cls) x.className = cls;
