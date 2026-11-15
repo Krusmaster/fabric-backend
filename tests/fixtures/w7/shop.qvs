@@ -1,0 +1,90 @@
+///$tab Main
+// Synthetic: the shop schema of fabric_backend/seed.py written as a Qlik load script by hand.
+// No customer data, no real names. It was not exported from a Qlik app.
+SET ThousandSep=' ';
+SET DateFormat='YYYY-MM-DD';
+LET vStart = MakeDate(2026, 9, 1);
+
+///$tab Access
+SECTION ACCESS;
+LOAD * INLINE [
+ACCESS, USERID, REGION
+ADMIN, USER_A, *
+USER, USER_B, Nordics
+];
+SECTION APPLICATION;
+
+///$tab Dimensions
+CountryMap:
+MAPPING LOAD * INLINE [
+code, region
+SE, Nordics
+NO, Nordics
+DE, DACH
+];
+
+Customers:
+LOAD customer_id AS CustomerID,
+     name AS CustomerName,
+     country AS Country,
+     ApplyMap('CountryMap', country, 'Other') AS Region
+FROM [lib://Shop/customers.qvd] (qvd);
+
+Products:
+LOAD product_id AS ProductID, name AS ProductName, category_id AS CategoryID, list_price AS ListPrice
+FROM [lib://Shop/products.qvd] (qvd);
+
+Categories:
+LOAD * INLINE [
+CategoryID, CategoryName
+1, Tools
+2, Parts
+];
+
+/* A ship-to address has a country too: with Customers.Country this closes a loop
+   Customers - Orders - ShipTo - Customers. */
+ShipTo:
+LOAD ship_to_id AS ShipToID, city AS City, country AS Country
+FROM [lib://Shop/ship_to.qvd] (qvd);
+
+///$tab Facts
+Orders:
+LOAD OrderID, CustomerID, ShipToID, OrderDate, Year(OrderDate) AS OrderYear, Month(OrderDate) AS OrderMonth;
+SQL SELECT order_id AS OrderID, customer_id AS CustomerID, ship_to_id AS ShipToID, order_date AS OrderDate
+FROM shop.orders WHERE order_date >= '2026-09-01';
+
+CONCATENATE (Orders)
+LOAD OrderID, CustomerID, ShipToID, OrderDate, Year(OrderDate) AS OrderYear, Month(OrderDate) AS OrderMonth
+FROM [lib://Shop/orders_archive.qvd] (qvd);
+
+OrderItems:
+LOAD order_id AS OrderID, line_no AS LineNo, product_id AS ProductID, quantity AS Quantity
+FROM [lib://Shop/order_items.qvd] (qvd);
+
+LEFT JOIN (OrderItems)
+LOAD ProductID, ListPrice AS UnitPrice RESIDENT Products;
+
+OrderLines:
+NOCONCATENATE LOAD *, Quantity * UnitPrice AS LineAmount RESIDENT OrderItems;
+DROP TABLE OrderItems;
+
+// OrderID and CustomerID are both in Orders: a synthetic key.
+Shipments:
+LOAD shipment_id AS ShipmentID, order_id AS OrderID, customer_id AS CustomerID, shipped_on AS ShippedOn
+FROM [lib://Shop/shipments.qvd] (qvd);
+
+///$tab Other
+Budget:
+LOAD * INLINE [
+BudgetYear, BudgetAmount
+2026, 100000
+];
+
+FOR Each vFile in 'a', 'b'
+  TRACE $(vFile);
+NEXT vFile
+
+Targets:
+CROSSTABLE (TargetMonth, Target, 1) LOAD * FROM [lib://Shop/targets.xlsx] (ooxml, embedded labels);
+
+STORE Orders INTO [lib://Shop/orders_out.qvd] (qvd);

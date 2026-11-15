@@ -1,0 +1,144 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<!-- Synthetic: the shop schema of fabric_backend/seed.py written as a Tableau workbook by hand.
+     No customer data, no real names, no server. It was not saved by Tableau. -->
+<workbook source-build='synthetic' source-platform='win' version='18.1' xmlns:user='http://www.tableausoftware.com/xml/user'>
+  <datasources>
+    <datasource hasconnection='false' inline='true' name='Parameters' version='18.1'>
+      <column caption='Top N' datatype='integer' name='[Parameter 1]' param-domain-type='range' role='measure' type='quantitative' value='10'>
+        <calculation class='tableau' formula='10' />
+      </column>
+    </datasource>
+    <datasource caption='Shop orders' inline='true' name='federated.shop1' version='18.1'>
+      <connection class='federated'>
+        <named-connections>
+          <named-connection caption='shop' name='sqlserver.shop1'>
+            <connection class='sqlserver' dbname='shop' server='example.invalid' />
+          </named-connection>
+        </named-connections>
+        <relation join='left' type='join'>
+          <clause type='join'>
+            <expression op='='>
+              <expression op='[orders].[customer_id]' />
+              <expression op='[customers].[customer_id]' />
+            </expression>
+          </clause>
+          <relation join='inner' type='join'>
+            <clause type='join'>
+              <expression op='='>
+                <expression op='[orders].[order_id]' />
+                <expression op='[order_items].[order_id]' />
+              </expression>
+            </clause>
+            <relation connection='sqlserver.shop1' name='orders' table='[shop].[orders]' type='table' />
+            <relation connection='sqlserver.shop1' name='order_items' table='[shop].[order_items]' type='table' />
+          </relation>
+          <relation connection='sqlserver.shop1' name='customers' table='[shop].[customers]' type='table' />
+        </relation>
+      </connection>
+      <column datatype='integer' name='[order_id]' role='dimension' type='ordinal' />
+      <column datatype='integer' name='[customer_id]' role='dimension' type='ordinal' />
+      <column datatype='string' name='[country]' role='dimension' type='nominal' />
+      <column datatype='date' name='[order_date]' role='dimension' type='ordinal' />
+      <column datatype='real' name='[quantity]' role='measure' type='quantitative' />
+      <column datatype='real' name='[order_amount]' role='measure' type='quantitative' />
+      <column caption='Order amount per order' datatype='real' name='[Calculation_1]' role='measure' type='quantitative'>
+        <calculation class='tableau' formula='{ FIXED [order_id] : MAX([order_amount]) }' />
+      </column>
+      <column caption='First order date' datatype='date' name='[Calculation_2]' role='dimension' type='ordinal'>
+        <calculation class='tableau' formula='{ FIXED [customer_id] : MIN([order_date]) }' />
+      </column>
+      <column caption='Quantity per order' datatype='real' name='[Calculation_3]' role='measure' type='quantitative'>
+        <calculation class='tableau' formula='AVG({ INCLUDE [order_id] : SUM([quantity]) })' />
+      </column>
+      <column caption='Total quantity' datatype='real' name='[Calculation_4]' role='measure' type='quantitative'>
+        <calculation class='tableau' formula='SUM([quantity])' />
+      </column>
+      <column caption='Running quantity' datatype='real' name='[Calculation_5]' role='measure' type='quantitative'>
+        <calculation class='tableau' formula='RUNNING_SUM(SUM([quantity]))' />
+      </column>
+      <column caption='Is large line' datatype='boolean' name='[Calculation_6]' role='dimension' type='nominal'>
+        <calculation class='tableau' formula='[quantity] &gt;= [Parameters].[Parameter 1]' />
+      </column>
+      <extract count='-1' enabled='true' units='records'>
+        <connection class='hyper' dbname='Data/Extracts/shop.hyper' />
+      </extract>
+    </datasource>
+    <datasource caption='Products' inline='true' name='federated.shop2' version='18.1'>
+      <connection class='federated'>
+        <named-connections>
+          <named-connection caption='shop' name='sqlserver.shop2'>
+            <connection class='sqlserver' dbname='shop' server='example.invalid' />
+          </named-connection>
+        </named-connections>
+        <_.fcp.ObjectModelEncapsulateLegacy.false...relation connection='sqlserver.shop2' name='products' table='[shop].[products]' type='table' />
+        <_.fcp.ObjectModelEncapsulateLegacy.true...relation type='collection'>
+          <relation connection='sqlserver.shop2' name='products' table='[shop].[products]' type='table' />
+          <relation connection='sqlserver.shop2' name='categories' table='[shop].[categories]' type='table' />
+          <relation connection='sqlserver.shop2' name='price list' type='text'>SELECT product_id, list_price
+FROM shop.products
+WHERE list_price &gt; 0</relation>
+        </_.fcp.ObjectModelEncapsulateLegacy.true...relation>
+      </connection>
+      <column datatype='integer' name='[product_id]' role='dimension' type='ordinal' />
+      <column datatype='real' name='[list_price]' role='measure' type='quantitative' />
+      <_.fcp.ObjectModelEncapsulateLegacy.true...object-graph>
+        <objects>
+          <object caption='products' id='products_A1'>
+            <properties context=''>
+              <relation connection='sqlserver.shop2' name='products' table='[shop].[products]' type='table' />
+            </properties>
+          </object>
+          <object caption='categories' id='categories_B2'>
+            <properties context=''>
+              <relation connection='sqlserver.shop2' name='categories' table='[shop].[categories]' type='table' />
+            </properties>
+          </object>
+        </objects>
+        <relationships>
+          <relationship>
+            <expression op='='>
+              <expression op='[category_id]' />
+              <expression op='[category_id (categories)]' />
+            </expression>
+            <first-end-point object-id='products_A1' />
+            <second-end-point object-id='categories_B2' />
+          </relationship>
+        </relationships>
+      </_.fcp.ObjectModelEncapsulateLegacy.true...object-graph>
+    </datasource>
+  </datasources>
+  <worksheets>
+    <worksheet name='Orders by country'>
+      <table>
+        <view>
+          <datasources>
+            <datasource caption='Shop orders' name='federated.shop1' />
+          </datasources>
+          <datasource-dependencies datasource='federated.shop1'>
+            <column datatype='string' name='[country]' role='dimension' type='nominal' />
+            <column caption='Order amount per order' datatype='real' name='[Calculation_1]' role='measure' type='quantitative' />
+          </datasource-dependencies>
+          <filter class='categorical' column='[federated.shop1].[none:country:nk]' />
+        </view>
+      </table>
+    </worksheet>
+    <worksheet name='Quantity in context'>
+      <table>
+        <view>
+          <datasources>
+            <datasource caption='Shop orders' name='federated.shop1' />
+          </datasources>
+          <datasource-dependencies datasource='federated.shop1'>
+            <column caption='First order date' datatype='date' name='[Calculation_2]' role='dimension' type='ordinal' />
+            <column caption='Total quantity' datatype='real' name='[Calculation_4]' role='measure' type='quantitative' />
+          </datasource-dependencies>
+          <filter class='categorical' column='[federated.shop1].[none:country:nk]' context='true' />
+        </view>
+      </table>
+    </worksheet>
+  </worksheets>
+  <dashboards>
+    <dashboard name='Shop overview' />
+  </dashboards>
+  <windows />
+</workbook>
