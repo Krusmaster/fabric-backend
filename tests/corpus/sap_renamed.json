@@ -1,0 +1,291 @@
+{
+ "name": "sap_renamed",
+ "title": "SAP-shaped sample, tables renamed",
+ "source": "the order-to-invoice sample with table names that say nothing to the pack (sales_doc_header for VBAK); synthetic",
+ "rows": 4327,
+ "names": {
+  "tables": 12,
+  "keys_true": 12,
+  "keys_right": 0,
+  "keys_wrong": 0,
+  "keys_missed": 12,
+  "keys_extra": 0,
+  "keys_extra_list": [],
+  "links_true": 18,
+  "links_found": 0,
+  "links_wrong": 0,
+  "keys_wrong_list": [],
+  "keys_missed_list": [
+   "billing_header",
+   "billing_item",
+   "company_codes",
+   "customer_master",
+   "delivery_header",
+   "delivery_item",
+   "kam_assignment",
+   "material_master",
+   "material_texts",
+   "order_extension",
+   "sales_doc_header",
+   "sales_doc_item"
+  ],
+  "links_missed_list": [
+   "billing_header.bukrs+mandt -> company_codes",
+   "billing_header.kunag+mandt -> customer_master",
+   "billing_header.kunrg+mandt -> customer_master",
+   "billing_item.aubel+aupos+mandt -> sales_doc_item",
+   "billing_item.mandt+matnr -> material_master",
+   "billing_item.mandt+vbeln -> billing_header",
+   "billing_item.mandt+vgbel+vgpos -> delivery_item",
+   "delivery_header.kunag+mandt -> customer_master",
+   "delivery_header.kunnr+mandt -> customer_master",
+   "delivery_item.mandt+matnr -> material_master",
+   "delivery_item.mandt+vbeln -> delivery_header",
+   "delivery_item.mandt+vgbel+vgpos -> sales_doc_item",
+   "kam_assignment.zz_kunde_nr -> customer_master",
+   "material_texts.mandt+matnr -> material_master",
+   "order_extension.mandt+vbeln -> sales_doc_header",
+   "sales_doc_header.kunnr+mandt -> customer_master",
+   "sales_doc_item.mandt+matnr -> material_master",
+   "sales_doc_item.mandt+vbeln -> sales_doc_header"
+  ],
+  "links_wrong_list": []
+ },
+ "before": {
+  "tables": 12,
+  "keys_true": 12,
+  "keys_right": 0,
+  "keys_wrong": 0,
+  "keys_missed": 12,
+  "keys_extra": 0,
+  "keys_extra_list": [],
+  "links_true": 18,
+  "links_found": 0,
+  "links_wrong": 0,
+  "keys_wrong_list": [],
+  "keys_missed_list": [
+   "billing_header",
+   "billing_item",
+   "company_codes",
+   "customer_master",
+   "delivery_header",
+   "delivery_item",
+   "kam_assignment",
+   "material_master",
+   "material_texts",
+   "order_extension",
+   "sales_doc_header",
+   "sales_doc_item"
+  ],
+  "links_missed_list": [
+   "billing_header.bukrs+mandt -> company_codes",
+   "billing_header.kunag+mandt -> customer_master",
+   "billing_header.kunrg+mandt -> customer_master",
+   "billing_item.aubel+aupos+mandt -> sales_doc_item",
+   "billing_item.mandt+matnr -> material_master",
+   "billing_item.mandt+vbeln -> billing_header",
+   "billing_item.mandt+vgbel+vgpos -> delivery_item",
+   "delivery_header.kunag+mandt -> customer_master",
+   "delivery_header.kunnr+mandt -> customer_master",
+   "delivery_item.mandt+matnr -> material_master",
+   "delivery_item.mandt+vbeln -> delivery_header",
+   "delivery_item.mandt+vgbel+vgpos -> sales_doc_item",
+   "kam_assignment.zz_kunde_nr -> customer_master",
+   "material_texts.mandt+matnr -> material_master",
+   "order_extension.mandt+vbeln -> sales_doc_header",
+   "sales_doc_header.kunnr+mandt -> customer_master",
+   "sales_doc_item.mandt+matnr -> material_master",
+   "sales_doc_item.mandt+vbeln -> sales_doc_header"
+  ],
+  "links_wrong_list": []
+ },
+ "after": {
+  "tables": 12,
+  "keys_true": 12,
+  "keys_right": 11,
+  "keys_wrong": 0,
+  "keys_missed": 1,
+  "keys_extra": 0,
+  "keys_extra_list": [],
+  "links_true": 18,
+  "links_found": 13,
+  "links_wrong": 2,
+  "keys_wrong_list": [],
+  "keys_missed_list": [
+   "material_texts"
+  ],
+  "links_missed_list": [
+   "billing_header.bukrs+mandt -> company_codes",
+   "billing_header.kunag+mandt -> customer_master",
+   "billing_header.kunrg+mandt -> customer_master",
+   "delivery_header.kunag+mandt -> customer_master",
+   "kam_assignment.zz_kunde_nr -> customer_master"
+  ],
+  "links_wrong_list": [
+   "order_extension.mandt+vbeln -> billing_header",
+   "order_extension.mandt+vbeln -> delivery_header"
+  ]
+ },
+ "plan": {
+  "keys": {
+   "billing_header": {
+    "columns": [
+     "MANDT",
+     "VBELN"
+    ],
+    "rule": "SAP pack"
+   },
+   "billing_item": {
+    "columns": [
+     "MANDT",
+     "VBELN",
+     "POSNR"
+    ],
+    "rule": "SAP pack"
+   },
+   "company_codes": {
+    "columns": [
+     "MANDT",
+     "BUKRS"
+    ],
+    "rule": "K6"
+   },
+   "customer_master": {
+    "columns": [
+     "MANDT",
+     "KUNNR"
+    ],
+    "rule": "K6"
+   },
+   "delivery_header": {
+    "columns": [
+     "MANDT",
+     "VBELN"
+    ],
+    "rule": "SAP pack"
+   },
+   "delivery_item": {
+    "columns": [
+     "MANDT",
+     "VBELN",
+     "POSNR"
+    ],
+    "rule": "SAP pack"
+   },
+   "kam_assignment": {
+    "columns": [
+     "ZZ_KUNDE_NR"
+    ],
+    "rule": "K6"
+   },
+   "material_master": {
+    "columns": [
+     "MANDT",
+     "MATNR"
+    ],
+    "rule": "SAP pack"
+   },
+   "order_extension": {
+    "columns": [
+     "MANDT",
+     "VBELN"
+    ],
+    "rule": "K6"
+   },
+   "sales_doc_header": {
+    "columns": [
+     "MANDT",
+     "VBELN"
+    ],
+    "rule": "SAP pack"
+   },
+   "sales_doc_item": {
+    "columns": [
+     "MANDT",
+     "VBELN",
+     "POSNR"
+    ],
+    "rule": "SAP pack"
+   }
+  },
+  "links": [
+   "billing_item.MANDT+AUBEL+AUPOS -> sales_doc_item.MANDT+VBELN+POSNR [SAP pack]",
+   "billing_item.MANDT+MATNR -> material_master.MANDT+MATNR [SAP pack]",
+   "billing_item.MANDT+VBELN -> billing_header.MANDT+VBELN [SAP pack]",
+   "billing_item.MANDT+VGBEL+VGPOS -> delivery_item.MANDT+VBELN+POSNR [SAP pack]",
+   "delivery_header.MANDT+KUNNR -> customer_master.MANDT+KUNNR [R6]",
+   "delivery_item.MANDT+MATNR -> material_master.MANDT+MATNR [SAP pack]",
+   "delivery_item.MANDT+VBELN -> delivery_header.MANDT+VBELN [SAP pack]",
+   "delivery_item.MANDT+VGBEL+VGPOS -> sales_doc_item.MANDT+VBELN+POSNR [SAP pack]",
+   "material_texts.MANDT+MATNR -> material_master.MANDT+MATNR [R3]",
+   "order_extension.MANDT+VBELN -> billing_header.MANDT+VBELN [R3]",
+   "order_extension.MANDT+VBELN -> delivery_header.MANDT+VBELN [R3]",
+   "order_extension.MANDT+VBELN -> sales_doc_header.MANDT+VBELN [R3]",
+   "sales_doc_header.MANDT+KUNNR -> customer_master.MANDT+KUNNR [R6]",
+   "sales_doc_item.MANDT+MATNR -> material_master.MANDT+MATNR [SAP pack]",
+   "sales_doc_item.MANDT+VBELN -> sales_doc_header.MANDT+VBELN [SAP pack]"
+  ],
+  "ambiguous": [],
+  "proposed": [
+   "billing_header.MANDT+BUKRS -> company_codes [R6]: billing_header.BUKRS has 1 distinct value: too few to tell",
+   "billing_header.MANDT+KUNAG -> customer_master [R6]: 292 of 292 value(s) of billing_header.KUNAG are in customer_master.KUNNR, but the name gives no support: confirm it to apply it",
+   "billing_header.MANDT+KUNRG -> customer_master [R6]: 292 of 292 value(s) of billing_header.KUNRG are in customer_master.KUNNR, but the name gives no support: confirm it to apply it",
+   "delivery_header.MANDT+KUNAG -> customer_master [R6]: 292 of 292 value(s) of delivery_header.KUNAG are in customer_master.KUNNR, but the name gives no support: confirm it to apply it"
+  ],
+  "by_signature": {
+   "billing_header": "VBRK",
+   "billing_item": "VBRP",
+   "delivery_header": "LIKP",
+   "delivery_item": "LIPS",
+   "material_master": "MARA",
+   "sales_doc_header": "VBAK",
+   "sales_doc_item": "VBAP"
+  },
+  "keys_from_rows": {
+   "company_codes": "BUKRS is unique and never NULL in all 2 rows, and is the table's first column after the client column MANDT, which is part of the key; also unique: WAERS",
+   "customer_master": "KUNNR is unique and never NULL in all 120 rows, and is named like an identifier after the client column MANDT, which is part of the key; also unique: NAME1, STRAS, PSTLZ",
+   "order_extension": "VBELN is unique and never NULL in all 301 rows, and is the table's first column after the client column MANDT, which is part of the key",
+   "kam_assignment": "ZZ_KUNDE_NR is unique and never NULL in all 80 rows, and is named like an identifier"
+  },
+  "key_candidates": {
+   "material_texts": [
+    {
+     "reason": "no column and no combination of the first 3 column(s) is unique and never NULL in the 300 rows"
+    }
+   ]
+  }
+ },
+ "row_results": {
+  "summary": "11 of 11 keys unique, 11 of 15 relationships hold without orphans",
+  "keys": {
+   "material_master": "unique in all 150 rows",
+   "sales_doc_header": "unique in all 300 rows",
+   "sales_doc_item": "unique in all 844 rows",
+   "delivery_header": "unique in all 292 rows",
+   "delivery_item": "unique in all 823 rows",
+   "billing_header": "unique in all 292 rows",
+   "billing_item": "unique in all 823 rows",
+   "company_codes": "unique in all 2 rows",
+   "customer_master": "unique in all 120 rows",
+   "order_extension": "unique in all 301 rows",
+   "kam_assignment": "unique in all 80 rows"
+  },
+  "links": {
+   "sales_doc_item.MANDT+VBELN -> sales_doc_header": "3 of 844 rows (0.4%) point at nothing | re-count: 841 of 844 rows with a value match as written; trimming spaces, folding case and stripping leading zeros match no more",
+   "sales_doc_item.MANDT+MATNR -> material_master": "holds for all 844 rows with a value",
+   "delivery_item.MANDT+VBELN -> delivery_header": "holds for all 823 rows with a value",
+   "delivery_item.MANDT+VGBEL+VGPOS -> sales_doc_item": "holds for all 823 rows with a value",
+   "delivery_item.MANDT+MATNR -> material_master": "holds for all 823 rows with a value",
+   "billing_item.MANDT+VBELN -> billing_header": "holds for all 823 rows with a value",
+   "billing_item.MANDT+AUBEL+AUPOS -> sales_doc_item": "holds for all 823 rows with a value",
+   "billing_item.MANDT+VGBEL+VGPOS -> delivery_item": "holds for all 823 rows with a value",
+   "billing_item.MANDT+MATNR -> material_master": "holds for all 823 rows with a value",
+   "material_texts.MANDT+MATNR -> material_master": "holds for all 300 rows with a value",
+   "order_extension.MANDT+VBELN -> sales_doc_header": "1 of 301 rows (0.3%) point at nothing | re-count: 300 of 301 rows with a value match as written; trimming spaces, folding case and stripping leading zeros match no more",
+   "order_extension.MANDT+VBELN -> delivery_header": "301 of 301 rows (100.0%) point at nothing | re-count: 0 of 301 rows with a value match as written; trimming spaces, folding case and stripping leading zeros match no more",
+   "order_extension.MANDT+VBELN -> billing_header": "301 of 301 rows (100.0%) point at nothing | re-count: 0 of 301 rows with a value match as written; trimming spaces, folding case and stripping leading zeros match no more",
+   "sales_doc_header.MANDT+KUNNR -> customer_master": "holds for all 300 rows with a value",
+   "delivery_header.MANDT+KUNNR -> customer_master": "holds for all 292 rows with a value"
+  }
+ }
+}

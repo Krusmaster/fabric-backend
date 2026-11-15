@@ -158,7 +158,7 @@ def test_an_invalid_detail_from_the_tools_is_bad_input_before_any_query(monkeypa
 
 
 # The measured sizes (characters of the tool's JSON). Pinned so the documentation cannot drift from them.
-SIZES = {"shop": (6610, 3197), "adventureworks": (100004, 10905)}   # n226: counted in check_order, so the double's "second key" (the one with duplicates) is SalesOrderHeader, whose links then carry the warning: 99676 and 9946 before; n103 added next_steps: 2246 and 8241 before; n106 the flat-table count in amount_levels: 62235 before; n108 the combined statements with their relationships' own SQL (full only): 5312 and 62634 before
+SIZES = {"shop": (6610, 3197), "adventureworks": (101473, 12387)}   # F2: each of the 19 relationships with orphans carries `recount` (here "not counted: the re-count could not run": the double has no answer for that statement): 100004 and 10905 before; n226: counted in check_order, so the double's "second key" (the one with duplicates) is SalesOrderHeader, whose links then carry the warning: 99676 and 9946 before; n103 added next_steps: 2246 and 8241 before; n106 the flat-table count in amount_levels: 62235 before; n108 the combined statements with their relationships' own SQL (full only): 5312 and 62634 before
 
 
 @pytest.mark.parametrize("name", ["shop", "adventureworks"])

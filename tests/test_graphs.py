@@ -292,7 +292,12 @@ def test_analyze_schema_tool_runs_only_r5s_bounded_counting(shop, monkeypatch):
         return execute
     monkeypatch.setattr(server, "_execute_factory", factory)
     out = json.loads(server.analyze_schema(*shop, schema="shop"))
-    assert 0 < len(ran) <= server.R5_MAX_QUERIES and all("with_value" in q for q in ran)
+    # F2: the hosted plan also counts the keys by name and profiles the keyless table (propose.py); every statement is
+    # still a count, and an endpoint that answers nothing leaves all of it not counted
+    from fabric_backend import propose
+    assert 0 < len(ran) <= server.R5_MAX_QUERIES + propose.PROFILE_MAX_QUERIES
+    assert all("with_value" in q or q.startswith("SELECT COUNT_BIG(*) AS n, ") for q in ran)
+    assert sum(1 for q in ran if "with_value" in q) <= server.R5_MAX_QUERIES
     assert out["roles"]["order_items"]["role"] == "fact" and out["summary"].startswith("7 tables, 6 with keys")
     assert "weights" not in out and out["centrality"]["top"][0]["table"] == "customers" and len(out["active_relationships"]) == 6   # the tool answer leaves the constant weights and the per-table maps out (graphs.analyze keeps them)
 
@@ -312,7 +317,11 @@ def test_suggest_relationships_tool_counts_against_the_source(shop, monkeypatch)
     # n87: the plan counts R5 first (one more query); this SQLite stand-in cannot run its TOP, so R5 proposes the link
     # and it stays the first candidate here (tests/test_n87_r5_everywhere.py has the endpoint where R5 applies it)
     assert out["candidates"][0]["target"] == "addresses" and out["candidates"][0]["evidence"]["inclusion"] == 1.0
-    assert out["checked_against_data"] == 3 and sum(1 for s in ran if s.startswith("SELECT COUNT_BIG")) == 3 + 1 and ran[-1] == "closed"
+    # F2: before the three checks and R5's one, the plan counts the six keys by name, profiles audit_log and counts its
+    # first two columns together (8 statements)
+    counts = [s for s in ran if s.startswith("SELECT COUNT_BIG")]
+    assert out["checked_against_data"] == 3 and ran[-1] == "closed"
+    assert sum(1 for s in counts if s.startswith("SELECT COUNT_BIG(*) AS n, ")) == 8 and len(counts) == 8 + 3 + 1, len(counts)
     assert "3 checked against the data" in out["summary"]
 
 

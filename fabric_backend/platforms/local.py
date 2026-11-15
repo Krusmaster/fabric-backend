@@ -57,8 +57,22 @@ class Source:
         return self.execute is not None
 
 
+def _patindex(pattern, text):
+    """T-SQL's PATINDEX for the one pattern the engine writes, '%[^0]%': the 1-based place of the first character that is
+    not a zero, 0 when there is none (SQLite has no PATINDEX)."""
+    if pattern != "%[^0]%":
+        raise ValueError("PATINDEX: only '%[^0]%' is supported here")
+    if text is None:
+        return None
+    s = str(text)
+    n = len(s) - len(s.lstrip("0"))
+    return 0 if n == len(s) else n + 1
+
+
 def _sqlite_execute(con: sqlite3.Connection):
     """The engine writes T-SQL; SQLite needs COUNT instead of COUNT_BIG and LIMIT instead of TOP (dialects.sqlite_sql)."""
+    con.create_function("PATINDEX", 2, _patindex, deterministic=True)    # F2: propose.recount strips leading zeros with it
+
     def execute(sql: str):
         cur = con.execute(sqlite_sql(sql))
         cols = [d[0] for d in cur.description] if cur.description else []

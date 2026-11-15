@@ -1,0 +1,996 @@
+{
+ "name": "adventureworks",
+ "title": "AdventureWorks (OLTP)",
+ "source": "tables, keys and foreign keys as Microsoft's script declares them; rows generated from those constraints (synthetic), not the sample's own rows",
+ "rows": 14890,
+ "names": {
+  "tables": 71,
+  "keys_true": 71,
+  "keys_right": 47,
+  "keys_wrong": 4,
+  "keys_missed": 20,
+  "keys_extra": 0,
+  "keys_extra_list": [],
+  "links_true": 90,
+  "links_found": 62,
+  "links_wrong": 17,
+  "keys_wrong_list": [
+   "EmailAddress",
+   "PurchaseOrderDetail",
+   "SalesOrderDetail",
+   "WorkOrderRouting"
+  ],
+  "keys_missed_list": [
+   "AWBuildVersion",
+   "BusinessEntityContact",
+   "Document",
+   "Employee",
+   "EmployeeDepartmentHistory",
+   "EmployeePayHistory",
+   "Password",
+   "Person",
+   "PersonPhone",
+   "ProductCostHistory",
+   "ProductDocument",
+   "ProductListPriceHistory",
+   "SalesPerson",
+   "SalesPersonQuotaHistory",
+   "SalesTerritory",
+   "SalesTerritoryHistory",
+   "Store",
+   "TransactionHistory",
+   "TransactionHistoryArchive",
+   "Vendor"
+  ],
+  "links_missed_list": [
+   "BillOfMaterials.componentid -> Product",
+   "BillOfMaterials.productassemblyid -> Product",
+   "BusinessEntityContact.personid -> Person",
+   "Customer.personid -> Person",
+   "Customer.storeid -> Store",
+   "Customer.territoryid -> SalesTerritory",
+   "Document.owner -> Employee",
+   "EmailAddress.businessentityid -> Person",
+   "Employee.businessentityid -> Person",
+   "EmployeeDepartmentHistory.businessentityid -> Employee",
+   "EmployeePayHistory.businessentityid -> Employee",
+   "JobCandidate.businessentityid -> Employee",
+   "Password.businessentityid -> Person",
+   "PersonCreditCard.businessentityid -> Person",
+   "PersonPhone.businessentityid -> Person",
+   "ProductDocument.documentnode -> Document",
+   "ProductVendor.businessentityid -> Vendor",
+   "PurchaseOrderHeader.employeeid -> Employee",
+   "PurchaseOrderHeader.vendorid -> Vendor",
+   "SalesOrderHeader.salespersonid -> SalesPerson",
+   "SalesOrderHeader.territoryid -> SalesTerritory",
+   "SalesPerson.businessentityid -> Employee",
+   "SalesPerson.territoryid -> SalesTerritory",
+   "SalesPersonQuotaHistory.businessentityid -> SalesPerson",
+   "SalesTerritoryHistory.businessentityid -> SalesPerson",
+   "SalesTerritoryHistory.territoryid -> SalesTerritory",
+   "StateProvince.territoryid -> SalesTerritory",
+   "Store.salespersonid -> SalesPerson"
+  ],
+  "links_wrong_list": [
+   "EmailAddress.businessentityid -> BusinessEntity",
+   "Employee.businessentityid -> BusinessEntity",
+   "EmployeeDepartmentHistory.businessentityid -> BusinessEntity",
+   "EmployeePayHistory.businessentityid -> BusinessEntity",
+   "JobCandidate.businessentityid -> BusinessEntity",
+   "Password.businessentityid -> BusinessEntity",
+   "PersonCreditCard.businessentityid -> BusinessEntity",
+   "PersonPhone.businessentityid -> BusinessEntity",
+   "ProductVendor.businessentityid -> BusinessEntity",
+   "SalesOrderDetail.productid -> Product",
+   "SalesOrderDetail.specialofferid -> SpecialOffer",
+   "SalesPerson.businessentityid -> BusinessEntity",
+   "SalesPersonQuotaHistory.businessentityid -> BusinessEntity",
+   "SalesTerritoryHistory.businessentityid -> BusinessEntity",
+   "TransactionHistoryArchive.productid -> Product",
+   "WorkOrderRouting.locationid+productid -> ProductInventory",
+   "WorkOrderRouting.productid -> Product"
+  ]
+ },
+ "before": {
+  "tables": 71,
+  "keys_true": 71,
+  "keys_right": 47,
+  "keys_wrong": 4,
+  "keys_missed": 20,
+  "keys_extra": 0,
+  "keys_extra_list": [],
+  "links_true": 90,
+  "links_found": 62,
+  "links_wrong": 17,
+  "keys_wrong_list": [
+   "EmailAddress",
+   "PurchaseOrderDetail",
+   "SalesOrderDetail",
+   "WorkOrderRouting"
+  ],
+  "keys_missed_list": [
+   "AWBuildVersion",
+   "BusinessEntityContact",
+   "Document",
+   "Employee",
+   "EmployeeDepartmentHistory",
+   "EmployeePayHistory",
+   "Password",
+   "Person",
+   "PersonPhone",
+   "ProductCostHistory",
+   "ProductDocument",
+   "ProductListPriceHistory",
+   "SalesPerson",
+   "SalesPersonQuotaHistory",
+   "SalesTerritory",
+   "SalesTerritoryHistory",
+   "Store",
+   "TransactionHistory",
+   "TransactionHistoryArchive",
+   "Vendor"
+  ],
+  "links_missed_list": [
+   "BillOfMaterials.componentid -> Product",
+   "BillOfMaterials.productassemblyid -> Product",
+   "BusinessEntityContact.personid -> Person",
+   "Customer.personid -> Person",
+   "Customer.storeid -> Store",
+   "Customer.territoryid -> SalesTerritory",
+   "Document.owner -> Employee",
+   "EmailAddress.businessentityid -> Person",
+   "Employee.businessentityid -> Person",
+   "EmployeeDepartmentHistory.businessentityid -> Employee",
+   "EmployeePayHistory.businessentityid -> Employee",
+   "JobCandidate.businessentityid -> Employee",
+   "Password.businessentityid -> Person",
+   "PersonCreditCard.businessentityid -> Person",
+   "PersonPhone.businessentityid -> Person",
+   "ProductDocument.documentnode -> Document",
+   "ProductVendor.businessentityid -> Vendor",
+   "PurchaseOrderHeader.employeeid -> Employee",
+   "PurchaseOrderHeader.vendorid -> Vendor",
+   "SalesOrderHeader.salespersonid -> SalesPerson",
+   "SalesOrderHeader.territoryid -> SalesTerritory",
+   "SalesPerson.businessentityid -> Employee",
+   "SalesPerson.territoryid -> SalesTerritory",
+   "SalesPersonQuotaHistory.businessentityid -> SalesPerson",
+   "SalesTerritoryHistory.businessentityid -> SalesPerson",
+   "SalesTerritoryHistory.territoryid -> SalesTerritory",
+   "StateProvince.territoryid -> SalesTerritory",
+   "Store.salespersonid -> SalesPerson"
+  ],
+  "links_wrong_list": [
+   "EmailAddress.businessentityid -> BusinessEntity",
+   "Employee.businessentityid -> BusinessEntity",
+   "EmployeeDepartmentHistory.businessentityid -> BusinessEntity",
+   "EmployeePayHistory.businessentityid -> BusinessEntity",
+   "JobCandidate.businessentityid -> BusinessEntity",
+   "Password.businessentityid -> BusinessEntity",
+   "PersonCreditCard.businessentityid -> BusinessEntity",
+   "PersonPhone.businessentityid -> BusinessEntity",
+   "ProductVendor.businessentityid -> BusinessEntity",
+   "SalesOrderDetail.productid -> Product",
+   "SalesOrderDetail.specialofferid -> SpecialOffer",
+   "SalesPerson.businessentityid -> BusinessEntity",
+   "SalesPersonQuotaHistory.businessentityid -> BusinessEntity",
+   "SalesTerritoryHistory.businessentityid -> BusinessEntity",
+   "TransactionHistoryArchive.productid -> Product",
+   "WorkOrderRouting.locationid+productid -> ProductInventory",
+   "WorkOrderRouting.productid -> Product"
+  ]
+ },
+ "after": {
+  "tables": 71,
+  "keys_true": 71,
+  "keys_right": 62,
+  "keys_wrong": 6,
+  "keys_missed": 3,
+  "keys_extra": 0,
+  "keys_extra_list": [],
+  "links_true": 90,
+  "links_found": 87,
+  "links_wrong": 6,
+  "keys_wrong_list": [
+   "BusinessEntityContact",
+   "EmailAddress",
+   "EmployeeDepartmentHistory",
+   "PurchaseOrderDetail",
+   "SalesOrderDetail",
+   "WorkOrderRouting"
+  ],
+  "keys_missed_list": [
+   "Document",
+   "PersonPhone",
+   "ProductDocument"
+  ],
+  "links_missed_list": [
+   "BillOfMaterials.componentid -> Product",
+   "Document.owner -> Employee",
+   "ProductDocument.documentnode -> Document"
+  ],
+  "links_wrong_list": [
+   "SalesOrderDetail.productid -> Product",
+   "SalesOrderDetail.specialofferid -> SpecialOffer",
+   "TransactionHistoryArchive.productid -> Product",
+   "TransactionHistoryArchive.transactionid -> TransactionHistory",
+   "WorkOrderRouting.locationid+productid -> ProductInventory",
+   "WorkOrderRouting.productid -> Product"
+  ]
+ },
+ "plan": {
+  "keys": {
+   "AWBuildVersion": {
+    "columns": [
+     "SystemInformationID"
+    ],
+    "rule": "K6"
+   },
+   "Address": {
+    "columns": [
+     "AddressID"
+    ],
+    "rule": "K2"
+   },
+   "AddressType": {
+    "columns": [
+     "AddressTypeID"
+    ],
+    "rule": "K2"
+   },
+   "BillOfMaterials": {
+    "columns": [
+     "BillOfMaterialsID"
+    ],
+    "rule": "K2"
+   },
+   "BusinessEntity": {
+    "columns": [
+     "BusinessEntityID"
+    ],
+    "rule": "K2"
+   },
+   "BusinessEntityAddress": {
+    "columns": [
+     "BusinessEntityID",
+     "AddressID",
+     "AddressTypeID"
+    ],
+    "rule": "K4"
+   },
+   "BusinessEntityContact": {
+    "columns": [
+     "BusinessEntityID",
+     "PersonID"
+    ],
+    "rule": "K6"
+   },
+   "ContactType": {
+    "columns": [
+     "ContactTypeID"
+    ],
+    "rule": "K2"
+   },
+   "CountryRegion": {
+    "columns": [
+     "CountryRegionCode"
+    ],
+    "rule": "K2"
+   },
+   "CountryRegionCurrency": {
+    "columns": [
+     "CountryRegionCode",
+     "CurrencyCode"
+    ],
+    "rule": "K4"
+   },
+   "CreditCard": {
+    "columns": [
+     "CreditCardID"
+    ],
+    "rule": "K2"
+   },
+   "Culture": {
+    "columns": [
+     "CultureID"
+    ],
+    "rule": "K2"
+   },
+   "Currency": {
+    "columns": [
+     "CurrencyCode"
+    ],
+    "rule": "K2"
+   },
+   "CurrencyRate": {
+    "columns": [
+     "CurrencyRateID"
+    ],
+    "rule": "K2"
+   },
+   "Customer": {
+    "columns": [
+     "CustomerID"
+    ],
+    "rule": "K2"
+   },
+   "DatabaseLog": {
+    "columns": [
+     "DatabaseLogID"
+    ],
+    "rule": "K2"
+   },
+   "Department": {
+    "columns": [
+     "DepartmentID"
+    ],
+    "rule": "K2"
+   },
+   "EmailAddress": {
+    "columns": [
+     "EmailAddressID"
+    ],
+    "rule": "K2"
+   },
+   "Employee": {
+    "columns": [
+     "BusinessEntityID"
+    ],
+    "rule": "K6"
+   },
+   "EmployeeDepartmentHistory": {
+    "columns": [
+     "BusinessEntityID",
+     "DepartmentID",
+     "ShiftID"
+    ],
+    "rule": "K6"
+   },
+   "EmployeePayHistory": {
+    "columns": [
+     "BusinessEntityID",
+     "RateChangeDate"
+    ],
+    "rule": "K6"
+   },
+   "ErrorLog": {
+    "columns": [
+     "ErrorLogID"
+    ],
+    "rule": "K2"
+   },
+   "Illustration": {
+    "columns": [
+     "IllustrationID"
+    ],
+    "rule": "K2"
+   },
+   "JobCandidate": {
+    "columns": [
+     "JobCandidateID"
+    ],
+    "rule": "K2"
+   },
+   "Location": {
+    "columns": [
+     "LocationID"
+    ],
+    "rule": "K2"
+   },
+   "Password": {
+    "columns": [
+     "BusinessEntityID"
+    ],
+    "rule": "K6"
+   },
+   "Person": {
+    "columns": [
+     "BusinessEntityID"
+    ],
+    "rule": "K6"
+   },
+   "PersonCreditCard": {
+    "columns": [
+     "BusinessEntityID",
+     "CreditCardID"
+    ],
+    "rule": "K4"
+   },
+   "PhoneNumberType": {
+    "columns": [
+     "PhoneNumberTypeID"
+    ],
+    "rule": "K2"
+   },
+   "Product": {
+    "columns": [
+     "ProductID"
+    ],
+    "rule": "K2"
+   },
+   "ProductCategory": {
+    "columns": [
+     "ProductCategoryID"
+    ],
+    "rule": "K2"
+   },
+   "ProductCostHistory": {
+    "columns": [
+     "ProductID",
+     "StartDate"
+    ],
+    "rule": "K6"
+   },
+   "ProductDescription": {
+    "columns": [
+     "ProductDescriptionID"
+    ],
+    "rule": "K2"
+   },
+   "ProductInventory": {
+    "columns": [
+     "ProductID",
+     "LocationID"
+    ],
+    "rule": "K4"
+   },
+   "ProductListPriceHistory": {
+    "columns": [
+     "ProductID",
+     "StartDate"
+    ],
+    "rule": "K6"
+   },
+   "ProductModel": {
+    "columns": [
+     "ProductModelID"
+    ],
+    "rule": "K2"
+   },
+   "ProductModelIllustration": {
+    "columns": [
+     "ProductModelID",
+     "IllustrationID"
+    ],
+    "rule": "K4"
+   },
+   "ProductModelProductDescriptionCulture": {
+    "columns": [
+     "ProductModelID",
+     "ProductDescriptionID",
+     "CultureID"
+    ],
+    "rule": "K4"
+   },
+   "ProductPhoto": {
+    "columns": [
+     "ProductPhotoID"
+    ],
+    "rule": "K2"
+   },
+   "ProductProductPhoto": {
+    "columns": [
+     "ProductID",
+     "ProductPhotoID"
+    ],
+    "rule": "K4"
+   },
+   "ProductReview": {
+    "columns": [
+     "ProductReviewID"
+    ],
+    "rule": "K2"
+   },
+   "ProductSubcategory": {
+    "columns": [
+     "ProductSubcategoryID"
+    ],
+    "rule": "K2"
+   },
+   "ProductVendor": {
+    "columns": [
+     "ProductID",
+     "BusinessEntityID"
+    ],
+    "rule": "K4"
+   },
+   "PurchaseOrderDetail": {
+    "columns": [
+     "PurchaseOrderDetailID"
+    ],
+    "rule": "K2"
+   },
+   "PurchaseOrderHeader": {
+    "columns": [
+     "PurchaseOrderID"
+    ],
+    "rule": "K2"
+   },
+   "SalesOrderDetail": {
+    "columns": [
+     "SalesOrderDetailID"
+    ],
+    "rule": "K2"
+   },
+   "SalesOrderHeader": {
+    "columns": [
+     "SalesOrderID"
+    ],
+    "rule": "K2"
+   },
+   "SalesOrderHeaderSalesReason": {
+    "columns": [
+     "SalesOrderID",
+     "SalesReasonID"
+    ],
+    "rule": "K4"
+   },
+   "SalesPerson": {
+    "columns": [
+     "BusinessEntityID"
+    ],
+    "rule": "K6"
+   },
+   "SalesPersonQuotaHistory": {
+    "columns": [
+     "BusinessEntityID",
+     "QuotaDate"
+    ],
+    "rule": "K6"
+   },
+   "SalesReason": {
+    "columns": [
+     "SalesReasonID"
+    ],
+    "rule": "K2"
+   },
+   "SalesTaxRate": {
+    "columns": [
+     "SalesTaxRateID"
+    ],
+    "rule": "K2"
+   },
+   "SalesTerritory": {
+    "columns": [
+     "TerritoryID"
+    ],
+    "rule": "K6"
+   },
+   "SalesTerritoryHistory": {
+    "columns": [
+     "BusinessEntityID",
+     "TerritoryID",
+     "StartDate"
+    ],
+    "rule": "K6"
+   },
+   "ScrapReason": {
+    "columns": [
+     "ScrapReasonID"
+    ],
+    "rule": "K2"
+   },
+   "Shift": {
+    "columns": [
+     "ShiftID"
+    ],
+    "rule": "K2"
+   },
+   "ShipMethod": {
+    "columns": [
+     "ShipMethodID"
+    ],
+    "rule": "K2"
+   },
+   "ShoppingCartItem": {
+    "columns": [
+     "ShoppingCartItemID"
+    ],
+    "rule": "K2"
+   },
+   "SpecialOffer": {
+    "columns": [
+     "SpecialOfferID"
+    ],
+    "rule": "K2"
+   },
+   "SpecialOfferProduct": {
+    "columns": [
+     "SpecialOfferID",
+     "ProductID"
+    ],
+    "rule": "K4"
+   },
+   "StateProvince": {
+    "columns": [
+     "StateProvinceID"
+    ],
+    "rule": "K2"
+   },
+   "Store": {
+    "columns": [
+     "BusinessEntityID"
+    ],
+    "rule": "K6"
+   },
+   "TransactionHistory": {
+    "columns": [
+     "TransactionID"
+    ],
+    "rule": "K6"
+   },
+   "TransactionHistoryArchive": {
+    "columns": [
+     "TransactionID"
+    ],
+    "rule": "K6"
+   },
+   "UnitMeasure": {
+    "columns": [
+     "UnitMeasureCode"
+    ],
+    "rule": "K2"
+   },
+   "Vendor": {
+    "columns": [
+     "BusinessEntityID"
+    ],
+    "rule": "K6"
+   },
+   "WorkOrder": {
+    "columns": [
+     "WorkOrderID"
+    ],
+    "rule": "K2"
+   },
+   "WorkOrderRouting": {
+    "columns": [
+     "WorkOrderID",
+     "OperationSequence"
+    ],
+    "rule": "K5"
+   }
+  },
+  "links": [
+   "Address.StateProvinceID -> StateProvince.StateProvinceID [R1]",
+   "BillOfMaterials.ProductAssemblyID -> Product.ProductID [R6]",
+   "BillOfMaterials.UnitMeasureCode -> UnitMeasure.UnitMeasureCode [R1]",
+   "BusinessEntityAddress.AddressID -> Address.AddressID [R1]",
+   "BusinessEntityAddress.AddressTypeID -> AddressType.AddressTypeID [R1]",
+   "BusinessEntityAddress.BusinessEntityID -> BusinessEntity.BusinessEntityID [R1]",
+   "BusinessEntityContact.BusinessEntityID -> BusinessEntity.BusinessEntityID [R1]",
+   "BusinessEntityContact.ContactTypeID -> ContactType.ContactTypeID [R1]",
+   "BusinessEntityContact.PersonID -> Person.BusinessEntityID [R6]",
+   "CountryRegionCurrency.CountryRegionCode -> CountryRegion.CountryRegionCode [R1]",
+   "CountryRegionCurrency.CurrencyCode -> Currency.CurrencyCode [R1]",
+   "CurrencyRate.FromCurrencyCode -> Currency.CurrencyCode [R4]",
+   "CurrencyRate.ToCurrencyCode -> Currency.CurrencyCode [R4]",
+   "Customer.PersonID -> Person.BusinessEntityID [R6]",
+   "Customer.StoreID -> Store.BusinessEntityID [R6]",
+   "Customer.TerritoryID -> SalesTerritory.TerritoryID [R6]",
+   "EmailAddress.BusinessEntityID -> Person.BusinessEntityID [R6]",
+   "Employee.BusinessEntityID -> Person.BusinessEntityID [R6]",
+   "EmployeeDepartmentHistory.BusinessEntityID -> Employee.BusinessEntityID [R6]",
+   "EmployeeDepartmentHistory.DepartmentID -> Department.DepartmentID [R1]",
+   "EmployeeDepartmentHistory.ShiftID -> Shift.ShiftID [R1]",
+   "EmployeePayHistory.BusinessEntityID -> Employee.BusinessEntityID [R6]",
+   "JobCandidate.BusinessEntityID -> Employee.BusinessEntityID [R6]",
+   "Password.BusinessEntityID -> Person.BusinessEntityID [R6]",
+   "Person.BusinessEntityID -> BusinessEntity.BusinessEntityID [R1]",
+   "PersonCreditCard.BusinessEntityID -> Person.BusinessEntityID [R6]",
+   "PersonCreditCard.CreditCardID -> CreditCard.CreditCardID [R1]",
+   "PersonPhone.BusinessEntityID -> Person.BusinessEntityID [R6]",
+   "PersonPhone.PhoneNumberTypeID -> PhoneNumberType.PhoneNumberTypeID [R1]",
+   "Product.ProductModelID -> ProductModel.ProductModelID [R1]",
+   "Product.ProductSubcategoryID -> ProductSubcategory.ProductSubcategoryID [R1]",
+   "Product.SizeUnitMeasureCode -> UnitMeasure.UnitMeasureCode [R4]",
+   "Product.WeightUnitMeasureCode -> UnitMeasure.UnitMeasureCode [R4]",
+   "ProductCostHistory.ProductID -> Product.ProductID [R1]",
+   "ProductDocument.ProductID -> Product.ProductID [R1]",
+   "ProductInventory.LocationID -> Location.LocationID [R1]",
+   "ProductInventory.ProductID -> Product.ProductID [R1]",
+   "ProductListPriceHistory.ProductID -> Product.ProductID [R1]",
+   "ProductModelIllustration.IllustrationID -> Illustration.IllustrationID [R1]",
+   "ProductModelIllustration.ProductModelID -> ProductModel.ProductModelID [R1]",
+   "ProductModelProductDescriptionCulture.CultureID -> Culture.CultureID [R1]",
+   "ProductModelProductDescriptionCulture.ProductDescriptionID -> ProductDescription.ProductDescriptionID [R1]",
+   "ProductModelProductDescriptionCulture.ProductModelID -> ProductModel.ProductModelID [R1]",
+   "ProductProductPhoto.ProductID -> Product.ProductID [R1]",
+   "ProductProductPhoto.ProductPhotoID -> ProductPhoto.ProductPhotoID [R1]",
+   "ProductReview.ProductID -> Product.ProductID [R1]",
+   "ProductSubcategory.ProductCategoryID -> ProductCategory.ProductCategoryID [R1]",
+   "ProductVendor.BusinessEntityID -> Vendor.BusinessEntityID [R6]",
+   "ProductVendor.ProductID -> Product.ProductID [R1]",
+   "ProductVendor.UnitMeasureCode -> UnitMeasure.UnitMeasureCode [R1]",
+   "PurchaseOrderDetail.ProductID -> Product.ProductID [R1]",
+   "PurchaseOrderDetail.PurchaseOrderID -> PurchaseOrderHeader.PurchaseOrderID [R1]",
+   "PurchaseOrderHeader.EmployeeID -> Employee.BusinessEntityID [R6]",
+   "PurchaseOrderHeader.ShipMethodID -> ShipMethod.ShipMethodID [R1]",
+   "PurchaseOrderHeader.VendorID -> Vendor.BusinessEntityID [R6]",
+   "SalesOrderDetail.ProductID -> Product.ProductID [R1]",
+   "SalesOrderDetail.SalesOrderID -> SalesOrderHeader.SalesOrderID [R1]",
+   "SalesOrderDetail.SpecialOfferID -> SpecialOffer.SpecialOfferID [R1]",
+   "SalesOrderDetail.SpecialOfferID+ProductID -> SpecialOfferProduct.SpecialOfferID+ProductID [R3]",
+   "SalesOrderHeader.BillToAddressID -> Address.AddressID [R4]",
+   "SalesOrderHeader.CreditCardID -> CreditCard.CreditCardID [R1]",
+   "SalesOrderHeader.CurrencyRateID -> CurrencyRate.CurrencyRateID [R1]",
+   "SalesOrderHeader.CustomerID -> Customer.CustomerID [R1]",
+   "SalesOrderHeader.SalesPersonID -> SalesPerson.BusinessEntityID [R6]",
+   "SalesOrderHeader.ShipMethodID -> ShipMethod.ShipMethodID [R1]",
+   "SalesOrderHeader.ShipToAddressID -> Address.AddressID [R4]",
+   "SalesOrderHeader.TerritoryID -> SalesTerritory.TerritoryID [R6]",
+   "SalesOrderHeaderSalesReason.SalesOrderID -> SalesOrderHeader.SalesOrderID [R1]",
+   "SalesOrderHeaderSalesReason.SalesReasonID -> SalesReason.SalesReasonID [R1]",
+   "SalesPerson.BusinessEntityID -> Employee.BusinessEntityID [R6]",
+   "SalesPerson.TerritoryID -> SalesTerritory.TerritoryID [R6]",
+   "SalesPersonQuotaHistory.BusinessEntityID -> SalesPerson.BusinessEntityID [R6]",
+   "SalesTaxRate.StateProvinceID -> StateProvince.StateProvinceID [R1]",
+   "SalesTerritory.CountryRegionCode -> CountryRegion.CountryRegionCode [R1]",
+   "SalesTerritoryHistory.BusinessEntityID -> SalesPerson.BusinessEntityID [R6]",
+   "SalesTerritoryHistory.TerritoryID -> SalesTerritory.TerritoryID [R6]",
+   "ShoppingCartItem.ProductID -> Product.ProductID [R1]",
+   "SpecialOfferProduct.ProductID -> Product.ProductID [R1]",
+   "SpecialOfferProduct.SpecialOfferID -> SpecialOffer.SpecialOfferID [R1]",
+   "StateProvince.CountryRegionCode -> CountryRegion.CountryRegionCode [R1]",
+   "StateProvince.TerritoryID -> SalesTerritory.TerritoryID [R6]",
+   "Store.BusinessEntityID -> BusinessEntity.BusinessEntityID [R1]",
+   "Store.SalesPersonID -> SalesPerson.BusinessEntityID [R6]",
+   "TransactionHistory.ProductID -> Product.ProductID [R1]",
+   "TransactionHistoryArchive.ProductID -> Product.ProductID [R1]",
+   "TransactionHistoryArchive.TransactionID -> TransactionHistory.TransactionID [R6]",
+   "Vendor.BusinessEntityID -> BusinessEntity.BusinessEntityID [R1]",
+   "WorkOrder.ProductID -> Product.ProductID [R1]",
+   "WorkOrder.ScrapReasonID -> ScrapReason.ScrapReasonID [R1]",
+   "WorkOrderRouting.LocationID -> Location.LocationID [R1]",
+   "WorkOrderRouting.ProductID -> Product.ProductID [R1]",
+   "WorkOrderRouting.ProductID+LocationID -> ProductInventory.ProductID+LocationID [R3]",
+   "WorkOrderRouting.WorkOrderID -> WorkOrder.WorkOrderID [R1]"
+  ],
+  "ambiguous": [],
+  "proposed": [
+   "Address.PostalCode -> AddressType [R5]: Address.PostalCode is text, AddressType.AddressTypeID is number",
+   "Address.PostalCode -> EmailAddress [R5]: Address.PostalCode is text, EmailAddress.EmailAddressID is number",
+   "Address.PostalCode -> Location [R5]: Address.PostalCode is text, Location.LocationID is number"
+  ],
+  "keys_from_rows": {
+   "AWBuildVersion": "SystemInformationID is unique and never NULL in all 60 rows, and is named like an identifier",
+   "BusinessEntityContact": "no single column is taken; the first 2 columns together are unique and never NULL in all 300 rows",
+   "Employee": "BusinessEntityID is unique and never NULL in all 100 rows, and is named like an identifier; also unique: NationalIDNumber, LoginID, rowguid",
+   "EmployeeDepartmentHistory": "no single column is taken; the first 3 columns together are unique and never NULL in all 300 rows",
+   "EmployeePayHistory": "no single column is taken; the first 2 columns together are unique and never NULL in all 300 rows",
+   "Password": "BusinessEntityID is unique and never NULL in all 100 rows, and is named like an identifier; also unique: rowguid",
+   "Person": "BusinessEntityID is unique and never NULL in all 200 rows, and is named like an identifier; also unique: rowguid",
+   "ProductCostHistory": "no single column is taken; the first 2 columns together are unique and never NULL in all 300 rows",
+   "ProductListPriceHistory": "no single column is taken; the first 2 columns together are unique and never NULL in all 300 rows",
+   "SalesPerson": "BusinessEntityID is unique and never NULL in all 50 rows, and is named like an identifier; also unique: rowguid",
+   "SalesPersonQuotaHistory": "no single column is taken; the first 2 columns together are unique and never NULL in all 300 rows",
+   "SalesTerritory": "TerritoryID is unique and never NULL in all 300 rows, and is named like an identifier; also unique: Name, rowguid",
+   "SalesTerritoryHistory": "no single column is taken; the first 3 columns together are unique and never NULL in all 300 rows",
+   "Store": "BusinessEntityID is unique and never NULL in all 200 rows, and is named like an identifier; also unique: Name, rowguid",
+   "TransactionHistory": "TransactionID is unique and never NULL in all 300 rows, and is named like an identifier",
+   "TransactionHistoryArchive": "TransactionID is unique and never NULL in all 60 rows, and is named like an identifier",
+   "Vendor": "BusinessEntityID is unique and never NULL in all 200 rows, and is named like an identifier; also unique: AccountNumber, Name"
+  },
+  "key_candidates": {
+   "BusinessEntityContact": [
+    {
+     "columns": [
+      "rowguid"
+     ],
+     "rows": 300,
+     "reason": "unique and never NULL, but neither named like an identifier nor the table's first column: whether it is the key is for a person to say"
+    }
+   ],
+   "Document": [
+    {
+     "columns": [
+      "rowguid"
+     ],
+     "rows": 300,
+     "reason": "unique and never NULL, but neither named like an identifier nor the table's first column: whether it is the key is for a person to say"
+    }
+   ],
+   "PersonPhone": [
+    {
+     "columns": [
+      "PhoneNumber"
+     ],
+     "rows": 300,
+     "reason": "unique and never NULL, but neither named like an identifier nor the table's first column: whether it is the key is for a person to say"
+    }
+   ],
+   "ProductDocument": [
+    {
+     "reason": "no column and no combination of the first 1 column(s) is unique and never NULL in the 300 rows"
+    }
+   ],
+   "SalesPersonQuotaHistory": [
+    {
+     "columns": [
+      "rowguid"
+     ],
+     "rows": 300,
+     "reason": "unique and never NULL, but neither named like an identifier nor the table's first column: whether it is the key is for a person to say"
+    }
+   ],
+   "SalesTerritoryHistory": [
+    {
+     "columns": [
+      "rowguid"
+     ],
+     "rows": 300,
+     "reason": "unique and never NULL, but neither named like an identifier nor the table's first column: whether it is the key is for a person to say"
+    }
+   ]
+  }
+ },
+ "row_results": {
+  "summary": "68 of 68 keys unique, 92 of 93 relationships hold without orphans",
+  "keys": {
+   "DatabaseLog": "unique in all 60 rows",
+   "ErrorLog": "unique in all 60 rows",
+   "Address": "unique in all 300 rows",
+   "AddressType": "unique in all 60 rows",
+   "BillOfMaterials": "unique in all 300 rows",
+   "BusinessEntity": "unique in all 600 rows",
+   "ContactType": "unique in all 60 rows",
+   "CountryRegion": "unique in all 60 rows",
+   "CreditCard": "unique in all 60 rows",
+   "Culture": "unique in all 60 rows",
+   "Currency": "unique in all 60 rows",
+   "CurrencyRate": "unique in all 300 rows",
+   "Customer": "unique in all 300 rows",
+   "Department": "unique in all 60 rows",
+   "EmailAddress": "unique in all 300 rows",
+   "Illustration": "unique in all 60 rows",
+   "JobCandidate": "unique in all 300 rows",
+   "Location": "unique in all 60 rows",
+   "PhoneNumberType": "unique in all 60 rows",
+   "Product": "unique in all 300 rows",
+   "ProductCategory": "unique in all 60 rows",
+   "ProductDescription": "unique in all 60 rows",
+   "ProductModel": "unique in all 60 rows",
+   "ProductPhoto": "unique in all 60 rows",
+   "ProductReview": "unique in all 300 rows",
+   "ProductSubcategory": "unique in all 300 rows",
+   "PurchaseOrderDetail": "unique in all 300 rows",
+   "PurchaseOrderHeader": "unique in all 300 rows",
+   "SalesOrderDetail": "unique in all 300 rows",
+   "SalesOrderHeader": "unique in all 300 rows",
+   "SalesReason": "unique in all 60 rows",
+   "SalesTaxRate": "unique in all 300 rows",
+   "ScrapReason": "unique in all 60 rows",
+   "Shift": "unique in all 60 rows",
+   "ShipMethod": "unique in all 60 rows",
+   "ShoppingCartItem": "unique in all 300 rows",
+   "SpecialOffer": "unique in all 60 rows",
+   "StateProvince": "unique in all 300 rows",
+   "UnitMeasure": "unique in all 60 rows",
+   "WorkOrder": "unique in all 300 rows",
+   "BusinessEntityAddress": "unique in all 300 rows",
+   "CountryRegionCurrency": "unique in all 300 rows",
+   "PersonCreditCard": "unique in all 300 rows",
+   "ProductInventory": "unique in all 300 rows",
+   "ProductModelIllustration": "unique in all 300 rows",
+   "ProductModelProductDescriptionCulture": "unique in all 300 rows",
+   "ProductProductPhoto": "unique in all 300 rows",
+   "ProductVendor": "unique in all 300 rows",
+   "SalesOrderHeaderSalesReason": "unique in all 300 rows",
+   "SpecialOfferProduct": "unique in all 300 rows",
+   "WorkOrderRouting": "unique in all 300 rows",
+   "AWBuildVersion": "unique in all 60 rows",
+   "BusinessEntityContact": "unique in all 300 rows",
+   "Employee": "unique in all 100 rows",
+   "EmployeeDepartmentHistory": "unique in all 300 rows",
+   "EmployeePayHistory": "unique in all 300 rows",
+   "Password": "unique in all 100 rows",
+   "Person": "unique in all 200 rows",
+   "ProductCostHistory": "unique in all 300 rows",
+   "ProductListPriceHistory": "unique in all 300 rows",
+   "SalesPerson": "unique in all 50 rows",
+   "SalesPersonQuotaHistory": "unique in all 300 rows",
+   "SalesTerritory": "unique in all 300 rows",
+   "SalesTerritoryHistory": "unique in all 300 rows",
+   "Store": "unique in all 200 rows",
+   "TransactionHistory": "unique in all 300 rows",
+   "TransactionHistoryArchive": "unique in all 60 rows",
+   "Vendor": "unique in all 200 rows"
+  },
+  "links": {
+   "Address.StateProvinceID -> StateProvince": "holds for all 276 rows with a value",
+   "BillOfMaterials.UnitMeasureCode -> UnitMeasure": "holds for all 268 rows with a value",
+   "BusinessEntityAddress.BusinessEntityID -> BusinessEntity": "holds for all 300 rows with a value",
+   "BusinessEntityAddress.AddressID -> Address": "holds for all 300 rows with a value",
+   "BusinessEntityAddress.AddressTypeID -> AddressType": "holds for all 300 rows with a value",
+   "BusinessEntityContact.BusinessEntityID -> BusinessEntity": "holds for all 300 rows with a value",
+   "BusinessEntityContact.ContactTypeID -> ContactType": "holds for all 300 rows with a value",
+   "CountryRegionCurrency.CountryRegionCode -> CountryRegion": "holds for all 300 rows with a value",
+   "CountryRegionCurrency.CurrencyCode -> Currency": "holds for all 300 rows with a value",
+   "CurrencyRate.FromCurrencyCode -> Currency": "holds for all 268 rows with a value",
+   "CurrencyRate.ToCurrencyCode -> Currency": "holds for all 274 rows with a value",
+   "EmployeeDepartmentHistory.DepartmentID -> Department": "holds for all 300 rows with a value",
+   "EmployeeDepartmentHistory.ShiftID -> Shift": "holds for all 300 rows with a value",
+   "Person.BusinessEntityID -> BusinessEntity": "holds for all 200 rows with a value",
+   "PersonCreditCard.CreditCardID -> CreditCard": "holds for all 300 rows with a value",
+   "PersonPhone.PhoneNumberTypeID -> PhoneNumberType": "holds for all 300 rows with a value",
+   "Product.SizeUnitMeasureCode -> UnitMeasure": "holds for all 272 rows with a value",
+   "Product.WeightUnitMeasureCode -> UnitMeasure": "holds for all 270 rows with a value",
+   "Product.ProductSubcategoryID -> ProductSubcategory": "holds for all 270 rows with a value",
+   "Product.ProductModelID -> ProductModel": "holds for all 281 rows with a value",
+   "ProductCostHistory.ProductID -> Product": "holds for all 300 rows with a value",
+   "ProductDocument.ProductID -> Product": "holds for all 300 rows with a value",
+   "ProductInventory.ProductID -> Product": "holds for all 300 rows with a value",
+   "ProductInventory.LocationID -> Location": "holds for all 300 rows with a value",
+   "ProductListPriceHistory.ProductID -> Product": "holds for all 300 rows with a value",
+   "ProductModelIllustration.ProductModelID -> ProductModel": "holds for all 300 rows with a value",
+   "ProductModelIllustration.IllustrationID -> Illustration": "holds for all 300 rows with a value",
+   "ProductModelProductDescriptionCulture.ProductModelID -> ProductModel": "holds for all 300 rows with a value",
+   "ProductModelProductDescriptionCulture.ProductDescriptionID -> ProductDescription": "holds for all 300 rows with a value",
+   "ProductModelProductDescriptionCulture.CultureID -> Culture": "holds for all 300 rows with a value",
+   "ProductProductPhoto.ProductID -> Product": "holds for all 300 rows with a value",
+   "ProductProductPhoto.ProductPhotoID -> ProductPhoto": "holds for all 300 rows with a value",
+   "ProductReview.ProductID -> Product": "holds for all 281 rows with a value",
+   "ProductSubcategory.ProductCategoryID -> ProductCategory": "holds for all 285 rows with a value",
+   "ProductVendor.ProductID -> Product": "holds for all 300 rows with a value",
+   "ProductVendor.UnitMeasureCode -> UnitMeasure": "holds for all 275 rows with a value",
+   "PurchaseOrderDetail.PurchaseOrderID -> PurchaseOrderHeader": "holds for all 300 rows with a value",
+   "PurchaseOrderDetail.ProductID -> Product": "holds for all 276 rows with a value",
+   "PurchaseOrderHeader.ShipMethodID -> ShipMethod": "holds for all 271 rows with a value",
+   "SalesOrderDetail.SalesOrderID -> SalesOrderHeader": "holds for all 300 rows with a value",
+   "SalesOrderDetail.ProductID -> Product": "holds for all 281 rows with a value",
+   "SalesOrderDetail.SpecialOfferID -> SpecialOffer": "holds for all 281 rows with a value",
+   "SalesOrderDetail.SpecialOfferID+ProductID -> SpecialOfferProduct": "holds for all 281 rows with a value",
+   "SalesOrderHeader.CustomerID -> Customer": "holds for all 276 rows with a value",
+   "SalesOrderHeader.BillToAddressID -> Address": "holds for all 279 rows with a value",
+   "SalesOrderHeader.ShipToAddressID -> Address": "holds for all 266 rows with a value",
+   "SalesOrderHeader.ShipMethodID -> ShipMethod": "holds for all 280 rows with a value",
+   "SalesOrderHeader.CreditCardID -> CreditCard": "holds for all 279 rows with a value",
+   "SalesOrderHeader.CurrencyRateID -> CurrencyRate": "holds for all 284 rows with a value",
+   "SalesOrderHeaderSalesReason.SalesOrderID -> SalesOrderHeader": "holds for all 300 rows with a value",
+   "SalesOrderHeaderSalesReason.SalesReasonID -> SalesReason": "holds for all 300 rows with a value",
+   "SalesTaxRate.StateProvinceID -> StateProvince": "holds for all 268 rows with a value",
+   "SalesTerritory.CountryRegionCode -> CountryRegion": "holds for all 279 rows with a value",
+   "ShoppingCartItem.ProductID -> Product": "holds for all 275 rows with a value",
+   "SpecialOfferProduct.SpecialOfferID -> SpecialOffer": "holds for all 300 rows with a value",
+   "SpecialOfferProduct.ProductID -> Product": "holds for all 300 rows with a value",
+   "StateProvince.CountryRegionCode -> CountryRegion": "holds for all 283 rows with a value",
+   "Store.BusinessEntityID -> BusinessEntity": "holds for all 200 rows with a value",
+   "TransactionHistory.ProductID -> Product": "holds for all 280 rows with a value",
+   "TransactionHistoryArchive.ProductID -> Product": "holds for all 60 rows with a value",
+   "Vendor.BusinessEntityID -> BusinessEntity": "holds for all 200 rows with a value",
+   "WorkOrder.ProductID -> Product": "holds for all 265 rows with a value",
+   "WorkOrder.ScrapReasonID -> ScrapReason": "holds for all 277 rows with a value",
+   "WorkOrderRouting.WorkOrderID -> WorkOrder": "holds for all 300 rows with a value",
+   "WorkOrderRouting.ProductID -> Product": "holds for all 300 rows with a value",
+   "WorkOrderRouting.LocationID -> Location": "holds for all 277 rows with a value",
+   "WorkOrderRouting.ProductID+LocationID -> ProductInventory": "269 of 277 rows (97.1%) point at nothing | re-count: 8 of 277 rows with a value match as written; trimming spaces, folding case and stripping leading zeros match no more",
+   "BillOfMaterials.ProductAssemblyID -> Product": "holds for all 279 rows with a value",
+   "BusinessEntityContact.PersonID -> Person": "holds for all 300 rows with a value",
+   "Customer.PersonID -> Person": "holds for all 275 rows with a value",
+   "Customer.StoreID -> Store": "holds for all 271 rows with a value",
+   "Customer.TerritoryID -> SalesTerritory": "holds for all 280 rows with a value",
+   "PurchaseOrderHeader.EmployeeID -> Employee": "holds for all 283 rows with a value",
+   "PurchaseOrderHeader.VendorID -> Vendor": "holds for all 279 rows with a value",
+   "SalesOrderHeader.SalesPersonID -> SalesPerson": "holds for all 275 rows with a value",
+   "SalesOrderHeader.TerritoryID -> SalesTerritory": "holds for all 274 rows with a value",
+   "SalesPerson.TerritoryID -> SalesTerritory": "holds for all 42 rows with a value",
+   "SalesTerritoryHistory.TerritoryID -> SalesTerritory": "holds for all 300 rows with a value",
+   "StateProvince.TerritoryID -> SalesTerritory": "holds for all 280 rows with a value",
+   "Store.SalesPersonID -> SalesPerson": "holds for all 186 rows with a value",
+   "TransactionHistoryArchive.TransactionID -> TransactionHistory": "holds for all 60 rows with a value",
+   "EmailAddress.BusinessEntityID -> Person": "holds for all 300 rows with a value",
+   "Employee.BusinessEntityID -> Person": "holds for all 100 rows with a value",
+   "EmployeeDepartmentHistory.BusinessEntityID -> Employee": "holds for all 300 rows with a value",
+   "EmployeePayHistory.BusinessEntityID -> Employee": "holds for all 300 rows with a value",
+   "JobCandidate.BusinessEntityID -> Employee": "holds for all 276 rows with a value",
+   "Password.BusinessEntityID -> Person": "holds for all 100 rows with a value",
+   "PersonCreditCard.BusinessEntityID -> Person": "holds for all 300 rows with a value",
+   "PersonPhone.BusinessEntityID -> Person": "holds for all 300 rows with a value",
+   "ProductVendor.BusinessEntityID -> Vendor": "holds for all 300 rows with a value",
+   "SalesPerson.BusinessEntityID -> Employee": "holds for all 50 rows with a value",
+   "SalesPersonQuotaHistory.BusinessEntityID -> SalesPerson": "holds for all 300 rows with a value",
+   "SalesTerritoryHistory.BusinessEntityID -> SalesPerson": "holds for all 300 rows with a value"
+  }
+ }
+}

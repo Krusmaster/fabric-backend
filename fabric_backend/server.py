@@ -303,7 +303,10 @@ def _hosted_plan(s, keys, confirmed, execute):
     the names left unlinked over the call's open connection, bounded by R5_SAMPLE and R5_MAX_QUERIES. Every tool that
     builds on the plan sees the same relationships as plan_backend. Nothing is kept between calls: the counting runs
     again on every call, over the connection the call opened and closes."""
-    p = make_plan(s, keys, confirmed, execute=execute, sample=R5_SAMPLE, max_queries=R5_MAX_QUERIES)
+    from . import propose                                      # F2: keys counted in this call, K6 and R6 from the rows
+    n = propose.max_queries()
+    p = make_plan(s, keys, confirmed, execute=execute, sample=R5_SAMPLE, max_queries=R5_MAX_QUERIES,
+                  profile=n > 0, profile_queries=n)
     scope = _PLAN_SCOPE.get()                                  # n174: the workload's review applied (plan_scope)
     return scope["adjust"](p) if scope else p
 

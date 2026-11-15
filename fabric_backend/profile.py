@@ -138,6 +138,7 @@ def items_used(out: dict, statements: int) -> int:
     combined = out.get("combined_relationship_queries", [])
     folded = sum(len(e["relationships"]) for e in combined if "fell_back" not in e)
     rel_statements = len(combined) + rels - folded
+    statements -= _int(out.get("recount_queries"))                 # F2: the re-count of orphans is not an item of max_items
     return keys + rels + max(0, statements - keys - rel_statements)
 
 

@@ -45,6 +45,23 @@ next deploy.
   text at 14 px or more and tap targets at 44 px or more. Tests: `n225DataProduct.test.ts`, `phonePages.test.tsx` (pages in
   `tests/fixtures/n225/`), `tests/test_n225_phone.py` with `tests/n225_browser.js` (Chromium at 375, 412 and 1280 px);
   the n198 pages rendered again.
+- Round F2: **count before claiming, the data proposes, and a regression corpus with published scores**
+  (`docs/SCOPE-REVIEW.md` section 6, items 4 and 5; unit tests only, not run in Fabric). With a connection the hosted
+  plan counts every key by name or from a pack in the same call (`plan.profile`, evidence state "counted unique" in
+  `plan_backend`'s own answer); K6 gives a keyless table a key from the rows (the identifier-named or first column
+  that is unique and never NULL, else the shortest unique combination of the leading columns); R6 links a column the
+  names left ambiguous or unlinked when every value is in one key and the name supports it, and proposes the rest
+  with counts; a relationship with orphans is re-counted once under trim, case fold, leading-zero strip and cast
+  (`recount` in `validate_plan`: "N of M rows with a value match after stripping leading zeros"); a table the SAP
+  pack does not know by name is recognised by its key columns (`plan.pack.by_signature`). The profile uses at most
+  half of the call's time budget and 60 statements (`KRUSGRAPH_PROFILE_QUERIES`, `0` turns it off). New
+  `fabric_backend/propose.py`; hooks in `infer.py`, `evidence.py`, `coverage.py`, `profile.py`,
+  `platforms/local.py` and `server.py`'s `_hosted_plan`. The corpus: `tests/f2_corpus.py`, `tests/corpus/*.json`
+  (AdventureWorks with rows generated from its declared constraints, the shop, the two SAP-shaped samples, the same
+  with renamed tables, a Nordic-ERP-like and a Business-Central-like shape), `tests/test_f2_corpus.py` and
+  `tests/test_f2_propose.py`; the scores are `docs/SCORES.md` and `docs/scores.json`, written from the expected files
+  and kept equal by a test. AdventureWorks: keys 47 of 71 before, 62 after; links 62 of 90 before, 87 after; wrong
+  links 17 before, 6 after. All rows are synthetic.
 - Round n226: **evidence state and coverage, one time budget per call, composite keys carried through**
   (`docs/SCOPE-REVIEW.md` section 6, items 1 to 3; unit tests only, not run in Fabric). Every key and link of
   plan_backend and validate_plan says its evidence state (counted unique, counted and holds, by name only, not counted:

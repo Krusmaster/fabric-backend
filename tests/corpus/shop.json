@@ -1,0 +1,135 @@
+{
+ "name": "shop",
+ "title": "Shop sample",
+ "source": "fabric_backend/seed.py, synthetic",
+ "rows": 272,
+ "names": {
+  "tables": 7,
+  "keys_true": 6,
+  "keys_right": 6,
+  "keys_wrong": 0,
+  "keys_missed": 0,
+  "keys_extra": 0,
+  "keys_extra_list": [],
+  "links_true": 7,
+  "links_found": 6,
+  "links_wrong": 0,
+  "keys_wrong_list": [],
+  "keys_missed_list": [],
+  "links_missed_list": [
+   "orders.ship_to_id -> addresses"
+  ],
+  "links_wrong_list": []
+ },
+ "before": {
+  "tables": 7,
+  "keys_true": 6,
+  "keys_right": 6,
+  "keys_wrong": 0,
+  "keys_missed": 0,
+  "keys_extra": 0,
+  "keys_extra_list": [],
+  "links_true": 7,
+  "links_found": 7,
+  "links_wrong": 0,
+  "keys_wrong_list": [],
+  "keys_missed_list": [],
+  "links_missed_list": [],
+  "links_wrong_list": []
+ },
+ "after": {
+  "tables": 7,
+  "keys_true": 6,
+  "keys_right": 6,
+  "keys_wrong": 0,
+  "keys_missed": 0,
+  "keys_extra": 0,
+  "keys_extra_list": [],
+  "links_true": 7,
+  "links_found": 7,
+  "links_wrong": 0,
+  "keys_wrong_list": [],
+  "keys_missed_list": [],
+  "links_missed_list": [],
+  "links_wrong_list": []
+ },
+ "plan": {
+  "keys": {
+   "addresses": {
+    "columns": [
+     "address_id"
+    ],
+    "rule": "K2"
+   },
+   "categories": {
+    "columns": [
+     "id"
+    ],
+    "rule": "K2"
+   },
+   "customers": {
+    "columns": [
+     "customer_id"
+    ],
+    "rule": "K2"
+   },
+   "order_items": {
+    "columns": [
+     "order_id",
+     "line_no"
+    ],
+    "rule": "K5"
+   },
+   "orders": {
+    "columns": [
+     "order_id"
+    ],
+    "rule": "K2"
+   },
+   "products": {
+    "columns": [
+     "product_id"
+    ],
+    "rule": "K2"
+   }
+  },
+  "links": [
+   "addresses.customer_id -> customers.customer_id [R1]",
+   "audit_log.customer_id -> customers.customer_id [R1]",
+   "order_items.order_id -> orders.order_id [R1]",
+   "order_items.product_id -> products.product_id [R1]",
+   "orders.customer_id -> customers.customer_id [R1]",
+   "orders.ship_to_id -> addresses.address_id [R5]",
+   "products.category_id -> categories.id [R1]"
+  ],
+  "ambiguous": [],
+  "proposed": [],
+  "key_candidates": {
+   "audit_log": [
+    {
+     "reason": "no column and no combination of the first 3 column(s) is unique and never NULL in the 40 rows"
+    }
+   ]
+  }
+ },
+ "row_results": {
+  "summary": "6 of 6 keys unique, 7 of 7 relationships hold without orphans",
+  "keys": {
+   "customers": "unique in all 10 rows",
+   "categories": "unique in all 3 rows",
+   "products": "unique in all 8 rows",
+   "addresses": "unique in all 17 rows",
+   "orders": "unique in all 60 rows",
+   "order_items": "unique in all 134 rows"
+  },
+  "links": {
+   "products.category_id -> categories": "holds for all 8 rows with a value",
+   "addresses.customer_id -> customers": "holds for all 17 rows with a value",
+   "orders.customer_id -> customers": "holds for all 60 rows with a value",
+   "order_items.order_id -> orders": "holds for all 134 rows with a value",
+   "order_items.product_id -> products": "holds for all 134 rows with a value",
+   "audit_log.customer_id -> customers": "holds for all 40 rows with a value",
+   "orders.ship_to_id -> addresses": "holds for all 60 rows with a value"
+  }
+ }
+}

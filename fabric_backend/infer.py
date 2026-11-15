@@ -24,6 +24,11 @@ Keys (per table):
   K5  line: no column names a key; the reference to the header table plus a line-number column
       (line_no, position, seq…). The header is the table the line table is named after (order_items → orders),
       else the first reference column.
+  K6  counted in the rows (propose.py; only with `execute` and profile=True), where no name gives a key: the column
+      that is unique and never NULL in two or more rows and is named like an identifier (the first such column), or
+      the table's first column when it is unique; else the shortest unique combination of the table's first two to
+      four columns, never all of its columns. A client column that leads the table is part of the key.
+      With the profile on, every key by name or from a pack is also counted in the same call (plan.profile).
 
 Relationships (per column of a table A that is not A's own key):
   R0  declared foreign key
@@ -46,6 +51,12 @@ Relationships (per column of a table A that is not A's own key):
       support it: same type family, every non-NULL value of the column is in the table's key, at least two distinct
       values, and exactly one table qualifies. Otherwise it goes to plan.proposed with the reason, never applied.
       Same-named columns (`code`, `name`) in two unrelated tables are never compared with each other.
+  R6  counted in the rows (propose.py; only with `execute` and profile=True): a column the names left ambiguous or
+      unlinked (and a table's own key column that another key has the same name as) whose every value is in one
+      single-column key of the same type. Names rank the keys the values fit (the key's own name, then a column that
+      carries the table's name); between keys of one name the one with the fewest rows is the nearest. Applied only with support from the name; otherwise proposed with the counts
+      (plan.proposed). Whole numbers without name support are never linked. A link whose values match only after
+      trimming, case folding or stripping leading zeros is proposed with those counts, never applied.
 A column that could point at two tables is reported as ambiguous and not applied.
 
 SAP pack (before K2–K5 and R1–R4): when two or more tables are tables a knowledge pack describes (sap_pack.py,
@@ -156,6 +167,9 @@ class Plan:
     # "rows" (passed Check against the rows, not stale) or "accepted" (accepted in the review). silver.spec de-duplicates on
     # them as on K0/K1/R5; the rule itself is unchanged, so the plan's identity and every other output stay the same.
     checked_keys: dict = field(default_factory=dict)
+    # F2: what the row profile counted in this call (propose.Profile.summary): the keys counted, K6 and R6, what was not
+    # reached. None: no profile ran (no connection, or profile off).
+    profile: dict | None = None
 
     def summary(self) -> str:
         lines = [f"{len(self.schema)} tables, {len(self.keys)} with keys, {len(self.relationships)} relationships"]
@@ -169,6 +183,17 @@ class Plan:
             lines.append(f"R5: {self.counted.get('not_checked_time', 0)} candidate(s) not checked (time)"
                          + ("; " + self.counted["scan"] if self.counted.get("scan") else "")
                          + ": validate_plan or suggest_relationships count them in a call of their own")
+        if self.profile:                                               # F2
+            pr = self.profile
+            line = (f"counted in this call: {pr['keys_counted']} key(s), {pr['keys_unique']} unique"
+                    + (f"; {len(pr['keys_from_rows'])} key(s) from the rows where no name gave one (K6)" if pr.get("keys_from_rows") else "")
+                    + (f"; {sum(1 for r in self.relationships if r.rule == 'R6')} link(s) from the rows (R6)"
+                       if any(r.rule == "R6" for r in self.relationships) else ""))
+            if pr.get("not_unique"):
+                line += f"; not unique in the rows: {', '.join(sorted(pr['not_unique']))}"
+            if pr.get("not_checked"):
+                line += "; the profile did not reach everything (see plan.profile.not_checked)"
+            lines.append(line)
         failed = [x for x in self.proposed if x.get("not_counted") == "failed"]
         if failed:                                                     # n172: said plainly, never as "not supported"
             lines.append(f"{len(failed)} candidate link(s) could not be counted because the counting query could not run: "
@@ -181,8 +206,13 @@ class Plan:
         if self.synonyms:
             lines.append(f"{len(self.synonyms)} name(s) read through the synonym table (translations, abbreviations) — see plan.synonyms")
         if self.proposed:
-            lines.append(f"{len(self.proposed)} code or role column(s) proposed by R5, not applied (the rows did not support them, or they "
-                         "were not counted) — see plan.proposed")
+            r6 = sum(1 for x in self.proposed if x.get("rule") == "R6")
+            if len(self.proposed) > r6:
+                lines.append(f"{len(self.proposed) - r6} code or role column(s) proposed by R5, not applied (the rows did not support them, or they "
+                             "were not counted) — see plan.proposed")
+            if r6:
+                lines.append(f"{r6} link(s) proposed by R6 from the rows, not applied (the name gives no support, the rows fit several "
+                             "tables, or only after a conversion) — see plan.proposed")
         if self.pack:
             lines.append(f"{len(self.pack['tables'])} table(s) recognised by the {self.pack['pack']} pack: keys and relationships from its "
                          f"public sources (rule \"{self.label(self.pack['rule'])}\"), to be checked with validate_plan — see plan.pack")
@@ -229,6 +259,13 @@ RULES = {
           "(singular/plural, snake/camel) has the key `code`/`no`/`key`, or a role name (`ship_to_id`, `created_by`, `approved_by`) "
           "whose role word says what the table holds; planned only when every value is in that table's key, the type family is "
           "the same, there are two or more distinct values and one table qualifies, otherwise proposed with the reason",
+    "K6": "counted in the rows (with a connection and the row profile on), where no name gives a key: the column that is unique and never NULL in two or more rows and is named "
+          "like an identifier (the first such column), or the table's first column when it is unique; else the shortest unique "
+          "combination of the table's first two to four columns, never all of its columns",
+    "R6": "counted in the rows (with a connection and the row profile on): a column the names left ambiguous or unlinked whose every value is in one single-column key of the "
+          "same type; names rank the keys (the key's own name, then a column that carries the table's name), and between keys of one "
+          "name the one with the fewest rows is the nearest; applied only "
+          "with support from the name, otherwise proposed with the counts; whole numbers without name support are never linked",
     "confirmed": "given by the caller in `confirmed=[...]`, applied as-is, before inference",
 }
 
@@ -973,8 +1010,17 @@ def check_tables(schema: Schema, tables: list[str] | None) -> None:
 
 def _pack(schema: Schema, keys: dict[str, list[str]] | None) -> tuple[dict | None, dict[str, list[str]], list[dict], set[str]]:
     """What the knowledge packs recognise in the schema: (summary for plan.pack, keys, relationships, tables)."""
-    from . import sap_pack
+    from . import propose, sap_pack
     m = sap_pack.match_any(schema)                 # SAP, or Younium + Salesforce (round n78); see match_any for when a pack counts
+    # F2: tables the SAP pack does not know by name but whose first columns are a pack table's key (propose.signature_aliases).
+    # The pack then matches over the same tables under their pack names; a match that recognises no more tables is dropped.
+    by_signature, unresolved = propose.signature_aliases(schema) if (m is None or m.pack == "sap") else ({}, {})
+    if by_signature:
+        m2 = sap_pack.match_any(propose.with_aliases(schema, by_signature))
+        if m2 is not None and m2.pack == "sap" and len(m2.tables) > (len(m.tables) if m else 0):
+            m = propose.unalias_match(m2, {v: k for k, v in by_signature.items()})
+        else:
+            by_signature = {}
     if m is None:
         return None, {}, [], set()
     p = sap_pack.load(m.pack)
@@ -988,11 +1034,19 @@ def _pack(schema: Schema, keys: dict[str, list[str]] | None) -> tuple[dict | Non
                "amounts": sap_pack.amounts(m),
                "sources": sorted({i for r in m.relationships for i in r["sources"]} | {i for n in m.tables.values() for i in p["tables"][n]["sources"]}),
                "traps": [{"id": t["id"], "title": t["title"]} for t in p["traps"]]}
+    if by_signature:
+        summary["by_signature"] = {t: {"pack_table": n, "why": f"after the client column its first columns are the key of {n} "
+                                                              f"({', '.join(c for c in p['tables'][n]['key'] if c not in sap_pack.CLIENT_COLUMNS)}) "
+                                                              "and it has more of the columns the pack documents for it than any other pack table"}
+                                   for t, n in by_signature.items() if t in m.tables}
+    if unresolved and m.pack == "sap":
+        summary["signature_unresolved"] = unresolved
     return summary, m.keys, rels, set(m.tables)
 
 
 def plan(schema: Schema, keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None, packs: bool = True,
-         execute=None, sample: int | None = None, max_queries: int | None = None) -> Plan:
+         execute=None, sample: int | None = None, max_queries: int | None = None, profile: bool = False,
+         profile_queries: int | None = None) -> Plan:
     """packs=False plans by the name rules alone, as before the knowledge packs (for comparison). With `execute` (a
     read-only query callable over the same tables) R5 also counts code and role columns in the rows; without it the
     plan is exactly the plan by names. `sample` and `max_queries` bound R5 for a tool that plans in one call
@@ -1018,6 +1072,18 @@ def plan(schema: Schema, keys: dict[str, list[str]] | None = None, confirmed: li
         rels, amb = infer_relationships(schema, k, confirmed, rel_notes, pack_rels, pack_tables)
     proposed: list[dict] = []
     counted: dict | None = None
+    prof = None
+    if execute is not None and profile:         # F2 (propose.py): count the keys in this call; K6 where no name gives a key
+        from . import propose
+        prof = propose.Profile(schema, execute, sample, profile_queries, pack_tables)
+        prof.count_keys(k, rels, ("K2", "K4", "K5", PACK_RULE))
+        # K6 keys are not given to the name rules: a link into such a table is made by R6 below, from the rows, so a
+        # key the rows gave never turns a same-named column elsewhere into a link by name alone
+        k6 = prof.keys_from_rows(k)
+        gave_way = {t for t in k6 if t in k}    # a key by name the rows refuted: links by name into it go with it
+        k.update(k6)
+        if gave_way:
+            rels = [r for r in rels if r.target not in gave_way or r.rule in ("R0", "confirmed")]
     if execute is not None:                     # R5: code and role columns, only where the rows support them
         counted = {"sample": int(sample) if sample else None, "max_queries": int(max_queries) if max_queries is not None else None}
         r5, r5_keys, proposed = infer_from_rows(schema, k, rels, amb, execute, pack_tables, sample, max_queries, counted)
@@ -1025,13 +1091,20 @@ def plan(schema: Schema, keys: dict[str, list[str]] | None = None, confirmed: li
             k.update(r5_keys)
             rels += r5
             _name_fields(rels, {t.name: _table_prefix(t) for t in schema})
+    if prof is not None:                        # F2: R6, links from the rows; then the keys R5 and R6 point at are counted too
+        r6, proposed6, decided, replaced = prof.links_from_rows(k, rels, amb, proposed)
+        if r6:
+            rels = [r for r in rels if r.key not in replaced] + r6
+            amb = [a for a in amb if (a["table"], a["column"].lower()) not in decided]
+            _name_fields(rels, {t.name: _table_prefix(t) for t in schema})
+        proposed += proposed6
     # an extended relationship stands while the target's key is still the pack's: a caller's own key says otherwise
     extended = [ExtendedRelationship(r["source"], list(r["source_cols"]), r["target"], list(r["target_cols"]), PACK_RULE,
                                      note=r.get("note", ""), kind=r.get("kind", "key"), valid_on=r.get("valid_on"),
                                      cardinality=r.get("cardinality", "many-to-one"), where=list(r.get("where") or []))
                 for r in special if k.get(r["target"], ([], ""))[1] == PACK_RULE]
     out = Plan(schema, k, rels, amb, keyless=[t.name for t in schema if t.name not in k], synonyms=notes + rel_notes, pack=summary,
-               extended=extended, proposed=proposed, counted=counted)
+               extended=extended, proposed=proposed, counted=counted, profile=prof.summary(k) if prof is not None else None)
     from . import coverage                                          # n226: the call's answer gets this plan's coverage
     coverage.note(out)
     return out

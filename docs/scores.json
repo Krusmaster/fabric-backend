@@ -1,0 +1,288 @@
+{
+ "about": "Krusgraph's regression corpus: keys and links found on schemas whose true keys and links are known. Written by tests/f2_corpus.py from tests/corpus/*.json; tests/test_f2_corpus.py fails when the engine's numbers differ.",
+ "rows": "synthetic in every corpus; see each corpus's source",
+ "columns": {
+  "names": "names only, no rows read",
+  "before": "names and R5 over the rows, as main planned at commit 8066dd0",
+  "after": "with the row profile of round F2 (keys counted, K6, R6, a pack table by its key columns)"
+ },
+ "how_scored": "a key is right when it is exactly the true set of columns, wrong when it is another set, missed when the table gets none, extra when the table has no key and the plan gives it one; a link is found when source, columns and target are a true link; wrong links are the plan's links that are not true links",
+ "corpora": [
+  {
+   "name": "adventureworks",
+   "title": "AdventureWorks (OLTP)",
+   "source": "tables, keys and foreign keys as Microsoft's script declares them; rows generated from those constraints (synthetic), not the sample's own rows",
+   "row_count": 14890,
+   "names": {
+    "tables": 71,
+    "keys_true": 71,
+    "keys_right": 47,
+    "keys_wrong": 4,
+    "keys_missed": 20,
+    "keys_extra": 0,
+    "links_true": 90,
+    "links_found": 62,
+    "links_wrong": 17
+   },
+   "before": {
+    "tables": 71,
+    "keys_true": 71,
+    "keys_right": 47,
+    "keys_wrong": 4,
+    "keys_missed": 20,
+    "keys_extra": 0,
+    "links_true": 90,
+    "links_found": 62,
+    "links_wrong": 17
+   },
+   "after": {
+    "tables": 71,
+    "keys_true": 71,
+    "keys_right": 62,
+    "keys_wrong": 6,
+    "keys_missed": 3,
+    "keys_extra": 0,
+    "links_true": 90,
+    "links_found": 87,
+    "links_wrong": 6
+   }
+  },
+  {
+   "name": "shop",
+   "title": "Shop sample",
+   "source": "fabric_backend/seed.py, synthetic",
+   "row_count": 272,
+   "names": {
+    "tables": 7,
+    "keys_true": 6,
+    "keys_right": 6,
+    "keys_wrong": 0,
+    "keys_missed": 0,
+    "keys_extra": 0,
+    "links_true": 7,
+    "links_found": 6,
+    "links_wrong": 0
+   },
+   "before": {
+    "tables": 7,
+    "keys_true": 6,
+    "keys_right": 6,
+    "keys_wrong": 0,
+    "keys_missed": 0,
+    "keys_extra": 0,
+    "links_true": 7,
+    "links_found": 7,
+    "links_wrong": 0
+   },
+   "after": {
+    "tables": 7,
+    "keys_true": 6,
+    "keys_right": 6,
+    "keys_wrong": 0,
+    "keys_missed": 0,
+    "keys_extra": 0,
+    "links_true": 7,
+    "links_found": 7,
+    "links_wrong": 0
+   }
+  },
+  {
+   "name": "sap_sd",
+   "title": "SAP-shaped sample, order to invoice",
+   "source": "fabric_backend/sap_sample.py, synthetic, SAP-shaped, not SAP data",
+   "row_count": 4327,
+   "names": {
+    "tables": 12,
+    "keys_true": 12,
+    "keys_right": 10,
+    "keys_wrong": 0,
+    "keys_missed": 2,
+    "keys_extra": 0,
+    "links_true": 18,
+    "links_found": 17,
+    "links_wrong": 2
+   },
+   "before": {
+    "tables": 12,
+    "keys_true": 12,
+    "keys_right": 10,
+    "keys_wrong": 0,
+    "keys_missed": 2,
+    "keys_extra": 0,
+    "links_true": 18,
+    "links_found": 17,
+    "links_wrong": 2
+   },
+   "after": {
+    "tables": 12,
+    "keys_true": 12,
+    "keys_right": 12,
+    "keys_wrong": 0,
+    "keys_missed": 0,
+    "keys_extra": 0,
+    "links_true": 18,
+    "links_found": 17,
+    "links_wrong": 2
+   }
+  },
+  {
+   "name": "sap_mm",
+   "title": "SAP-shaped sample, purchase to pay",
+   "source": "fabric_backend/sap_sample.py, synthetic, SAP-shaped, not SAP data",
+   "row_count": 2637,
+   "names": {
+    "tables": 8,
+    "keys_true": 8,
+    "keys_right": 7,
+    "keys_wrong": 0,
+    "keys_missed": 1,
+    "keys_extra": 0,
+    "links_true": 7,
+    "links_found": 7,
+    "links_wrong": 1
+   },
+   "before": {
+    "tables": 8,
+    "keys_true": 8,
+    "keys_right": 7,
+    "keys_wrong": 0,
+    "keys_missed": 1,
+    "keys_extra": 0,
+    "links_true": 7,
+    "links_found": 7,
+    "links_wrong": 1
+   },
+   "after": {
+    "tables": 8,
+    "keys_true": 8,
+    "keys_right": 8,
+    "keys_wrong": 0,
+    "keys_missed": 0,
+    "keys_extra": 0,
+    "links_true": 7,
+    "links_found": 7,
+    "links_wrong": 1
+   }
+  },
+  {
+   "name": "sap_renamed",
+   "title": "SAP-shaped sample, tables renamed",
+   "source": "the order-to-invoice sample with table names that say nothing to the pack (sales_doc_header for VBAK); synthetic",
+   "row_count": 4327,
+   "names": {
+    "tables": 12,
+    "keys_true": 12,
+    "keys_right": 0,
+    "keys_wrong": 0,
+    "keys_missed": 12,
+    "keys_extra": 0,
+    "links_true": 18,
+    "links_found": 0,
+    "links_wrong": 0
+   },
+   "before": {
+    "tables": 12,
+    "keys_true": 12,
+    "keys_right": 0,
+    "keys_wrong": 0,
+    "keys_missed": 12,
+    "keys_extra": 0,
+    "links_true": 18,
+    "links_found": 0,
+    "links_wrong": 0
+   },
+   "after": {
+    "tables": 12,
+    "keys_true": 12,
+    "keys_right": 11,
+    "keys_wrong": 0,
+    "keys_missed": 1,
+    "keys_extra": 0,
+    "links_true": 18,
+    "links_found": 13,
+    "links_wrong": 2
+   }
+  },
+  {
+   "name": "nordic_erp",
+   "title": "Nordic-ERP-like shape",
+   "source": "short Swedish names (kus, oh, orp, ftgnr, artnr); synthetic, written for this corpus, not a product's schema",
+   "row_count": 1150,
+   "names": {
+    "tables": 8,
+    "keys_true": 8,
+    "keys_right": 0,
+    "keys_wrong": 0,
+    "keys_missed": 8,
+    "keys_extra": 0,
+    "links_true": 9,
+    "links_found": 0,
+    "links_wrong": 0
+   },
+   "before": {
+    "tables": 8,
+    "keys_true": 8,
+    "keys_right": 0,
+    "keys_wrong": 0,
+    "keys_missed": 8,
+    "keys_extra": 0,
+    "links_true": 9,
+    "links_found": 0,
+    "links_wrong": 0
+   },
+   "after": {
+    "tables": 8,
+    "keys_true": 8,
+    "keys_right": 8,
+    "keys_wrong": 0,
+    "keys_missed": 0,
+    "keys_extra": 0,
+    "links_true": 9,
+    "links_found": 5,
+    "links_wrong": 0
+   }
+  },
+  {
+   "name": "bc_like",
+   "title": "Business-Central-like shape",
+   "source": "`<company>$<table>$<app id>` table names, `No_` keys; synthetic, written for this corpus, not Microsoft's schema",
+   "row_count": 1181,
+   "names": {
+    "tables": 10,
+    "keys_true": 10,
+    "keys_right": 3,
+    "keys_wrong": 4,
+    "keys_missed": 3,
+    "keys_extra": 0,
+    "links_true": 12,
+    "links_found": 0,
+    "links_wrong": 0
+   },
+   "before": {
+    "tables": 10,
+    "keys_true": 10,
+    "keys_right": 3,
+    "keys_wrong": 4,
+    "keys_missed": 3,
+    "keys_extra": 0,
+    "links_true": 12,
+    "links_found": 0,
+    "links_wrong": 0
+   },
+   "after": {
+    "tables": 10,
+    "keys_true": 10,
+    "keys_right": 8,
+    "keys_wrong": 2,
+    "keys_missed": 0,
+    "keys_extra": 0,
+    "links_true": 12,
+    "links_found": 10,
+    "links_wrong": 1
+   }
+  }
+ ],
+ "not_present": {
+  "sap_cds": "n230's CDS-shaped sample (seed(spark, schema='sap_cds')) is not on main at the time of this round; it is added here when it is"
+ }
+}
