@@ -120,6 +120,26 @@ On 27 October, before that fix, the update stopped at `would_remove` until the e
 `reverse_name` only to rename a field on purpose; a rename removes the field an app queries today, so the update then
 stops at `would_remove` until `allow_removals=true`.
 
+### 3a. Ontology format check (B2, 15 November 2026; before 31 January 2027)
+
+Learn says the old ontology experience (entity-type JSON) retires on 31 January 2027. Krusgraph writes the TMDL format
+only; this step confirms what Fabric holds for `shop_ontology`. Read-only; the maintainer runs it.
+
+1. Find the ontology's id: `az rest --method get --resource https://api.fabric.microsoft.com --url
+   "https://api.fabric.microsoft.com/v1/workspaces/<workspace id>/ontologies"` and take `id` where `displayName` is
+   `shop_ontology`.
+2. Get its definition (Items - Get Ontology Definition, delegated scope `Item.ReadWrite.All`, long-running):
+   `az rest --method post --resource https://api.fabric.microsoft.com --url
+   "https://api.fabric.microsoft.com/v1/workspaces/<workspace id>/ontologies/<ontology id>/getDefinition" >
+   shop_ontology.json`. If the answer is empty (202), call the `Location` URL with `/result` appended
+   (`.../v1/operations/<operation id>/result`) after the `Retry-After` seconds, and save that answer instead.
+3. `python tools/ontology_compare.py shop_ontology.json`. It prints the format (TMDL or old), the parts only Fabric or
+   only Krusgraph has, and per shared part "same" or how many lines differ (lineage tags and line ends ignored). Exit 0
+   means TMDL.
+4. Write the date, the format and the differences in section 6. An old-format answer means the item is re-created from
+   Krusgraph before 31 January 2027; a TMDL answer with differences means each is taken over only after a live try,
+   as `tests/test_ontology_windfarm.py` says.
+
 ## 4. Clients
 
 Prepared, not switched on: `bash deploy/krusgraph.sh --client-redirects` prints the commands, and

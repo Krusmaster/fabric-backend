@@ -75,6 +75,19 @@ Overall status:
   introducing Microsoft Fabric IQ"): Unverified, blog not reachable.
 - Fabric IQ as a plugin in Copilot Cowork: no Learn page found. Unverified.
 
+**Format check, 15 November 2026 (B2).** Learn's ontology definition page (ms.date 10 September 2026, updated 29
+September 2026, read 15 November 2026): "Namespaced entities use the `<Namespace>#<Entity>.tmdl` convention ... An
+unqualified filename such as `Sensor.tmdl` represents an entity in the default namespace", and `namespaces/default.tmdl`
+"is required and must be referenced by `ref namespace default` in `model.tmdl`". Krusgraph writes the default namespace
+only, with unqualified `entities/{name}.tmdl` parts, `namespaces/default.tmdl` and `ref namespace default`, so its part
+names match; `ontology_parts` now refuses any other namespace instead of writing it without the `#` names. Nothing in
+`fabric_backend/` reads or writes the old entity-type JSON (`definition.json`, `EntityTypes/`), and a test keeps it so
+(`tests/test_b2_ontology_format.py`). Learn's Get Ontology Definition page (updated 19 October 2026) still shows an
+old-format answer as its example and documents a `format` query parameter without listing its values. What Fabric
+holds for the live `shop_ontology` is not confirmed yet: the call and `tools/ontology_compare.py` are in
+`docs/LIVE-TEST.md` section 3a for the maintainer. Eventhouse bindings (`KustoTable`, time series), which Learn shows in
+the old format only, are not supported by Krusgraph.
+
 ### 1.2 Graph and data agent
 
 | Feature | Status | Via REST / definition? | Source |
