@@ -192,7 +192,7 @@ export function EmptyView(props: {
       title="Choose a source"
       description={
         "Krusgraph reads the table and column names of a lakehouse, a warehouse, a SQL database or a mirrored database " +
-        "(data mirrored into Fabric, SAP via SAP Datasphere among it) and proposes keys and relationships, each with the " +
+        "(data mirrored into Fabric, including SAP through SAP Datasphere) and proposes keys and relationships, each with the " +
         "rule that found it. Nothing is created until you choose Create."
       }
       imageSrc="/assets/items/ModelItem/EditorEmpty.svg"

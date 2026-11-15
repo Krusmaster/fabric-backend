@@ -11,7 +11,7 @@ import { itemTypeLabel } from "./createWords";
 import { OutputsDefinition } from "./ModelItemDefinition";
 import {
   KEEPS_DATA, LeftoversAnswer, OWNER_WHY, OutOfDate, Person, ProductRow, RetireAnswer, STATE, StatusAnswer, healthWords, lastRunWords,
-  leftoverWords, otherPlanRows, outOfDateSummary, ownerWords, planOf, planWords, resultWords, rowsOf, summary, typedNameOk,
+  leftoverWords, otherPlanRows, outOfDateSummary, ownerWords, peopleWords, planOf, planWords, resultWords, rowsOf, summary, typedNameOk,
 } from "./productWords";
 import { SaveStatus, savedWords } from "./saveState";
 
@@ -141,7 +141,7 @@ export function DataProductView(props: DataProductProps) {
           {props.status?.you && <button type="button" onClick={() => { setOwner(props.status!.you!); props.onOwner?.(props.status!.you!); }} disabled={busy}>Me ({props.status.you})</button>}
         </div>
         <p>{OWNER_WHY}</p>
-        <p className="kg-dp-muted">{people.length ? `${people.length} people and groups have a role in this workspace.` : "Kept in this item (outputs.json)."}</p>
+        <p className="kg-dp-muted">{people.length ? peopleWords(people.length) : "Kept in this item (outputs.json)."}</p>
       </section>
 
       <section aria-labelledby="kg-dp-items">

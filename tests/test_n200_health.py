@@ -133,6 +133,11 @@ def test_the_health_step_reads_no_source_rows():
     seen = []
     real = lh.execute
     lh.execute = lambda sql: seen.append(sql) or real(sql)
+    # F1: the notebook's own cell reads the real clock (the other tests pass at=hc.NOW), so the commits are set from it
+    # too. With the fixture's fixed 11 November 2026 this test failed from 14 November on: the tables looked three
+    # intervals old.
+    for table in list(lh.commits):
+        lh.commit(table, dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=3))
     cells = pipeline.check_cells(lh.check_spec(), "shop_lh.shop")
     hc.run_cells(cells, lh.spark(), {"RUN_ID": "run-1"})
     assert not [s for s in seen if re.search(r"FROM\s+`?shop`?\.", s)], seen

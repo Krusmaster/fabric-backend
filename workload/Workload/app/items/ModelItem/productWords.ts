@@ -68,6 +68,11 @@ export const OWNER_WHY = "The owner is the person people ask when a number in th
 /** n225: the data product's plan: the plan of the latest Create (outputs.json's plan, recorded by every Create since
  * n225), else the product's, else the review's (the plan the next Create sends), else the newest plan mark of a built
  * item. undefined when none is known. */
+/** F1: "1 person or group has a role", not "1 people and groups have". */
+export function peopleWords(n: number): string {
+  return n === 1 ? "1 person or group has a role in this workspace." : `${n} people and groups have a role in this workspace.`;
+}
+
 export function planOf(outputs: OutputsDefinition, reviewPlan?: string | null): string | undefined {
   const marks = outputs.created.map((c) => c.plan?.plan_id).filter((x): x is string => !!x);
   return outputs.plan?.plan_id || outputs.product?.plan?.plan_id || reviewPlan || marks[marks.length - 1] || undefined;
