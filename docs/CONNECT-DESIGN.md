@@ -179,6 +179,27 @@ Some customers can only export files (CSV or Excel from the ERP's report tool).
   the export, and writes `bronze.<entity>`. A file already loaded is recorded by name and not loaded twice.
 - Freshness is the time of the newest file. Stale is easy to see.
 
+**Built (B3, 15 November 2026), unit tests and a local Spark only.** `fabric_backend/connect_files.py`: `spec(schema)`
+takes the tables and column types from a `Schema` (the schema export of section 1.5, a pack or a plan) and `cells()` or
+`source()` writes the load notebook. Per table it lists the files of `Files/connect/<table>/` with their modification
+time, skips every file whose name is recorded as loaded (and says so when such a file has changed since), reads a new
+CSV file or Excel workbook (`.xlsx`, first sheet) as text, matches the header to the expected columns whatever their
+case and order, converts each column to its type, appends the rows to `bronze.<table>` and records the file in
+`bronze.krusgraph_connect_files` (one line before the rows are written and one after, so a run that stops in between
+leaves a file that a person must check, never one that is loaded twice). A file with a missing column, a row with
+another number of fields than the header, or a value that is not of its column's type is refused whole, with the column
+and a count; `ON_BAD_VALUE = "null"` loads it with those values empty instead. Freshness is the newest file's time per
+table, in the notebook's summary. The parameters cell holds the separator, the encoding, the decimal comma and the date
+and time patterns. The notebook keeps and prints names, types, counts and times, never a value; it installs nothing,
+calls nothing outside the lakehouse, and writes only tables carrying its own mark.
+
+Verified by `tests/test_b3_connect_files.py` and, on PySpark 4.0.1 with parquet tables in CI's `notebooks` job,
+`tests/test_b3_connect_files_spark.py` (the mill sample's rows as files). Not run in Fabric, where three things are
+still to be seen: that `Files/connect/...` resolves to the notebook's default lakehouse, that the same folder is at
+`/lakehouse/default` for the Excel read, and the load on Fabric's own Spark runtime with Delta tables. No tool, workload
+screen or pipeline uses the notebook yet (round C1), nothing writes its freshness into the health table (C5), and a
+shared folder that a Copy job fills is not built.
+
 ### 1.5 The schema export (all database sources)
 
 Krusgraph needs the source's tables, columns and declared keys to plan. It must not read rows to get them. So the
