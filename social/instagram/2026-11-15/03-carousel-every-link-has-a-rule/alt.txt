@@ -1,0 +1,5 @@
+Slide 1. 'Every link names its rule. Then the rows test it.' The map from krusgraph.com/check for the example shop: 7 tables as rounded boxes, links labelled R1.
+Slide 2. One link: orders.customer_id points at customers.customer_id. A violet box shows rule R1 and its text. Onto says: a rule is a reason, not proof, so the rows get the last word.
+Slide 3. 'Counted in the rows.' A green verdict with a tick: holds for all 60 rows with a value. Whole sample: 6 of 6 keys unique, 6 of 6 relationships hold without orphans.
+Slide 4. 'The rule said yes. The rows said no.' The link sap_vbap to sap_vbak, rule SAP pack, SAP-shaped example. A red verdict: 1 of 6 rows (16.7%) point at nothing. Thinker says one order line points at an order that is not there.
+Slide 5. 'The rule behind every link, and the count that tests it.' Onto and Thinker, and krusgraph.com/check.

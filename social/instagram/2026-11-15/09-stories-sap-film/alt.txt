@@ -1,0 +1,4 @@
+Story 1. Title frame of the SAP film: 'Why does your SAP order total come out too large? The SAP joining problem. Krusgraph does the trick!' Three mascots.
+Story 2. The check: '17 of 17 keys are unique', '32 of 34 links hold without orphans'. Thinker's caption: 2 links need a look.
+Story 3. The two sums: 1 950 struck through and 750 ticked. Builder's caption: over all orders, 750 on sap_vbak, not 1 950.
+Story 4. 'The SAP joining problem: check your tables for it', a dashed box for the link sticker to krusgraph.com/check, and the three mascots.

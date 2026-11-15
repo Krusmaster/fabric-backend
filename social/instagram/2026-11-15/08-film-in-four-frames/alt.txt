@@ -1,0 +1,4 @@
+Frame 1. 'The map': 17 tables, 24 links of SAP-shaped tables drawn as a network. Caption from Onto: every key and link names its rule, SAP pack.
+Frame 2. 'Checked against the rows': tiles '17 of 17 keys are unique' and '32 of 34 links hold without orphans'. Caption from Thinker: 2 links need a look, one has a row that points at nothing.
+Frame 3. 'NETWR sits on the order header': order 0000000001 at 600 and 3 joined lines each showing 600, summing to 1 800. Caption from Thinker.
+Frame 4. 'Sum it once per order': 1 950 struck through beside 750 ticked. Caption from Builder: over all orders, 750 on sap_vbak, not 1 950.

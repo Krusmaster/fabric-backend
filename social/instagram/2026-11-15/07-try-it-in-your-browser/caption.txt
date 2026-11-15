@@ -1,0 +1,13 @@
+Check your own tables in the browser. Your files are not uploaded.
+
+Drop CSV or Excel exports, or paste a list of columns. You get the map of your tables: keys, links and problems, each with the rule behind it, and counts from the rows.
+
+Your files are read in this browser and are not uploaded. The engine runs in the page. The page sends two anonymous events, that the engine loaded and that a check is done, with nothing from your files.
+
+No files at hand? There are 7 examples, including the total that doubles and SAP-shaped sales tables. The screenshot shows the shop example: 7 tables, 6 links, 6 of 6 keys unique, 6 of 6 relationships hold without orphans.
+
+Meant for samples: tried on files of a few hundred rows. Then try your own.
+
+#MicrosoftFabric #PowerBI #DataQuality #DataModeling #SQL #Analytics #Krusgraph #OpenSource
+
+Try it in your browser: krusgraph.com/check (link in bio)

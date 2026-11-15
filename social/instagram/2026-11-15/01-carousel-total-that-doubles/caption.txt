@@ -1,0 +1,22 @@
+In our SAP example, the order total comes out 2.6 times too large. Nothing in the report looks wrong.
+
+Swipe through the trap, in our example:
+
+1. NETWR is the whole order's net value. It sits on the order header, sap_vbak, one row per order.
+2. Join the header to its order lines, sap_vbap, and the value is repeated on every line.
+3. Order 0000000001 is 600. The join counts it 3 times: 1 800.
+4. Over all orders the sum comes out 1 950 instead of 750.
+
+"The total that doubles" is what we call the pattern. Here it is 2.6 times, not two.
+
+Krusgraph counts this against the rows before a report is built: which column, which join, and both sums side by side. The fix on slide 5 is the engine's own sentence. Rules and counts, no guessing.
+
+The same example runs on the site. Your files are read in this browser and are not uploaded.
+
+Krusgraph is independent and is not affiliated with, tested or endorsed by SAP or Microsoft.
+
+Have you met a total that doubles? How did you find it?
+
+#MicrosoftFabric #PowerBI #SAP #ERP #DataQuality #DataModeling #SQL #SemanticModel #Krusgraph
+
+Try it in your browser: krusgraph.com/check (link in bio)
