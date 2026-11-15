@@ -7,16 +7,16 @@ jobs:
     # the 4:5 film on phones here; 1.49.1 (Chromium 131) played the 16:9 one. The same build as the cloud sessions' browser.
     env: { PLAYWRIGHT_VERSION: "1.63.0" }
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # pip's cache (downloaded wheels) is kept per Python version and the hash of the pins; pip still installs every run
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: |
             deploy/constraints.txt
             pyproject.toml
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with: { node-version: "22" }
       - run: pip install -c deploy/constraints.txt -e ".[server,test]"     # the image's exact versions; a bad pin fails here, not in az acr build
       # The browser checks (tests/test_browser.py) run when Playwright's Chromium is present; they are skipped otherwise.
@@ -25,7 +25,7 @@ jobs:
       # of this job (25.9 MB in 9 minutes on 26 October 2026, while the browsers downloaded in 6 seconds).
       - run: npm install --no-save "playwright@$PLAYWRIGHT_VERSION"
       - id: browsers
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with: { path: ~/.cache/ms-playwright, key: "playwright-${{ runner.os }}-${{ env.PLAYWRIGHT_VERSION }}" }
       - if: steps.browsers.outputs.cache-hit != 'true'
         run: npx playwright install chromium
@@ -35,7 +35,7 @@ jobs:
       - run: pytest -q
         env: { RAYFIN_APP_SHOTS: "${{ runner.temp }}/rayfin-app-shots" }
       - if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with: { name: rayfin-app-shots, path: "${{ runner.temp }}/rayfin-app-shots", if-no-files-found: ignore, retention-days: 14 }
   notebooks:
     # The generated Fabric notebooks (silver tables, drift monitor) run on a local Spark against the shop seed:
@@ -43,12 +43,12 @@ jobs:
     # local Spark, so the tests write parquet. The import check fails the job instead of letting the tests skip.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # pyspark comes as a 434 MB source package that pip builds into a wheel each time; the cache keeps the built wheel,
       # keyed on this file, where the versions are pinned
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with: { python-version: "3.12", cache: pip, cache-dependency-path: .github/workflows/ci.yml }
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with: { distribution: temurin, java-version: "17" }
       - run: pip install "pyspark==4.0.1" requests pytest
       - run: python -c "import pyspark, requests; print(pyspark.__version__)"
@@ -60,8 +60,8 @@ jobs:
     # unreachable pypi.org cannot turn it red on its own. A Dependabot pip PR is red here until the file is regenerated.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
           cache: pip
@@ -77,7 +77,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults: { run: { working-directory: workload/Workload } }
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # n195: both packages build, and Krusgraph.Modeler's passes the publishing checks (attestation link, publisher,
       # en-US texts, https support links, icon and banner sizes; workload/scripts/build_package.py check_publishing).
       # The app id is the workload app's public client id (docs/WORKLOAD-PUBLISH.md); nothing is uploaded.
@@ -90,7 +90,7 @@ jobs:
           done
           test -f "$RUNNER_TEMP/package/Krusgraph.Modeler.1.0.0.nupkg"
           unzip -p "$RUNNER_TEMP/package/Krusgraph.Modeler.1.0.0.nupkg" FE/Product.json | grep -q '"https://krusgraph.com/workload/attestation"'
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with: { node-version: "22", cache: npm, cache-dependency-path: workload/Workload/package-lock.json }
       # npm ci of the kit's 712 packages runs out of the default 4 GB heap (runs 738 and 739; reproduced locally), and
       # finishes with 8 GB, the value the kit's own npm scripts use

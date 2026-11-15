@@ -1,5 +1,6 @@
 # Monthly update PRs for the Python dependencies (pyproject.toml, deploy/constraints.txt) and the Actions in
-# .github/workflows: one PR per ecosystem and month, with every update of that ecosystem in it.
+# .github/workflows (pinned by commit, with the version in a comment, which Dependabot updates together), and the Fabric
+# workload editor's npm packages (workload/Workload, B2): one PR per ecosystem and month, with every update of that ecosystem in it.
 #
 # Nobody has to approve them: a Deployment round (CONTRIBUTING.md, "Deployment") rebases each PR onto main, waits for
 # green CI and squash-merges it; a red PR is fixed in place when the cause is a simple consequence of the update, and
@@ -18,6 +19,11 @@ updates:
       all: { patterns: ["*"] }
   - package-ecosystem: github-actions
     directory: /
+    schedule: { interval: monthly }
+    groups:
+      all: { patterns: ["*"] }
+  - package-ecosystem: npm
+    directory: /workload/Workload
     schedule: { interval: monthly }
     groups:
       all: { patterns: ["*"] }

@@ -1,0 +1,34 @@
+name: Image scan
+# B2: the container image (Dockerfile) is built here as az acr build would build it, and scanned for known
+# vulnerabilities in its OS packages and Python and npm packages with Grype (anchore/scan-action, pinned by commit). The
+# job fails on a critical finding that has a fixed version; the full table is in the run summary and kept as an
+# artifact. It runs when what goes into the image changes, weekly, and on demand. Nothing is pushed to any registry.
+on:
+  push:
+    branches: [main]
+    paths: [Dockerfile, deploy/constraints.txt, pyproject.toml, workload/Workload/package-lock.json, .github/workflows/image-scan.yml]
+  schedule:
+    - cron: "41 6 * * 1"
+  workflow_dispatch: {}
+permissions: { contents: read }
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: docker build -t krusgraph-scan:${{ github.sha }} .
+      - id: grype
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
+        with:
+          image: krusgraph-scan:${{ github.sha }}
+          fail-build: true
+          severity-cutoff: critical
+          only-fixed: true
+          output-format: table
+          output-file: grype.txt
+      - if: always()
+        run: |
+          { echo '```'; cat grype.txt 2>/dev/null || echo "no report"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with: { name: "grype-${{ github.sha }}", path: grype.txt, if-no-files-found: ignore, retention-days: 90 }

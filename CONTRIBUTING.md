@@ -59,11 +59,12 @@ Rounds are numbered nNN, and the number appears in the claim and release commits
 ## Deployment
 
 Dependabot opens one grouped pull request per ecosystem and month (`.github/dependabot.yml`: pip, pip in `deploy/`,
-GitHub Actions). Nobody has to approve them: a Deployment round rebases each PR onto `main`, waits for green CI and
+GitHub Actions, npm in `workload/Workload`). Nobody has to approve them: a Deployment round rebases each PR onto `main`, waits for green CI and
 squash-merges it; a red PR is fixed in place when the cause is a simple consequence of the update (a changed default in
 an action, a dropped Python version), and closed with a comment that says what is needed otherwise. `main` has no
 branch protection rules, and the way of working needs none: CI runs on every push and every PR, and a round verifies
-that `main` is green after each merge before the next. CI's `notices` job runs `python tools/third_party_notices.py
+that `main` is green after each merge before the next. Every action in `.github/workflows/` is pinned by commit with its version in a
+comment (`tests/test_b2_supply_chain.py`); take a new one's commit from `git ls-remote` of its tag. CI's `notices` job runs `python tools/third_party_notices.py
 --check --from-installed`, so a pip PR that changes a pin in `deploy/constraints.txt` is red until
 `THIRD_PARTY_NOTICES.md` is regenerated on its branch (`python tools/third_party_notices.py`): a simple consequence,
 fixed in place. The job also stops on a dependency under the AGPL or the SSPL, which is not fixed in place.
