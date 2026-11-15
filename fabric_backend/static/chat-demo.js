@@ -194,7 +194,7 @@
     document.documentElement.classList.toggle('kgc-lock', lock);
     if (lock) box.setAttribute('aria-modal', 'true'); else box.removeAttribute('aria-modal');
     Array.prototype.forEach.call(document.body.children, function (el) {
-      if (el === box || el.tagName === 'SCRIPT') return;
+      if (el === box || el.tagName === 'SCRIPT' || el.className === 'kgd-big') return;
       if (lock) el.setAttribute('inert', ''); else el.removeAttribute('inert');
     });
   }
@@ -403,10 +403,11 @@
   }
   function closeBig() {
     if (!big) return;
-    var from = big._from;
+    var from = big._from, page = big._inert;
     big.remove();
     big = null;
-    Array.prototype.forEach.call(box.children, function (el) { el.removeAttribute('inert'); });
+    if (page) page.forEach(function (el) { el.removeAttribute('inert'); });     // n233: the data flow's overlay
+    else Array.prototype.forEach.call(box.children, function (el) { el.removeAttribute('inert'); });
     if (from && document.contains(from) && !box.hidden) from.focus({ preventScroll: true });
   }
 
@@ -722,41 +723,230 @@
   }
 
   // n224: the data flow of one build on the example (demo.py, data_flow.flow(): the silver notebook, the gold views and
-  // the semantic model), drawn with the dbt flow's boxes: one column under another in the chat, each box a button that
-  // opens its code (a silver cell, a gold view's SQL, the model's relationships and measures)
-  function flowView(f) {
-    var ids = {}, bronze = f.nodes.filter(function (n) { return n.column === 'bronze'; }).map(function (n) { return n.id; });
-    f.nodes.forEach(function (n) { ids[n.id] = true; });
-    var edges = [];
-    f.edges.forEach(function (e) {             // "bronze" is the whole source column: what reads it reads each source table
-      (e.from === 'bronze' ? bronze : [e.from]).forEach(function (from) { if (ids[from] && ids[e.to]) edges.push({ from: from, to: e.to }); });
+  // the semantic model). n233 (the founder, 12 November 2026: "here we want to see the data flow going from left to
+  // right"): drawn as the Model editor draws it (FlowView.tsx), columns side by side, bronze -> silver -> gold -> what is
+  // built on it, with lines between the boxes. Compact in the chat, where the columns scroll sideways inside the card (a
+  // hint says so, the arrow keys scroll it); "Open larger" shows the same diagram over the page at full width. Each box
+  // with code is a button that opens its code below the diagram, one at a time. A list for screen readers says the flow
+  // in order; the lines are decoration. Built with createElement and textContent only.
+  var KGD = (function () {
+    // the SVG namespace, joined so that tests/test_chat_demo.py's no-dates check does not read a year in it
+    var seq = 0, SVGNS = ['http://www.w3.org', 2e3, 'svg'].join('/');
+    function mk(tag, cls, text) {
+      var x = document.createElement(tag);
+      if (cls) x.className = cls;
+      if (text != null) x.textContent = String(text);
+      return x;
+    }
+    function boxLabel(n) { return n.kind_label ? n.kind_label + ': ' + n.label : n.label; }
+    // f: data_flow.flow()'s output as demo.py keeps it. wide: the overlay's version. onLarger: the button's action.
+    function build(f, wide, onLarger) {
+      var pre = 'kgd' + (++seq) + '-', byId = {}, colOf = {};
+      var cols = f.columns.filter(function (c) { return f.nodes.some(function (n) { return n.column === c.id; }); });
+      cols.forEach(function (c, i) { colOf[c.id] = i; });
+      var nodes = f.nodes.filter(function (n) { return n.column in colOf; });
+      nodes.forEach(function (n) { byId[n.id] = n; });
+      var into = function (id) { return f.edges.filter(function (e) { return e.to === id; }); };
+      var name = function (id) { return id === 'bronze' ? 'the source tables' : byId[id] ? byId[id].label : id; };
+
+      // rows: a box sits level with the first box it reads from, where that row is free; the rest fill in below
+      var row = {}, taken = {};
+      cols.forEach(function (c) {
+        taken[c.id] = {};
+        nodes.filter(function (n) { return n.column === c.id; }).forEach(function (n) {
+          var want = 0;
+          into(n.id).some(function (e) { if (e.from in row) { want = row[e.from]; return true; } return false; });
+          while (taken[c.id][want]) want++;
+          row[n.id] = want; taken[c.id][want] = true;
+        });
+      });
+
+      var root = mk('div', 'kgd' + (wide ? ' kgd-wide' : ''));
+      root.setAttribute('role', 'group');
+      root.setAttribute('aria-label', 'The data flow, left to right');
+
+      // what a screen reader reads: the flow in order, column by column
+      var sr = mk('ol', 'visually-hidden');
+      cols.forEach(function (c) {
+        var parts = nodes.filter(function (n) { return n.column === c.id; }).map(function (n) {
+          var from = into(n.id).map(function (e) { return name(e.from); });
+          return boxLabel(n) + (from.length ? ' (from ' + list(from) + ')' : '') + (n.built === false ? ', not part of this build' : '');
+        });
+        sr.appendChild(mk('li', null, c.title + ': ' + parts.join('; ') + '.'));
+      });
+      root.appendChild(sr);
+
+      var bar = mk('div', 'kgd-bar'), hint = mk('p', 'kgd-hint', 'Scroll sideways, or use the arrow keys, to see every column.');
+      hint.id = pre + 'hint';
+      hint.hidden = true;
+      bar.appendChild(hint);
+      if (onLarger) {
+        var larger = mk('button', 'kgc-zoom kgd-larger', 'Open larger');
+        larger.type = 'button';
+        larger.addEventListener('click', function () { onLarger(larger); });
+        bar.appendChild(larger);
+      }
+      root.appendChild(bar);
+
+      var scroller = mk('div', 'kgd-scroll'), stage = mk('div', 'kgd-stage');
+      scroller.tabIndex = 0;
+      scroller.setAttribute('role', 'region');
+      scroller.setAttribute('aria-label', 'The data flow diagram');
+      scroller.setAttribute('aria-describedby', hint.id);
+      stage.style.gridTemplateColumns = 'repeat(' + cols.length + ', var(--kgd-w))';
+      var lines = document.createElementNS(SVGNS, 'svg');
+      lines.setAttribute('class', 'kgd-lines');
+      lines.setAttribute('aria-hidden', 'true');
+      lines.setAttribute('focusable', 'false');
+      stage.appendChild(lines);
+      cols.forEach(function (c, i) {
+        var h = mk('p', 'kgd-h', c.title);
+        h.style.gridColumn = String(i + 1);
+        h.setAttribute('aria-hidden', 'true');                 // the list above says it in order
+        stage.appendChild(h);
+      });
+
+      var panel = mk('div', 'kgd-code'), panelHead = mk('p'), panelCode = mk('pre');
+      panel.id = pre + 'code';
+      panel.hidden = true;
+      panelCode.tabIndex = 0;
+      panel.appendChild(panelHead);
+      panel.appendChild(panelCode);
+      var boxes = {};
+      nodes.forEach(function (n) {
+        var hasCode = typeof n.code === 'string' && n.code;
+        var b = mk(hasCode ? 'button' : 'div', 'kgd-box kgd-' + n.column + (n.built === false ? ' kgd-off' : ''));
+        b.appendChild(mk('span', 'kgd-n', boxLabel(n)));
+        if (Array.isArray(n.lines) && n.lines[0]) b.appendChild(mk('span', 'kgd-l', n.lines[0]));
+        b.style.gridColumn = String(colOf[n.column] + 1);
+        b.style.gridRow = String(row[n.id] + 2);
+        b.setAttribute('data-node', n.id);
+        boxes[n.id] = b;
+        stage.appendChild(b);
+        if (!hasCode) return;
+        b.type = 'button';
+        b.setAttribute('aria-expanded', 'false');
+        b.setAttribute('aria-controls', panel.id);
+        b.addEventListener('click', function () {
+          var open = b.getAttribute('aria-expanded') !== 'true';
+          Object.keys(boxes).forEach(function (k) { if (boxes[k].tagName === 'BUTTON') boxes[k].setAttribute('aria-expanded', 'false'); });
+          b.setAttribute('aria-expanded', String(open));
+          panel.hidden = !open;
+          if (!open) return;
+          var from = into(n.id).map(function (e) { return name(e.from); });
+          panelHead.textContent = (n.code_title || n.label) + (from.length ? ' · reads ' + list(from) : '');
+          panelCode.textContent = n.code;
+        });
+      });
+      scroller.appendChild(stage);
+      root.appendChild(scroller);
+      root.appendChild(panel);
+
+      // the lines: from the right edge of a box to the left edge of the box it feeds, measured once laid out
+      function draw() {
+        while (lines.firstChild) lines.removeChild(lines.firstChild);
+        var W = stage.scrollWidth, H = stage.scrollHeight;
+        if (!W || !H) return;
+        lines.setAttribute('width', W); lines.setAttribute('height', H);
+        lines.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+        var at = function (id) { var b = boxes[id]; return b && { l: b.offsetLeft, r: b.offsetLeft + b.offsetWidth, t: b.offsetTop, m: b.offsetTop + b.offsetHeight / 2, b: b.offsetTop + b.offsetHeight }; };
+        var path = function (d, off) {
+          var p = document.createElementNS(SVGNS, 'path');
+          p.setAttribute('d', d);
+          p.setAttribute('class', 'kgd-e' + (off ? ' off' : ''));
+          lines.appendChild(p);
+        };
+        var bronze = nodes.filter(function (n) { return n.column === 'bronze'; }).map(function (n) { return at(n.id); });
+        f.edges.forEach(function (e) {
+          var to = at(e.to);
+          if (!to) return;
+          if (e.from === 'bronze') {                 // what reads all the source tables: one line from the column, along the top
+            if (!bronze.length) return;
+            var x0 = bronze[0].r - 18, top = bronze[0].t, x1 = to.l - 10;
+            var y = Math.max(2, Object.keys(boxes).reduce(function (m, k) { return Math.min(m, boxes[k].offsetTop); }, top) - 5);
+            path('M' + x0 + ',' + top + ' V' + y + ' H' + x1 +
+                 ' Q' + (x1 + 6) + ',' + y + ' ' + (x1 + 6) + ',' + (y + 6) + ' V' + (to.m - 6) + ' Q' + (x1 + 6) + ',' + to.m + ' ' + to.l + ',' + to.m, e.built === false);
+            return;
+          }
+          var from = at(e.from);
+          if (!from) return;
+          var mid = (from.r + to.l) / 2;
+          path('M' + from.r + ',' + from.m + ' C' + mid + ',' + from.m + ' ' + mid + ',' + to.m + ' ' + to.l + ',' + to.m, e.built === false);
+        });
+        hint.hidden = scroller.scrollWidth <= scroller.clientWidth + 1;
+        scroller.classList.toggle('kgd-more', !hint.hidden && scroller.scrollLeft + scroller.clientWidth < scroller.scrollWidth - 1);
+      }
+      scroller.addEventListener('scroll', function () {
+        scroller.classList.toggle('kgd-more', !hint.hidden && scroller.scrollLeft + scroller.clientWidth < scroller.scrollWidth - 1);
+      });
+      // the arrow keys, Home and End scroll the columns when the diagram itself has the focus
+      scroller.addEventListener('keydown', function (e) {
+        if (e.target !== scroller || e.altKey || e.ctrlKey || e.metaKey) return;
+        var step = { ArrowRight: 60, ArrowLeft: -60 }[e.key], to = null;
+        if (step) to = scroller.scrollLeft + step;
+        else if (e.key === 'Home') to = 0;
+        else if (e.key === 'End') to = scroller.scrollWidth;
+        if (to === null) return;
+        e.preventDefault();
+        scroller.scrollTo({ left: to, behavior: reduced.matches ? 'auto' : 'smooth' });
+      });
+      if (window.ResizeObserver) new ResizeObserver(function () { draw(); }).observe(stage);
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+      root._draw = draw;
+      return root;
+    }
+    return { build: build };
+  })();
+
+  // "Open larger": the same diagram over the page, as wide as the window; Back to the chat or Esc returns
+  function openFlowBig(btn, f) {
+    closeBig();
+    big = document.createElement('div');
+    big.className = 'kgd-big';
+    big.setAttribute('role', 'dialog');
+    big.setAttribute('aria-modal', 'true');
+    big.setAttribute('aria-label', 'The data flow, larger');
+    var panel = document.createElement('div'), head = document.createElement('div'), title = document.createElement('p');
+    var back = document.createElement('button'), body = document.createElement('div');
+    panel.className = 'kgd-big-panel'; head.className = 'kgc-big-head'; body.className = 'kgd-big-body';
+    title.textContent = 'The data flow';
+    back.type = 'button'; back.className = 'kgc-back'; back.textContent = 'Back to the chat';
+    head.appendChild(title); head.appendChild(back);
+    body.appendChild(KGD.build(f, true, null));
+    panel.appendChild(head); panel.appendChild(body); big.appendChild(panel);
+    big._from = btn;
+    big._inert = Array.prototype.filter.call(document.body.children, function (el) {
+      return el.tagName !== 'SCRIPT' && !el.hasAttribute('inert');
     });
-    return {
-      columns: f.columns.filter(function (c) { return f.nodes.some(function (n) { return n.column === c.id; }); })
-                        .map(function (c) { return { id: c.id, label: c.title }; }),
-      nodes: f.nodes.map(function (n) {
-        return { id: n.id, column: n.column, label: n.kind_label ? n.kind_label + ': ' + n.label : n.label, lines: n.lines,
-                 built: n.built, code: n.code || '', code_title: n.code_title || n.label };
-      }),
-      edges: edges
-    };
+    big._inert.forEach(function (el) { el.setAttribute('inert', ''); });
+    document.body.appendChild(big);
+    back.addEventListener('click', closeBig);
+    big.addEventListener('keydown', function (e) {                    // Tab stays inside
+      if (e.key !== 'Tab') return;
+      var f2 = Array.prototype.filter.call(big.querySelectorAll('button, [tabindex="0"]'), function (el) { return !el.closest('[hidden]'); });
+      var first = f2[0], last = f2[f2.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+    back.focus({ preventScroll: true });
   }
+
   function dataFlow() {
     work('builder', ['Reading the source tables', 'Drafting the silver tables', 'Drafting the gold views'], function () {
       var f = drafts().flow, n = function (c) { return f.nodes.filter(function (x) { return x.column === c; }).length; };
       var model = f.nodes.filter(function (x) { return x.column === 'built'; })[0];
-      KGF.wire(document);
       var html = '<h3>The data flow</h3><p>' + plural(n('bronze'), 'source table') + ' (bronze) become ' +
         plural(n('silver'), 'silver table') + (n('gold') ? ', and ' + plural(n('gold'), 'gold view') + ' join them' : '') + '.' +
         (model ? ' The semantic model ' + code(model.label) + ' reads the source tables directly.' : '') +
-        ' Choose a box to see its code.</p><div class="kgf-slot"></div>';
+        ' Left to right; choose a box to see its code.</p><div class="kgd-slot"></div>';
       var does = data('flow', 'does');
       var note = 'This is a demo, so nothing was created or run. ' + (does === 'creates'
         ? 'Connected to ' + product + ', your agent creates the silver and gold notebooks in your Fabric workspace when you ask.'
         : 'Connected to ' + product + ', your agent drafts the silver and gold notebooks from your own tables when you ask.');
       done('flow', html, '', note);
-      var slots = log.querySelectorAll('.kgf-slot'), slot = slots[slots.length - 1], v = KGF.build(document, flowView(f));
-      if (slot && v) { v.setAttribute('aria-label', 'The data flow'); v.classList.add('kgc-flow'); slot.appendChild(v); }
+      var slots = log.querySelectorAll('.kgd-slot'), slot = slots[slots.length - 1];
+      var v = KGD.build(f, false, function (btn) { openFlowBig(btn, f); });
+      if (slot && v) { v.classList.add('kgc-flow'); slot.appendChild(v); v._draw(); }
     });
   }
 

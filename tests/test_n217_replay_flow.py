@@ -5,7 +5,7 @@ founder, 12 November 2026, on his phone: the data flows belong in the floating "
 which stays short (a suggestion typed, the send button pressed, the answer). So the card has no flow any more
 (replay_flow.py is gone), and the chat has a step "See the data flow": data_flow.flow(), the function the Model editor's
 build calls, on the chat's demo plan for one build (the silver notebook, the gold views and the chat's semantic model),
-drawn with the dbt step's boxes (each one opens its code). These tests check that the chat's flow is the engine's, that
+drawn with the dbt step's boxes (each one opens its code); n233 draws it left to right, as the Model editor does. These tests check that the chat's flow is the engine's, that
 the step is offered as a clickable suggestion, and that the card is back to its turns only. The browser half runs
 tests/n224_chat_flow_browser.js at 375, 768, 1280 and 1440 px, light and dark, with and without reduced motion.
 """
@@ -114,8 +114,24 @@ def test_the_step_is_a_clickable_suggestion_after_the_model_and_is_remembered():
     assert picks == [("model", "Create a semantic model", "model"), ("flow", "See the data flow", "dataFlow"),
                      ("ontology", "Create an ontology", "ontology"), ("domains", "Draft data products", "products")]
     body = CHAT_JS[CHAT_JS.index("function dataFlow()"):CHAT_JS.index("function question()")]
-    assert "drafts().flow" in body and "KGF.build(document, flowView(f))" in body and "done('flow'" in body
-    assert "innerHTML" not in body                                     # the boxes are KGF's: createElement and textContent
+    assert "drafts().flow" in body and "KGD.build(f, false," in body and "done('flow'" in body
+    assert "innerHTML" not in body                                     # n233: KGD's boxes, createElement and textContent only
+
+
+def test_n233_the_flow_is_drawn_left_to_right_with_lines_a_scroll_hint_and_a_larger_view():
+    """n233 (the founder, 12 November 2026: "here we want to see the data flow going from left to right"): the columns
+    side by side as the Model editor draws them, lines between the boxes, sideways scroll inside the card with a hint
+    and the arrow keys, "Open larger", and a list in order for screen readers."""
+    body = CHAT_JS[CHAT_JS.index("var KGD = (function"):CHAT_JS.index("function question()")]
+    assert "innerHTML" not in body
+    for want in ("'Scroll sideways, or use the arrow keys, to see every column.'", "'Open larger'", "'Back to the chat'",
+                 "ArrowRight", "ArrowLeft", "'Home'", "'End'", "reduced.matches ? 'auto' : 'smooth'",
+                 "createElementNS(SVGNS, 'path')", "setAttribute('aria-hidden', 'true')", "'visually-hidden'",
+                 "'aria-modal', 'true'", "ResizeObserver", "'aria-expanded'"):
+        assert want in body, want
+    css = (ROOT / "fabric_backend" / "static" / "chat-demo.css").read_text(encoding="utf-8")
+    for want in (".kgd-scroll {", "overflow-x: auto", ".kgd-big {", ".kgd-e.off { stroke-dasharray", ".kgd-big, .kgd-big *"):
+        assert want in css, want
     assert ("flow", "gold_views_draft", "create_gold_views") in pages.CHAT_RESULTS
 
 
@@ -125,7 +141,7 @@ def test_the_launch_button_carries_the_flow_s_status(client):
 
 
 def test_no_claims_of_speed_certification_partnership_or_endorsement():
-    body = CHAT_JS[CHAT_JS.index("function flowView("):CHAT_JS.index("function question()")].lower()
+    body = CHAT_JS[CHAT_JS.index("var KGD = (function"):CHAT_JS.index("function question()")].lower()
     for w in ("fast", "second", "certif", "partner", "endorse", "official", "guarantee"):
         assert w not in body, w
 
@@ -184,3 +200,20 @@ def test_browser_suggestions_first_then_the_flow_with_the_engine_s_boxes(browser
         assert s["inBubble"], key
         assert s["opened"] and "silver" in s["openedCode"].lower(), key
         assert s["afterNext"], key
+
+
+def test_browser_n233_left_to_right_scrolls_in_the_card_and_opens_larger(browser):
+    f = demo.demo_drafts()["as_is"]["flow"]
+    want = [n["kind_label"] + ": " + n["label"] if n.get("kind_label") else n["label"] for n in f["nodes"]]
+    for key, s in browser["sizes"].items():
+        assert s["ltr"], key
+        assert s["lines"] == len(f["edges"]), key
+        assert s["scrolls"] and s["hint"], key                         # the chat is about 380 px wide at every size
+        assert s["keyScroll"] > 0, key
+        assert [x.split(":")[0] for x in s["sr"]] == [c["title"].split(":")[0] for c in f["columns"]], key
+        assert "shop.orders" in s["sr"][0] and "silver.orders (from shop.orders)" in s["sr"][1], key
+        assert s["bigBoxes"] == want and s["bigLines"] == len(f["edges"]), key
+        assert s["bigFocus"] == "Back to the chat" and s["bigOpened"], key
+        assert s["bigClosed"] and s["backTo"] == "Open larger", key
+        if int(key.split("-")[0]) >= 1280:
+            assert s["bigFits"], key
