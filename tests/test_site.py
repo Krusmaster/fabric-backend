@@ -197,7 +197,9 @@ def test_privacy_shows_org_nr_only_when_configured(client, monkeypatch):
     html = client.get("/privacy").text
     assert "Kruse Consulting AB, Sweden (org. nr 123456-7890)" in html
     footer = client.get("/").text.split('<footer class="site-footer">')[1]
-    assert "Kruse Consulting AB · Org. no. 123456-7890 · Open source under the MIT licence" in footer and "Sweden" not in _without_agreed_facts(footer)
+    # G1: the company details have their own line (legal.py): the registry address unless the deployment sets another
+    assert "Kruse Consulting AB · Open source under the MIT licence" in footer and "Sweden" not in _without_agreed_facts(footer)
+    assert "Kruse Consulting AB · Org. no. 123456-7890 · Svartmangatan 4 D, 753 12 Uppsala" in footer
 
 
 def test_docs_describe_the_data_path(client):
@@ -300,7 +302,7 @@ def test_home_hero_and_trust_row(client):
 
 # ------------------------------------------------------------------ SEO and agent discovery ---------------------
 
-PUBLIC = ["/", "/check", "/start", "/choose", "/sap", "/docs", "/lovable", "/local", "/use-cases", "/use-cases/build", "/privacy", "/trust", "/security", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms",
+PUBLIC = ["/", "/check", "/start", "/choose", "/sap", "/docs", "/lovable", "/local", "/use-cases", "/use-cases/build", "/privacy", "/trust", "/security", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms", "/cookies", "/accessibility",   # G1
           "/blog", "/blog/fabric-totals-double-after-join"]                                                  # n145
 
 

@@ -1649,3 +1649,23 @@ a.chip:hover{text-decoration:underline}
 .chip-planned{background:transparent;color:var(--muted);border:1px dashed var(--line-strong)}
 .chip-legend .chip{margin-right:2px}
 .docs-build .out-grid{padding:0;margin-left:0}
+
+/* G1: the footer's cookie icon and panel (legal.py), the storage table on /cookies, /sap's source links */
+.cookie-panel{max-width:100%;min-width:0}
+.footer-links{align-content:start}
+.footer-grid>*{min-width:0}
+.storage-list{margin:0 0 8px;padding-left:18px}
+.storage-list li{margin-bottom:6px;overflow-wrap:anywhere}
+.cookie-btn{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:4px 10px;border:1px solid var(--line-strong);border-radius:999px;background:var(--card);color:var(--ink);font-size:14px;cursor:pointer;list-style:none}
+.cookie-btn::-webkit-details-marker{display:none}
+.cookie-btn:hover{border-color:var(--ink)}
+.cookie-panel[open] .cookie-btn{background:var(--card-2)}
+.cookie-panel-body{margin-top:10px;padding:12px 14px;border:1px solid var(--line);border-radius:var(--radius-s);background:var(--card);max-width:min(520px,100%)}
+.cookie-panel-body p{margin:0 0 8px}
+.storage-table{border-collapse:collapse;width:100%;font-size:14px}
+.storage-table th,.storage-table td{text-align:left;vertical-align:top;padding:6px 8px;border-bottom:1px solid var(--line)}
+.storage-table thead th{color:var(--ink);font-weight:700}
+.storage-table code{word-break:break-all}
+.table-scroll{overflow-x:auto;max-width:100%}
+.footer-company{margin-top:-4px}
+.sap-src-ref a,a[href^="#sap-src-"]{display:inline-block;min-width:24px;min-height:24px;text-align:center}

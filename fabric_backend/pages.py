@@ -70,6 +70,11 @@ PAGES = {
                  "Check and the connector in Claude are free and open source (MIT); a pilot with named deliveries and ongoing work for a team are on request and invoiced. What is stored, permissions and how to buy.", "pricing"),
     "/terms": ("terms.html", "Preview terms — {{PRODUCT}}",
                "Preview terms for {{PRODUCT}}: a preview service, code under the MIT licence, nothing created in Fabric unless you ask for it (a dry run first for every creating tool) and only with your own permissions.", ""),
+    # G1: what the site stores in your browser, and the accessibility statement (legal.py)
+    "/cookies": ("cookies.html", "Cookies and storage — {{PRODUCT}}",
+                 "Every cookie and browser storage key {{PRODUCT}}'s site and service can set, why and for how long. No analytics, no tracking, nothing from other websites, so no consent banner.", ""),
+    "/accessibility": ("accessibility.html", "Accessibility — {{PRODUCT}}",
+                       "How accessible {{PRODUCT}}'s website is against WCAG 2.2 AA, how it was checked, the known gaps and how to report a problem.", ""),
     "/mascots": ("mascots.html", "Mascot review — {{PRODUCT}}",
                  "Review page for the three mascots: every pose and demo state.", ""),
 }
@@ -79,7 +84,7 @@ PAGES = {
 # Only these phrasings: tests/test_site.py keeps "partner", "certified", "endorsed" and "offices" off the site otherwise.
 BEHIND = ("Member of the Microsoft AI Cloud Partner Program", "Based in Uppsala, Sweden, and Bern, Switzerland")
 # n58: the date on /terms, changed by hand with the text
-TERMS_UPDATED = "30 October 2026"
+TERMS_UPDATED = "15 November 2026"
 BUILT = ("Built for Microsoft Fabric", "Sign in with Microsoft Entra ID", "Hosted in Azure, Sweden Central")
 
 
@@ -102,6 +107,7 @@ def _vars() -> dict[str, str]:
         "CLIENT_ID": os.environ.get("ENTRA_CLIENT_ID", "<client id>"),
         "GITHUB": GITHUB,
         "TERMS_UPDATED": TERMS_UPDATED,
+        **_legal().company_vars(),                                        # G1: company details, placeholders where unset
         "LABEL_CHECK": CHECK_LABEL, "LABEL_CONNECT": CONNECT_LABEL,          # n149: the two ways in, one label each
         # n75: how much the hosted tools count, read from server.py (R5's sample and query budget, validate_plan's default)
         **_counting_limits(),
@@ -429,6 +435,11 @@ def hub_html() -> str:
 </section>"""
 
 
+def _legal():
+    from . import legal
+    return legal
+
+
 def _days(value: str) -> str:
     value = value.strip()
     return value if value.isdigit() and int(value) > 0 else ""
@@ -569,7 +580,8 @@ def _md_to_html(md: str, figures: dict | None = None) -> str:
             while i < len(lines) and not lines[i].startswith("```"):
                 code.append(lines[i]); i += 1
             i += 1
-            out.append("<pre><code>" + html.escape("\n".join(code)) + "</code></pre>"); continue
+            # G1: tabindex so a code block that scrolls sideways can be scrolled from the keyboard (WCAG 2.1.1)
+            out.append('<pre tabindex="0"><code>' + html.escape("\n".join(code)) + "</code></pre>"); continue
         para.append(ln.strip()); i += 1
     flush()
     return "\n".join(out)
@@ -759,16 +771,18 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
   <div class="wrap footer-grid">
     <div>
       <div class="brand small">{_LOGO}<span class="wordmark">{html.escape(v['PRODUCT_LOWER'])}</span></div>
-      <p class="muted">{html.escape(v['PRODUCT'])} by Kruse Consulting AB{html.escape(v['ORGNR_DOT'])} · Open source under the MIT licence.</p>
+      <p class="muted">{html.escape(v['PRODUCT'])} by Kruse Consulting AB · Open source under the MIT licence.</p>
+      <p class="muted tiny footer-company">{html.escape(v['COMPANY_LINE'])} · <a href="mailto:{html.escape(v['CONTACT'])}">{html.escape(v['CONTACT'])}</a></p>
       <p class="muted tiny footer-facts">{html.escape(v['BEHIND'])}.<br>{html.escape(v['BUILT'])}. <a href="/it">For your IT department</a>.</p>
       <p class="muted tiny footer-status">{html.escape(v['PRODUCT'])} is a preview service. <a href="/docs#tool-reference">The tools</a> · <a href="/privacy">How data and access are handled</a> · <a href="/trust">Security and data</a>.</p>
       <p class="muted tiny">Microsoft Fabric and Fabric IQ are trademarks of Microsoft Corporation. {html.escape(v['PRODUCT'])} is an independent product, not made by Microsoft.</p>
     </div>
     <nav class="footer-links" aria-label="Footer">
-      <a href="/check?example=sample&amp;guide=1">Try the guided demo</a><a href="/check">{CHECK_LABEL}</a><a href="/use-cases">Use cases</a><a href="/start">{CONNECT_LABEL}</a><a href="/docs">Docs</a><a href="/blog">Blog</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/trust">Security and data</a><a href="/support">Get help</a><a href="/partners">Try a pilot</a><a href="/pricing">Pricing</a><a href="/terms">Preview terms</a>
+      <a href="/check?example=sample&amp;guide=1">Try the guided demo</a><a href="/check">{CHECK_LABEL}</a><a href="/use-cases">Use cases</a><a href="/start">{CONNECT_LABEL}</a><a href="/docs">Docs</a><a href="/blog">Blog</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/cookies">Cookies</a><a href="/trust">Security and data</a><a href="/support">Get help</a><a href="/partners">Try a pilot</a><a href="/pricing">Pricing</a><a href="/terms">Preview terms</a><a href="/accessibility">Accessibility</a>
       <a href="{GITHUB}" rel="noopener">GitHub</a><a href="mailto:{html.escape(v['CONTACT'])}">{html.escape(v['CONTACT'])}</a>
     </nav>
     <div class="footer-controls">
+      {_legal().cookie_panel_html()}
       {toggle}
     </div>
   </div>
@@ -1142,6 +1156,9 @@ def render(path: str) -> str:
     if "{{CHECK_" in body:
         cv = check_vars()
         body = re.sub(r"\{\{(CHECK_\w+)\}\}", lambda m: cv.get(m.group(1), ""), body)
+    if "{{LEGAL_" in body:                                                # G1: /cookies and /accessibility (legal.py)
+        lv = _legal().page_vars()
+        body = re.sub(r"\{\{(LEGAL_\w+)\}\}", lambda m: lv[m.group(1)], body)
     if "{{UC_" in body:
         from .use_cases import page_vars
         uv = page_vars()
@@ -1678,7 +1695,7 @@ def _html_to_md(src: str, origin: str) -> str:
     s = re.sub(r'<span[^>]*data-mascot[^>]*></span>', "", s)
     s = re.sub(r'<span class="kicker">.*?</span>', "", s)
     s = re.sub(r"<summary>(.*?)</summary>", r"\n\n## \1\n\n", s, flags=re.S)
-    s = re.sub(r"<pre><code[^>]*>(.*?)</code></pre>", lambda m: "\n\n```\n" + m.group(1).strip() + "\n```\n\n", s, flags=re.S)
+    s = re.sub(r"<pre[^>]*><code[^>]*>(.*?)</code></pre>", lambda m: "\n\n```\n" + m.group(1).strip() + "\n```\n\n", s, flags=re.S)
     s = re.sub(r"<h1[^>]*>(.*?)</h1>", r"\n\n# \1\n\n", s, flags=re.S)
     s = re.sub(r"<h2[^>]*>(.*?)</h2>", r"\n\n## \1\n\n", s, flags=re.S)
     s = re.sub(r"<h3[^>]*>(.*?)</h3>", r"\n\n### \1\n\n", s, flags=re.S)

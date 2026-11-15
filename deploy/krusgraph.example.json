@@ -12,6 +12,8 @@
   "product_name": "Krusgraph",
   "contact_email": "hello@krusgraph.com",
   "company_orgnr": "",
+  "company_address": "",
+  "company_vat": "",
   "include_www": true,
   "min_replicas": 0,
   "ontology_write": false,

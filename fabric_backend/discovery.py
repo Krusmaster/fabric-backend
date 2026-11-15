@@ -33,7 +33,7 @@ USP_POINTS = (
 USP_SAP = ("SAP tables: keys with MANDT and the order-to-cash links, each citing a public SAP page", "/sap")
 
 # The public pages, in sitemap order. /mascots is a review page and stays out (noindex, disallowed).
-PUBLIC_PAGES = ["/", "/check", "/start", "/choose", "/sap", "/docs", "/lovable", "/local", "/use-cases", "/use-cases/build", "/privacy", "/trust", "/security", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms", "/blog"]
+PUBLIC_PAGES = ["/", "/check", "/start", "/choose", "/sap", "/docs", "/lovable", "/local", "/use-cases", "/use-cases/build", "/privacy", "/trust", "/security", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms", "/cookies", "/accessibility", "/blog"]
 PUBLIC_PAGES += ["/blog/" + x["slug"] for x in _BLOG_POSTS]                             # n145: the blog and its posts
 
 

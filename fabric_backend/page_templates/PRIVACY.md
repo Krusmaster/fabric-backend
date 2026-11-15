@@ -6,6 +6,26 @@ Claude directory rejects a submission without a live privacy policy.*
 {{PRODUCT}} is operated by Kruse Consulting AB, Sweden{{ORGNR_PAREN}}. This page explains what passes through the
 service, how access tokens and technical logs are handled, and which other services are involved. Contact: {{CONTACT}}.
 
+## Who is responsible
+
+**Kruse Consulting AB**, org. no. {{COMPANY_ORGNR}}, {{COMPANY_ADDRESS}}, Sweden. E-mail: {{CONTACT}}. We have no data
+protection officer; write to the address above about anything on this page.
+
+Kruse Consulting AB is the *controller* for what the service and the website record themselves: the sign-in records,
+the usage records, the technical logs and e-mail you send us. For what your organisation's Microsoft Fabric returns
+while you use a tool (names, counts, sample rows, query results), which passes through the service only to answer you,
+your organisation decides what is read and Kruse Consulting AB acts on its behalf as a *processor* (see *Data
+processing for organisations* below).
+
+## In short
+
+- No table contents are stored: what Fabric returns passes through memory to your AI client and is discarded.
+- No analytics, advertising or tracking tools on the website, and no cookies on its ordinary pages; see
+  [Cookies and storage](/cookies).
+- The service runs in Microsoft Azure in Sweden (Sweden Central).
+- The AI client you connect (Claude, ChatGPT, Copilot or another) is your own or your organisation's choice, under
+  its own terms.
+
 ## What the service does
 
 {{PRODUCT}} is a remote MCP server. When you use it from Claude (or another MCP client), it reads the metadata of the
@@ -160,20 +180,77 @@ Entra ID, which ends every renewal.
 
 The service runs on Microsoft Azure in the EU (Sweden Central). It calls Microsoft Fabric, Microsoft Entra ID and Azure
 SQL on your behalf; Microsoft handles that under its own terms. Your MCP client receives the responses: when you use
-the service from Claude, Anthropic's privacy policy covers what Claude does with them. The website loads no third-party
+the service from Claude, Anthropic's privacy policy covers what Claude does with them; from ChatGPT, OpenAI's; from
+Microsoft Copilot or GitHub Copilot, Microsoft's or GitHub's; from VS Code or another MCP client, that client's
+provider's. Which client you connect is your own or your organisation's choice, and the provider you choose receives
+the answers under its terms with you, not ours. The website loads no third-party
 resources: fonts, scripts and images are served from {{DOMAIN}}, and there is no third-party analytics or tracking.
-The service counts only what *Usage statistics* above lists: the tool-call records, the page-view records of five pages and
+The service counts only what *Usage statistics* above lists: the tool-call records, the page-view records of four pages and
 the two /check events, written by the service itself to its own console{{#IF LOGS_KEPT_DAYS}} and its own Log Analytics workspace{{/IF}}.
 
 Where the tools' answers go, hosted and self-hosted:
 
 {{ACCESS_FLOWS}}
 
+## Why we may process it (legal bases)
+
+| What | Purpose | Legal basis (GDPR Art. 6(1)) |
+| --- | --- | --- |
+| Passing your Fabric metadata, counts, sample rows and query results through to your AI client | answering the tool call you made | (b) the contract with you or your organisation; for your organisation's data we act as its processor (Art. 28) |
+| Access tokens, sign-in records, rate-limit hashes | signing you in as yourself and keeping the service available and secure | (b) contract, and (f) our legitimate interest in a secure service |
+| Usage records, page-view records, technical logs | running, fixing and securing the service, counting use | (f) legitimate interest; the records carry no user id, name or e-mail |
+| Trial and subscription records (when switched on) | trials, plans, billing through Microsoft Marketplace | (b) contract, and (c) legal obligation for bookkeeping |
+| E-mail you send us | answering you | (f) legitimate interest, or (b) when it concerns a contract |
+
+You can object to processing based on legitimate interest by writing to {{CONTACT}}.
+
+## Who else processes it
+
+| Who | What for | Where |
+| --- | --- | --- |
+| Microsoft (Azure: Container Apps, Table Storage, Log Analytics; Microsoft Entra ID) | hosting the service, the sign-in records, the logs, signing you in | EU (Sweden Central) for the service; Entra ID per your organisation's tenant |
+| Microsoft Marketplace (when you buy there) | the purchase, billing and invoices | under Microsoft's terms |
+| The AI client you connect (for example Anthropic, OpenAI, Microsoft, GitHub) | receives the tools' answers in your chat | your choice, under that provider's terms |
+| GitHub (only if you open an issue there) | the issue tracker | under GitHub's terms |
+
+Microsoft processes data for Azure under its Products and Services Data Protection Addendum. Your own Microsoft
+Fabric, Entra ID and Purview stay under your organisation's agreement with Microsoft.
+
+## Transfers outside the EU and EEA
+
+The service and its records stay in Azure's Sweden Central region. A transfer outside the EU/EEA happens when you
+connect an AI client whose provider processes data elsewhere (for example in the United States); that is part of the
+client you chose and is covered by that provider's terms. Microsoft may handle support and security data outside the
+EU under its own safeguards (the EU Standard Contractual Clauses and the EU-U.S. Data Privacy Framework, where it
+relies on them).
+
+## How long it is kept
+
+In short: what Fabric returns, only for the request; access tokens, in memory until shortly before they expire;
+sign-in records, 10 minutes to 90 days and approvals 180 days (see the table above); usage records, page-view records
+and logs{{#IF LOGS_KEPT_DAYS}} {{LOGS_KEPT_DAYS}} days{{/IF}}{{#IF LOGS_NOT_KEPT}}, not stored{{/IF}}; trial and subscription records while the subscription lasts and then as long as
+bookkeeping rules require; e-mail, as long as needed for the matter.
+
+## Data processing for organisations
+
+When your organisation uses {{PRODUCT}} on its own Fabric data, Kruse Consulting AB processes that data only to answer
+the tool calls your users make, on your organisation's instructions, and keeps none of it (see *What we process*). The
+sub-processor is Microsoft Azure, listed above. A data processing agreement (Art. 28 GDPR) can be signed before a pilot
+or a subscription; ask for the current draft at {{CONTACT}}. Running {{PRODUCT}} in your own Azure tenant from the open
+code avoids us as a processor altogether.
+
 ## Contact and requests
 
-**Your rights.** Under the GDPR you can ask what we hold about you and have it deleted; in practice we hold nothing
+**Your rights.** Under the GDPR you can ask what we hold about you (access), have it corrected or deleted, restrict or
+object to its use, and receive data you gave us in a portable form; in practice we hold nothing
 about you beyond the console log described above{{#IF CLIENT_REGISTRATION}} and, when you sign in from an MCP client other than Claude, the
-sign-in records described above{{/IF}}, and the usage records carry no user id. Write to {{CONTACT}}. You can complain to the Swedish
-Authority for Privacy Protection (IMY).
+sign-in records described above{{/IF}}, and the usage records carry no user id. Write to {{CONTACT}}; we answer within one month.
+If you think we handle your data wrongly, you can complain to the Swedish Authority for Privacy Protection
+(Integritetsskyddsmyndigheten, IMY, imy.se), or to the authority where you live or work: in Switzerland the Federal
+Data Protection and Information Commissioner (FDPIC, edoeb.admin.ch), in the United Kingdom the Information
+Commissioner's Office (ICO, ico.org.uk). Swiss users have the same rights under the Swiss Federal Act on Data Protection.
 
-**Changes.** We date every change to this page. Last updated: 2026-11-07 (tokens per client, the permissions table, what is counted, the two data flows).
+**Cookies.** The website writes to your browser's storage only when you ask for it, and sets cookies only on the sign-in
+and purchase pages. The full list is on [Cookies and storage](/cookies).
+
+**Changes.** We date every change to this page. Last updated: 2026-11-15 (who is responsible, legal bases, who else processes data, transfers, retention, data processing for organisations, your rights and authorities, cookies; earlier, 2026-11-07: tokens per client, the permissions table, what is counted, the two data flows).

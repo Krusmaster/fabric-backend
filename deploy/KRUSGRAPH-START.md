@@ -56,6 +56,7 @@ Heter appen något utan `krusgraph`, eller finns det flera: lägg till `--app <n
    | `location`, `resource_group`, `environment`, `app`, `registry`, `identity` | resursnamnen i Sweden Central |
    | `product_name`, `contact_email` | visas på sajten och i sekretesspolicyn |
    | `company_orgnr` | organisationsnummer; visas på `/privacy` och i sidfoten. Tom sträng döljer raden. Sätts som `COMPANY_ORGNR` på container-appen av både full körning och `--update`. |
+   | `company_address`, `company_vat` | registrerad postadress och momsregistreringsnummer, bara om de ska skilja sig från eller komplettera `legal.py`; visas i sidfoten, på `/privacy`, `/terms`, `/cookies` och `/accessibility`. Tomt värde: adressen i `fabric_backend/legal.py` (registeruppgifterna) används. Sätts som `COMPANY_ADDRESS` och `COMPANY_VAT` av både full körning och `--update`. |
 
 ## Kontrollera och kör
 
@@ -91,7 +92,7 @@ cp ~/krusgraph.json deploy/           # om Cloud Shell har tömts (eller --from-
 bash deploy/krusgraph.sh --check && bash deploy/krusgraph.sh --update
 ```
 
-`--update` bygger en ny bild med `az acr build`, uppdaterar container-appen till den nya bilden (ny revision) och sätter de icke-hemliga miljövariablerna (`PRODUCT_NAME`, `CONTACT_EMAIL`, `COMPANY_ORGNR`, `MCP_PUBLIC_URL`, `ENTRA_CLIENT_ID`, `ENTRA_REQUIRED`) samt `KRUSGRAPH_BUILD` (bildens källmärke, `src-…`) från konfigurationen. Det rör inte Entra, hemligheter, domäner eller certifikat och frågar aldrig efter hemligheten; appens befintliga hemlighetsreferens behålls. Efteråt väntar scriptet tills `/healthz` svarar med just det bygget – en gammal revision som fortfarande svarar kan alltså inte passera – och kontrollerar sedan startsidan, `/explore`, `/start`, `/docs`, `/privacy`, demons plan-JSON, stilmallen, OAuth-metadatan och MCP-inloggningskravet på Azure-adressen. `azure-result.json` skrivs om (filen är git-ignorerad). Om appen inte finns ännu stoppar `--update` och hänvisar till den fulla körningen.
+`--update` bygger en ny bild med `az acr build`, uppdaterar container-appen till den nya bilden (ny revision) och sätter de icke-hemliga miljövariablerna (`PRODUCT_NAME`, `CONTACT_EMAIL`, `COMPANY_ORGNR`, `COMPANY_ADDRESS`, `COMPANY_VAT`, `MCP_PUBLIC_URL`, `ENTRA_CLIENT_ID`, `ENTRA_REQUIRED`) samt `KRUSGRAPH_BUILD` (bildens källmärke, `src-…`) från konfigurationen. Det rör inte Entra, hemligheter, domäner eller certifikat och frågar aldrig efter hemligheten; appens befintliga hemlighetsreferens behålls. Efteråt väntar scriptet tills `/healthz` svarar med just det bygget – en gammal revision som fortfarande svarar kan alltså inte passera – och kontrollerar sedan startsidan, `/explore`, `/start`, `/docs`, `/privacy`, demons plan-JSON, stilmallen, OAuth-metadatan och MCP-inloggningskravet på Azure-adressen. `azure-result.json` skrivs om (filen är git-ignorerad). Om appen inte finns ännu stoppar `--update` och hänvisar till den fulla körningen.
 
 ## Efter första körningen
 
