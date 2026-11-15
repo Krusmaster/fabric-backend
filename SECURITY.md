@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Email **gustav@krusgraph.com** — the same address as in `https://krusgraph.com/.well-known/security.txt`, whose
+Email **hello@krusgraph.com** — the same address as in `https://krusgraph.com/.well-known/security.txt`, whose
 Policy is the disclosure policy at `https://krusgraph.com/security` (scope, testing rules, what to expect). Please
 include what you found, how to reproduce it, and which version or commit it concerns. Do not open a public GitHub
 issue for a vulnerability, and do not test against other people's tenants or data.

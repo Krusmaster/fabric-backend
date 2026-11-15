@@ -150,7 +150,7 @@ def robots_txt() -> str:
 # n59: /.well-known/security.txt (RFC 9116). Expires is a fixed date, renewed by hand before it passes;
 # tests/test_site_extras.py fails once it is less than 30 days away, as the reminder. n211: Policy is the site's own
 # disclosure policy page, /security (page_templates/SECURITY-POLICY.md), no longer the file on GitHub.
-SECURITY_CONTACT = "mailto:gustav@krusgraph.com"
+SECURITY_CONTACT = "mailto:hello@krusgraph.com"           # G1, 15 Nov 2026: the company address, as on the rest of the site
 SECURITY_EXPIRES = "2027-10-30T00:00:00Z"
 SECURITY_POLICY_PATH = "/security"
 

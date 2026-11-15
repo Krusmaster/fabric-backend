@@ -19,7 +19,7 @@ Where an incident can come from, and what exists today:
 
 | Source | What | Status today |
 | --- | --- | --- |
-| Reports | A vulnerability report to `gustav@krusgraph.com` (`SECURITY.md`, `/.well-known/security.txt`); a customer telling us | In place |
+| Reports | A vulnerability report to `hello@krusgraph.com` (`SECURITY.md`, `/.well-known/security.txt`); a customer telling us | In place |
 | Alerts | Two Azure Monitor alerts to one email address: the server answers 5xx, and `/health` fails from two of three locations (`docs/OPERATIONS.md` §4) | **Written, not yet switched on** (`docs/SECURITY.md`, open question 11) |
 | Logs | Content-free route and usage lines in Log Analytics (no token, body, table contents, item names, user id or IP) (`docs/TRUST-PACK.md` §2) | When Log Analytics is switched on; retention on `/it` |
 | Dependencies | Weekly `pip-audit`, Dependabot pull requests, GitHub security advisories (`.github/workflows/audit.yml`, `.github/dependabot.yml`) | In place |
@@ -97,7 +97,7 @@ What the notice contains:
 5. What Krusgraph has done (containment) and what it will do next.
 6. What the customer can do now (for example remove consent in Entra, check items created in the window).
 7. Whether personal data may be involved, for the customer's own GDPR assessment.
-8. When the next update will come, and the contact: the founder, `gustav@krusgraph.com`.
+8. When the next update will come, and the contact: the founder, `hello@krusgraph.com`.
 
 Do not wait for a full picture to send the first notice; say what is not known.
 
@@ -115,8 +115,8 @@ one month after their notification). Update `docs/RISK-REGISTER.md` and, if a ro
 ## 6. What the founder must decide
 
 1. **The notification target** in section 4: confirm it, or change it to one that can be met alone.
-2. **The security contact address**: keep `gustav@krusgraph.com`, or add a role address such as
-   `security@krusgraph.com`.
+2. **The security contact address**: `hello@krusgraph.com` since 15 November 2026 (G1, the company address used across the site); add a role
+   address such as `security@krusgraph.com` later, or keep it.
 3. **Switch on the alerts and Log Analytics** (`docs/OPERATIONS.md` §4), so incidents are detected by more than
    reports.
 4. **A deputy** or a fallback for when the founder is unavailable (`docs/OPERATIONS.md` §9), or say plainly that there

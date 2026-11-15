@@ -5,7 +5,7 @@ same address is in [/.well-known/security.txt](/.well-known/security.txt) (RFC 9
 
 ## How to report
 
-Email **[gustav@krusgraph.com](mailto:gustav@krusgraph.com)**, in English or Swedish. Please include:
+Email **[hello@krusgraph.com](mailto:hello@krusgraph.com)**, in English or Swedish. Please include:
 
 - what you found and where (the hosted service at krusgraph.com, the Fabric workload, or the open-source code);
 - how to reproduce it, step by step;

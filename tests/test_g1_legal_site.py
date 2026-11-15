@@ -186,3 +186,17 @@ def test_in_a_browser_nothing_third_party_nothing_stored_contrast_names_and_the_
         assert report["problems"] == [], report["problems"][:20]
     finally:
         proc.terminate(); proc.wait(timeout=10)
+
+
+def test_no_personal_address_on_the_site(client):
+    """G1 (15 November 2026): every address the site gives is the company's, hello@krusgraph.com (the test deployment's
+    CONTACT_EMAIL here); no personal mailbox on a page, its Markdown twin, security.txt, llms.txt or the attestation."""
+    from fabric_backend.pages import MARKDOWN_TWINS
+    paths = (PUBLIC_PAGES + [p + ".md" for p in MARKDOWN_TWINS]
+             + ["/.well-known/security.txt", "/llms.txt", "/llms-full.txt", "/workload/attestation", "/workload/attestation.md"])
+    for path in paths:
+        r = client.get(path)
+        assert r.status_code == 200, path
+        for address in re.findall(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", r.text):
+            if "." in address.split("@")[1] and not address.endswith((".js", ".css", ".png", ".svg", ".woff2", ".webp")):
+                assert address.split("@")[0] in {"hello", "security", "noreply"} and "gmail" not in address, (path, address)

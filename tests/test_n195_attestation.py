@@ -207,7 +207,7 @@ def test_states_the_facts_the_founder_asked_for():
     md = attestation_md()
     assert "No row values" in md and "Delegated permissions only" in md and "no application permissions" in md
     assert "Azure Container Apps" in md and "Sweden Central" in md
-    assert "gustav@krusgraph.com" in md                              # SECURITY.md and security.txt
+    assert "hello@krusgraph.com" in md and "gustav@" not in md       # SECURITY.md and security.txt (G1: the company address)
     for scope in ("Fabric.Extend", "Lakehouse.Read.All", "Item.ReadWrite.All", "user_impersonation", "DataPipeline.Execute.All"):
         assert scope in md, scope
     for gap in ("penetration test", "service level agreement", "publisher verification", "Marketplace offer"):
