@@ -280,6 +280,48 @@
             "type": "string",
             "minLength": 1,
             "description": "The part of the business the table belongs to, in the system's own words (customers, subscriptions, billing, product catalog, sales). The domain proposal (domains.py) names a proposed domain after the areas of the pack tables in it, as it names SAP domains after their part of order-to-cash."
+          },
+          "source_name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The name as the source system spells it, when the pack's upper-case name differs: a released CDS view (I_SalesDocument for I_SALES_DOCUMENT). Names are compared without case and underscores, so the pack's name reads the source's."
+          },
+          "aliases": {
+            "$ref": "#/definitions/columns",
+            "description": "Other names a landing gives the table: a CDS view without its I_ prefix (SALES_DOCUMENT for I_SalesDocument). Compared without case and underscores; the key columns must be there as for the name itself."
+          },
+          "common_alias": {
+            "type": "boolean",
+            "description": "An alias of the table is an ordinary word another system's table can carry (Customer, Product). Found by its alias, the table does not make a schema this pack's on its own (sap_pack.distinctive); found by its own name it does."
+          },
+          "source_columns": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+            },
+            "description": "The columns the pack names on the table in the source's own spelling (SalesDocumentItem for SALES_DOCUMENT_ITEM). Every column the pack uses on the table must be among them (sap_pack.problems)."
+          },
+          "corresponds_to": {
+            "type": "object",
+            "required": [
+              "table",
+              "sources"
+            ],
+            "additionalProperties": false,
+            "description": "The table of the same pack whose rows the view reads (I_SalesDocument ~ VBAK), with what differs and the source of the statement. A mapping for a person; the engine does not join through it.",
+            "properties": {
+              "table": {
+                "$ref": "#/definitions/name"
+              },
+              "note": {
+                "type": "string"
+              },
+              "sources": {
+                "$ref": "#/definitions/source_ids"
+              }
+            }
           }
         }
       }
@@ -425,6 +467,11 @@
                 }
               }
             }
+          },
+          "association": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The CDS association(s) the relationship is written from, with the cardinality the view declares: 'I_SalesDocumentItem._SalesDocument [1..1]; I_SalesDocument._Item [0..*]'."
           }
         }
       }

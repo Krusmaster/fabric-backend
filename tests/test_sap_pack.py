@@ -34,11 +34,14 @@ def test_the_merged_pack_is_consistent():
 
 def test_every_claim_has_a_source_and_every_client_specific_key_starts_with_the_client():
     p = sap_pack.load()
+    views = {n for n, t in p["tables"].items() if t.get("source_name")}       # n230: a CDS view lists no client field
     for t in p["tables"].values():
-        assert t["sources"] and t["key"][0] in sap_pack.CLIENT_COLUMNS, t["name"]
+        assert t["sources"], t["name"]
+        assert (t["key"][0] in sap_pack.CLIENT_COLUMNS) == (t["name"] not in views), t["name"]
     for r in p["relationships"]:
         assert r["sources"], r
-        assert r["source_cols"][0] in sap_pack.CLIENT_COLUMNS and r["target_cols"][0] in sap_pack.CLIENT_COLUMNS, r
+        assert (r["source"] in views) == (r["target"] in views), r               # a view is never joined to a table
+        assert (r["source_cols"][0] in sap_pack.CLIENT_COLUMNS and r["target_cols"][0] in sap_pack.CLIENT_COLUMNS) == (r["source"] not in views), r
 
 
 def test_no_customer_specific_tables():

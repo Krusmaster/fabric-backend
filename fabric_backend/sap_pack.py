@@ -18,7 +18,10 @@ pipeline's table list (exports.py). Nothing here connects to anything.
                                       the pack's (rule "SAP mirror metadata", round n129; m comes from sap_mirror.read)
 
 A table matches on its name without case, schema or a leading `sap_`/`raw_`/`stg_`/`bronze_` word (`VBAK`, `vbak`,
-`sap_vbak`, `bronze.SAP_VBAK`), and only when its key columns are there. When an extract has dropped the client
+`sap_vbak`, `bronze.SAP_VBAK`), and only when its key columns are there. Since round n230 the name is compared without
+underscores too, and a table can list `aliases`: a released CDS view is written `I_SALES_DOCUMENT` in the pack and is
+found as `I_SalesDocument`, `i_salesdocument`, `I_SALES_DOCUMENT`, `cds_i_salesdocument` and, by its alias, as
+`SalesDocument` (pack_table). Columns were always compared that way (`SalesDocumentItem` is `SALES_DOCUMENT_ITEM`). When an extract has dropped the client
 column, the client is left out of keys and relationships on both sides, and the match says so.
 A pack is a suggestion with a source, not evidence: validate_plan checks its relationships against the rows.
 """
@@ -35,7 +38,8 @@ RULE = "SAP pack"
 MIRROR_RULE = "SAP mirror metadata"       # n129: keys (and descriptions) a mirrored source declares; see sap_mirror.py
 CLIENT_COLUMNS = ("MANDT", "RCLNT", "CLIENT")      # BUT000 and the CVI link tables name it CLIENT
 # words a landing puts in front of a source table's name: a layer (raw, bronze) or the system (sap, younium, sf)
-_LEADING = ("sap", "raw", "stg", "src", "bronze", "landing", "mirror", "mirrored", "ext", "extract", "younium", "sf", "salesforce", "crm")
+_LEADING = ("sap", "raw", "stg", "src", "bronze", "landing", "mirror", "mirrored", "ext", "extract", "younium", "sf", "salesforce", "crm",
+            "cds", "s4", "s4hana")
 
 
 def available() -> list[str]:
@@ -82,6 +86,26 @@ def problems(pack: dict) -> list[str]:
                 out.append(f"{t['name']}: unknown variant {v!r}")
         if len(set(t["key"])) != len(t["key"]):
             out.append(f"{t['name']}: a key column is repeated")
+        c = t.get("corresponds_to")                                      # n230: the table a CDS view reads (I_SalesDocument ~ VBAK)
+        if c:
+            if c["table"] not in tables:
+                out.append(f"{t['name']}: corresponds_to names {c['table']!r}, a table the pack does not describe")
+            out += [f"{t['name']}: corresponds_to: unknown source {s!r}" for s in c["sources"] if s not in sources]
+        if t.get("source_columns"):                                      # n230: the source's own spelling of the columns
+            spelled = {_norm(c) for c in t["source_columns"]}
+            named = set(t["key"]) | {a["column"] for a in t.get("amounts", []) + t.get("quantities", [])}
+            for f in ("number_columns", "delta", "currency_columns", "unit_columns"):
+                named |= set(t.get(f, []))
+            named |= {x["column"] for x in t.get("personal", [])}
+            for r in pack["relationships"]:
+                named |= set(r["source_cols"]) if r["source"] == t["name"] else set()
+                named |= set(r["target_cols"]) if r["target"] == t["name"] else set()
+            out += [f"{t['name']}: column {c} is not among its source_columns" for c in sorted(named) if _norm(c) not in spelled]
+    seen: dict[str, str] = {}
+    for t in tables.values():                                            # n230: names and aliases are compared without underscores
+        for n in [t["name"]] + list(t.get("aliases", [])):
+            if seen.setdefault(_norm(n), t["name"]) != t["name"]:
+                out.append(f"{t['name']}: the name or alias {n} is also {seen[_norm(n)]}'s (compared without underscores)")
     for r in pack["relationships"]:
         name = f"{r['source']}.{'+'.join(r['source_cols'])} -> {r['target']}"
         for s in r["sources"]:
@@ -132,6 +156,26 @@ def table_name(name: str) -> str:
     return "_".join(words).upper()
 
 
+@lru_cache(maxsize=None)
+def _names(pack: str) -> dict[str, tuple[str, bool]]:
+    """Every name a pack's tables answer to, without case and underscores -> (the pack's name, whether it is an alias)."""
+    out: dict[str, tuple[str, bool]] = {}
+    tables = load(pack)["tables"]
+    for n in tables:
+        out[_norm(n)] = (n, False)
+    for n, t in tables.items():
+        for a in t.get("aliases", []):
+            out.setdefault(_norm(a), (n, True))
+    return out
+
+
+def pack_table(name: str, pack: str = "sap") -> str | None:
+    """The pack table a schema table's name means, or None: `bronze.SAP_VBAK` -> `VBAK`, `I_SalesDocument` and
+    `SalesDocument` -> `I_SALES_DOCUMENT` (round n230: without underscores, and by the aliases a table lists)."""
+    found = _names(pack).get(_norm(table_name(name)))
+    return found[0] if found else None
+
+
 @dataclass
 class Match:
     pack: str
@@ -147,6 +191,8 @@ class Match:
     key_rules: dict[str, str] = field(default_factory=dict)     # schema table -> RULE or MIRROR_RULE (n129)
     mirror: dict[str, dict] = field(default_factory=dict)       # schema table -> its entry of the mirror metadata (n129)
     mirror_problems: list[dict] = field(default_factory=list)   # mirror metadata that could not be used, with why (n129)
+    columns: dict[str, dict[str, str]] = field(default_factory=dict)   # schema table -> normalised column -> the schema's spelling (n230)
+    by_alias: list[str] = field(default_factory=list)           # schema tables recognised by an alias, not the pack's own name (n230)
 
     def source_of(self, ids: list[str]) -> list[dict]:
         pack = load(self.pack)
@@ -194,8 +240,10 @@ def match(schema, pack: str = "sap", variant: str | None = None, mirror: dict | 
     dropped: list[str] = []
     keyless: list[str] = []
     taken: set[str] = set()
+    names = _names(pack)
+    by_alias: list[str] = []
     for t in schema:
-        name = table_name(t.name)
+        name, alias = names.get(_norm(table_name(t.name)), (None, False))
         pt = p["tables"].get(name)
         if pt is None or name in taken:
             continue
@@ -213,6 +261,7 @@ def match(schema, pack: str = "sap", variant: str | None = None, mirror: dict | 
                 cols[t.name] = have
                 keys[t.name] = [have[_norm(c)] for c in mk]
                 key_rules[t.name] = MIRROR_RULE
+                by_alias += [t.name] if alias else []
                 continue
             if lacking:
                 mirror_problems.append({"table": t.name, "why": f"the mirror metadata names key column(s) the table lacks: {', '.join(lacking)}; "
@@ -228,6 +277,7 @@ def match(schema, pack: str = "sap", variant: str | None = None, mirror: dict | 
             dropped.append(t.name)
         keys[t.name] = [have[_norm(c)] for c in key]
         key_rules[t.name] = RULE
+        by_alias += [t.name] if alias else []
     if len(found) < 2:
         return None
     by_pack = {v: k for k, v in found.items()}
@@ -308,7 +358,7 @@ def match(schema, pack: str = "sap", variant: str | None = None, mirror: dict | 
     if seen:                                                              # BSEG is not missing from an S/4HANA schema
         missing_tables = {n for n in missing_tables if not p["tables"][n].get("variants") or seen in p["tables"][n]["variants"]}
     return Match(pack, found, keys, applied, not_applied, sorted(missing_tables), missing_cols, dropped, hint, keyless,
-                 key_rules, {t: e for t, e in entries.items() if t in found}, mirror_problems)
+                 key_rules, {t: e for t, e in entries.items() if t in found}, mirror_problems, cols, by_alias)
 
 
 def match_any(schema, variant: str | None = None) -> Match | None:
@@ -331,9 +381,12 @@ def match_any(schema, variant: str | None = None) -> Match | None:
 
 
 def distinctive(m: Match) -> list[str]:
-    """The pack tables of a match whose names are the system's own (not marked common_name), sorted."""
+    """The pack tables of a match whose names are the system's own (not marked common_name), sorted. A table found by
+    an alias marked `common_alias` (round n230: `Customer`, `Product` for the CDS views I_Customer, I_Product) is an
+    ordinary word too and does not count; found as `I_Customer` it does."""
     tables = load(m.pack)["tables"]
-    return sorted(n for n in set(m.tables.values()) if not tables[n].get("common_name"))
+    return sorted({n for t, n in m.tables.items()
+                   if not tables[n].get("common_name") and not (t in m.by_alias and tables[n].get("common_alias"))})
 
 
 def plan_with(schema, pack: str, **kwargs):
@@ -360,7 +413,10 @@ def amounts(m: Match) -> list[dict]:
     """Every amount the pack knows on a matched table, with its level and currency column. An amount on a table that
     others point at many-to-one (VBAK.NETWR for VBAP, VBAP.NETWR for VBEP) is repeated by a join with them."""
     p = load(m.pack)
-    return [{"table": t, "column": a["column"], "level": a["level"], "currency": a["currency"]}
+    def spell(t: str, c: str) -> str:                               # n230: the schema's spelling where the names differ by more
+        have = m.columns.get(t, {}).get(_norm(c), c)                # than case (NetAmount for NET_AMOUNT; NETWR stays NETWR)
+        return c if have.lower() == c.lower() else have
+    return [{"table": t, "column": spell(t, a["column"]), "level": a["level"], "currency": spell(t, a["currency"])}
             for t, name in m.tables.items() for a in p["tables"][name].get("amounts", [])]
 
 
@@ -381,12 +437,15 @@ def draft(plan, source_name: str = "sap", export: str = "none", variant: str | N
         raise PlanInputError(f"variant: {variant!r} is not one of {', '.join(p['variants'])}")
     m = match(plan.schema, "sap", variant, mirror=mirror)
     if m is None:
-        near = [t.name for t in plan.schema if table_name(t.name) in p["tables"]]
+        near = [t.name for t in plan.schema if pack_table(t.name)]
         return {"summary": "no SAP tables recognised (the pack needs two or more of its tables with their key columns); the plan "
                            "is the name rules' alone" + (f". Names the pack knows but without their key columns: {', '.join(near)}" if near else ""),
                 "pack_tables": sorted(p["tables"]), "modules": p["modules"], "pack_manifest": pack_manifest.header("sap")}
     srcs = lambda ids: [{"title": p["sources"][i]["title"], "url": p["sources"][i]["url"], "fetched": p["sources"][i]["fetched"]} for i in ids]
-    tables = [{"table": t, "pack_table": n, "level": p["tables"][n]["level"], "en": p["tables"][n]["en"], "de": p["tables"][n]["de"],
+    tables = [{"table": t, "pack_table": n, "level": p["tables"][n]["level"], "en": p["tables"][n]["en"],
+               **({"de": p["tables"][n]["de"]} if "de" in p["tables"][n] else {}),
+               **({"source_name": p["tables"][n]["source_name"]} if p["tables"][n].get("source_name") else {}),
+               **({"corresponds_to": p["tables"][n]["corresponds_to"]["table"]} if p["tables"][n].get("corresponds_to") else {}),
                "key": m.keys[t], **({"note": p["tables"][n]["note"]} if p["tables"][n].get("note") else {}),
                "sources": srcs(p["tables"][n]["sources"])} for t, n in m.tables.items()]
     if mirror is not None:
@@ -448,12 +507,12 @@ def _mirror_fields(m: Match, table: str, pack_table: dict) -> dict:
 def _pack_relationship(entry: dict, pack: dict) -> tuple[int, dict] | None:
     """The pack relationship a validate_plan entry checked: same tables by pack name, same columns (the client may have
     been dropped by the extract)."""
-    src, tgt = table_name(entry["source"]), table_name(entry["target"])
-    cols = {c.upper() for c in entry["columns"]}
+    src, tgt = pack_table(entry["source"], pack["pack"]), pack_table(entry["target"], pack["pack"])
+    cols = {_norm(c) for c in entry["columns"]}
     for i, r in enumerate(pack["relationships"]):
         if r["source"] != src or r["target"] != tgt:
             continue
-        mine = set(r["source_cols"])
+        mine = {_norm(c) for c in r["source_cols"]}
         if cols <= mine and mine - cols <= set(CLIENT_COLUMNS):
             return i, r
     return None
@@ -490,7 +549,7 @@ def verification(validation: dict, where: str, when: str, pack: str = "sap") -> 
         rows.append({"module": r["module"], "index": i, "source": r["source"], "source_cols": r["source_cols"], "target": r["target"],
                      "kind": r.get("kind", "key"), "proposal": proposal, "why": why,
                      "evidence": {"rows_with_value": n, "orphans": orphans, "several": several}})
-    checked = {table_name(k["table"]) for k in validation.get("keys", [])}
+    checked = {pack_table(k["table"], pack) for k in validation.get("keys", [])}
     for i, r in enumerate(p["relationships"]):
         if i not in seen and r["source"] in checked and r["target"] in checked:
             rows.append({"module": r["module"], "index": i, "source": r["source"], "source_cols": r["source_cols"], "target": r["target"],
@@ -541,6 +600,7 @@ def write_verified(report: dict, pack: str = "sap") -> list[str]:
         json.loads(text)
         path.write_text(text, encoding="utf-8")
     _load.cache_clear()
+    _names.cache_clear()
     return changed
 
 

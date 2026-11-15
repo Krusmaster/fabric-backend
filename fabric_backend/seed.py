@@ -5,6 +5,7 @@
     seed(spark, schema="shop")
     seed(spark, schema="shop", mill=True)      # also the synthetic manufacturing company in its own schema 'mill'
     seed(spark, schema="shop", sap=True)       # also the SAP-shaped samples sap_sd and sap_mm (synthetic, not SAP data)
+    seed(spark, schema="sap_cds")              # only the CDS-view-shaped sample (n230: I_SalesDocument, ...; synthetic, not SAP data)
 
 Seven tables shaped like examples/columns.csv (plus a list price on the products), deterministic (same rows every run), no real names or companies
 beyond obviously invented ones. This is what reviewers of the Claude directory listing connect to — never a
@@ -109,10 +110,19 @@ def seed(spark, schema: str = "shop", seed_value: int = 42, mill: bool = False, 
     to `mill_schema`; their counts come back as "mill.<table>". The shop is written either way and stays the default.
     sap=True (default off, n202) also writes the two SAP-shaped samples of fabric_backend/sap_sample.py, synthetic and
     not SAP data, to the schemas `sap_sd` (order to invoice) and `sap_mm` (purchase to pay); counts as "sap_sd.VBAK".
+    schema="sap_cds" (n230) writes only the sample shaped like released SAP CDS views (fabric_backend/sap_cds_demo.py:
+    I_SalesDocument, I_SalesDocumentItem, ..., synthetic and not SAP data) to that schema, and not the shop.
 
     On a lakehouse without schemas the tables go to the default schema (`dbo` as seen by the SQL endpoint) instead,
     with a printed note, so they are visible to Krusgraph; use schema="dbo" in the tools then. The mill's tables are
     then not written (they would overwrite nothing of the shop's, but two companies in one schema read as one)."""
+    if schema.lower() == "sap_cds":                 # n230: the sample shaped like released SAP CDS views, and nothing else
+        from . import sap_cds_demo
+        if not schemas_enabled(spark):
+            print("This lakehouse was created without 'Lakehouse schemas', so a 'sap_cds' schema would be invisible to its SQL "
+                  "endpoint. Writing the tables to the default schema instead: use schema='dbo' in Krusgraph.")
+            return sap_cds_demo.seed(spark, None)
+        return sap_cds_demo.seed(spark, schema)
     target = schema
     if schema.lower() != "dbo" and not schemas_enabled(spark):
         print(f"This lakehouse was created without 'Lakehouse schemas', so a '{schema}' schema would be invisible "
