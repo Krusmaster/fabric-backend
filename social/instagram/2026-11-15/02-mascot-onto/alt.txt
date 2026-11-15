@@ -1,0 +1,1 @@
+Onto, a round green mascot, on a pale green circle. Text: 'Onto. Draws the map. I show which tables connect, and the rule behind every link.' A stats line: in our SAP-shaped example, 17 tables, 24 links, each naming its rule.

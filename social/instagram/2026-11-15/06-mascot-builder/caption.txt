@@ -1,0 +1,15 @@
+Meet Builder. Builder builds, but only after your yes.
+
+"I show you a dry run first, and I build only when you say yes."
+
+When the map is drawn and the rows are counted, Builder proposes what to create in Microsoft Fabric: the semantic model and the report, with the names it would use. You see the dry run first. In the guided path, nothing is written until you confirm.
+
+"Start Krusgraph" is 9 steps. 8 of them only read. The last one is "Create, only on your confirmation".
+
+So far the model and the report have been created live on our example data, not yet at a customer.
+
+Onto draws the map, Thinker counts, Builder builds. Behind all three: rules and counts, open source (MIT).
+
+#MicrosoftFabric #PowerBI #SemanticModel #DataModeling #DataEngineering #Krusgraph #OpenSource
+
+Try it in your browser: krusgraph.com/check (link in bio)
