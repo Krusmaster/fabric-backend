@@ -465,7 +465,7 @@ def choose_md() -> str:
 
 
 # n205: "Why not just Microsoft's tools?", the short comparison on /choose (linked from /docs). Plain text names, no logos;
-# each row says what the tool does in the words of its own pages as docs/COMPANION-MCP.md and docs/FAQ-COMPETITION.md
+# each row says what the tool does in the words of its own pages as docs/COMPANION-MCP.md
 # quote them, and what Krusgraph adds; nothing about what they cannot do, no measurement (none exists), nothing non-public.
 ALTERNATIVES_H = "Why not just Microsoft's tools?"
 ALTERNATIVES_ID = "why-not-microsoft"

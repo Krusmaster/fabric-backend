@@ -188,7 +188,7 @@ krusgraph.com (DCR is on there per LIVE-TEST), wrong for a self-hosted server. F
 operator has turned DCR on)".
 
 **L19. Repo docs that predate 28 October still say the hosted app lacks the write permissions.**
-`docs/NOTEBOOKS.md:153-156`, `docs/SEGMENTATION.md:92-93`, `docs/DEPLOY-NEXT.md:67-72` against `access.py:51-63`;
+`docs/NOTEBOOKS.md:153-156`, `docs/SEGMENTATION.md:92-93` (since moved out of this repository), `docs/DEPLOY-NEXT.md:67-72` against `access.py:51-63`;
 `docs/INFERENCE.md:272` says 36 tools (39); `docs/SITE.md:150,192` lists chat steps `fix`, `dbt` and the label "Write
 dbt tests" that `chat-demo.js:16,474-480` does not have; `deploy/KRUSGRAPH-START.md:144` and
 `deploy/azure_containerapp.py:203-204,843` still carry `KRUSGRAPH_ONTOLOGY_WRITE`, which no module reads

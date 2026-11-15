@@ -646,7 +646,7 @@ each line says where one lives.
 | `KRUSGRAPH_METRICS_TOKEN` | unset (404) | enables `/metrics` for this bearer token (32+ characters) |
 | `KRUSGRAPH_LOG_RETENTION_DAYS` | unset | tells `/privacy` that console logs are kept that many days |
 | `KRUSGRAPH_ACCESS_LOG` | on | `0` drops uvicorn's per-request line with the client IP |
-| `KRUSGRAPH_ENTITLEMENTS` | `0` | the dormant paid-plan check, see `docs/PRICING-NOTES.md` |
+| `KRUSGRAPH_ENTITLEMENTS` | `0` | the dormant paid-plan check, see `docs/ENTITLEMENTS.md` |
 | `KRUSGRAPH_TRIAL` | `0` | n213: the 30-day trial per organisation, then a Marketplace subscription (`docs/BILLING-MODEL.md`) |
 | `KRUSGRAPH_PUBLISHER_TENANT_ID`, `KRUSGRAPH_TRIAL_EXEMPT_TENANTS` | `KRUSGRAPH_MARKETPLACE_TENANT_ID`, unset | the tenants the trial never gates |
 | `KRUSGRAPH_PLAN_USER_CAPS` | unset | `{"<plan id>": <users>}`: the warning over a plan's users |
