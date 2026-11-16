@@ -112,7 +112,7 @@ def test_a_file_name_that_is_not_a_package_is_refused(tmp_path):
 def test_ci_keeps_the_validated_package_as_an_artifact():
     ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     job = ci.split("\n  workload:")[1]
-    for word in ("git fetch --unshallow", "validate_package.py", "--require-xsd", "VALIDATION.md", "SHA256SUMS.txt",
+    for word in ("git fetch --unshallow", "set -o pipefail", "libxml2-utils", "validate_package.py", "--require-xsd", "VALIDATION.md", "SHA256SUMS.txt",
                  "steps.modeler.outputs.artifact", "if-no-files-found: error"):
         assert word in job, word
     assert "upload_workload" not in job.lower() and "fabric.microsoft.com" not in job

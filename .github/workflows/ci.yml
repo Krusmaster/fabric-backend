@@ -101,11 +101,14 @@ jobs:
         id: modeler
         working-directory: .
         run: |
+          set -o pipefail
           name=$(python3 -c "import importlib.util as u; s=u.spec_from_file_location('b','workload/scripts/build_package.py'); m=u.module_from_spec(s); s.loader.exec_module(m); print(m.WORKLOAD_NAME)")
           out="$RUNNER_TEMP/modeler"
           python3 workload/scripts/build_package.py --frontend-app-id 853a0cf0-7d35-42b7-b384-26178755a72a --out "$out" | tee -a "$GITHUB_STEP_SUMMARY"
           pkg=$(ls "$out"/"$name".*.nupkg)
-          python3 workload/scripts/validate_package.py "$pkg" --require-xsd --report "$out/VALIDATION.md" >> "$GITHUB_STEP_SUMMARY"
+          # xmllint (libxml2-utils) checks the XML against the kit's XSDs; the runner image does not always carry it
+          command -v xmllint >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq libxml2-utils; }
+          python3 workload/scripts/validate_package.py "$pkg" --require-xsd --report "$out/VALIDATION.md" | tee -a "$GITHUB_STEP_SUMMARY"
           (cd "$out" && sha256sum "$(basename "$pkg")" > SHA256SUMS.txt)
           echo "artifact=$(basename "$pkg" .nupkg)" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
