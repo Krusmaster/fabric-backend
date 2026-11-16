@@ -65,7 +65,8 @@ FLOW_CARD_TOOLS = ("dbt_schema",)
 ACTION_TOOLS = CARD_TOOLS + ("validate_plan", "domain_draft")
 BUILD_TOOLS = ("create_semantic_model", "create_ontology", "create_backend", "create_report")
 # What a button may ask for: the read tools by name, the creating tools only as a dry run or as Create after one.
-ALLOWED = {"validate_plan": "call", "plan_backend": "call", **{t: "build" for t in BUILD_TOOLS}}
+ALLOWED = {"validate_plan": "call", "plan_backend": "call", "verify_build": "call",       # n229: verify_build only reads
+           **{t: "build" for t in BUILD_TOOLS}}
 SUFFIX = {"create_semantic_model": "model", "create_ontology": "ontology", "create_backend": "api"}
 LABEL = {"create_semantic_model": "Build a semantic model", "create_ontology": "Create an ontology",
          "create_backend": "Create an API for GraphQL", "create_report": "Create a report on it"}
@@ -129,10 +130,23 @@ def _shown(args: dict) -> str:
 
 
 def action(kind: str, label: str, who: str, tool: str | None = None, arguments: dict | None = None,
-           name: str | None = None, url: str | None = None, product: str | None = None) -> dict:
+           name: str | None = None, url: str | None = None, product: str | None = None, why: str | None = None,
+           say: str | None = None, secondary: bool = False) -> dict:
     """One button: {kind, label, who, tool, arguments, name, say}. `say` is the exact prompt the card sends to the chat
-    when the host does not run tools from the card, and what a text client reads as the next step."""
+    when the host does not run tools from the card, and what a text client reads as the next step. n229: `why` is the
+    mascot's one sentence under the button; kind "say" only sends its sentence to the chat (it runs no tool from the
+    card); kind "done" is no button, a line saying the step is already built; `secondary` draws a Create as an ordinary
+    button, after the step that should come first (after_create's gate)."""
     out = {"kind": kind, "label": label, "who": who}
+    if why:
+        out["why"] = why
+    if secondary:
+        out["secondary"] = True
+    if kind in ("say", "done"):
+        if name:
+            out["name"] = name
+        out["say"] = str(say or (f"{label}: already built" + (f" ({name})" if name else "") + "."))[:2000]
+        return out
     if tool:
         out["tool"], out["arguments"] = tool, dict(arguments or {})
     if name:
@@ -240,12 +254,20 @@ def actions_for(tool: str, args: dict, answer: dict, taken=None, workspace_id: s
             if not alt:
                 return [], note
             return [action("dry_run", f"Use {alt}", "builder", tool, {**args, "name": alt, "dry_run": True}, name=alt)], note
+        gate = answer.get("gate") if isinstance(answer.get("gate"), dict) else None
+        if gate and isinstance(gate.get("first"), dict) and gate.get("said"):    # n229: the fix first, Create second
+            first = _step_action(gate["first"], args)
+            create = action("create", str(gate.get("create") or "Create anyway"), "builder", tool, {**args, "dry_run": False}, name=name,
+                            why="It can be created as it is, and it would be of little use until the step above is done.", secondary=True)
+            return ([first] if first else []) + [create], str(gate["said"])
         return [action("create", "Create", "builder", tool, {**args, "dry_run": False}, name=name)], None
     if tool in BUILD_TOOLS and answer.get("dry_run") is False:
         result = answer.get("result") if isinstance(answer.get("result"), dict) else {}
         if result.get("status") != "Succeeded" or not result.get("id") or not workspace_id:
             return [], None
         out = [action("link", "Open in Fabric", "builder", url=open_url(workspace_id, tool, result["id"]))]
+        if isinstance(answer.get("next_steps"), list):                # n229: the data product's next steps, as buttons
+            return out + lifecycle_actions(answer, args), None
         if tool == "create_semantic_model" and taken is not None:
             model = args.get("name")
             name = free_name(f"{model}_report", set(taken) | {model})
@@ -253,6 +275,39 @@ def actions_for(tool: str, args: dict, answer: dict, taken=None, workspace_id: s
                               {**_carried(args, "workspace"), "model": model, "name": name, "dry_run": True}, name=name))
         return out, None
     return [], None
+
+
+def _step_action(s: dict, call: dict) -> dict | None:
+    """n229: one of the answer's own next steps ({label, who, why, tool, args, ask}, after_create.py) as a button: the
+    read-only verify_build as a call, a creating tool only as a dry run, anything else as its sentence for the chat."""
+    if not isinstance(s, dict) or not isinstance(s.get("label"), str) or not s["label"].strip() or s.get("state"):
+        return None
+    who = s.get("who") if s.get("who") in ("builder", "thinker", "onto") else "builder"
+    t, a = s.get("tool"), s.get("args") if isinstance(s.get("args"), dict) else None
+    if t and a is not None and ALLOWED.get(t) == "call":
+        out = action("call", s["label"], who, t, a, why=s.get("why"))
+        if isinstance(s.get("ask"), str) and s["ask"].strip():
+            out["say"] = s["ask"][:2000]
+        return out
+    if t and a is not None and ALLOWED.get(t) == "build":
+        return action("dry_run", s["label"], who, t, {**a, "dry_run": True}, name=a.get("name"), why=s.get("why"))
+    if isinstance(s.get("ask"), str) and s["ask"].strip():
+        return action("say", s["label"], who, why=s.get("why"), say=s["ask"])
+    return None
+
+
+def lifecycle_actions(answer: dict, call: dict) -> list[dict]:
+    """n229: after a Create that succeeded, the answer's next_steps as buttons in their order, then what is already
+    built (no button: a line), then More (the dbt project, labelled a draft)."""
+    out = [a for a in (_step_action(s, call) for s in answer.get("next_steps") or []) if a]
+    for d in answer.get("already_built") or []:
+        if isinstance(d, dict) and isinstance(d.get("label"), str):
+            out.append(action("done", d["label"], "builder", name=d.get("name")))
+    for m in answer.get("more") or []:
+        a = _step_action({**m, "label": "More: " + str(m.get("label")) + (" (a draft)" if m.get("draft") else "")}, call) if isinstance(m, dict) else None
+        if a:
+            out.append(a)
+    return out
 
 
 def with_actions(name: str, fn, item_names, workspace_id):
@@ -322,7 +377,7 @@ def with_actions(name: str, fn, item_names, workspace_id):
 # create's Open in Fabric. The card enforces what the server built: only tools in ALLOWED, a build button's arguments
 # with dry_run true, and Create only from an answer whose dry_run is true, with exactly that answer's arguments.
 ACTIONS_JS = r"""
-  var ACT_ALLOWED = __ACT_ALLOWED__, WHO = { builder: "Builder", thinker: "Thinker" };
+  var ACT_ALLOWED = __ACT_ALLOWED__, WHO = { builder: "Builder", thinker: "Thinker", onto: "Onto" };
   function canOpenLinks() { return isObj(hostCaps) && isObj(hostCaps.openLinks); }
   function canon(x) {                                            // JSON with sorted keys: the order of arguments does not matter
     if (Array.isArray(x)) return "[" + x.map(canon).join(",") + "]";
@@ -345,6 +400,7 @@ ACTIONS_JS = r"""
   function okAction(a, fromDryRun) {
     if (!isObj(a) || typeof a.label !== "string") return false;
     if (a.kind === "link") return typeof a.url === "string" && /^https:\/\/app\.fabric\.microsoft\.com\//.test(a.url);
+    if (a.kind === "say" || a.kind === "done") return typeof a.say === "string" && a.say.length > 0 && a.tool === undefined;   // n229
     if (!Object.prototype.hasOwnProperty.call(ACT_ALLOWED, a.tool) || !isObj(a.arguments)) return false;
     if (a.kind === "call") return ACT_ALLOWED[a.tool] === "call";
     if (a.kind === "dry_run") return ACT_ALLOWED[a.tool] === "build" && a.arguments.dry_run === true;
@@ -367,6 +423,7 @@ ACTIONS_JS = r"""
         function () { out.textContent = "The host did not open it. The address: " + a.url; });
       return;
     }
+    if (a.kind === "say") { viaChat(a, out, button); return; }       // n229: a sentence for the chat; the card runs nothing
     var args = a.kind === "create" ? JSON.parse(JSON.stringify(dryArgs)) : JSON.parse(JSON.stringify(a.arguments));
     if (a.kind === "create") args.dry_run = false;
     button.disabled = true;
@@ -377,6 +434,7 @@ ACTIONS_JS = r"""
       var d = answerOf(r);
       if (isObj(d) && d.kind === "upgrade") { upgradeView(d, out); button.disabled = false; return; }   // n171
       out.appendChild(resultView(a.tool, r));
+      if (isObj(d) && isObj(d.checks)) renderChecks(d, out);       // n229: verify_build's lines, one row per item and figure
       if (d) renderActions(d, out, args);
       if (a.kind !== "create") button.disabled = false;
     }, function (e) {
@@ -414,14 +472,25 @@ ACTIONS_JS = r"""
         if (!sameArgs(effective(want, a.defaults), effective(a.arguments, a.defaults))) return;
       }
       var who = WHO[a.who] ? a.who : "builder";
-      if (!groups[who]) {
-        groups[who] = el("div", null, "acts acts-" + who);
-        groups[who].appendChild(el("p", WHO[who] + (who === "thinker" ? " asks" : " suggests"), "act-who"));
-        box.appendChild(groups[who]);
+      if (a.kind === "done") {                                     // n229: already built: a line, never a button
+        if (!groups.done) { groups.done = el("div", null, "acts acts-done"); groups.done.appendChild(el("p", "Already built", "act-who")); box.appendChild(groups.done); }
+        groups.done.appendChild(el("p", a.label + ": already built" + (a.name ? " (" + a.name + ")" : "") + ".", "muted act-done"));
+        return;
+      }
+      // n229: the next steps after a Create, and a gate's fix before Create, keep their order: one group, not one per
+      // mascot (each step's own sentence names who says it)
+      var ordered = Array.isArray(d.next_steps) && d.dry_run === false ? "Next steps, in order" : (isObj(d.gate) ? "First this, then Create" : "");
+      var gk = ordered ? "ordered" : who;
+      if (!groups[gk]) {
+        groups[gk] = el("div", null, "acts acts-" + gk);
+        groups[gk].appendChild(el("p", ordered || (WHO[who] + (who === "thinker" ? " asks" : " suggests")), "act-who"));
+        box.appendChild(groups[gk]);
       }
       var row = el("div", null, "act");
       var label = a.label + (a.name && a.kind === "dry_run" ? " (" + a.name + ")" : "");
-      var b = el("button", label, a.kind === "create" ? "act-create" : "act-b"); b.type = "button";
+      var b = el("button", label, a.kind === "create" && a.secondary !== true ? "act-create" : "act-b"); b.type = "button";
+      if (readable(a.why)) row.appendChild(el("span", WHO[who] + ": " + a.why, "act-reason"));   // n229: the mascot's one sentence
+      if (a.kind === "say") row.appendChild(el("span", "Asks in the chat; nothing runs from this card.", "muted act-why"));
       if (a.kind === "dry_run") row.appendChild(el("span", "Dry run first: nothing is created until you press Create.", "muted act-why"));
       if (a.kind === "create") row.appendChild(el("span", "Creates " + (a.name ? a.name : "it") + " in Fabric with exactly the dry run's arguments.", "muted act-why"));
       var out = el("div", null, "out"); out.hidden = true;
@@ -437,7 +506,7 @@ ACTIONS_JS = r"""
           runAction(a, b, out, callArgs || a.arguments);
         });
       } else b.addEventListener("click", function () { runAction(a, b, out, callArgs || a.arguments); });
-      row.insertBefore(b, row.firstChild); row.appendChild(out); groups[who].appendChild(row);
+      row.insertBefore(b, row.firstChild); row.appendChild(out); groups[gk].appendChild(row);
     });
   }
 """
@@ -449,6 +518,8 @@ ACTIONS_CSS = """
 .act-why { font-size: 12.5px }
 .act .out { border-left: 3px solid var(--kg-line); padding-left: 8px; display: grid; gap: 6px }
 button.act-create { background: var(--kg-ink); color: var(--kg-bg) }
+.act-reason { font-size: 13.5px }
+.act-done { margin: 0 }
 """
 
 
@@ -582,7 +653,9 @@ __READ_JS__
       verdict.textContent = readable(d.summary);
       thinker = readable(d.summary);
     } else if (d.dry_run === true) {
-      verdict.textContent = "Dry run: nothing was created. Read it, then press Create to create it with exactly these arguments.";
+      verdict.textContent = isObj(d.gate) && readable(d.gate.said)   // n229: a build of little use is said first
+        ? "Dry run: nothing was created. " + d.gate.said + " Do the step below first; Create anyway stays possible."
+        : "Dry run: nothing was created. Read it, then press Create to create it with exactly these arguments.";
       answer.appendChild(resultView(t, { structuredContent: d }));
       if (Array.isArray(d.checks_passed)) { var ul = el("ul"); d.checks_passed.forEach(function (c) { if (readable(c)) ul.appendChild(el("li", c)); }); answer.appendChild(ul); }
       if (isObj(d.replaces) && readable(d.replaces.said)) answer.appendChild(el("p", d.replaces.said, "warn"));
@@ -620,7 +693,8 @@ __READ_JS__
     renderActions(d, next, isObj(input) ? input : null);
     renderNext(d, next);                                            // n218: 2 to 4 next steps, each naming its tool
     var acts = (Array.isArray(d.actions) ? d.actions : []).filter(isObj);   // each mascot says its first step, word for word
-    var mine = function (who) { var a = acts.filter(function (x) { return x.who === who; })[0]; return a ? readable(a.say) : ""; };
+    // n229: a step with a reason of its own is said by its reason, never by the sentence with the arguments (n172)
+    var mine = function (who) { var a = acts.filter(function (x) { return x.who === who && x.kind !== "done"; })[0]; return a ? (readable(a.why) || readable(a.say)) : ""; };
     if (next.querySelector("button") && !isObj(d.kg_card)) { builder = builder || mine("builder"); thinker = thinker || mine("thinker"); }
     if (readable(d.actions_note)) thinker = thinker || d.actions_note;
     mascots({ onto: [onto, "point"], thinker: [thinker, "think"], builder: [builder, "explain"] }, false);

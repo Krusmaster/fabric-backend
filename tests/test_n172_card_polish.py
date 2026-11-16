@@ -257,7 +257,8 @@ def test_no_bubble_says_argument_syntax(fabric, tool, kw):
             assert not words.WORDS_WITH_ARGUMENTS.search(c[k]), (k, c[k])
             assert "=" not in c[k] and "dry_run" not in c[k] and "workspace" not in c[k]
     for a in d.get("actions") or []:                                       # the arguments are on the buttons
-        assert a.get("url") or isinstance(a.get("arguments"), dict)
+        # n229: a step that only asks in the chat ("say") or is already built ("done") has a sentence and no arguments
+        assert a.get("url") or isinstance(a.get("arguments"), dict) or a.get("kind") in ("say", "done")
 
 
 def test_the_argument_pattern_finds_what_the_founder_saw():

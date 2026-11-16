@@ -9,6 +9,46 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n229: **a verifier of what was built, next steps after every Create, and a gate before a build of little
+  use.** The founder, 12 November 2026, in claude.ai with the hosted connector: "an agent that double-checks Krusgraph's
+  deployed proposals", "no more suggestions after we built what was proposed", and a Create he pressed although the dry
+  run said "Relationships: 0 active, 0 inactive, 24 not expressible". Krusgraph for Fabric uses no AI model, so the first
+  is a verifier by rules, and every answer says so. **A, `verify_build`** (new tool, read-only; `verify_build.py`):
+  each built item named in `items` is read back with getDefinition and compared with its dry run, built again by the
+  same rules from the same plan: a semantic model's tables, columns (the combined key columns of a composite key among
+  them), relationships (active or inactive, cardinality, cross-filter) and measures with the table each sits on; a
+  report's visuals and the model it is bound to; an ontology's entity types, keys, relationship types and data bindings;
+  an API for GraphQL's types, fields and relationships; a pipeline's steps and its three notebooks, line by line. Each
+  card of the report (or each measure of a model without one) is counted again from the rows with one SQL statement and
+  put beside the model's own number (one DAX query; without a Power BI answer the figure is shown and the line reads
+  "not checked", never "verified"). A SUM of a header's amount repeated on every line, a SUMX over line rows of a RELATED
+  header amount and a figure equal to a header amount summed over its lines are flagged as doubled totals with both
+  sums. State: a model never refreshed, a pipeline never run, an ontology with no graph item beside it, an App still
+  empty, each with its one action. One line per item (verified, differs, or not checked with the reason), the counts,
+  every SQL statement, and the call's time budget: what it does not reach is "not checked (time)". The answer invites an
+  AI client to add its own review under its own heading, apart from Krusgraph's states. 41 tools, 31 read-only; the
+  read-only listing's guard goes from 66 700 to 69 000 characters for it. `answer_query_draft`: a sum or average of a
+  header's column now starts at the header ("total NETWR per sales order" over sap_vbak and sap_vbap sums on sap_vbak
+  alone; the join it replaces dropped orders without lines), and a column that is on both the lines and the table the
+  question groups by is read as the group's own. **B, after a Create** (`after_create.py`): the answer of every creating
+  tool ends with `next_steps` in the order of what the data product still lacks (verify what was built; refresh the model
+  once; the pipeline with Run once or Schedule; the report; the data agent; the Rayfin App, said as an empty App item and
+  one package command that opens inside Fabric only; a drift monitor; register as a data product), each with one sentence
+  from the mascot who says it; an item that exists from this plan (read from its type and the description Krusgraph
+  wrote) is listed as "already built", and "Download a dbt project draft" is under More, labelled a draft. No step
+  writes: a read, a dry run, or a sentence for the chat. `create_semantic_model(refresh=true)` refreshes a new model once
+  and only refreshes one that exists. On the build card the steps are buttons in that order. **C, the gate:** a semantic
+  model's dry run with no expressible relationship (or most not), or one that reads silver tables that are not there
+  yet, and an ontology with most entity types keyless, carry `gate`: one sentence, the step that fixes it first (the
+  silver step that writes the combined key columns, n226) and Create second as "Create anyway", no longer the filled
+  button. **In the Model editor:** "Verify what was built" under Built in Fabric (`POST /workload/v1/verify`) with the
+  result lines, Show the SQL and the next steps. Verified by unit tests on synthetic data with Fabric, the SQL endpoint
+  and Power BI replaced by test doubles (`tests/test_n229_verify_build.py`, `tests/test_n229_after_create.py` with the
+  card in a real browser, the editor's `verifyBuilt.test.tsx`). Not run against Fabric or Power BI, and not deployed. The
+  two Power BI reads and the refresh need `Dataset.Read.All` and `Dataset.ReadWrite.All` (docs/SCOPES.md); the ontology
+  graph's state is judged from the workspace's item list, since no documented call gives it. Not done, n227 holds them:
+  the server instructions' own sentence inviting Claude's review (it is in the tool's answer instead) and the cards'
+  own tests.
 - Round F1: **A first-user test without Fabric, and its small fixes.** `docs/FINDINGS-13NOV.md` ranks what a first user
   meets in the hosted and the local MCP server (on the synthetic shop and the synthetic SAP tables), on the site at 375,
   768 and 1280 px and in the Model editor, each with where it is, the fix and the round that should take it, and ends

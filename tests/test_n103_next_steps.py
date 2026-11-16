@@ -80,7 +80,8 @@ def test_the_drafted_question_is_understood_on_the_shop():
     step = evidence.summarize(full, p)["next_steps"][0]
     from fabric_backend import answers
     out = answers.draft(p, **step["arguments"])
-    assert out["tsql"] and "SUM" in out["tsql"] and "DISTINCT" in out["tsql"] and "not_understood" not in out
+    # n229: a header's amount is summed on the header alone (no join to its lines), or once per header row (DISTINCT)
+    assert out["tsql"] and "SUM" in out["tsql"] and ("DISTINCT" in out["tsql"] or "JOIN" not in out["tsql"]) and "not_understood" not in out
 
 
 def test_a_warning_suggests_sample_rows_on_the_target():

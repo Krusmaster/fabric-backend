@@ -74,6 +74,7 @@ import { OntoWait } from "./OntoWait";
 import { Wait, WaitSignal, checkLabel, newWait, reviewLabel, withSignal } from "./waitWords";
 import { accessLine } from "./accessWords";
 import { DrawioContext, DrawioFile, DrawioSource } from "./drawioDownload";
+import { VerifyAnswer, VerifyContext, VerifySource } from "./verifyBuilt";
 import {
   LeftoversAnswer, OutOfDate, ProductRow, RetireAnswer, StatusAnswer, createdAtOf, healthFor, outOfDate, planOf, withAdopted, withOwner,
   withPlan, withRemoved,
@@ -1192,8 +1193,21 @@ export function ModelItemEditor(props: PageProps) {
     [workloadClient, drawioName]
   );
 
+  // n229: "Verify what was built" after a Create (verifyBuilt.tsx): the engine reads back what outputs.json records, by rules
+  const verifySource = useMemo<VerifySource>(
+    () => ({
+      run: () => {
+        const d = defRef.current;
+        return engine.verify<VerifyAnswer>(workloadClient, { ...sourceRequest(d), review: d.review, created: d.outputs.created, item_id: metaRef.current?.id });
+      },
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [workloadClient]
+  );
+
   return (
     <DrawioContext.Provider value={drawioSource}>
+    <VerifyContext.Provider value={verifySource}>
     <ItemEditor
       isLoading={isLoading}
       loadingMessage="Opening the model…"
@@ -1205,6 +1219,7 @@ export function ModelItemEditor(props: PageProps) {
         if (!setView) setSetView(() => setter);
       }}
     />
+    </VerifyContext.Provider>
     </DrawioContext.Provider>
   );
 }

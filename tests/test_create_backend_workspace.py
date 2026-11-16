@@ -43,6 +43,8 @@ def test_a_workspace_name_gives_the_same_result_as_its_id(fresh, name, extra):
     by_id, fake_id = _call(fresh, workspace=gs.WS, name=name, **extra)
     by_name, fake_name = _call(fresh, workspace="demo", name=name, **extra)
     assert "error" not in by_id or by_id["kind"] == "would_remove", by_id
+    for k in ("next_steps", "more", "already_built", "next_steps_note"):       # n229: the next steps repeat the workspace as it was given
+        by_name.pop(k, None), by_id.pop(k, None)
     assert by_name == by_id
     assert fake_name.created == fake_id.created
     # no request ever carries the name where Fabric expects the id

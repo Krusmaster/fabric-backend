@@ -143,6 +143,7 @@ _ITEM = "creates/updates one item; never deletes"
 # live, its date and its result; OPEN: what is still open), so `note` stays empty and label() builds the text.
 _RAW = {
     "start": (HOSTED, READS, "nothing (answers the next step; calls no tool itself)", "unit tests"),   # n219
+    "verify_build": (HOSTED, READS, _NO, "unit tests (definitions, rows and Power BI answers replaced by test doubles)"),   # n229
     "list_workspaces": (HOSTED, READS, _NO, "unit tests"),
     "list_sources": (HOSTED, READS, _NO, "unit tests"),
     "list_tables": (HOSTED, READS, _NO, "unit tests"),

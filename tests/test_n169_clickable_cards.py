@@ -248,7 +248,8 @@ def test_the_cards_load_nothing_and_use_only_the_host_calls_of_the_spec(html):
 
 def test_the_card_allows_no_tool_but_the_ones_the_actions_name():
     assert build.ALLOWED == {"validate_plan": "call", "plan_backend": "call", "create_semantic_model": "build",
-                             "create_ontology": "build", "create_backend": "build", "create_report": "build"}
+                             "create_ontology": "build", "create_backend": "build", "create_report": "build",
+                             "verify_build": "call"}                       # n229: read-only, by rules
     assert '"create_views"' not in build.card_html() and '"create_data_agent"' not in build.card_html()
 
 

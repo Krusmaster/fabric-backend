@@ -165,6 +165,9 @@ def steps(tool: str, args: dict, answer: dict) -> list[dict]:
                                                     "validate": True}, where),
                _step(LABEL["replan"], "plan_backend", base, where),
                _step(LABEL["model"], "semantic_model_draft", {**base, "validate": True}, where)]
+    elif tool in DRY_RUN_TOOLS and answer.get("dry_run") is False and isinstance(answer.get("next_steps"), list):
+        out = []                                                     # n229: after a Create the data product's next steps are the
+        #                                                              answer's own (after_create.py), drawn with its actions
     elif tool in ("create_semantic_model", "create_ontology", "create_backend", "ontology_draft", "domain_draft", "dbt_schema"):
         out = [_step(LABEL["check"], "validate_plan", base, where), _step(LABEL["review"], "review_plan", base, where)]
         if tool not in ("create_semantic_model",):
@@ -199,13 +202,19 @@ def lead(tool: str, answer: dict, next_steps: list[dict], actions: list | None =
             f"- {s['label']}: {s['url']}" if s.get("url") else f"- {s['label']}: ask \u201c{s['say']}\u201d"
             for s in next_steps]
     for a in actions or []:
+        if isinstance(a, dict) and a.get("kind") in ("say", "done") and a.get("label"):       # n229: a question, or already built
+            text = (f"- {a['label']}: already built" + (f" ({a['name']})" if a.get("name") else "") if a["kind"] == "done" else
+                    f"- {a['label']}" + (f" ({a['why']})" if a.get("why") else "") + f": ask \u201c{a.get('say')}\u201d")
+            if text not in todo:
+                todo.append(text)
+            continue
         if isinstance(a, dict) and a.get("kind") in ("dry_run", "create", "call") and a.get("tool"):
             text = f"- {a['label']}{(' ' + a['name']) if a.get('name') and a['kind'] != 'call' else ''} ({a['tool']}"
             text += ", dry run)" if a["kind"] == "dry_run" else ", creates it; only after you confirm)" if a["kind"] == "create" else ")"
             if text not in todo:
                 todo.append(text)
     if todo:
-        out.append("Next steps:\n" + "\n".join(todo[:6]))
+        out.append("Next steps:\n" + "\n".join(todo[:12 if any(isinstance(a, dict) and a.get("kind") in ("say", "done") for a in actions or []) else 6]))
     out.append("The full answer follows as JSON.")
     return "\n\n".join(out)
 
@@ -379,11 +388,15 @@ __OPEN_JS__
     if (isObj(d)) renderNext(d, box);
     return box;
   }
-  var STATE_WORD = { passed: "passed", failed: "failed", not_checked: "not checked" };
+  var STATE_WORDS = { passed: "passed", failed: "failed", not_checked: "not checked" };
   function renderChecks(data, box) {
     var c = isObj(data.checks) ? data.checks : null, rows = c && Array.isArray(c.rows) ? c.rows.filter(isObj) : [];
     if (!rows.length) return false;
-    var wrap = el("section", null, "ck"); wrap.setAttribute("aria-label", "Every key and link");
+    // n229: the verifier's rows say verified, differs, not checked (checks.words) and name what each row is (row.what)
+    var STATE_WORD = {};
+    Object.keys(STATE_WORDS).forEach(function (k) { STATE_WORD[k] = isObj(c.words) && readable(c.words[k]) ? String(c.words[k]) : STATE_WORDS[k]; });
+    var wrap = el("section", null, "ck"); wrap.setAttribute("aria-label", readable(c.title) ? c.title : "Every key and link");
+    if (readable(c.label)) wrap.appendChild(el("p", c.label, "muted ck-label"));
     var sum = el("ul", null, "ck-sum"), n = isObj(c.counts) ? c.counts : {};
     ["passed", "failed", "not_checked"].forEach(function (s) {
       var li = el("li"); li.appendChild(el("span", (Number(n[s]) || 0) + " " + STATE_WORD[s], "pill pill-" + s)); sum.appendChild(li);
@@ -395,13 +408,13 @@ __OPEN_JS__
     var tb = el("tbody");
     rows.forEach(function (x) {
       var tr = el("tr"); tr.setAttribute("data-check", String(x.id || ""));
-      var what = el("td"); what.appendChild(el("span", (x.kind === "key" ? "Key " : x.kind === "link" ? "Link " : "Amount ") + String(x.label || "")));
+      var what = el("td"); what.appendChild(el("span", (readable(x.what) ? x.what + " " : x.kind === "key" ? "Key " : x.kind === "link" ? "Link " : "Amount ") + String(x.label || "")));
       if (readable(x.rule)) { what.appendChild(document.createTextNode(" ")); what.appendChild(el("span", x.rule, "pill pill-rule")); }
       var st = STATE_WORD[x.state] ? x.state : "not_checked";
       var state = el("td"); state.appendChild(el("span", STATE_WORD[st], "pill pill-" + st));
       var counts = el("td", readable(x.counts) ? x.counts : "");
-      if (st === "failed" && typeof x.sql === "string" && x.sql) {
-        var b = el("button", "Show the SQL that counts it"); b.type = "button"; b.setAttribute("aria-expanded", "false");
+      if ((st === "failed" || c.sql_for_all === true) && typeof x.sql === "string" && x.sql) {
+        var b = el("button", c.sql_for_all === true ? "Show the SQL" : "Show the SQL that counts it"); b.type = "button"; b.setAttribute("aria-expanded", "false");
         var pre = el("pre", x.sql, "ck-sql"); pre.hidden = true;
         b.addEventListener("click", function () { pre.hidden = !pre.hidden; b.setAttribute("aria-expanded", String(!pre.hidden)); });
         counts.appendChild(el("br")); counts.appendChild(b); counts.appendChild(pre);

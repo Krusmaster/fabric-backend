@@ -105,6 +105,25 @@ token is accepted too, never asked for. Steps for an Entra admin, in the portal:
 Until then a token without it gets no bare 403: the dry run already says the permission is missing, Create makes the
 items and does not ask Fabric to run them, and the answer gives the steps above and "Run it in the Fabric portal".
 
+## Verifying what was built: two Power BI reads, and one refresh (round n229)
+
+`verify_build` reads back what was built with the permissions the creating tools already have (getDefinition of each
+item, the workspace's item list, a pipeline's job instances, the SQL analytics endpoint for the counts). Two of its checks
+go to the Power BI REST API instead, with a token for `https://analysis.windows.net/powerbi/api` (on-behalf-of, the same
+exchange as for Fabric):
+
+| Check | Call | Delegated permission | Without it |
+| --- | --- | --- | --- |
+| a figure's number in the model, beside the count from the rows | *Datasets - Execute Queries In Group*, one `EVALUATE ROW(...)` per card | `Dataset.Read.All` (or `Dataset.ReadWrite.All`), Read and Build on the model, and the tenant setting for the Execute Queries REST API | the figure from the rows is shown and the line says "not checked", with the reason; never "verified" |
+| whether the model was ever refreshed | *Datasets - Get Refresh History In Group* | `Dataset.Read.All` or `Dataset.ReadWrite.All` | "not checked", with the reason |
+
+`create_semantic_model(refresh=true)` asks for one refresh (*Datasets - Refresh Dataset In Group*), which needs
+`Dataset.ReadWrite.All`; without it the answer is `refresh.status = "not_run"` with the permission's name and "refresh it
+once in Fabric". None of the three is in `REQUIRED_SCOPES`: the hosted app works without them, and each answer says what
+it could not read. To add them: the steps of the section above with `Dataset.Read.All` (and `Dataset.ReadWrite.All` for
+the refresh) in step 2. Unit-tested with the calls replaced by test doubles; none of the three has run against Power BI
+from the hosted server.
+
 ## Reading an existing semantic model: why getDefinition (round n12)
 
 `compare_semantic_model` needs a model's relationships with cardinality, direction and active state. The paths checked

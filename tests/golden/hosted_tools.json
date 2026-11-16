@@ -3062,6 +3062,7 @@
  },
  {
   "answer": {
+   "already_built": [],
    "card": "GraphQL endpoint:  https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/graphqlapis/new-graphQLApis/graphql\nTenant ID / Client ID / Client secret: from your Entra app registration\n\nStill to do in the Fabric portal (no API for these yet):\n  [ ] shop_api_v2 -> Settings -> Introspection -> On   (workspace admin; Lovable needs this)\n  [ ] shop_api_v2 -> Manage permissions -> add the service principal with 'Run Queries and Mutations'\n  [ ] once per tenant: Admin portal -> 'Service principals can call Fabric public APIs' = enabled",
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
@@ -3088,6 +3089,80 @@
     "unlinked_reference_columns": 0
    },
    "dry_run": false,
+   "more": [
+    {
+     "ask": "Give me the dbt project as a draft, labelled as a draft: run dbt_schema with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", project=true.",
+     "draft": true,
+     "label": "Download a dbt project draft",
+     "step": "dbt",
+     "who": "builder",
+     "why": "A draft only: the dbt drafts are frozen, and the project has not run against your warehouse."
+    }
+   ],
+   "next_steps": [
+    {
+     "args": {
+      "items": {
+       "api": "shop_api_v2"
+      },
+      "schema": "shop",
+      "source": "demo_lh",
+      "workspace": "demo"
+     },
+     "ask": "Verify what was built: run verify_build with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", items={\"api\": \"shop_api_v2\"}.",
+     "label": "Verify what was built",
+     "order": 1,
+     "step": "verify",
+     "tool": "verify_build",
+     "who": "thinker",
+     "why": "I read back what Fabric holds and count the figures again from the rows, so you know it is what the dry run showed."
+    },
+    {
+     "ask": "Show the pipeline as a dry run: run create_pipeline with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", name=\"pipeline_shop\", dry_run=true. Then offer me the two choices for the Create: Run once (run_once=true) and a Schedule (schedule), both off unless I choose them.",
+     "choices": [
+      "Run once",
+      "Schedule"
+     ],
+     "label": "Build the pipeline (silver, gold, check)",
+     "order": 2,
+     "step": "pipeline",
+     "who": "builder",
+     "why": "Nothing keeps the silver tables and the gold views up to date yet; the pipeline does, and its check fails the run when a key or a sum breaks."
+    },
+    {
+     "ask": "Show a data agent as a dry run: run create_data_agent with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", name=\"shop_agent\", dry_run=true. Say that it is experimental.",
+     "label": "Create a data agent (experimental)",
+     "order": 3,
+     "step": "data_agent",
+     "who": "builder",
+     "why": "People can then ask the data in words; it is experimental and judged by its answers, so try its questions first."
+    },
+    {
+     "ask": "What does the Rayfin App (preview) take? Say it plainly: Krusgraph for Fabric makes an empty App item and a package with one command, and the App opens inside Fabric only. From this chat, rayfin_connector gives the connector's entities for workspace=\"demo\", source=\"demo_lh\", schema=\"shop\".",
+     "label": "A Rayfin App (preview)",
+     "order": 4,
+     "step": "app",
+     "who": "builder",
+     "why": "Honest: I make an empty App item and a package with one command; the App opens inside Fabric only."
+    },
+    {
+     "ask": "Show a drift monitor as a dry run: run create_drift_monitor with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", name=\"drift_monitor_shop\", dry_run=true.",
+     "label": "Add a drift monitor",
+     "order": 5,
+     "step": "drift_monitor",
+     "who": "thinker",
+     "why": "Tables and columns change; a nightly monitor tells you when the plan no longer matches the source."
+    },
+    {
+     "ask": "Draft the data product with an owner and a contract: run domain_draft with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", then ask me who owns it.",
+     "label": "Register it as a data product",
+     "order": 6,
+     "step": "data_product",
+     "who": "onto",
+     "why": "It has items and no owner or contract yet; with those, others know whom to ask and what is promised."
+    }
+   ],
+   "next_steps_note": "By rules, in the order of what the data product still lacks. No step writes: each is a read, a dry run or a question; a Create comes only from its own dry run.",
    "result": {
     "id": "new-graphQLApis",
     "mode": "created",
@@ -3135,12 +3210,17 @@
    [
     "POST",
     "/v1/workspaces/11111111-2222-3333-4444-555555555555/graphQLApis"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
    ]
   ],
   "tool": "create_backend"
  },
  {
   "answer": {
+   "already_built": [],
    "card": "GraphQL endpoint:  https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/graphqlapis/aaaaaaaa-0000-0000-0000-000000000004/graphql\nTenant ID / Client ID / Client secret: from your Entra app registration\n\nStill to do in the Fabric portal (no API for these yet):\n  [ ] shop_api -> Settings -> Introspection -> On   (workspace admin; Lovable needs this)\n  [ ] shop_api -> Manage permissions -> add the service principal with 'Run Queries and Mutations'\n  [ ] once per tenant: Admin portal -> 'Service principals can call Fabric public APIs' = enabled",
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
@@ -3167,6 +3247,80 @@
     "unlinked_reference_columns": 0
    },
    "dry_run": false,
+   "more": [
+    {
+     "ask": "Give me the dbt project as a draft, labelled as a draft: run dbt_schema with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", project=true.",
+     "draft": true,
+     "label": "Download a dbt project draft",
+     "step": "dbt",
+     "who": "builder",
+     "why": "A draft only: the dbt drafts are frozen, and the project has not run against your warehouse."
+    }
+   ],
+   "next_steps": [
+    {
+     "args": {
+      "items": {
+       "api": "shop_api"
+      },
+      "schema": "shop",
+      "source": "demo_lh",
+      "workspace": "demo"
+     },
+     "ask": "Verify what was built: run verify_build with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", items={\"api\": \"shop_api\"}.",
+     "label": "Verify what was built",
+     "order": 1,
+     "step": "verify",
+     "tool": "verify_build",
+     "who": "thinker",
+     "why": "I read back what Fabric holds and count the figures again from the rows, so you know it is what the dry run showed."
+    },
+    {
+     "ask": "Show the pipeline as a dry run: run create_pipeline with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", name=\"pipeline_shop\", dry_run=true. Then offer me the two choices for the Create: Run once (run_once=true) and a Schedule (schedule), both off unless I choose them.",
+     "choices": [
+      "Run once",
+      "Schedule"
+     ],
+     "label": "Build the pipeline (silver, gold, check)",
+     "order": 2,
+     "step": "pipeline",
+     "who": "builder",
+     "why": "Nothing keeps the silver tables and the gold views up to date yet; the pipeline does, and its check fails the run when a key or a sum breaks."
+    },
+    {
+     "ask": "Show a data agent as a dry run: run create_data_agent with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", name=\"shop_agent\", dry_run=true. Say that it is experimental.",
+     "label": "Create a data agent (experimental)",
+     "order": 3,
+     "step": "data_agent",
+     "who": "builder",
+     "why": "People can then ask the data in words; it is experimental and judged by its answers, so try its questions first."
+    },
+    {
+     "ask": "What does the Rayfin App (preview) take? Say it plainly: Krusgraph for Fabric makes an empty App item and a package with one command, and the App opens inside Fabric only. From this chat, rayfin_connector gives the connector's entities for workspace=\"demo\", source=\"demo_lh\", schema=\"shop\".",
+     "label": "A Rayfin App (preview)",
+     "order": 4,
+     "step": "app",
+     "who": "builder",
+     "why": "Honest: I make an empty App item and a package with one command; the App opens inside Fabric only."
+    },
+    {
+     "ask": "Show a drift monitor as a dry run: run create_drift_monitor with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", name=\"drift_monitor_shop\", dry_run=true.",
+     "label": "Add a drift monitor",
+     "order": 5,
+     "step": "drift_monitor",
+     "who": "thinker",
+     "why": "Tables and columns change; a nightly monitor tells you when the plan no longer matches the source."
+    },
+    {
+     "ask": "Draft the data product with an owner and a contract: run domain_draft with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", then ask me who owns it.",
+     "label": "Register it as a data product",
+     "order": 6,
+     "step": "data_product",
+     "who": "onto",
+     "why": "It has items and no owner or contract yet; with those, others know whom to ask and what is promised."
+    }
+   ],
+   "next_steps_note": "By rules, in the order of what the data product still lacks. No step writes: each is a read, a dry run or a question; a Create comes only from its own dry run.",
    "result": {
     "id": "aaaaaaaa-0000-0000-0000-000000000004",
     "mode": "updated",
@@ -3218,12 +3372,17 @@
    [
     "POST",
     "/v1/workspaces/11111111-2222-3333-4444-555555555555/items/aaaaaaaa-0000-0000-0000-000000000004/updateDefinition"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
    ]
   ],
   "tool": "create_backend"
  },
  {
   "answer": {
+   "already_built": [],
    "card": "GraphQL endpoint:  https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/graphqlapis/new-graphQLApis/graphql\nTenant ID / Client ID / Client secret: from your Entra app registration\n\nStill to do in the Fabric portal (no API for these yet):\n  [ ] shop_api_v2 -> Settings -> Introspection -> On   (workspace admin; Lovable needs this)\n  [ ] shop_api_v2 -> Manage permissions -> add the service principal with 'Run Queries and Mutations'\n  [ ] once per tenant: Admin portal -> 'Service principals can call Fabric public APIs' = enabled",
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
@@ -3250,6 +3409,80 @@
     "unlinked_reference_columns": 0
    },
    "dry_run": false,
+   "more": [
+    {
+     "ask": "Give me the dbt project as a draft, labelled as a draft: run dbt_schema with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", project=true.",
+     "draft": true,
+     "label": "Download a dbt project draft",
+     "step": "dbt",
+     "who": "builder",
+     "why": "A draft only: the dbt drafts are frozen, and the project has not run against your warehouse."
+    }
+   ],
+   "next_steps": [
+    {
+     "args": {
+      "items": {
+       "api": "shop_api_v2"
+      },
+      "schema": "shop",
+      "source": "demo_lh",
+      "workspace": "11111111-2222-3333-4444-555555555555"
+     },
+     "ask": "Verify what was built: run verify_build with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", items={\"api\": \"shop_api_v2\"}.",
+     "label": "Verify what was built",
+     "order": 1,
+     "step": "verify",
+     "tool": "verify_build",
+     "who": "thinker",
+     "why": "I read back what Fabric holds and count the figures again from the rows, so you know it is what the dry run showed."
+    },
+    {
+     "ask": "Show the pipeline as a dry run: run create_pipeline with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", name=\"pipeline_shop\", dry_run=true. Then offer me the two choices for the Create: Run once (run_once=true) and a Schedule (schedule), both off unless I choose them.",
+     "choices": [
+      "Run once",
+      "Schedule"
+     ],
+     "label": "Build the pipeline (silver, gold, check)",
+     "order": 2,
+     "step": "pipeline",
+     "who": "builder",
+     "why": "Nothing keeps the silver tables and the gold views up to date yet; the pipeline does, and its check fails the run when a key or a sum breaks."
+    },
+    {
+     "ask": "Show a data agent as a dry run: run create_data_agent with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", name=\"shop_agent\", dry_run=true. Say that it is experimental.",
+     "label": "Create a data agent (experimental)",
+     "order": 3,
+     "step": "data_agent",
+     "who": "builder",
+     "why": "People can then ask the data in words; it is experimental and judged by its answers, so try its questions first."
+    },
+    {
+     "ask": "What does the Rayfin App (preview) take? Say it plainly: Krusgraph for Fabric makes an empty App item and a package with one command, and the App opens inside Fabric only. From this chat, rayfin_connector gives the connector's entities for workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\".",
+     "label": "A Rayfin App (preview)",
+     "order": 4,
+     "step": "app",
+     "who": "builder",
+     "why": "Honest: I make an empty App item and a package with one command; the App opens inside Fabric only."
+    },
+    {
+     "ask": "Show a drift monitor as a dry run: run create_drift_monitor with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", name=\"drift_monitor_shop\", dry_run=true.",
+     "label": "Add a drift monitor",
+     "order": 5,
+     "step": "drift_monitor",
+     "who": "thinker",
+     "why": "Tables and columns change; a nightly monitor tells you when the plan no longer matches the source."
+    },
+    {
+     "ask": "Draft the data product with an owner and a contract: run domain_draft with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", then ask me who owns it.",
+     "label": "Register it as a data product",
+     "order": 6,
+     "step": "data_product",
+     "who": "onto",
+     "why": "It has items and no owner or contract yet; with those, others know whom to ask and what is promised."
+    }
+   ],
+   "next_steps_note": "By rules, in the order of what the data product still lacks. No step writes: each is a read, a dry run or a question; a Create comes only from its own dry run.",
    "result": {
     "id": "new-graphQLApis",
     "mode": "created",
@@ -3293,12 +3526,17 @@
    [
     "POST",
     "/v1/workspaces/11111111-2222-3333-4444-555555555555/graphQLApis"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
    ]
   ],
   "tool": "create_backend"
  },
  {
   "answer": {
+   "already_built": [],
    "card": "GraphQL endpoint:  https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/graphqlapis/aaaaaaaa-0000-0000-0000-000000000004/graphql\nTenant ID / Client ID / Client secret: from your Entra app registration\n\nStill to do in the Fabric portal (no API for these yet):\n  [ ] shop_api -> Settings -> Introspection -> On   (workspace admin; Lovable needs this)\n  [ ] shop_api -> Manage permissions -> add the service principal with 'Run Queries and Mutations'\n  [ ] once per tenant: Admin portal -> 'Service principals can call Fabric public APIs' = enabled",
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
@@ -3325,6 +3563,80 @@
     "unlinked_reference_columns": 0
    },
    "dry_run": false,
+   "more": [
+    {
+     "ask": "Give me the dbt project as a draft, labelled as a draft: run dbt_schema with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", project=true.",
+     "draft": true,
+     "label": "Download a dbt project draft",
+     "step": "dbt",
+     "who": "builder",
+     "why": "A draft only: the dbt drafts are frozen, and the project has not run against your warehouse."
+    }
+   ],
+   "next_steps": [
+    {
+     "args": {
+      "items": {
+       "api": "shop_api"
+      },
+      "schema": "shop",
+      "source": "demo_lh",
+      "workspace": "11111111-2222-3333-4444-555555555555"
+     },
+     "ask": "Verify what was built: run verify_build with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", items={\"api\": \"shop_api\"}.",
+     "label": "Verify what was built",
+     "order": 1,
+     "step": "verify",
+     "tool": "verify_build",
+     "who": "thinker",
+     "why": "I read back what Fabric holds and count the figures again from the rows, so you know it is what the dry run showed."
+    },
+    {
+     "ask": "Show the pipeline as a dry run: run create_pipeline with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", name=\"pipeline_shop\", dry_run=true. Then offer me the two choices for the Create: Run once (run_once=true) and a Schedule (schedule), both off unless I choose them.",
+     "choices": [
+      "Run once",
+      "Schedule"
+     ],
+     "label": "Build the pipeline (silver, gold, check)",
+     "order": 2,
+     "step": "pipeline",
+     "who": "builder",
+     "why": "Nothing keeps the silver tables and the gold views up to date yet; the pipeline does, and its check fails the run when a key or a sum breaks."
+    },
+    {
+     "ask": "Show a data agent as a dry run: run create_data_agent with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", name=\"shop_agent\", dry_run=true. Say that it is experimental.",
+     "label": "Create a data agent (experimental)",
+     "order": 3,
+     "step": "data_agent",
+     "who": "builder",
+     "why": "People can then ask the data in words; it is experimental and judged by its answers, so try its questions first."
+    },
+    {
+     "ask": "What does the Rayfin App (preview) take? Say it plainly: Krusgraph for Fabric makes an empty App item and a package with one command, and the App opens inside Fabric only. From this chat, rayfin_connector gives the connector's entities for workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\".",
+     "label": "A Rayfin App (preview)",
+     "order": 4,
+     "step": "app",
+     "who": "builder",
+     "why": "Honest: I make an empty App item and a package with one command; the App opens inside Fabric only."
+    },
+    {
+     "ask": "Show a drift monitor as a dry run: run create_drift_monitor with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", name=\"drift_monitor_shop\", dry_run=true.",
+     "label": "Add a drift monitor",
+     "order": 5,
+     "step": "drift_monitor",
+     "who": "thinker",
+     "why": "Tables and columns change; a nightly monitor tells you when the plan no longer matches the source."
+    },
+    {
+     "ask": "Draft the data product with an owner and a contract: run domain_draft with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", then ask me who owns it.",
+     "label": "Register it as a data product",
+     "order": 6,
+     "step": "data_product",
+     "who": "onto",
+     "why": "It has items and no owner or contract yet; with those, others know whom to ask and what is promised."
+    }
+   ],
+   "next_steps_note": "By rules, in the order of what the data product still lacks. No step writes: each is a read, a dry run or a question; a Create comes only from its own dry run.",
    "result": {
     "id": "aaaaaaaa-0000-0000-0000-000000000004",
     "mode": "updated",
@@ -3372,12 +3684,17 @@
    [
     "POST",
     "/v1/workspaces/11111111-2222-3333-4444-555555555555/items/aaaaaaaa-0000-0000-0000-000000000004/updateDefinition"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
    ]
   ],
   "tool": "create_backend"
  },
  {
   "answer": {
+   "already_built": [],
    "card": "GraphQL endpoint:  https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/graphqlapis/aaaaaaaa-0000-0000-0000-000000000004/graphql\nTenant ID / Client ID / Client secret: from your Entra app registration\n\nStill to do in the Fabric portal (no API for these yet):\n  [ ] shop_api -> Settings -> Introspection -> On   (workspace admin; Lovable needs this)\n  [ ] shop_api -> Manage permissions -> add the service principal with 'Run Queries and Mutations'\n  [ ] once per tenant: Admin portal -> 'Service principals can call Fabric public APIs' = enabled",
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
@@ -3404,6 +3721,92 @@
     "unlinked_reference_columns": 0
    },
    "dry_run": false,
+   "more": [
+    {
+     "ask": "Give me the dbt project as a draft, labelled as a draft: run dbt_schema with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", confirmed=[{\"source\": \"orders\", \"source_cols\": [\"ship_to_id\"], \"target\": \"addresses\", \"target_cols\": [\"address_id\"]}], project=true.",
+     "draft": true,
+     "label": "Download a dbt project draft",
+     "step": "dbt",
+     "who": "builder",
+     "why": "A draft only: the dbt drafts are frozen, and the project has not run against your warehouse."
+    }
+   ],
+   "next_steps": [
+    {
+     "args": {
+      "confirmed": [
+       {
+        "source": "orders",
+        "source_cols": [
+         "ship_to_id"
+        ],
+        "target": "addresses",
+        "target_cols": [
+         "address_id"
+        ]
+       }
+      ],
+      "items": {
+       "api": "shop_api"
+      },
+      "schema": "shop",
+      "source": "demo_lh",
+      "workspace": "11111111-2222-3333-4444-555555555555"
+     },
+     "ask": "Verify what was built: run verify_build with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", confirmed=[{\"source\": \"orders\", \"source_cols\": [\"ship_to_id\"], \"target\": \"addresses\", \"target_cols\": [\"address_id\"]}], items={\"api\": \"shop_api\"}.",
+     "label": "Verify what was built",
+     "order": 1,
+     "step": "verify",
+     "tool": "verify_build",
+     "who": "thinker",
+     "why": "I read back what Fabric holds and count the figures again from the rows, so you know it is what the dry run showed."
+    },
+    {
+     "ask": "Show the pipeline as a dry run: run create_pipeline with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", confirmed=[{\"source\": \"orders\", \"source_cols\": [\"ship_to_id\"], \"target\": \"addresses\", \"target_cols\": [\"address_id\"]}], name=\"pipeline_shop\", dry_run=true. Then offer me the two choices for the Create: Run once (run_once=true) and a Schedule (schedule), both off unless I choose them.",
+     "choices": [
+      "Run once",
+      "Schedule"
+     ],
+     "label": "Build the pipeline (silver, gold, check)",
+     "order": 2,
+     "step": "pipeline",
+     "who": "builder",
+     "why": "Nothing keeps the silver tables and the gold views up to date yet; the pipeline does, and its check fails the run when a key or a sum breaks."
+    },
+    {
+     "ask": "Show a data agent as a dry run: run create_data_agent with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", confirmed=[{\"source\": \"orders\", \"source_cols\": [\"ship_to_id\"], \"target\": \"addresses\", \"target_cols\": [\"address_id\"]}], name=\"shop_agent\", dry_run=true. Say that it is experimental.",
+     "label": "Create a data agent (experimental)",
+     "order": 3,
+     "step": "data_agent",
+     "who": "builder",
+     "why": "People can then ask the data in words; it is experimental and judged by its answers, so try its questions first."
+    },
+    {
+     "ask": "What does the Rayfin App (preview) take? Say it plainly: Krusgraph for Fabric makes an empty App item and a package with one command, and the App opens inside Fabric only. From this chat, rayfin_connector gives the connector's entities for workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\".",
+     "label": "A Rayfin App (preview)",
+     "order": 4,
+     "step": "app",
+     "who": "builder",
+     "why": "Honest: I make an empty App item and a package with one command; the App opens inside Fabric only."
+    },
+    {
+     "ask": "Show a drift monitor as a dry run: run create_drift_monitor with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", name=\"drift_monitor_shop\", dry_run=true.",
+     "label": "Add a drift monitor",
+     "order": 5,
+     "step": "drift_monitor",
+     "who": "thinker",
+     "why": "Tables and columns change; a nightly monitor tells you when the plan no longer matches the source."
+    },
+    {
+     "ask": "Draft the data product with an owner and a contract: run domain_draft with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", confirmed=[{\"source\": \"orders\", \"source_cols\": [\"ship_to_id\"], \"target\": \"addresses\", \"target_cols\": [\"address_id\"]}], then ask me who owns it.",
+     "label": "Register it as a data product",
+     "order": 6,
+     "step": "data_product",
+     "who": "onto",
+     "why": "It has items and no owner or contract yet; with those, others know whom to ask and what is promised."
+    }
+   ],
+   "next_steps_note": "By rules, in the order of what the data product still lacks. No step writes: each is a read, a dry run or a question; a Create comes only from its own dry run.",
    "result": {
     "id": "aaaaaaaa-0000-0000-0000-000000000004",
     "mode": "updated",
@@ -3463,6 +3866,10 @@
    [
     "POST",
     "/v1/workspaces/11111111-2222-3333-4444-555555555555/items/aaaaaaaa-0000-0000-0000-000000000004/updateDefinition"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
    ]
   ],
   "tool": "create_backend"
@@ -5610,6 +6017,7 @@
     "If the portal asks for credentials on the SQL analytics endpoint connection, set them under the model's settings (OAuth2 with your account).",
     "Open the model in the portal or Power BI Desktop and check the relationships README.generated.md lists as inactive."
    ],
+   "already_built": [],
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
     "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
@@ -5635,6 +6043,103 @@
     "unlinked_reference_columns": 0
    },
    "dry_run": false,
+   "more": [
+    {
+     "ask": "Give me the dbt project as a draft, labelled as a draft: run dbt_schema with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", project=true.",
+     "draft": true,
+     "label": "Download a dbt project draft",
+     "step": "dbt",
+     "who": "builder",
+     "why": "A draft only: the dbt drafts are frozen, and the project has not run against your warehouse."
+    }
+   ],
+   "next_steps": [
+    {
+     "args": {
+      "items": {
+       "semantic_model": "shop_model_v2"
+      },
+      "schema": "shop",
+      "source": "demo_lh",
+      "workspace": "demo"
+     },
+     "ask": "Verify what was built: run verify_build with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", items={\"semantic_model\": \"shop_model_v2\"}.",
+     "label": "Verify what was built",
+     "order": 1,
+     "step": "verify",
+     "tool": "verify_build",
+     "who": "thinker",
+     "why": "I read back what Fabric holds and count the figures again from the rows, so you know it is what the dry run showed."
+    },
+    {
+     "ask": "Refresh the semantic model shop_model_v2 once: run create_semantic_model with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", name=\"shop_model_v2\", refresh=true, dry_run=false. It updates the model in place with the same definition and then refreshes it once; ask me to confirm first.",
+     "label": "Refresh the model once",
+     "order": 2,
+     "step": "refresh",
+     "who": "builder",
+     "why": "A new Direct Lake model shows no data until it is refreshed once; one refresh frames its tables."
+    },
+    {
+     "ask": "Show the pipeline as a dry run: run create_pipeline with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", name=\"pipeline_shop\", dry_run=true. Then offer me the two choices for the Create: Run once (run_once=true) and a Schedule (schedule), both off unless I choose them.",
+     "choices": [
+      "Run once",
+      "Schedule"
+     ],
+     "label": "Build the pipeline (silver, gold, check)",
+     "order": 3,
+     "step": "pipeline",
+     "who": "builder",
+     "why": "Nothing keeps the silver tables and the gold views up to date yet; the pipeline does, and its check fails the run when a key or a sum breaks."
+    },
+    {
+     "args": {
+      "dry_run": true,
+      "model": "shop_model_v2",
+      "name": "shop_model_v2_report",
+      "workspace": "demo"
+     },
+     "ask": "Show a report on shop_model_v2 as a dry run: run create_report with workspace=\"demo\", model=\"shop_model_v2\", name=\"shop_model_v2_report\", dry_run=true.",
+     "label": "Create a report on it",
+     "order": 4,
+     "step": "report",
+     "tool": "create_report",
+     "who": "builder",
+     "why": "The model has measures and no page that shows them; I draw one page from its own measures."
+    },
+    {
+     "ask": "Show a data agent as a dry run: run create_data_agent with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", name=\"shop_agent\", dry_run=true. Say that it is experimental.",
+     "label": "Create a data agent (experimental)",
+     "order": 5,
+     "step": "data_agent",
+     "who": "builder",
+     "why": "People can then ask the data in words; it is experimental and judged by its answers, so try its questions first."
+    },
+    {
+     "ask": "What does the Rayfin App (preview) take? Say it plainly: Krusgraph for Fabric makes an empty App item and a package with one command, and the App opens inside Fabric only. From this chat, rayfin_connector gives the connector's entities for workspace=\"demo\", source=\"demo_lh\", schema=\"shop\".",
+     "label": "A Rayfin App (preview)",
+     "order": 6,
+     "step": "app",
+     "who": "builder",
+     "why": "Honest: I make an empty App item and a package with one command; the App opens inside Fabric only."
+    },
+    {
+     "ask": "Show a drift monitor as a dry run: run create_drift_monitor with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", name=\"drift_monitor_shop\", dry_run=true.",
+     "label": "Add a drift monitor",
+     "order": 7,
+     "step": "drift_monitor",
+     "who": "thinker",
+     "why": "Tables and columns change; a nightly monitor tells you when the plan no longer matches the source."
+    },
+    {
+     "ask": "Draft the data product with an owner and a contract: run domain_draft with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", then ask me who owns it.",
+     "label": "Register it as a data product",
+     "order": 8,
+     "step": "data_product",
+     "who": "onto",
+     "why": "It has items and no owner or contract yet; with those, others know whom to ask and what is promised."
+    }
+   ],
+   "next_steps_note": "By rules, in the order of what the data product still lacks. No step writes: each is a read, a dry run or a question; a Create comes only from its own dry run.",
    "note": "Unit-tested against Microsoft's sample definitions. On 29 October 2026 it created the semantic model shop_model_live live against a Fabric workspace with synthetic data; it was refreshed and reviewed in the Fabric portal the same day, and a model was updated in place on 30 October 2026. The counts in this answer are today's draft's. Without the permission the create answers kind=consent naming it, see docs/SCOPES.md.",
    "read_from_rows": [
     "Dates: 2026-09-01 to 2026-10-31 in orders.order_date; the calendar spans those whole years.",
@@ -5827,6 +6332,10 @@
    [
     "POST",
     "/v1/workspaces/11111111-2222-3333-4444-555555555555/semanticModels"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
    ]
   ],
   "tool": "create_semantic_model"

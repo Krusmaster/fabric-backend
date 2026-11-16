@@ -79,6 +79,7 @@ import { MapData } from "./cardMap";
 import { MASCOT_COLOURS, MASCOT_CSS, MASCOT_GLAD, MASCOT_NAMES } from "./cardMap.generated";
 import { MascotFigure } from "./mascotFigure";
 import { OntoWait } from "./OntoWait";
+import { VerifyButton } from "./verifyBuilt";
 import { Wait, newWait } from "./waitWords";
 import {
   CheckState,
@@ -1230,6 +1231,8 @@ export function ResultView(props: {
       ) : (
         <Body1>{said}</Body1>
       )}
+      {/* n229: after every Create, and on reopening: read back what was built and compare it with the dry run, by rules */}
+      {!live && <VerifyButton built={props.outputs.created.length} busy={props.busy} />}
       {stored && <ProductView product={stored} onOpen={props.onOpen} />}
       {a?.flow && <FlowView flow={a.flow} mascotsOn={false} idPrefix="kg-flow-result" />}
       {a ? (
