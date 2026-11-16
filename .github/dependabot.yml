@@ -27,3 +27,8 @@ updates:
     schedule: { interval: monthly }
     groups:
       all: { patterns: ["*"] }
+    # n243: majors are left out (PR #25 brought React 19, react-router 7, TypeScript 7, vitest 5 at once); the editor is a
+    # fork of Microsoft's starter kit, so it moves to a new major when the kit does, in a round of its own.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
