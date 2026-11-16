@@ -6,6 +6,7 @@ Synthetic data only: the shop sample and the SAP-shaped sample (sap_demo.py; not
 REST API is replaced by test doubles.
 """
 import json
+import re
 
 import pytest
 
@@ -207,7 +208,7 @@ def test_after_a_create_the_card_draws_the_next_steps_as_buttons_with_the_mascot
     acts, note = build.actions_for("create_semantic_model", call, answer, taken={"shop_model"}, workspace_id=WS)
     assert note is None
     assert [(a["kind"], a["label"]) for a in acts] == [
-        ("link", "Open in Fabric"), ("call", "Verify what was built"), ("say", "Refresh the model once"),
+        ("link", "Open shop_model in Fabric"), ("call", "Verify what was built"), ("say", "Refresh the model once"),   # n227: the item, by name
         ("dry_run", "Create a report on it"), ("say", "Create a data agent (experimental)"), ("say", "A Rayfin App (preview)"),
         ("say", "Add a drift monitor"), ("say", "Register it as a data product"),
         ("done", "Build the pipeline (silver, gold, check)"), ("say", "More: Download a dbt project draft (a draft)")]
@@ -235,8 +236,9 @@ def test_the_lead_text_lists_the_next_steps_for_a_text_only_client():
     call = {"workspace": "demo", "source": "demo_lh", "schema": "shop", "name": "shop_model", "dry_run": False}
     acts, _ = build.actions_for("create_semantic_model", call, answer, taken=set(), workspace_id=WS)
     lead = nxt.lead("create_semantic_model", answer, [], acts)
-    assert "- Verify what was built (verify_build)" in lead and "- Refresh the model once" in lead
-    assert "- More: Download a dbt project draft (a draft)" in lead
+    # n227: a numbered list in plain words; which call a number is stands in the paragraph for the model
+    assert re.search(r"\n\d+\. Verify what was built\n", lead) and re.search(r"\n\d+\. Refresh the model once", lead)
+    assert re.search(r"\d+ = verify_build", lead) and re.search(r"\n\d+\. More: Download a dbt project draft \(a draft\)", lead)
 
 
 def test_older_answers_without_next_steps_keep_the_old_two_buttons():
@@ -305,7 +307,7 @@ def test_with_a_gate_the_card_puts_the_fix_first_and_create_anyway_second(sap):
     assert acts[1]["secondary"] is True and acts[1]["arguments"] == {**call, "dry_run": False} and acts[1]["name"] == "demo_lh_model_3"
     assert "little use" in acts[1]["why"] and "create_pipeline" in acts[0]["say"]
     js = build.actions_js()
-    assert 'a.kind === "create" && a.secondary !== true ? "act-create" : "act-b"' in js    # no primary style on Create anyway
+    assert 'a.kind === "create" && a.secondary !== true ? "act-create" : (a.primary === true ? "act-b act-primary" : "act-b")' in js    # no primary style on Create anyway
 
 
 def test_an_ontology_with_most_entities_keyless_is_gated_the_same_way(sap):
@@ -388,7 +390,7 @@ def test_the_card_in_a_browser_after_a_create_and_at_a_gated_dry_run(tmp_path, s
     assert out["errors"] == []
     c = out["created"]
     assert c["verdict"] == "Created in Fabric." and c["primary"] == 0 and c["nextHeading"] == 0 and c["overflow"] is False
-    assert c["buttons"] == ["Open in Fabric", "Verify what was built", "Refresh the model once", "Create a report on it (shop_model_report)",
+    assert c["buttons"] == ["Open shop_model in Fabric", "Verify what was built", "Refresh the model once", "Create a report on it (shop_model_report)",
                             "Create a data agent (experimental)", "A Rayfin App (preview)", "Add a drift monitor",
                             "Register it as a data product", "More: Download a dbt project draft (a draft)"]
     assert c["reasons"][1] == "Thinker: " + ac.WHY["verify"] and c["reasons"][2] == "Builder: " + ac.WHY["refresh"]

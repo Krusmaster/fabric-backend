@@ -305,7 +305,7 @@
      "tables": 7
     }
    ],
-   "summary": "'dbo' has no tables in demo_lh. demo_lh has 1 schemas with tables: shop (7 tables). Which one should be listed?"
+   "summary": "'dbo' has no tables in demo_lh. demo_lh has 1 schema with tables: shop (7 tables). Which one should be listed?"
   },
   "args": {
    "schema": "dbo",
