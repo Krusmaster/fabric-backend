@@ -3823,9 +3823,9 @@ def build_app(host: str = "0.0.0.0"):
         return JSONResponse({"status": "ok"}, headers={"Cache-Control": "no-store"})
     app.router.routes.append(Route("/health", health_public, methods=["GET", "HEAD"]))
 
-    async def metrics(request):
-        """Usage totals (usage.py) in the Prometheus text format. Off unless KRUSGRAPH_METRICS_TOKEN is set (32
-        characters or more); then only for a request carrying it as a bearer token. Otherwise this path is a 404."""
+    def operator_refusal(request) -> Response | None:
+        """The operator's views (/metrics, n240: /admin/campaigns): off unless KRUSGRAPH_METRICS_TOKEN is set (32
+        characters or more), then only for a request carrying it as a bearer token. None when the request may pass."""
         import hmac
         expected = os.environ.get("KRUSGRAPH_METRICS_TOKEN", "").strip()
         if len(expected) < 32:
@@ -3834,8 +3834,24 @@ def build_app(host: str = "0.0.0.0"):
         given = a[7:].strip() if a.lower().startswith("bearer ") else ""
         if not given or not hmac.compare_digest(given.encode(), expected.encode()):
             return PlainTextResponse("unauthorized", status_code=401, headers={"Cache-Control": "no-store"})
+        return None
+
+    async def metrics(request):
+        """Usage totals (usage.py) in the Prometheus text format, for the operator (operator_refusal); a 404 otherwise."""
+        refused = operator_refusal(request)
+        if refused is not None:
+            return refused
         return PlainTextResponse(_usage.usage.prometheus(), media_type="text/plain; version=0.0.4", headers={"Cache-Control": "no-store"})
     app.router.routes.append(Route("/metrics", metrics))
+
+    # n240: /check's visits and checks per UTC day and utm_source/medium/campaign (usage.Campaigns), read-only, JSON,
+    # behind the same token as /metrics. Counts only: no cookie, IP address or identifier is behind any of them.
+    async def admin_campaigns(request):
+        refused = operator_refusal(request)
+        if refused is not None:
+            return refused
+        return JSONResponse(_usage.campaigns.report(), headers={"Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow"})
+    app.router.routes.append(Route("/admin/campaigns", admin_campaigns))
 
     from starlette.responses import FileResponse, HTMLResponse
     from .pages import (PAGES, STATIC_TYPES, THEME_HASH, docs_html, docs_md, lovable_html, lovable_md, local_html, local_md, not_found_html, privacy_html,
@@ -3888,7 +3904,8 @@ def build_app(host: str = "0.0.0.0"):
             headers = {"Cache-Control": PAGE_CACHE, **(check_headers(request) if path == "/check" else home_headers(request) if path == "/" else PAGE_HEADERS)}
             if path == "/mascots":
                 headers["X-Robots-Tag"] = "noindex, nofollow"
-            _usage.page_view(path)                    # one line for /, /check, /explore, /start, /partners; nothing else
+            # one line for /, /check, /start, /partners; nothing else (n240: on /check, with the address's cleaned utm values)
+            _usage.page_view(path, _usage.utm_of(request.query_params) if path == "/check" else None)
             body = fn()
             if "connect-src 'none'" in headers["Content-Security-Policy"]:
                 body = strip_chat(body)               # n93: no chat button where the chat could not fetch its plan (n154: unless the page carries it)
@@ -4037,9 +4054,11 @@ def build_app(host: str = "0.0.0.0"):
         return compressed(request, p.read_bytes(), STATIC_TYPES[".js"], headers)
     app.router.routes.append(Route("/check/worker.js", check_worker))
 
-    # /check's two events, loaded as an image (the page itself may fetch nothing): the step is the whole request
+    # /check's two events, loaded as an image (the page itself may fetch nothing): the step, and (n240) the kind of check
+    # (sample or real), whether it is the page load's first, and the page address's utm values; nothing else is read
     async def check_event(request):
-        _usage.check_event(request.query_params.get("e", ""))
+        q = request.query_params
+        _usage.check_event(q.get("e", ""), kind=q.get("k"), first=q.get("n") == "1", utm=_usage.utm_of(q))
         return Response(status_code=204, headers={"Cache-Control": "no-store"})
     app.router.routes.append(Route("/check/event", check_event))
 
