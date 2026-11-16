@@ -1,0 +1,37 @@
+2026-11-16, round n236. Post texts for the SAP film in this folder, approved by the founder for publishing on 16 November 2026.
+Files: krusgraph-sap-to-report-9x16-reels-captioned-v2.mp4 (Reels, TikTok, Shorts), krusgraph-sap-to-report-4x5-voice-captioned-v2.mp4
+(feed), krusgraph-sap-to-report-16x9-voice-v2.mp4 (LinkedIn, YouTube), krusgraph-sap-to-report-cover-9x16-v2.jpg (the Reel's cover).
+Voice: AI-generated. Music and sounds: original, synthesized in code for this film (no samples). Synthetic, SAP-shaped example data.
+
+=== (a) Instagram / TikTok / YouTube Shorts ===
+
+If you use Microsoft Fabric, you need to see this.
+
+Your SAP data lands in Fabric as hundreds of tables with short, cryptic names: VBAK, VBAP, KNA1, LIKP, VBRK. How do they connect?
+
+Krusgraph finds the links between the tables and checks them against your rows. It suggests data products (here Order to cash and Customer master), builds a semantic model from one, and a report on that model counts each order's total once.
+
+Shown on a synthetic, SAP-shaped example, not data from an SAP system. Voice: AI-generated. Krusgraph is independent and not affiliated with SAP or Microsoft.
+
+#MicrosoftFabric #SAP #PowerBI #SemanticModel #DataEngineering
+
+Try it in your browser: krusgraph.com/check (link in bio)
+
+=== (b) YouTube Shorts title ===
+
+From SAP tables to a report in Microsoft Fabric: Krusgraph on a synthetic example
+
+=== (c) LinkedIn ===
+
+SAP data in Microsoft Fabric often arrives as hundreds of tables with short, cryptic names. VBAK, VBAP, KNA1, LIKP, VBRK: how do they connect, and which of them belong together?
+
+This 55-second film shows what Krusgraph does with them, on a synthetic, SAP-shaped example:
+
+1. It finds the links between the tables (order line to order, order to customer, deliveries, invoices) and checks them against the rows: 32 of 34 links hold, and a link that does not is flagged.
+2. It suggests data products from those links: Order to cash and Customer master, each with its tables in plain words and an owner still to be assigned.
+3. It builds a semantic model from Order to cash, with facts, dimensions and measures that count each order's total once.
+4. A report on that model shows order value, top customers and billing.
+
+Every name and number in the film comes from Krusgraph's engine run on the synthetic sample; nothing comes from an SAP system. Voice: AI-generated. Krusgraph is independent and not affiliated with SAP or Microsoft.
+
+You can try the check on your own tables in your browser: krusgraph.com/check
