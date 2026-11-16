@@ -55,7 +55,7 @@ MIRROR_TABLE_LIMIT = 1000
 
 
 def _base(t: str) -> str:
-    return re.split(r"[\s(<]", (t or "").strip().upper(), 1)[0]
+    return re.split(r"[\s(<]", (t or "").strip().upper(), maxsplit=1)[0]
 
 
 def column_findings(source: str, t: md.SrcTable) -> list[dict]:

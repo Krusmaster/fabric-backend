@@ -74,8 +74,9 @@ OAuth token; nothing is stored by Krusgraph. Tools take the schema without the c
 | `silver_notebook_draft` | Not on Databricks | a Fabric notebook; `databricks_pipeline_draft` carries the same rules |
 | `ontology_draft`, `rayfin_connector` | Not on Databricks | Fabric IQ and Rayfin read Fabric items |
 | `answer_query_draft` | Planned | the drafted query is T-SQL; `join_path` gives the joins in Databricks SQL |
+| `plan_migration` | Not on Databricks | with `fabric_schema` only: its after-landing counts read Fabric; without it the tool reads only the exported metadata files ([MIGRATE-DATABRICKS-SNOWFLAKE.md](MIGRATE-DATABRICKS-SNOWFLAKE.md)) |
 
-The last six answer `kind: unsupported` with the hint above; of them only `answer_query_draft` is planned for
+The six before it answer `kind: unsupported` with the hint above (`plan_migration` only when given `fabric_schema`); of them only `answer_query_draft` is planned for
 Databricks, the others build Fabric items. The seven `databricks_*` tools answer
 `unsupported` on a Fabric source. Every tool has a title and annotations; the two new creating tools have
 `readOnlyHint: false`, `destructiveHint: true` like the Fabric creating tools.
