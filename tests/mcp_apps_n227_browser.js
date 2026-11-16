@@ -4,7 +4,8 @@
 //             fail: {<tool>: {code, message}}            the host answers that tool's tools/call with a JSON-RPC error,
 //             delay: ms before the host answers a tools/call (default 20),
 //             clicks: [{text?, css?, nth?, wait?}]        wait: ms after the click (default 250); a snapshot follows each,
-//             query: {<name>: css}}                       for each: the text of every match that is not hidden
+//             query: {<name>: css},                       for each: the text of every match that is not hidden
+//             shot: path}                                 a screenshot of the card at the end
 // Prints JSON {log, text, snaps, errors, requests, overflow: [scrollWidth, clientWidth], found, spin}.
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -56,6 +57,7 @@ const data = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
       spin = await fr.locator('.wait').first().evaluate(e => [e.getAttribute('data-motion'), e.querySelector('.wait-dots').getAttribute('data-on'),
                                                               getComputedStyle(e.querySelector('.wait-dots i')).animationName]);
   }
+  if (data.shot) await fr.locator('main').screenshot({ path: data.shot });       // for a person to look at; no test reads it
   const text = await fr.locator('main').innerText();
   const overflow = await fr.locator('html').evaluate(e => [e.scrollWidth, e.clientWidth]);
   const found = {};

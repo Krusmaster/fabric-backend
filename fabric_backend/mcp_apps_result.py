@@ -15,7 +15,8 @@ running. This module is the shared script for that, used by every card (mcp_apps
   of which one is lit, stepped by the same one-second timer that counts; with prefers-reduced-motion it stands still
   (all three lit) and only the seconds change. The seconds are how long this card has waited, not a promise.
 - ontoSvg(o): an ontology as a static SVG that is readable at 375 px: one entity type per row with its key marked
-  (key, no key, key of several columns), and each relationship type as a labelled arc on the right. Drawn from the
+  (key, no key, key of several columns), and each relationship type as a numbered arrow on the right with its name
+  in the legend under the picture (names on the arrows ran over each other at a phone's width). Drawn from the
   answer's `ontology` (mcp_apps_pictures.ontology_from); no layout engine, no script in the SVG.
 - sapNote(box, text): "SAP pack: Krusgraph's list of known SAP keys", once per card, the first time the words appear.
 
@@ -57,7 +58,10 @@ CSS = """
 .onto-arc { fill: none; stroke: var(--kg-muted); stroke-width: 1.4 }
 .onto-arc.onto-off { stroke-dasharray: 3 3 }
 .onto-tip { fill: var(--kg-muted) }
-.onto-lab { fill: var(--kg-ink); font: 11.5px var(--kg-font); paint-order: stroke; stroke: var(--kg-bg); stroke-width: 3px }
+.onto-num { fill: var(--kg-bg); stroke: var(--kg-muted) }
+.onto-lab { fill: var(--kg-ink); font: 650 10px var(--kg-font) }
+.onto-legend { margin: 0; padding-left: 26px; font-size: 13px; max-height: 200px; overflow: auto }
+.onto-legend li { overflow-wrap: anywhere }
 .sap-note { color: var(--kg-muted); font-size: 13px }
 """
 
@@ -228,6 +232,7 @@ JS = r"""
       g.appendChild(s("title", {}, x.name + " (" + keyText + ")"));
       svg.appendChild(g);
     });
+    var nums = [];
     drawn.forEach(function (l, n) {
       var i = at[l.source_entity], j = at[l.target_entity], lane = Math.min(l._lane, nLanes - 1);
       var x1 = X0 + BOXW, xl = x1 + 14 + lane * LANE;
@@ -235,14 +240,23 @@ JS = r"""
       var g = s("g", { "data-link": l.source_entity + ">" + (l.name || "") + ">" + l.target_entity });
       g.appendChild(s("path", { d: "M" + x1 + " " + y1 + " H" + xl + " V" + y2 + " H" + (x1 + 5), "class": "onto-arc" + (l.in_ontology === false ? " onto-off" : "") }));
       g.appendChild(s("path", { d: "M" + x1 + " " + y2 + " l6 -3.5 v7 z", "class": "onto-tip" }));
-      var label = cut(l.name || "", 20), ly = (y1 + y2) / 2 + 4 + ((n % 2) ? 7 : -7) * (Math.abs(i - j) > 1 ? 1 : 0);
-      if (label) g.appendChild(s("text", { x: Math.min(xl + 4, W - 6 * label.length - 2), y: ly, "class": "onto-lab" }, label));
+      // the label is the relationship's number, on its own lane; the names are in the legend under the picture, so
+      // no label runs over another or off the picture at a phone's width
+      var ly = (y1 + y2) / 2;
+      nums.push(s("circle", { cx: xl, cy: ly, r: 7.5, "class": "onto-num" }));          // drawn last, over every line
+      nums.push(s("text", { x: xl, y: ly + 3.5, "text-anchor": "middle", "class": "onto-lab" }, String(n + 1)));
       g.appendChild(s("title", {}, l.source_entity + " " + (l.name || "→") + " " + l.target_entity + (l.in_ontology === false ? " (over several columns: not a relationship type)" : "")));
       svg.appendChild(g);
     });
+    nums.forEach(function (e) { svg.appendChild(e); });
     var fig = el("figure", null, "onto-fig");
     fig.appendChild(svg);
     fig.appendChild(el("figcaption", "Solid box: has a key. Dashed box: no key, or a key of several columns. An arrow points at the entity type a relationship leads to."));
+    if (drawn.length) {
+      var legend = el("ol", null, "onto-legend"); legend.setAttribute("aria-label", "The relationships, by number");
+      drawn.forEach(function (l) { legend.appendChild(el("li", l.source_entity + " → " + l.target_entity + (l.name ? ": " + l.name : "") + (l.in_ontology === false ? " (over several columns: not a relationship type)" : ""))); });
+      fig.appendChild(legend);
+    }
     var list = el("details", null, "res-note"), sm = el("summary");
     sm.appendChild(el("span", "The ontology as a list ")); sm.appendChild(el("span", "Show", "res-show")); list.appendChild(sm);
     var ul = el("ul");

@@ -424,6 +424,9 @@ def test_the_start_path_names_no_tool_in_what_a_person_reads():
     assert first["say"] == "Which workspace shall we start in? I can list the ones your account can open."
     card = words.card("start", first, {}, {})
     assert card == {"title": "Start Krusgraph", "result": first["say"], "onto": first["say"]}
+    lost = start_flow.guide(workspace="demo", source="demo_lh", schema="shop", step="bogus")       # F1 B13: the place is kept
+    assert lost["step"]["key"] == "map" and lost["unknown_step"]["asked"] == "bogus" and lost["say"].startswith("I don't know a step called “bogus”")
+    assert "would already propose that link (rule R5)" in start_flow.guide(sample=True)["found"]["note"]   # F1 B4
     confirm = start_flow.guide(workspace="demo", source="demo_lh", schema="shop", step="create")
     assert "call start" not in confirm["say"] and 'call start with step="create"' in confirm["then"]
 
@@ -564,9 +567,11 @@ def test_at_375_px_a_created_ontology_is_drawn_with_its_keys_marked(tmp_path, fa
         "args": {**SRC, "name": "shop_onto", "dry_run": False}, "result": _result(made), "caps": CAPS, "toolInfo": _info("create_ontology"),
         "query": {"keyed": "svg.onto-svg g[data-key='key'] .onto-name", "none": "svg.onto-svg g[data-key='none'] .onto-name",
                   "multi": "svg.onto-svg g[data-key='composite'] .onto-name", "labels": "svg.onto-svg .onto-lab", "svgs": "svg.onto-svg title",
+                  "legend": ".onto-legend li",
                   "notes": ".res-note summary", "old": "#pic-onto svg"}})
     assert len(out["found"]["keyed"]) == 5 and out["found"]["none"] == ["AuditLog"] and out["found"]["multi"] == ["OrderItems"]
-    assert len(out["found"]["labels"]) == 7 and all(out["found"]["labels"])                 # every relationship is labelled
+    assert out["found"]["labels"] == [str(i) for i in range(1, 8)]                           # every relationship is labelled: its number,
+    assert len(out["found"]["legend"]) == 7 and "OrderItems → Orders: OrderItemsHasOrders" in out["found"]["legend"]   # and its name
     assert out["found"]["svgs"][0] == "The ontology: 7 entity types, 5 with a key; 7 relationship types."
     assert out["found"]["old"] == []                                                         # one picture, not two
     assert "Created shop_onto, an ontology, in Fabric." in out["text"]

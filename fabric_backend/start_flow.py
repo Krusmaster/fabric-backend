@@ -233,6 +233,10 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
     elif now == "create":
         out.update(_create(c, create, confirm))
         actions = out.pop("actions")
+    asked = (step or "").strip()
+    if asked and asked.lower() not in KEYS:              # F1 B13: an unknown step keeps the place and says so
+        out["unknown_step"] = {"asked": asked, "steps": list(KEYS)}
+        out["say"] = (f"I don't know a step called “{asked[:40]}”, so this is where you are. " + out.get("say", ""))
     out["actions"] = actions
     if nxt and now != "create":
         out["after"] = {"tool": TOOL, "arguments": _start_args(c, nxt), "label": f"Next: {BY_KEY[nxt][1]}",
@@ -293,7 +297,11 @@ def _sample(step: str | None) -> dict:
     if now == "map":
         found = {"tool": "plan_backend", "summary": p["summary"].splitlines()[0],
                  "links": [f"{r['source']}.{'+'.join(r['source_cols'])} -> {r['target']} ({r['rule']})" for r in p["relationships"]],
-                 "no_key": p["keyless"]}
+                 "no_key": p["keyless"],
+                 # F1 B4: the sample's plan is made from the names alone; on a real source the plan also counts
+                 "note": ("This sample plan reads the names only. On your own data the plan also counts columns like "
+                          "orders.ship_to_id against the rows and would already propose that link (rule R5); the "
+                          "sample asks you about it in step 6.")}
     elif now == "check":
         found = {"tool": "validate_plan", "summary": d["validation"]["summary"]}
     elif now == "decide":
