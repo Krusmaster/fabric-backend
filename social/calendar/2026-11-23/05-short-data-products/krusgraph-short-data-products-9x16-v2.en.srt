@@ -1,0 +1,51 @@
+1
+00:00:00,100 --> 00:00:01,297
+If you use Microsoft Fabric,
+
+2
+00:00:01,317 --> 00:00:02,818
+you need to see this.
+
+3
+00:00:02,850 --> 00:00:04,823
+Your SAP tables are in Fabric.
+
+4
+00:00:04,843 --> 00:00:05,667
+Who owns what?
+
+5
+00:00:05,687 --> 00:00:07,629
+Krusgraph checks the links first:
+
+6
+00:00:07,649 --> 00:00:09,419
+32 of 34 hold.
+
+7
+00:00:09,439 --> 00:00:11,277
+Then it suggests two data products:
+
+8
+00:00:11,297 --> 00:00:13,674
+Order to cash, and Customer master.
+
+9
+00:00:14,241 --> 00:00:16,452
+Order to cash uses customers from Customer
+
+10
+00:00:16,472 --> 00:00:17,130
+master.
+
+11
+00:00:17,150 --> 00:00:18,921
+Each gets an owner you choose.
+
+12
+00:00:18,941 --> 00:00:20,871
+Try it in your browser:
+
+13
+00:00:20,891 --> 00:00:22,021
+krusgraph.com/check
