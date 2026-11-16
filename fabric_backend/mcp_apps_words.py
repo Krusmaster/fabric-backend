@@ -609,7 +609,9 @@ def card(tool: str, answer: dict, stash: dict | None = None, call: dict | None =
             out.update({"result": "The answer is under Show details."})
         dry = answer.get("dry_run")
         title = TITLES.get(tool)
-        if title:
+        if title and tool not in MAKES:              # a draft or a list: its title as it is
+            out["title"] = title
+        elif title:
             out["title"] = title + (": dry run" if dry is True else ": still working" if started
                                     else ": created" if dry is False or answer.get("checked") else "")
     out.update(_action_words(tool, answer))
