@@ -37,7 +37,7 @@ owner of an area is listed here. Change an area you do not own only when the mai
 
 | Area | Files | Owner now |
 | --- | --- | --- |
-| Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/concepts.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | open |
+| Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/concepts.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | n240 holds `check.html`, `home.html`, `PRIVACY.md`, `site.css`, `check.js`, `pages.py`, `fabric_backend/usage.py`, the /check and admin-count routes in `server.py`, and new tests `tests/test_n240_*` and `tests/browser_n240_mobile.js` only (/check on a phone, a no-login sample path, cookie-free campaign counts); the rest is open |
 | MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | open |
 | Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | open; no tool, no pipeline cell, no workload code) |
 | Deployment | `deploy/`, `Dockerfile`, `.github/` | open |
