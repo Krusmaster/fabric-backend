@@ -1,4 +1,4 @@
-"""The /use-cases page: three synthetic examples drawn as maps, the tasks a visitor starts from, and ten industries
+"""The /use-cases page: three synthetic examples drawn as maps, the tasks a visitor starts from, and nine industries
 told as the customer's problem (n59: the page was 5 800 words with ten industry sketches; reviewers found it too long,
 and the sketches' labels read as if the links were missing; n68: the industries are back as problems, not tables).
 
@@ -18,7 +18,7 @@ from functools import lru_cache
 from .tool_status import create_api_plain, plain
 
 FOOTNOTE = "The examples are synthetic: invented tables and rows, not customer projects."
-WORD_CAP = 2200          # tests/test_use_cases.py keeps the page's main text under this (n68: 1 000 plus the ten industries at up to 120 words each)
+WORD_CAP = 2080          # tests/test_use_cases.py keeps the page's main text under this (n68: 1 000 plus the industries at up to 120 words each; n239: nine)
 
 # (example on /check, anchor, heading, one or two sentences, button)
 EXAMPLES = [
@@ -36,12 +36,12 @@ EXAMPLES = [
      "Open Salesforce + ERP in /check"),
 ]
 
-# n68: the ten industries are back (they went in n59), told as the problem a customer brings rather than as table
+# n68: the ten industries are back (n239: nine, Education removed at the founder's request) (they went in n59), told as the problem a customer brings rather than as table
 # sketches: a heading, the question in the customer's words, what they get, and the nearest runnable example on /check.
 # No "typical tables" and no map here: the maps are the three examples above. Each entry stays under
 # INDUSTRY_WORD_CAP words on the page (tests/test_use_cases.py). No logistics, warehouse or supply-chain theme.
 INDUSTRY_WORD_CAP = 120
-# n224 (S1 section 3.2): no dataset stands behind the ten cards, so each says so, on the page and in the Markdown
+# n224 (S1 section 3.2): no dataset stands behind the cards, so each says so, on the page and in the Markdown
 ILLUSTRATIVE = "Illustrative, not run on customer data"
 INDUSTRIES: list[dict] = [
     {"slug": "retail", "name": "Retail and e-commerce", "example": "sample",
@@ -80,10 +80,6 @@ INDUSTRIES: list[dict] = [
      "problem": "Which unit does this maintenance request belong to, and who is the tenant right now?",
      "get": "Property, unit, lease, tenant and request on one map with the reason for each link; the column that names a role "
             "(reported by) marked as the weaker link and left for your check; nothing created until you ask."},
-    {"slug": "education", "name": "Education", "example": "sap",
-     "problem": "A student takes the same course twice, and the grade report counts one of them or both, depending on the join.",
-     "get": "The enrolment key that needs student, course and term together, the duplicates a shorter key would give counted in "
-            "your rows, and a plan the registrar can read before any dashboard."},
 ]
 
 # The three tasks a visitor starts from (the website brief of 26 October 2026): what they say, what they get and the

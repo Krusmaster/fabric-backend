@@ -1256,8 +1256,11 @@ html[data-mascots=off] .check-guide-figure{display:none}
 .uc-map figcaption{margin-top:6px}
 .uc-ex-h{margin:8px 0 0}
 .uc-ex-finds{list-style:none;margin:0 0 8px;padding:0;display:grid;gap:8px}
-/* n68: the ten industries as problem cards */
-.uc-ind-list{list-style:none;margin:16px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:16px}
+/* n68: the industries as problem cards; n239: nine cards in fixed columns (1, 2, 3), so three rows of three on a wide
+   screen and, at two columns, the odd last card spans the row instead of leaving a gap */
+.uc-ind-list{list-style:none;margin:16px 0 0;padding:0;display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+@media (min-width:720px){.uc-ind-list{grid-template-columns:repeat(2,minmax(0,1fr))}.uc-ind-list>.uc-ind:last-child:nth-child(odd){grid-column:1/-1}}
+@media (min-width:1040px){.uc-ind-list{grid-template-columns:repeat(3,minmax(0,1fr))}.uc-ind-list>.uc-ind:last-child:nth-child(odd){grid-column:auto}}
 .uc-ind{padding:18px 20px;min-width:0}
 .uc-ind h3{margin:0 0 6px}
 .uc-ind-tag{margin:0 0 8px}   /* n224: "Illustrative, not run on customer data" on each card */

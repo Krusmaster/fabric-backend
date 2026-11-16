@@ -57,20 +57,21 @@ def test_page_renders_indexable_with_the_examples_the_industries_and_the_footnot
 
 def test_the_page_stays_under_the_word_cap(client):
     """n59: the page was 5 800 words with ten industry sketches; the cap keeps it short. n68: the ten industries are back
-    as customer problems, each under INDUSTRY_WORD_CAP words, and the page cap grew by their room."""
+    as customer problems (n239: nine), each under INDUSTRY_WORD_CAP words, and the page cap grew by their room."""
     assert _words(client.get("/use-cases").text) <= use_cases.WORD_CAP
     assert use_cases.WORD_CAP == 1000 + len(use_cases.INDUSTRIES) * use_cases.INDUSTRY_WORD_CAP
     for ind in use_cases.INDUSTRIES:
         assert use_cases.industry_words(ind) <= use_cases.INDUSTRY_WORD_CAP, (ind["slug"], use_cases.industry_words(ind))
 
 
-def test_ten_industries_are_customer_problems_with_a_similar_example_to_run(client):
-    """n68: ten industries (the n59 list, no logistics), each a heading, the problem in the customer's words, what they
+def test_nine_industries_are_customer_problems_with_a_similar_example_to_run(client):
+    """n68: ten industries (the n59 list, no logistics; n239: nine, Education removed), each a heading, the problem in the customer's words, what they
     get and "Try a similar example" to one of the three runnable examples; no table sketch and no map outside the three."""
     html = client.get("/use-cases").text
     sec = html.split('id="industries"', 1)[1].split("</section>", 1)[0]
     assert [i["slug"] for i in use_cases.INDUSTRIES] == ["retail", "manufacturing", "saas", "professional-services", "aml", "financial-crime",
-                                                          "pharma-research", "environment", "property", "education"]
+                                                          "pharma-research", "environment", "property"]
+    assert "Education" not in html and "education" not in client.get("/use-cases.md").text.lower() and "education" not in client.get("/llms.txt").text.lower()
     cards = re.findall(r'<li class="card soft uc-ind" id="([\w-]+)">(.*?)</li>', sec, re.S)
     assert [c[0] for c in cards] == [i["slug"] for i in use_cases.INDUSTRIES]
     runnable = {k for k, *_ in use_cases.EXAMPLES}
