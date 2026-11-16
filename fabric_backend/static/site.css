@@ -1672,3 +1672,24 @@ a.chip:hover{text-decoration:underline}
 .table-scroll{overflow-x:auto;max-width:100%}
 .footer-company{margin-top:-4px}
 .sap-src-ref a,a[href^="#sap-src-"]{display:inline-block;min-width:24px;min-height:24px;text-align:center}
+/* n240: /check on a phone. One button above the drop area runs the SAP-shaped example (no login, no files); it is not
+   shown where the examples already sit beside the drop area. Tap targets of at least 44 px, and a 16 px text box so a
+   phone does not zoom in on it. The figures, the logo and the fonts are as before. */
+.check-try{display:none}
+.check-verdict .check-headline{margin:10px 0 12px;padding:0}
+@media (max-width:759px){.check-verdict .check-headline{grid-template-columns:1fr}}
+@media (max-width:759px){
+  .check-try{display:flex;flex-direction:column;align-items:center;gap:6px;margin:0 0 18px}
+  .check-try-btn{min-height:48px;width:100%;max-width:360px}
+  .check-try-btn[aria-busy=true]{opacity:.8;cursor:progress}
+  .check-try-note{margin:0;font-size:15px;line-height:1.4;color:var(--muted);height:2.8em;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;max-width:360px}
+  .check-box textarea{font-size:16px}
+  .check-box-paste .btn,.btn.small{min-height:44px}
+  .check-engine-size summary,.check-all>summary,.check-engine>summary,.check-notes>summary{padding:10px 0;min-height:44px;box-sizing:border-box}
+  .check-ex-more a,.demo-next .ctas a{display:inline-flex;align-items:center;min-height:44px}
+  .skip,.brand{min-height:44px}
+  .footer-links a{display:inline-flex;align-items:center;min-height:44px}
+  .footer-links{row-gap:0}
+  .cookie-btn{min-height:44px}
+  .site-footer p.muted{font-size:14px}
+}
