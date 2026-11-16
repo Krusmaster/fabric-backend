@@ -281,8 +281,6 @@ RULES = {
           "name the one with the fewest rows is the nearest; applied only "
           "with support from the name, otherwise proposed with the counts; whole numbers without name support are never linked",
     "confirmed": "given by the caller in `confirmed=[...]`, applied as-is, before inference",
-    "decided": "decided by your team: a key or link accepted earlier with record_decision, applied as-is, before inference, "
-               "and still counted against the rows by validate_plan (a rejected one is not proposed; plan.decisions says which and why)",
 }
 
 _SPLIT = re.compile(r"[^a-z0-9]+")

@@ -85,7 +85,7 @@ def test_an_accepted_link_is_proposed_directly_and_says_your_team_decided_it(loc
     assert out["decisions"]["applied"][0]["item"] == "rel:orders.ship_to_id>addresses"
     assert any("decided by your team" in line for line in out["decisions"]["lines"])
     assert "decision(s) of your team applied as rules" in out["summary"]
-    assert "decided" in RULES and "validate_plan" in RULES["decided"]
+    assert "decided" not in RULES and "validate_plan" in decisions.RULE_TEXT       # not one of the engine's name rules
 
 
 def test_an_accepted_key_goes_in_with_the_rule_decided():

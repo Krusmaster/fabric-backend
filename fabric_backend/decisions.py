@@ -40,6 +40,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 RULE = "decided"
+# The rule as a person reads it. Not in infer.RULES (as CSN's rule is not): those are the engine's own name rules.
+RULE_TEXT = ("decided by your team: a key or link accepted earlier with record_decision, applied as-is before inference "
+             "and still counted against the rows by validate_plan; a rejected one is not proposed (plan.decisions says which and why)")
 PROVENANCE = "decided by your team"
 DECISIONS = ("accepted", "rejected")
 ROLES = ("steward", "owner", "engineer", "analyst", "reviewer")
