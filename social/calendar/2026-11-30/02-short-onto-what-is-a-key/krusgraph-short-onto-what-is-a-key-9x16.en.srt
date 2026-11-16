@@ -1,0 +1,23 @@
+1
+00:00:00,350 --> 00:00:04,036
+Meet Onto. One idea today: the key.
+
+2
+00:00:04,136 --> 00:00:08,125
+A key is the columns that name one row, and only one.
+
+3
+00:00:08,225 --> 00:00:12,309
+For SAP order lines: client, order and item. MANDT + VBELN + POSNR.
+
+4
+00:00:12,409 --> 00:00:16,123
+If a key repeats, every join on it repeats rows.
+
+5
+00:00:16,223 --> 00:00:20,837
+In our SAP example, 17 of 17 keys are unique.
+
+6
+00:00:21,187 --> 00:00:24,927
+Try it in your browser: krusgraph.com/check

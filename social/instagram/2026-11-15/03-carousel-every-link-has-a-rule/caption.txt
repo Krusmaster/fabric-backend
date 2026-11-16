@@ -1,0 +1,21 @@
+Every link on the map names its rule. Then the rows test it.
+
+A data model is only as good as its links. So we show two things for each one:
+
+The rule. In our example shop, orders.customer_id points at customers by rule R1: a column named after a table that has a single key.
+
+The count. The engine counts the link in the rows: "holds for all 60 rows with a value". Whole sample: 6 of 6 keys unique, 6 of 6 relationships hold without orphans.
+
+And when the rows disagree, it says so. In our SAP-shaped example, the link sap_vbap → sap_vbak comes from the SAP pack, and the rows answer: "1 of 6 rows (16.7%) point at nothing". One order line points at an order that is not there.
+
+A check that only says "all good" is hard to trust. This one says what held, what did not, and what was not counted.
+
+The rule behind every link, and the count that tests it. Your files are read in this browser and are not uploaded.
+
+These counts are from our example shop.
+
+What do you count before you build a report?
+
+#MicrosoftFabric #PowerBI #DataQuality #DataModeling #DataEngineering #SQL #Analytics #Krusgraph
+
+Try it in your browser: krusgraph.com/check (link in bio)

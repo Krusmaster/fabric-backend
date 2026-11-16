@@ -90,7 +90,7 @@ saknas.
 | Område | Docs and submission (`README.md`, `docs/`, `deploy/SUBMISSION.md`), Website (statusord), och materialet utanför repot. |
 | Sannolikhet | Ej bedömt. |
 | Konsekvensgrad | Ej bedömt. |
-| Befintliga kontroller | En statuskälla per verktyg som sajt, docs, llms.txt och verktygens egna svar renderas från (`fabric_backend/tool_status.py`); tester som stoppar säljord och statusord som inte stämmer (`tests/test_site.py`, `SALES`, `test_status_words_on_the_site_match_tool_status`, `_CREATE_CLAIMS` över `README.md` och alla `docs/*.md`); `tests/test_submission.py` håller portalanmälans siffror lika med servern; regeln mot påståenden produkten inte kan backa (`CONTRIBUTING.md`); listan över bevis som saknas (`docs/MISSING-EVIDENCE.md`); FAQ:ns regler om källor och "overifierat" (`docs/FAQ-COMPETITION.md`). Lucka: material utanför repot (deck, mejl) testas inte. |
+| Befintliga kontroller | En statuskälla per verktyg som sajt, docs, llms.txt och verktygens egna svar renderas från (`fabric_backend/tool_status.py`); tester som stoppar säljord och statusord som inte stämmer (`tests/test_site.py`, `SALES`, `test_status_words_on_the_site_match_tool_status`, `_CREATE_CLAIMS` över `README.md` och alla `docs/*.md`); `tests/test_submission.py` håller portalanmälans siffror lika med servern; regeln mot påståenden produkten inte kan backa (`CONTRIBUTING.md`); listan över bevis som saknas (`docs/MISSING-EVIDENCE.md`). Lucka: material utanför repot (deck, mejl) testas inte. |
 | Åtgärd | Datera allt säljmaterial och skriv statusord ur `tool_status` på datumet; när ett verktyg ändrar status, uppdatera eller dra in decket. `docs/TRUST.md` är underlaget för vad som får sägas om säkerhet. |
 | Ägare | Gustav |
 | Nästa granskning | Före varje kundmöte där ett deck visas; senast vid nästa versionstagg. |
@@ -119,10 +119,10 @@ saknas.
 | Orsak | Krusgraph bygger på Fabric-ytor som är preview eller nya: ontologi-objektet i Fabric IQ, Fabric IQ MCP, speglade databaser (Snowflake, Azure SQL, Cosmos DB, SAP) och Business Central-spegling via de speglade källorna, Rayfin. Microsoft kan ändra format, behörighet eller tenant-inställning. |
 | Händelse | `create_ontology` eller `ontology_draft` skriver ett format Fabric inte längre tar emot; en speglad källa svarar annorlunda; en tenant-inställning stänger av objektet. |
 | Konsekvens | Verktyget faller, med ett fel som kan se ut som Krusgraphs eget. |
-| Område | Engine (`ontology.py`, `platforms/fabric.py`), MCP tools (`create_ontology`, `list_sources`), Docs (`docs/FAQ-COMPETITION.md`, `docs/ECOSYSTEM-WATCHLIST.md`). |
+| Område | Engine (`ontology.py`, `platforms/fabric.py`), MCP tools (`create_ontology`, `list_sources`), Docs (`docs/ECOSYSTEM-WATCHLIST.md`). |
 | Sannolikhet | Ej bedömt; har hänt en gång i annan form: Fabric svarade 403 `FeatureNotAvailable` tills "Users can create Ontology (preview) items" slogs på (`fabric_backend/tool_status.py` `LATER_LIVE["create_ontology"]`). |
 | Konsekvensgrad | Ej bedömt. |
-| Befintliga kontroller | Ontologiformatet är verifierat mot inspelade definitioner, inte mot ett löfte (`fabric_backend/ontology.py`); Fabrics egen felkod skickas vidare i svaret (`fabric_backend/errors.py`, `kind`); goldenfiler låser motorns svar så att ett formatbyte syns i diffen (`tests/test_golden.py`); källor utöver lakehouse är märkta Experimental tills en livekörning (`fabric_backend/tool_status.py`); varje Learn-läsning dateras med `ms.date` och commit (`docs/FAQ-COMPETITION.md`, `docs/FET-PLAN.md`); `docs/ECOSYSTEM-WATCHLIST.md` håller datum för närliggande servrar. |
+| Befintliga kontroller | Ontologiformatet är verifierat mot inspelade definitioner, inte mot ett löfte (`fabric_backend/ontology.py`); Fabrics egen felkod skickas vidare i svaret (`fabric_backend/errors.py`, `kind`); goldenfiler låser motorns svar så att ett formatbyte syns i diffen (`tests/test_golden.py`); källor utöver lakehouse är märkta Experimental tills en livekörning (`fabric_backend/tool_status.py`); varje Learn-läsning dateras med `ms.date` och commit (`docs/FET-PLAN.md`); `docs/ECOSYSTEM-WATCHLIST.md` håller datum för närliggande servrar. |
 | Åtgärd | Läs om de preview-sidor Krusgraph lutar sig mot före varje versionstagg och skriv datum; `create_ontology` erbjuds alltid sedan `ontology_write` slutade läsas, med torrkörning som standard, och verktygets anteckning i `tool_status.py` säger att Ontology är preview. |
 | Ägare | Gustav |
 | Nästa granskning | Vid nästa versionstagg, eller när Microsoft meddelar GA för ontologi-objektet. |
@@ -135,10 +135,10 @@ saknas.
 | Orsak | Varje pilot vill ha sitt system (SAP, Younium + Salesforce, nordiska ERP), sin dialekt och sitt undantag; en enmansverksamhet lovar det för att få affären. |
 | Händelse | Motorn får kundspecifika grenar, eller löften ges om pack som inte finns. |
 | Konsekvens | Underhållet växer snabbare än intäkten; produkten blir konsulttimmar. |
-| Område | SAP pack (`fabric_backend/packs/`), Engine (`platforms/`), Docs (`docs/PILOT.md`, `docs/PRICING-NOTES.md`). |
+| Område | SAP pack (`fabric_backend/packs/`), Engine (`platforms/`), Docs (`docs/PILOT.md`, `docs/ENTITLEMENTS.md`). |
 | Sannolikhet | Ej bedömt. |
 | Konsekvensgrad | Ej bedömt. |
-| Befintliga kontroller | Systemkunskap ligger som data i pack, inte som kod (`fabric_backend/packs/*/*.json`, `fabric_backend/sap_pack.py`), med källa och "unverified" per rad där källan inte kunnat öppnas (`docs/YOUNIUM-SALESFORCE.md`, `docs/NORDIC-PACK-SPIKE.md`); plattformskod bakom en adaptergräns som ett test bevakar (`docs/ARCHITECTURE.md`, `tests/test_architecture.py`); pilotens in- och ut-lista (`docs/PILOT.md`, "Scope"); fri och betald nivå följer produktens egen form (`docs/PRICING-NOTES.md`). |
+| Befintliga kontroller | Systemkunskap ligger som data i pack, inte som kod (`fabric_backend/packs/*/*.json`, `fabric_backend/sap_pack.py`), med källa och "unverified" per rad där källan inte kunnat öppnas (`docs/YOUNIUM-SALESFORCE.md`, `docs/NORDIC-PACK-SPIKE.md`); plattformskod bakom en adaptergräns som ett test bevakar (`docs/ARCHITECTURE.md`, `tests/test_architecture.py`); pilotens in- och ut-lista (`docs/PILOT.md`, "Scope"); betalda funktioner följer produktens egen form (`docs/ENTITLEMENTS.md`). |
 | Åtgärd | Regel för säljsamtal: ett nytt system blir ett pack (data) eller sägs nej till; ingen kundgren i motorn. Skriv regeln i `docs/PILOT.md` när nästa pilot tar form. |
 | Ägare | Gustav |
 | Nästa granskning | Efter den första piloten. |

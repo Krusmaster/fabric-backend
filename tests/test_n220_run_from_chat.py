@@ -264,7 +264,9 @@ def test_a_taken_report_name_becomes_a_dry_run_button_and_a_link(fabric, monkeyp
     assert use["arguments"]["dry_run"] is True                                    # a step never writes
     assert steps[1]["label"] == "Open the existing report" and steps[1]["url"].startswith("https://")
     lead = nxt.lead("create_report", answer, steps)
-    assert "Use demo_lh_report_3 (create_report, dry run)" in lead and "Open the existing report: https://" in lead
+    # n227: a numbered list in plain words; the call each number stands for is in the paragraph for the model
+    assert "1. Use demo_lh_report_3\n2. Open the existing report: https://" in lead
+    assert "1 = create_report (model='shop_model', name='demo_lh_report_3'), as a dry run" in lead
 
 
 def test_any_other_error_gets_one_to_three_steps():

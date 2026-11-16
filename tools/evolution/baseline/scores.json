@@ -1,0 +1,315 @@
+{
+ "format": "krusgraph-scores",
+ "scores": {
+  "inference/adventureworks/fks_declared": {
+   "better": "same",
+   "value": 90
+  },
+  "inference/adventureworks/key_hits": {
+   "better": "higher",
+   "value": 47
+  },
+  "inference/adventureworks/key_wrong": {
+   "better": "lower",
+   "value": 4
+  },
+  "inference/adventureworks/keys_declared": {
+   "better": "same",
+   "value": 71
+  },
+  "inference/adventureworks/rel_hits": {
+   "better": "higher",
+   "value": 62
+  },
+  "inference/adventureworks/rel_wrong": {
+   "better": "lower",
+   "value": 17
+  },
+  "inference/adventureworks/tables": {
+   "better": "same",
+   "value": 71
+  },
+  "inference/app_names/fks_declared": {
+   "better": "same",
+   "value": 8
+  },
+  "inference/app_names/key_hits": {
+   "better": "higher",
+   "value": 7
+  },
+  "inference/app_names/key_wrong": {
+   "better": "lower",
+   "value": 0
+  },
+  "inference/app_names/keys_declared": {
+   "better": "same",
+   "value": 7
+  },
+  "inference/app_names/rel_hits": {
+   "better": "higher",
+   "value": 6
+  },
+  "inference/app_names/rel_wrong": {
+   "better": "lower",
+   "value": 0
+  },
+  "inference/app_names/tables": {
+   "better": "same",
+   "value": 7
+  },
+  "inference/chinook/fks_declared": {
+   "better": "same",
+   "value": 11
+  },
+  "inference/chinook/key_hits": {
+   "better": "higher",
+   "value": 11
+  },
+  "inference/chinook/key_wrong": {
+   "better": "lower",
+   "value": 0
+  },
+  "inference/chinook/keys_declared": {
+   "better": "same",
+   "value": 11
+  },
+  "inference/chinook/rel_hits": {
+   "better": "higher",
+   "value": 9
+  },
+  "inference/chinook/rel_wrong": {
+   "better": "lower",
+   "value": 0
+  },
+  "inference/chinook/tables": {
+   "better": "same",
+   "value": 11
+  },
+  "inference/dw_names/fks_declared": {
+   "better": "same",
+   "value": 3
+  },
+  "inference/dw_names/key_hits": {
+   "better": "higher",
+   "value": 4
+  },
+  "inference/dw_names/key_wrong": {
+   "better": "lower",
+   "value": 0
+  },
+  "inference/dw_names/keys_declared": {
+   "better": "same",
+   "value": 4
+  },
+  "inference/dw_names/rel_hits": {
+   "better": "higher",
+   "value": 3
+  },
+  "inference/dw_names/rel_wrong": {
+   "better": "lower",
+   "value": 0
+  },
+  "inference/dw_names/tables": {
+   "better": "same",
+   "value": 4
+  },
+  "inference/nordic_de/fks_declared": {
+   "better": "same",
+   "value": 5
+  },
+  "inference/nordic_de/key_hits": {
+   "better": "higher",
+   "value": 5
+  },
+  "inference/nordic_de/key_wrong": {
+   "better": "lower",
+   "value": 0
+  },
+  "inference/nordic_de/keys_declared": {
+   "better": "same",
+   "value": 5
+  },
+  "inference/nordic_de/rel_hits": {
+   "better": "higher",
+   "value": 4
+  },
+  "inference/nordic_de/rel_wrong": {
+   "better": "lower",
+   "value": 0
+  },
+  "inference/nordic_de/tables": {
+   "better": "same",
+   "value": 5
+  },
+  "inference/nordic_sv/fks_declared": {
+   "better": "same",
+   "value": 6
+  },
+  "inference/nordic_sv/key_hits": {
+   "better": "higher",
+   "value": 6
+  },
+  "inference/nordic_sv/key_wrong": {
+   "better": "lower",
+   "value": 0
+  },
+  "inference/nordic_sv/keys_declared": {
+   "better": "same",
+   "value": 6
+  },
+  "inference/nordic_sv/rel_hits": {
+   "better": "higher",
+   "value": 6
+  },
+  "inference/nordic_sv/rel_wrong": {
+   "better": "lower",
+   "value": 0
+  },
+  "inference/nordic_sv/tables": {
+   "better": "same",
+   "value": 6
+  },
+  "inference/northwind/fks_declared": {
+   "better": "same",
+   "value": 13
+  },
+  "inference/northwind/key_hits": {
+   "better": "higher",
+   "value": 11
+  },
+  "inference/northwind/key_wrong": {
+   "better": "lower",
+   "value": 0
+  },
+  "inference/northwind/keys_declared": {
+   "better": "same",
+   "value": 13
+  },
+  "inference/northwind/rel_hits": {
+   "better": "higher",
+   "value": 10
+  },
+  "inference/northwind/rel_wrong": {
+   "better": "lower",
+   "value": 0
+  },
+  "inference/northwind/tables": {
+   "better": "same",
+   "value": 13
+  },
+  "inference/sakila/fks_declared": {
+   "better": "same",
+   "value": 22
+  },
+  "inference/sakila/key_hits": {
+   "better": "higher",
+   "value": 15
+  },
+  "inference/sakila/key_wrong": {
+   "better": "lower",
+   "value": 0
+  },
+  "inference/sakila/keys_declared": {
+   "better": "same",
+   "value": 16
+  },
+  "inference/sakila/rel_hits": {
+   "better": "higher",
+   "value": 22
+  },
+  "inference/sakila/rel_wrong": {
+   "better": "lower",
+   "value": 1
+  },
+  "inference/sakila/tables": {
+   "better": "same",
+   "value": 16
+  },
+  "inference/tpch/fks_declared": {
+   "better": "same",
+   "value": 8
+  },
+  "inference/tpch/key_hits": {
+   "better": "higher",
+   "value": 8
+  },
+  "inference/tpch/key_wrong": {
+   "better": "lower",
+   "value": 0
+  },
+  "inference/tpch/keys_declared": {
+   "better": "same",
+   "value": 8
+  },
+  "inference/tpch/rel_hits": {
+   "better": "higher",
+   "value": 8
+  },
+  "inference/tpch/rel_wrong": {
+   "better": "lower",
+   "value": 2
+  },
+  "inference/tpch/tables": {
+   "better": "same",
+   "value": 8
+  },
+  "inference/wideworldimporters/fks_declared": {
+   "better": "same",
+   "value": 98
+  },
+  "inference/wideworldimporters/key_hits": {
+   "better": "higher",
+   "value": 30
+  },
+  "inference/wideworldimporters/key_wrong": {
+   "better": "lower",
+   "value": 0
+  },
+  "inference/wideworldimporters/keys_declared": {
+   "better": "same",
+   "value": 31
+  },
+  "inference/wideworldimporters/rel_hits": {
+   "better": "higher",
+   "value": 65
+  },
+  "inference/wideworldimporters/rel_wrong": {
+   "better": "lower",
+   "value": 0
+  },
+  "inference/wideworldimporters/tables": {
+   "better": "same",
+   "value": 33
+  },
+  "inference/wideworldimportersdw/fks_declared": {
+   "better": "same",
+   "value": 29
+  },
+  "inference/wideworldimportersdw/key_hits": {
+   "better": "higher",
+   "value": 8
+  },
+  "inference/wideworldimportersdw/key_wrong": {
+   "better": "lower",
+   "value": 5
+  },
+  "inference/wideworldimportersdw/keys_declared": {
+   "better": "same",
+   "value": 13
+  },
+  "inference/wideworldimportersdw/rel_hits": {
+   "better": "higher",
+   "value": 26
+  },
+  "inference/wideworldimportersdw/rel_wrong": {
+   "better": "lower",
+   "value": 0
+  },
+  "inference/wideworldimportersdw/tables": {
+   "better": "same",
+   "value": 14
+  }
+ },
+ "source": "tests/test_inference_quality.py: keys and foreign keys recovered from names alone",
+ "version": 1
+}

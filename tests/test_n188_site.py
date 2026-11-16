@@ -68,7 +68,7 @@ def test_sap_page_exists_with_sources_and_its_links_resolve(client):
     html = r.text
     assert "<h1>SAP keys and order-to-cash links</h1>" in html
     assert "Keys with MANDT and the order-to-cash links for VBAK, VBAP and their neighbours, each citing a public SAP page (not all of them re-read yet; nothing is verified against an SAP system)." in html
-    assert "Draft only" in html and "not on an SAP system" in html
+    assert "A draft, tried on a synthetic SAP schema" in html and "not on an SAP system" in html and "docs/SAP.md" not in html   # n234
     body = html[html.index('data-page="sap"'):]
     body = body[:body.index("</main>")] if "</main>" in body else body
     # every key starts with MANDT, and VBAP -> VBAK is applied with its sources

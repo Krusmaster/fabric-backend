@@ -417,7 +417,7 @@ at its own consultancy; the conditions are the same.
   the customer's data and people.
 - **No retainer tied to the subscription**, no "success fee" on capacity savings (it would reward promising a saving,
   which part 8 forbids), no service required to use any feature.
-- Amounts are the founder's; none is written here, as in `docs/PRICING-NOTES.md`.
+- Amounts are the founder's; none is written here or anywhere in this repository.
 
 What stays a human decision: everything in this part. Whether to offer services at all through the product is the
 founder's call, and Microsoft Marketplace's rules for mentioning services inside a listed workload are **Unverified**

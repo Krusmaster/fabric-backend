@@ -204,7 +204,7 @@ A synthetic sample dataset can be loaded with a notebook described in the docume
 
 Not yet: no independent security assessment and no penetration test has been done. To confirm by Kruse Consulting AB who performs one, and when. What exists, all in the public repository: a security policy with how to report a vulnerability (`SECURITY.md`); a self-assessment against ISO 27001 controls that is not a certification and claims none; a dependency audit and a software bill of materials on every change; the editor's host sends a Content-Security-Policy whose `frame-ancestors` allows only `*.fabric.microsoft.com` and `*.powerbi.com`, CORS only for those origins, HSTS, and sets no cookie; automated tests of token validation.
 
-Security contact: gustav@krusgraph.com (also in https://krusgraph.com/.well-known/security.txt).
+Security contact: hello@krusgraph.com (also in https://krusgraph.com/.well-known/security.txt).
 
 ### Privacy
 
@@ -236,7 +236,7 @@ Microsoft direct vendor outreach:
 | --- | --- |
 | Contact Name/Team | Kruse Consulting AB, Krusgraph support |
 | Number | Not provided |
-| Email alias | gustav@krusgraph.com (to confirm whether a support alias replaces it) |
+| Email alias | hello@krusgraph.com (contact, privacy requests and support) |
 | Self Service portal | https://krusgraph.com/support |
 
 ### Supportability

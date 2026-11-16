@@ -1,0 +1,63 @@
+1
+00:00:00,100 --> 00:00:01,787
+If you use Microsoft Fabric,
+
+2
+00:00:01,807 --> 00:00:02,926
+you need to see this.
+
+3
+00:00:02,946 --> 00:00:04,049
+Meet Builder.
+
+4
+00:00:04,069 --> 00:00:05,141
+One idea today:
+
+5
+00:00:05,161 --> 00:00:06,386
+a dry run first.
+
+6
+00:00:06,406 --> 00:00:08,101
+Type “start Krusgraph” in Claude.
+
+7
+00:00:08,121 --> 00:00:10,017
+There are 9 steps.
+
+8
+00:00:10,316 --> 00:00:11,938
+8 of them only read:
+
+9
+00:00:11,958 --> 00:00:13,174
+the map, the check,
+
+10
+00:00:13,194 --> 00:00:14,129
+the doubled totals,
+
+11
+00:00:14,149 --> 00:00:15,183
+and the dry run.
+
+12
+00:00:15,203 --> 00:00:16,655
+The last one: “Create,
+
+13
+00:00:16,768 --> 00:00:18,669
+only on your confirmation”.
+
+14
+00:00:18,689 --> 00:00:21,069
+Nothing is built until you say yes.
+
+15
+00:00:21,089 --> 00:00:23,105
+Try it in your browser:
+
+16
+00:00:23,125 --> 00:00:24,503
+krusgraph.com/check

@@ -171,12 +171,12 @@ Each later upload needs a version never uploaded before [P6]; the build numbers 
 
   | Section I field | Answer |
   | --- | --- |
-  | Company Name | Kruse Consulting AB (**to confirm** the registered name) |
+  | Company Name | Kruse Consulting AB, org. no. 559174-8719 (W11, 15 November 2026: the public registry details) |
   | Company Website | https://krusgraph.com |
-  | Address, City, State, Postal Code, County | **founder**: the registered address; Sweden; "State" not applicable |
+  | Address, City, State, Postal Code, County | Svartmangatan 4 D, Uppsala, n/a, 753 12, Sweden |
   | Phone (optional) | **founder** or empty |
   | Primary Contact Name, Title | **founder** |
-  | Email (alias OK) | **founder**: gustav@krusgraph.com, or a support alias if one is created |
+  | Email (alias OK) | hello@krusgraph.com (support and contact) |
 
   Section II is one sentence: "We, the undersigned, Kruse Consulting AB, hereby confirm and attest that we have
   reviewed, understood, and complied with all applicable requirements … specifically the Publish Workload
@@ -248,7 +248,7 @@ founder's reading. Other pages: **Unverified**; note their questions here on fir
 | 10 | Service health page | 5.3 (optional) | none |
 | 11 | Business continuity and disaster recovery plan | 2.6 (optional at Preview) | GA |
 | 12 | Accessibility check (contrast in Fabric themes, screen-reader names, focus order) | 2.9 | final attestation |
-| 13 | Section I details (address, contact name and title) and the Section II signature | template | the request |
+| 13 | Section I: contact name and title (company details and hello@krusgraph.com filled in by W11), and the Section II signature | template | the request |
 | 14 | Remove the Draft paragraph and redeploy | step 6 | the request |
 | 15 | Test B2B guests and `*.powerbi.com` creation | 2.5, item 2.7 | final attestation |
 | 16 | Run Microsoft's validator after publishing to selected tenants (step 7) | validation | the request |

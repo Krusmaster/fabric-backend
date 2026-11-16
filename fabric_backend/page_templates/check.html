@@ -4,15 +4,19 @@
     <div class="check-figures" aria-hidden="true"><span data-mascot="onto" data-pose="point" data-label=""></span><span data-mascot="thinker" data-pose="look" data-label=""></span></div>
     <h1 id="check-h">How do your tables connect, and what is wrong with them?</h1>
     <p class="check-sub">Drop CSV or Excel exports (meant for samples), or paste a list of columns. Keys, relationships and problems, each with the rule behind it.</p>
+    <div class="check-try" id="check-try-box">
+      <button type="button" class="btn primary check-try-btn" data-example="sap" id="check-try" aria-describedby="check-try-note">Try it on SAP-shaped sample data</button>
+      <p class="check-try-note" id="check-try-note">One tap. No login, no files: synthetic rows, read in this browser.</p>
+    </div>
     <div class="check-examples" role="group" aria-labelledby="check-ex-h">
       <p id="check-ex-h" class="check-ex-h">No files? Try an example</p>
-      <button type="button" class="check-ex coral" data-example="sample" id="check-sample"><strong>A total that doubles</strong><span>Shop: order amount repeated on its lines</span><em>Synthetic Data</em></button>
-      <button type="button" class="check-ex lav" data-example="sap" id="check-sap"><strong>SAP sales tables</strong><span>Orders, deliveries, invoices, two clients</span><em>Synthetic Data</em></button>
-      <button type="button" class="check-ex sage" data-example="crm" id="check-crm"><strong>Salesforce + ERP</strong><span>Accounts here, customers there</span><em>Synthetic Data</em></button>
-      <button type="button" class="check-ex mustard" data-example="billing" id="check-billing"><strong>Subscription billing</strong><span>Younium + Salesforce invoices</span><em>Synthetic Data</em></button>
-      <button type="button" class="check-ex sage check-ex-wide" data-example="mill" id="check-mill"><strong>Manufacturing sample</strong><span>Orders, bills of materials, production, deliveries</span><em>Synthetic Data</em></button>
-      <button type="button" class="check-ex lav check-ex-half" data-example="sap_sd" id="check-sap_sd"><strong>SAP-shaped sample</strong><span>Order to invoice: VBAK to VBRP, Z tables</span><em>Example data, not from an SAP system</em></button>
-      <button type="button" class="check-ex coral check-ex-half" data-example="sap_mm" id="check-sap_mm"><strong>SAP-shaped sample</strong><span>Purchase to pay: EKKO, EKPO, EKBE, a Z table</span><em>Example data, not from an SAP system</em></button>
+      <button type="button" class="check-ex coral" data-example="sample" id="check-sample"><strong>A total that doubles</strong><span>Shop: order amount repeated on its lines</span></button>
+      <button type="button" class="check-ex lav" data-example="sap" id="check-sap"><strong>SAP sales tables</strong><span>Orders, deliveries, invoices, two clients</span></button>
+      <button type="button" class="check-ex sage" data-example="crm" id="check-crm"><strong>Salesforce + ERP</strong><span>Accounts here, customers there</span></button>
+      <button type="button" class="check-ex mustard" data-example="billing" id="check-billing"><strong>Subscription billing</strong><span>Younium + Salesforce invoices</span></button>
+      <button type="button" class="check-ex sage check-ex-wide" data-example="mill" id="check-mill"><strong>Manufacturing sample</strong><span>Orders, bills of materials, production, deliveries</span></button>
+      <button type="button" class="check-ex lav check-ex-half" data-example="sap_sd" id="check-sap_sd"><strong>SAP-shaped sample</strong><span>Order to invoice: VBAK to VBRP, Z tables</span></button>
+      <button type="button" class="check-ex coral check-ex-half" data-example="sap_mm" id="check-sap_mm"><strong>SAP-shaped sample</strong><span>Purchase to pay: EKKO, EKPO, EKBE, a Z table</span></button>
     </div>
     <p class="check-ex-more"><a href="/blog/fabric-totals-double-after-join">“A total that doubles”: read the full walkthrough →</a></p>
 
@@ -29,7 +33,7 @@
         <button type="button" class="btn secondary small" id="check-columns-run">Read the list</button>
       </div>
     </div>
-    <p class="check-private" id="check-private"><strong>Your files are read in this browser and are not uploaded.</strong> The page sends only two anonymous events to {{DOMAIN}}, that the engine has loaded and that a check is done, with no file contents, file names or table names.</p>
+    <p class="check-private" id="check-private"><strong>Your files are read in this browser and are not uploaded.</strong> The page sends only two anonymous events to {{DOMAIN}}, that the engine has loaded and that a check is done (on an example or on your own input), with the campaign tags of this page's address if it has any, and no file contents, file names or table names.</p>
     <details class="check-engine-size"><summary>About the engine download</summary><p>The engine is downloaded once from {{DOMAIN}} ({{CHECK_MB}} MB unpacked, about 7 MB over the network) and runs here.</p></details>
 
     <div class="check-loading" id="check-loading" hidden><span class="check-hop" data-mascot="onto" data-pose="look" data-label=""></span><p id="check-loading-text" aria-hidden="true"></p></div>

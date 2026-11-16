@@ -1,0 +1,231 @@
+{
+ "name": "sap_sd",
+ "title": "SAP-shaped sample, order to invoice",
+ "source": "fabric_backend/sap_sample.py, synthetic, SAP-shaped, not SAP data",
+ "rows": 4327,
+ "names": {
+  "tables": 12,
+  "keys_true": 12,
+  "keys_right": 10,
+  "keys_wrong": 0,
+  "keys_missed": 2,
+  "keys_extra": 0,
+  "keys_extra_list": [],
+  "links_true": 18,
+  "links_found": 17,
+  "links_wrong": 2,
+  "keys_wrong_list": [],
+  "keys_missed_list": [
+   "ZSD_KAM_ASSIGN",
+   "ZSD_ORDER_EXT"
+  ],
+  "links_missed_list": [
+   "ZSD_KAM_ASSIGN.zz_kunde_nr -> KNA1"
+  ],
+  "links_wrong_list": [
+   "ZSD_ORDER_EXT.mandt+vbeln -> LIKP",
+   "ZSD_ORDER_EXT.mandt+vbeln -> VBRK"
+  ]
+ },
+ "before": {
+  "tables": 12,
+  "keys_true": 12,
+  "keys_right": 10,
+  "keys_wrong": 0,
+  "keys_missed": 2,
+  "keys_extra": 0,
+  "keys_extra_list": [],
+  "links_true": 18,
+  "links_found": 17,
+  "links_wrong": 2,
+  "keys_wrong_list": [],
+  "keys_missed_list": [
+   "ZSD_KAM_ASSIGN",
+   "ZSD_ORDER_EXT"
+  ],
+  "links_missed_list": [
+   "ZSD_KAM_ASSIGN.zz_kunde_nr -> KNA1"
+  ],
+  "links_wrong_list": [
+   "ZSD_ORDER_EXT.mandt+vbeln -> LIKP",
+   "ZSD_ORDER_EXT.mandt+vbeln -> VBRK"
+  ]
+ },
+ "after": {
+  "tables": 12,
+  "keys_true": 12,
+  "keys_right": 12,
+  "keys_wrong": 0,
+  "keys_missed": 0,
+  "keys_extra": 0,
+  "keys_extra_list": [],
+  "links_true": 18,
+  "links_found": 17,
+  "links_wrong": 2,
+  "keys_wrong_list": [],
+  "keys_missed_list": [],
+  "links_missed_list": [
+   "ZSD_KAM_ASSIGN.zz_kunde_nr -> KNA1"
+  ],
+  "links_wrong_list": [
+   "ZSD_ORDER_EXT.mandt+vbeln -> LIKP",
+   "ZSD_ORDER_EXT.mandt+vbeln -> VBRK"
+  ]
+ },
+ "plan": {
+  "keys": {
+   "KNA1": {
+    "columns": [
+     "MANDT",
+     "KUNNR"
+    ],
+    "rule": "SAP pack"
+   },
+   "LIKP": {
+    "columns": [
+     "MANDT",
+     "VBELN"
+    ],
+    "rule": "SAP pack"
+   },
+   "LIPS": {
+    "columns": [
+     "MANDT",
+     "VBELN",
+     "POSNR"
+    ],
+    "rule": "SAP pack"
+   },
+   "MAKT": {
+    "columns": [
+     "MANDT",
+     "MATNR",
+     "SPRAS"
+    ],
+    "rule": "SAP pack"
+   },
+   "MARA": {
+    "columns": [
+     "MANDT",
+     "MATNR"
+    ],
+    "rule": "SAP pack"
+   },
+   "T001": {
+    "columns": [
+     "MANDT",
+     "BUKRS"
+    ],
+    "rule": "SAP pack"
+   },
+   "VBAK": {
+    "columns": [
+     "MANDT",
+     "VBELN"
+    ],
+    "rule": "SAP pack"
+   },
+   "VBAP": {
+    "columns": [
+     "MANDT",
+     "VBELN",
+     "POSNR"
+    ],
+    "rule": "SAP pack"
+   },
+   "VBRK": {
+    "columns": [
+     "MANDT",
+     "VBELN"
+    ],
+    "rule": "SAP pack"
+   },
+   "VBRP": {
+    "columns": [
+     "MANDT",
+     "VBELN",
+     "POSNR"
+    ],
+    "rule": "SAP pack"
+   },
+   "ZSD_KAM_ASSIGN": {
+    "columns": [
+     "ZZ_KUNDE_NR"
+    ],
+    "rule": "K6"
+   },
+   "ZSD_ORDER_EXT": {
+    "columns": [
+     "MANDT",
+     "VBELN"
+    ],
+    "rule": "K6"
+   }
+  },
+  "links": [
+   "LIKP.MANDT+KUNAG -> KNA1.MANDT+KUNNR [SAP pack]",
+   "LIKP.MANDT+KUNNR -> KNA1.MANDT+KUNNR [SAP pack]",
+   "LIPS.MANDT+MATNR -> MARA.MANDT+MATNR [SAP pack]",
+   "LIPS.MANDT+VBELN -> LIKP.MANDT+VBELN [SAP pack]",
+   "LIPS.MANDT+VGBEL+VGPOS -> VBAP.MANDT+VBELN+POSNR [SAP pack]",
+   "MAKT.MANDT+MATNR -> MARA.MANDT+MATNR [SAP pack]",
+   "VBAK.MANDT+KUNNR -> KNA1.MANDT+KUNNR [SAP pack]",
+   "VBAP.MANDT+MATNR -> MARA.MANDT+MATNR [SAP pack]",
+   "VBAP.MANDT+VBELN -> VBAK.MANDT+VBELN [SAP pack]",
+   "VBRK.MANDT+BUKRS -> T001.MANDT+BUKRS [SAP pack]",
+   "VBRK.MANDT+KUNAG -> KNA1.MANDT+KUNNR [SAP pack]",
+   "VBRK.MANDT+KUNRG -> KNA1.MANDT+KUNNR [SAP pack]",
+   "VBRP.MANDT+AUBEL+AUPOS -> VBAP.MANDT+VBELN+POSNR [SAP pack]",
+   "VBRP.MANDT+MATNR -> MARA.MANDT+MATNR [SAP pack]",
+   "VBRP.MANDT+VBELN -> VBRK.MANDT+VBELN [SAP pack]",
+   "VBRP.MANDT+VGBEL+VGPOS -> LIPS.MANDT+VBELN+POSNR [SAP pack]",
+   "ZSD_ORDER_EXT.MANDT+VBELN -> LIKP.MANDT+VBELN [R3]",
+   "ZSD_ORDER_EXT.MANDT+VBELN -> VBAK.MANDT+VBELN [R3]",
+   "ZSD_ORDER_EXT.MANDT+VBELN -> VBRK.MANDT+VBELN [R3]"
+  ],
+  "ambiguous": [],
+  "proposed": [],
+  "keys_from_rows": {
+   "ZSD_ORDER_EXT": "VBELN is unique and never NULL in all 301 rows, and is the table's first column after the client column MANDT, which is part of the key",
+   "ZSD_KAM_ASSIGN": "ZZ_KUNDE_NR is unique and never NULL in all 80 rows, and is named like an identifier"
+  }
+ },
+ "row_results": {
+  "summary": "12 of 12 keys unique, 15 of 19 relationships hold without orphans",
+  "keys": {
+   "T001": "unique in all 2 rows",
+   "KNA1": "unique in all 120 rows",
+   "MARA": "unique in all 150 rows",
+   "MAKT": "unique in all 300 rows",
+   "VBAK": "unique in all 300 rows",
+   "VBAP": "unique in all 844 rows",
+   "LIKP": "unique in all 292 rows",
+   "LIPS": "unique in all 823 rows",
+   "VBRK": "unique in all 292 rows",
+   "VBRP": "unique in all 823 rows",
+   "ZSD_ORDER_EXT": "unique in all 301 rows",
+   "ZSD_KAM_ASSIGN": "unique in all 80 rows"
+  },
+  "links": {
+   "VBAP.MANDT+VBELN -> VBAK": "3 of 844 rows (0.4%) point at nothing | re-count: 841 of 844 rows with a value match as written; trimming spaces, folding case and stripping leading zeros match no more",
+   "VBAK.MANDT+KUNNR -> KNA1": "holds for all 300 rows with a value",
+   "VBAP.MANDT+MATNR -> MARA": "holds for all 844 rows with a value",
+   "MAKT.MANDT+MATNR -> MARA": "holds for all 300 rows with a value",
+   "LIPS.MANDT+VBELN -> LIKP": "holds for all 823 rows with a value",
+   "LIPS.MANDT+VGBEL+VGPOS -> VBAP": "holds for all 823 rows with a value",
+   "LIPS.MANDT+MATNR -> MARA": "holds for all 823 rows with a value",
+   "LIKP.MANDT+KUNNR -> KNA1": "holds for all 292 rows with a value",
+   "LIKP.MANDT+KUNAG -> KNA1": "holds for all 292 rows with a value",
+   "VBRP.MANDT+VBELN -> VBRK": "holds for all 823 rows with a value",
+   "VBRP.MANDT+AUBEL+AUPOS -> VBAP": "holds for all 823 rows with a value",
+   "VBRP.MANDT+VGBEL+VGPOS -> LIPS": "holds for all 823 rows with a value",
+   "VBRP.MANDT+MATNR -> MARA": "holds for all 823 rows with a value",
+   "VBRK.MANDT+KUNAG -> KNA1": "holds for all 292 rows with a value",
+   "VBRK.MANDT+KUNRG -> KNA1": "holds for all 292 rows with a value",
+   "VBRK.MANDT+BUKRS -> T001": "holds for all 292 rows with a value",
+   "ZSD_ORDER_EXT.MANDT+VBELN -> VBAK": "1 of 301 rows (0.3%) point at nothing | re-count: 300 of 301 rows with a value match as written; trimming spaces, folding case and stripping leading zeros match no more",
+   "ZSD_ORDER_EXT.MANDT+VBELN -> LIKP": "301 of 301 rows (100.0%) point at nothing | re-count: 0 of 301 rows with a value match as written; trimming spaces, folding case and stripping leading zeros match no more",
+   "ZSD_ORDER_EXT.MANDT+VBELN -> VBRK": "301 of 301 rows (100.0%) point at nothing | re-count: 0 of 301 rows with a value match as written; trimming spaces, folding case and stripping leading zeros match no more"
+  }
+ }
+}

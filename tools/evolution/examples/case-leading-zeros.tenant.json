@@ -1,0 +1,71 @@
+{
+ "format": "krusgraph-case",
+ "version": 1,
+ "scope": "tenant",
+ "kind": "orphans",
+ "rule_ids": [
+  "R1"
+ ],
+ "pack": "sap",
+ "tables": [
+  {
+   "ref": "t1",
+   "role": "header",
+   "entity": "order"
+  },
+  {
+   "ref": "t2",
+   "role": "master",
+   "entity": "customer"
+  }
+ ],
+ "columns": [
+  {
+   "ref": "c1",
+   "table": "t1",
+   "role": "reference",
+   "type": "string",
+   "length": 10,
+   "char_class": "digits",
+   "leading_zeros": false,
+   "padded": false
+  },
+  {
+   "ref": "c1",
+   "table": "t2",
+   "role": "key",
+   "type": "string",
+   "length": 10,
+   "char_class": "digits",
+   "leading_zeros": true,
+   "padded": false
+  }
+ ],
+ "before": {
+  "rows": 48210,
+  "distinct": 3120,
+  "nulls": 0,
+  "orphans": 48210,
+  "matched": 0
+ },
+ "fix": {
+  "id": "strip_leading_zeros"
+ },
+ "after": {
+  "rows": 48210,
+  "distinct": 3120,
+  "nulls": 0,
+  "orphans": 0,
+  "matched": 48210
+ },
+ "outcome": "holds",
+ "decision": {
+  "review": "accepted",
+  "role": "steward",
+  "date": "2026-11-15"
+ },
+ "engine": "0.8.0",
+ "local_ref": "rel:orders.customer_no->customers",
+ "created": "2026-11-15",
+ "case_id": "f95a55301484573d"
+}

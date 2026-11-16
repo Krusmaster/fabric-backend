@@ -1,7 +1,6 @@
 # Krusgraph and Fabric IQ at scale
 
-Round n182 (section 8: round n186). A design note, docs only, nothing implemented here. Written 9 November 2026, ahead of a meeting with Microsoft on
-11 or 13 November.
+Round n182 (section 8: round n186). A design note, docs only, nothing implemented here. Written 9 November 2026.
 
 This is Krusgraph's own view. Every statement about Microsoft products rests on public sources cited here; anything
 we could not check in a public source is marked Unverified. Our observation: Fabric IQ has many building blocks, and
@@ -74,6 +73,19 @@ Overall status:
 - The public preview announcement at Ignite 2025 (Fabric blog, "From data platform to intelligence platform:
   introducing Microsoft Fabric IQ"): Unverified, blog not reachable.
 - Fabric IQ as a plugin in Copilot Cowork: no Learn page found. Unverified.
+
+**Format check, 15 November 2026 (B2).** Learn's ontology definition page (ms.date 10 September 2026, updated 29
+September 2026, read 15 November 2026): "Namespaced entities use the `<Namespace>#<Entity>.tmdl` convention ... An
+unqualified filename such as `Sensor.tmdl` represents an entity in the default namespace", and `namespaces/default.tmdl`
+"is required and must be referenced by `ref namespace default` in `model.tmdl`". Krusgraph writes the default namespace
+only, with unqualified `entities/{name}.tmdl` parts, `namespaces/default.tmdl` and `ref namespace default`, so its part
+names match; `ontology_parts` now refuses any other namespace instead of writing it without the `#` names. Nothing in
+`fabric_backend/` reads or writes the old entity-type JSON (`definition.json`, `EntityTypes/`), and a test keeps it so
+(`tests/test_b2_ontology_format.py`). Learn's Get Ontology Definition page (updated 19 October 2026) still shows an
+old-format answer as its example and documents a `format` query parameter without listing its values. What Fabric
+holds for the live `shop_ontology` is not confirmed yet: the call and `tools/ontology_compare.py` are in
+`docs/LIVE-TEST.md` section 3a for the maintainer. Eventhouse bindings (`KustoTable`, time series), which Learn shows in
+the old format only, are not supported by Krusgraph.
 
 ### 1.2 Graph and data agent
 
@@ -328,41 +340,13 @@ into it instead of competing with it.
 
 ---
 
-## 7. For the Microsoft meeting
+## 7. Open questions to Microsoft
 
-**The story in five bullets**
-
-- Fabric IQ has the right building blocks. Customers find them complex to assemble.
-- Krusgraph reads the tables, proposes keys and links with the rule behind each, and counts them against the rows.
-- One reviewed plan becomes the semantic model, report, ontology, data agent, GraphQL API and app, consistent with
-  each other.
-- Everything is a dry run until Create, inside the customer's Fabric, as the signed-in user.
-- Next: ontologies across several sources, where checking shared keys on the rows matters most.
-
-**Demo path** (synthetic shop data)
-
-1. Plan: open the Krusgraph Model item, pick the lakehouse; keys and links appear with their rules.
-2. Check: count every key and link on the rows; show one that fails and why.
-3. Dry run: pick outputs (model, report, ontology, data agent); show what would be created.
-4. Create: build them; open the ontology and the report in Fabric.
-
-**Questions to ask Microsoft**
-
-1. Which ontology features are writable via the definition API, and which will stay portal-only (graph from
-   ontology, named versions, data agent with an ontology source)? Is the `entities/{ns}#{name}.tmdl` naming required?
-2. What is the roadmap for namespaces across items, versioning and a health signal for ontologies? Is there an API
-   planned for version history?
-3. Can a partner workload item (the Krusgraph Model) publish to or sit behind the Fabric IQ MCP endpoint, and when
-   will service principals work there?
-4. How does Copilot's grounding choose between a semantic model's prep-for-AI settings and an ontology over the same
-   tables? Is writing the `Copilot/` folder through the semantic model definition supported?
-5. What does a Workload Hub listing need for a workload that creates IQ items, and is there a preview path for
-   partners?
-6. For an MCP server knowledge source in Foundry IQ, which auth is planned beyond static headers and a Foundry
-   connection: will an end user's token (on-behalf-of) be passed to the MCP server, as it is for the Fabric ontology
-   source?
-7. How do you want partners to build data products so they fit with Purview and the OneLake catalog: which item
-   metadata, domains and access flows should a partner workload write to?
+The questions this design depends on (which ontology features the definition API writes, versioning and health of
+ontologies, partner items behind the Fabric IQ MCP endpoint, Copilot grounding, a Workload Hub listing for IQ items,
+Foundry IQ authentication, how partner data products fit Purview and the OneLake catalog) are kept with the
+business material, outside this repository. Until Microsoft documents the answers, the points above and below that
+depend on them stay unconfirmed.
 
 ---
 

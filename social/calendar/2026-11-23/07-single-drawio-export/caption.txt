@@ -1,0 +1,11 @@
+Your map, as a draw.io file.
+
+Krusgraph can export what it found as a .drawio file you open in draw.io (app.diagrams.net or the desktop app): the map of keys and links, the semantic model draft, or the data flow it would build.
+
+For our SAP-shaped example the map is sap-map.drawio: 17 boxes and 24 arrows. Each box carries the table's key and the rule that found it. The semantic model has 17 boxes, the data flow 43.
+
+The export is read-only: nothing is written to Fabric. Put it in a design document, a review, or on the wall.
+
+#MicrosoftFabric #PowerBI #DataModeling #SemanticModel #SAP #Krusgraph #OpenSource
+
+Try it in your browser: krusgraph.com/check (link in bio)

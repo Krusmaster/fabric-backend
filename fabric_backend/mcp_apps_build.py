@@ -65,11 +65,28 @@ FLOW_CARD_TOOLS = ("dbt_schema",)
 ACTION_TOOLS = CARD_TOOLS + ("validate_plan", "domain_draft")
 BUILD_TOOLS = ("create_semantic_model", "create_ontology", "create_backend", "create_report")
 # What a button may ask for: the read tools by name, the creating tools only as a dry run or as Create after one.
-ALLOWED = {"validate_plan": "call", "plan_backend": "call", **{t: "build" for t in BUILD_TOOLS}}
+ALLOWED = {"validate_plan": "call", "plan_backend": "call", "verify_build": "call",       # n229: verify_build only reads
+           **{t: "build" for t in BUILD_TOOLS}}
 SUFFIX = {"create_semantic_model": "model", "create_ontology": "ontology", "create_backend": "api"}
 LABEL = {"create_semantic_model": "Build a semantic model", "create_ontology": "Create an ontology",
          "create_backend": "Create an API for GraphQL", "create_report": "Create a report on it"}
 FABRIC_APP = "https://app.fabric.microsoft.com"
+# n227: the item itself in the Fabric portal, per kind: /groups/{workspace}/<path>/{item}. Where each form comes from:
+# - ontologies: Microsoft Learn, "Use Ontology MCP Server (Preview)" (fabric/iq/ontology/how-to-use-ontology-mcp-server,
+#   ms.date 14 April 2026, read 15 November 2026): "View the URL in the browser, in the format
+#   https://app.fabric.microsoft.com/groups/<workspace-ID>/ontologies/<ontology-item-ID>".
+# - lakehouses (the pattern, for reference): Learn, "Workspace outbound access protection for data engineering
+#   workloads": the workspace id follows /groups/, the item id follows /lakehouses/ (read 15 November 2026).
+# - reports and datasets: the Power BI paths this module has used since n169 (/reports/{id}, /datasets/{id}/details).
+# - graphql: Unverified on Learn. No Learn page found on 15 November 2026 shows the portal address of an API for
+#   GraphQL; `graphql` is the segment the portal's own address bar is expected to show, by the pattern above. Until the
+#   founder has opened one from a card, the link carries `fallback` (the workspace's item list), and the card offers it
+#   beside the item link.
+ITEM_PATHS = {"create_report": "reports/{id}", "create_semantic_model": "datasets/{id}/details",
+              "create_ontology": "ontologies/{id}", "create_backend": "graphql/{id}"}
+LINK_UNVERIFIED = ("create_backend",)
+KIND_WORDS = {"create_semantic_model": "semantic model", "create_ontology": "ontology", "create_backend": "API for GraphQL",
+              "create_report": "report"}
 _NOT_NAME = re.compile(r"[^A-Za-z0-9_]+")
 MAX_TRIES = 200
 
@@ -111,15 +128,18 @@ def free_name(base: str, taken) -> str:
     raise ValueError(f"no free name for {base!r}")
 
 
-def open_url(workspace_id: str, tool: str, item_id: str) -> str:
-    """The item in the Fabric portal: a report and a semantic model open themselves (the Power BI paths
-    /groups/{workspace}/reports/{id} and /datasets/{id}/details); an API for GraphQL and an ontology open the
-    workspace's item list, where the item is."""
-    if tool == "create_report":
-        return f"{FABRIC_APP}/groups/{workspace_id}/reports/{item_id}"
-    if tool == "create_semantic_model":
-        return f"{FABRIC_APP}/groups/{workspace_id}/datasets/{item_id}/details"
+def list_url(workspace_id: str) -> str:
+    """The workspace's item list in the Fabric portal."""
     return f"{FABRIC_APP}/groups/{workspace_id}/list"
+
+
+def open_url(workspace_id: str, tool: str, item_id: str) -> str:
+    """The item itself in the Fabric portal, for every kind a card creates (ITEM_PATHS, n227: before, an API for
+    GraphQL and an ontology opened the workspace's item list). A kind without a known path opens the list."""
+    path = ITEM_PATHS.get(tool)
+    if not path or not item_id:
+        return list_url(workspace_id)
+    return f"{FABRIC_APP}/groups/{workspace_id}/{path.format(id=item_id)}"
 
 
 # ------------------------------------------------------------------ actions -------------------------------------------
@@ -129,27 +149,65 @@ def _shown(args: dict) -> str:
 
 
 def action(kind: str, label: str, who: str, tool: str | None = None, arguments: dict | None = None,
-           name: str | None = None, url: str | None = None, product: str | None = None) -> dict:
+           name: str | None = None, url: str | None = None, product: str | None = None, why: str | None = None,
+           say: str | None = None, secondary: bool = False) -> dict:
     """One button: {kind, label, who, tool, arguments, name, say}. `say` is the exact prompt the card sends to the chat
-    when the host does not run tools from the card, and what a text client reads as the next step."""
+    when the host does not run tools from the card, and what a text client reads as the next step. n229: `why` is the
+    mascot's one sentence under the button; kind "say" only sends its sentence to the chat (it runs no tool from the
+    card); kind "done" is no button, a line saying the step is already built; `secondary` draws a Create as an ordinary
+    button, after the step that should come first (after_create's gate)."""
     out = {"kind": kind, "label": label, "who": who}
+    if why:
+        out["why"] = why
+    if secondary:
+        out["secondary"] = True
+    if kind in ("say", "done"):
+        if name:
+            out["name"] = name
+        out["say"] = str(say or (f"{label}: already built" + (f" ({name})" if name else "") + "."))[:2000]
+        return out
     if tool:
         out["tool"], out["arguments"] = tool, dict(arguments or {})
     if name:
         out["name"] = name
     if product:
         out["product"] = product                                     # n170: drawn on that data product's card
+    # n227: `ask` is the step in plain words: what the card shows and sends to the chat. `say` keeps the tool and its
+    # arguments for text clients.
     if kind == "link":
         out["url"] = url
         out["say"] = f"Open it in Fabric: {url}"
+        out["ask"] = out["say"]
     elif kind == "create":
         out["say"] = (f"Create it: run {tool} with dry_run=false and the same arguments as the dry run: "
                       f"{_shown(out['arguments'])}.")
+        out["ask"] = f"Create {name or 'it'} in Fabric, exactly as in the dry run."
     elif kind == "dry_run":
         out["say"] = f"{label}{' named ' + name if name else ''}: run {tool} as a dry run with {_shown(out['arguments'])}."
+        out["ask"] = f"{label}{' named ' + name if name else ''}, as a dry run first."
+    elif kind == "status":
+        out["say"] = f"{label}: run {tool} with {_shown(out['arguments'])}; it only reads."
+        out["ask"] = f"Check whether {name or 'it'} is in Fabric now, without creating anything."
     else:
+        where = (arguments or {}).get("schema") or (arguments or {}).get("source")
         out["say"] = f"{label}: run {tool} with {_shown(out['arguments'])}."
+        out["ask"] = f"{label}{' for ' + str(where) if where else ''}."
     return out
+
+
+def name_why(base: str, name: str, taken) -> str | None:
+    """n227: why a suggested name ends in _2, _3 ...: the names before it are taken in this workspace. None for the
+    base name itself."""
+    if name == base:
+        return None
+    low = {str(t).lower() for t in taken or ()}
+    before = [base] + [f"{base}_{i}" for i in range(2, MAX_TRIES + 2)]
+    used = [b for b in before[:before.index(name)] if b.lower() in low] if name in before else []
+    if not used:
+        return None
+    shown = used[0] if len(used) == 1 else f"{used[0]} and {used[1]}" if len(used) == 2 else f"{used[0]} to {used[-1]}"
+    return (f"Named {name} because {shown} {'is' if len(used) == 1 else 'are'} already in this workspace; nothing that "
+            "exists is changed.")
 
 
 def _carried(args: dict, *keys) -> dict:
@@ -164,9 +222,36 @@ def _builds(args: dict, schema: str | None, taken) -> list[dict]:
     out = []
     for tool in ("create_semantic_model", "create_ontology", "create_backend"):
         name = free_name(f"{base}_{SUFFIX[tool]}", taken)
+        why = name_why(f"{base}_{SUFFIX[tool]}", name, taken)
         taken = set(taken) | {name}
-        out.append(action("dry_run", LABEL[tool], "builder", tool, {**common, "name": name, "dry_run": True}, name=name))
+        a = action("dry_run", LABEL[tool], "builder", tool, {**common, "name": name, "dry_run": True}, name=name)
+        if why:
+            a["name_why"] = why
+        out.append(a)
     return out
+
+
+def check_state(answer: dict) -> dict:
+    """n227: what validate_plan's answer says about building: {keys_failed, links_failed, checked}."""
+    t = answer.get("totals") if isinstance(answer.get("totals"), dict) else {}
+    k = t.get("keys") if isinstance(t.get("keys"), dict) else {}
+    r = t.get("relationships") if isinstance(t.get("relationships"), dict) else {}
+    return {"keys_failed": int(k.get("failed") or 0), "links_failed": int(r.get("failed") or 0),
+            "checked": int(k.get("checked") or 0) + int(r.get("checked") or 0)}
+
+
+# n227 (12): Krusgraph's own output schemas are not sources to plan: the quarantine tables always, and the silver and
+# gold layers a build wrote, when the source also has a schema that is none of these.
+OWN_SCHEMAS = ("krusgraph_quarantine",)
+BUILT_SCHEMAS = ("silver", "gold", "krusgraph")
+
+
+def plannable(schemas: list) -> list:
+    """The schemas a card offers to plan: never krusgraph_quarantine; not silver, gold or krusgraph (what a build
+    writes) when another schema is left. The answer's own `schemas` list is unchanged."""
+    rows = [x for x in schemas if isinstance(x, dict) and x.get("schema") and str(x["schema"]).lower() not in OWN_SCHEMAS]
+    source = [x for x in rows if str(x["schema"]).lower() not in BUILT_SCHEMAS]
+    return source or rows
 
 
 def _product_builds(args: dict, answer: dict, taken) -> tuple[list[dict], str | None]:
@@ -203,25 +288,42 @@ def _count_failed(answer: dict) -> bool:
 def actions_for(tool: str, args: dict, answer: dict, taken=None, workspace_id: str | None = None) -> tuple[list[dict], str | None]:
     """(actions, note) for one answer. `args` are the call's arguments as given (no ctx); `taken` the workspace's item
     names, or None when they could not be read (then no build button and no Create, and `note` says why)."""
-    if not isinstance(answer, dict) or answer.get("error"):
+    if not isinstance(answer, dict) or (answer.get("error") and not isinstance(answer.get("started"), dict)):
         return [], None
     unreadable = ("The workspace's item names could not be read, so no name is suggested and nothing can be created "
                   "from the card; ask in the chat.")
     if tool == "plan_backend" and isinstance(answer.get("schemas"), list) and answer.get("choose_schema"):
-        return [action("call", f"Plan {s['schema']} ({s['tables']} tables)", "thinker", "plan_backend",
-                       {**args, "schema": s["schema"]}) for s in answer["schemas"] if isinstance(s, dict) and s.get("schema")], None
-    if tool in ("plan_backend", "validate_plan"):
+        from .mcp_apps_words import _plural
+        return [action("call", f"Plan {s['schema']} ({_plural(int(s.get('tables') or 0), 'table')})", "thinker", "plan_backend",
+                       {**args, "schema": s["schema"]}) for s in plannable(answer["schemas"])], None
+    if tool == "plan_backend":
+        # n227 (5): before the check, one primary step: Check against the rows. The builds come after the check.
         schema = answer.get("schema_chosen") or args.get("schema")
         out = []
-        if tool == "plan_backend" and _count_failed(answer):           # n172: a counting query could not run
+        if _count_failed(answer):                                      # n172: a counting query could not run
             out.append(action("call", "Count again", "thinker", "plan_backend", dict(args)))
-        if tool == "plan_backend":
-            out.append(action("call", "Check against the rows", "thinker", "validate_plan",
-                              {**_carried(args, "workspace", "source"), **({"schema": schema} if schema else {}),
-                               **_carried(args, "keys", "confirmed")}))
+        check = action("call", "Check against the rows", "thinker", "validate_plan",
+                       {**_carried(args, "workspace", "source"), **({"schema": schema} if schema else {}),
+                        **_carried(args, "keys", "confirmed")})
+        check["primary"] = True
+        out.append(check)
+        return out, "The builds (a semantic model, an ontology, an API) are offered after the check against the rows."
+    if tool == "validate_plan":
+        schema = answer.get("schema_chosen") or args.get("schema")
+        st = check_state(answer)
+        if st["keys_failed"]:                                          # a key that does not hold: nothing is built on it from here
+            from .mcp_apps_words import _plural
+            return [], (f"{_plural(st['keys_failed'], 'key does', 'keys do')} not hold in the rows, so no build is offered "
+                        "here: a model or an API on a key that repeats gives wrong numbers. Look at what failed first; "
+                        "you can still ask for a build in the chat.")
         if taken is None:
-            return out, unreadable
-        return out + _builds(args, schema, taken), None
+            return [], unreadable
+        note = None
+        if st["links_failed"]:
+            from .mcp_apps_words import _plural
+            note = (f"The keys hold. {_plural(st['links_failed'], 'link has', 'links have')} rows that point at nothing; a "
+                    "build keeps the plan as it is, so look at them first if they matter to you.")
+        return _builds(args, schema, taken), note
     if tool == "domain_draft":
         return _product_builds(args, answer, taken)
     if tool in BUILD_TOOLS and answer.get("dry_run") is True:
@@ -240,12 +342,31 @@ def actions_for(tool: str, args: dict, answer: dict, taken=None, workspace_id: s
             if not alt:
                 return [], note
             return [action("dry_run", f"Use {alt}", "builder", tool, {**args, "name": alt, "dry_run": True}, name=alt)], note
+        gate = answer.get("gate") if isinstance(answer.get("gate"), dict) else None
+        if gate and isinstance(gate.get("first"), dict) and gate.get("said"):    # n229: the fix first, Create second
+            first = _step_action(gate["first"], args)
+            create = action("create", str(gate.get("create") or "Create anyway"), "builder", tool, {**args, "dry_run": False}, name=name,
+                            why="It can be created as it is, and it would be of little use until the step above is done.", secondary=True)
+            return ([first] if first else []) + [create], str(gate["said"])
         return [action("create", "Create", "builder", tool, {**args, "dry_run": False}, name=name)], None
-    if tool in BUILD_TOOLS and answer.get("dry_run") is False:
+    if tool in BUILD_TOOLS and isinstance(answer.get("started"), dict):
+        # n227 (9): Fabric is still working. One step: Check status, which only reads; never a second Create.
+        st = answer["started"]
+        check_args = {k: v for k, v in args.items() if k not in ("dry_run", "check")}
+        check_args["check"] = str(st.get("operation") or "name")
+        return [action("status", "Check status", "builder", tool, check_args, name=args.get("name"))], None
+    if tool in BUILD_TOOLS and (answer.get("dry_run") is False or answer.get("checked")):
         result = answer.get("result") if isinstance(answer.get("result"), dict) else {}
         if result.get("status") != "Succeeded" or not result.get("id") or not workspace_id:
             return [], None
-        out = [action("link", "Open in Fabric", "builder", url=open_url(workspace_id, tool, result["id"]))]
+        link = action("link", "Open in Fabric", "builder", url=open_url(workspace_id, tool, result["id"]),
+                      name=args.get("name"))
+        link["label"] = f"Open {args['name']} in Fabric" if args.get("name") else "Open in Fabric"
+        if tool in LINK_UNVERIFIED:                                    # the item's address is not confirmed on Learn
+            link["fallback"] = list_url(workspace_id)
+        out = [link]
+        if isinstance(answer.get("next_steps"), list):                # n229: the data product's next steps, as buttons
+            return out + lifecycle_actions(answer, args), None
         if tool == "create_semantic_model" and taken is not None:
             model = args.get("name")
             name = free_name(f"{model}_report", set(taken) | {model})
@@ -253,6 +374,39 @@ def actions_for(tool: str, args: dict, answer: dict, taken=None, workspace_id: s
                               {**_carried(args, "workspace"), "model": model, "name": name, "dry_run": True}, name=name))
         return out, None
     return [], None
+
+
+def _step_action(s: dict, call: dict) -> dict | None:
+    """n229: one of the answer's own next steps ({label, who, why, tool, args, ask}, after_create.py) as a button: the
+    read-only verify_build as a call, a creating tool only as a dry run, anything else as its sentence for the chat."""
+    if not isinstance(s, dict) or not isinstance(s.get("label"), str) or not s["label"].strip() or s.get("state"):
+        return None
+    who = s.get("who") if s.get("who") in ("builder", "thinker", "onto") else "builder"
+    t, a = s.get("tool"), s.get("args") if isinstance(s.get("args"), dict) else None
+    if t and a is not None and ALLOWED.get(t) == "call":
+        out = action("call", s["label"], who, t, a, why=s.get("why"))
+        if isinstance(s.get("ask"), str) and s["ask"].strip():
+            out["say"] = s["ask"][:2000]
+        return out
+    if t and a is not None and ALLOWED.get(t) == "build":
+        return action("dry_run", s["label"], who, t, {**a, "dry_run": True}, name=a.get("name"), why=s.get("why"))
+    if isinstance(s.get("ask"), str) and s["ask"].strip():
+        return action("say", s["label"], who, why=s.get("why"), say=s["ask"])
+    return None
+
+
+def lifecycle_actions(answer: dict, call: dict) -> list[dict]:
+    """n229: after a Create that succeeded, the answer's next_steps as buttons in their order, then what is already
+    built (no button: a line), then More (the dbt project, labelled a draft)."""
+    out = [a for a in (_step_action(s, call) for s in answer.get("next_steps") or []) if a]
+    for d in answer.get("already_built") or []:
+        if isinstance(d, dict) and isinstance(d.get("label"), str):
+            out.append(action("done", d["label"], "builder", name=d.get("name")))
+    for m in answer.get("more") or []:
+        a = _step_action({**m, "label": "More: " + str(m.get("label")) + (" (a draft)" if m.get("draft") else "")}, call) if isinstance(m, dict) else None
+        if a:
+            out.append(a)
+    return out
 
 
 def with_actions(name: str, fn, item_names, workspace_id):
@@ -272,7 +426,7 @@ def with_actions(name: str, fn, item_names, workspace_id):
             data = json.loads(out)
         except ValueError:
             return out
-        if not isinstance(data, dict) or data.get("error"):
+        if not isinstance(data, dict) or (data.get("error") and not isinstance(data.get("started"), dict)):
             return out
         try:
             bound = sig.bind_partial(*args, **kwargs).arguments
@@ -285,10 +439,13 @@ def with_actions(name: str, fn, item_names, workspace_id):
         # card sent them (founder, 8 November 2026: the dry run drew no Create in Claude).
         call = {k: v for k, v in bound.items() if k != "ctx" and v is not None
                 and not (k in defaults and k != "dry_run" and v == defaults[k])}
+        was_check = bool(call.pop("check", None))                    # n227: a status check: its answer is drawn as the create's
         if "workspace" not in call:
             return out
-        needs_names = not (name == "plan_backend" and data.get("choose_schema")) and not (
-            name in BUILD_TOOLS and data.get("dry_run") is False and name != "create_semantic_model")
+        made = name in BUILD_TOOLS and (data.get("dry_run") is False or (was_check and data.get("checked")))
+        needs_names = name != "plan_backend" and not isinstance(data.get("started"), dict) and not (
+            made and name != "create_semantic_model") and not (
+            name == "validate_plan" and check_state(data)["keys_failed"])
         taken = None
         if needs_names:
             try:
@@ -296,7 +453,7 @@ def with_actions(name: str, fn, item_names, workspace_id):
             except Exception:                                        # noqa: BLE001 - the answer stands; no name offered
                 taken = None
         ws_id = None
-        if name in BUILD_TOOLS and data.get("dry_run") is False:
+        if made:
             try:
                 ws_id = workspace_id(call["workspace"], ctx)
             except Exception:                                        # noqa: BLE001
@@ -322,7 +479,7 @@ def with_actions(name: str, fn, item_names, workspace_id):
 # create's Open in Fabric. The card enforces what the server built: only tools in ALLOWED, a build button's arguments
 # with dry_run true, and Create only from an answer whose dry_run is true, with exactly that answer's arguments.
 ACTIONS_JS = r"""
-  var ACT_ALLOWED = __ACT_ALLOWED__, WHO = { builder: "Builder", thinker: "Thinker" };
+  var ACT_ALLOWED = __ACT_ALLOWED__, WHO = { builder: "Builder", thinker: "Thinker", onto: "Onto" };
   function canOpenLinks() { return isObj(hostCaps) && isObj(hostCaps.openLinks); }
   function canon(x) {                                            // JSON with sorted keys: the order of arguments does not matter
     if (Array.isArray(x)) return "[" + x.map(canon).join(",") + "]";
@@ -345,44 +502,86 @@ ACTIONS_JS = r"""
   function okAction(a, fromDryRun) {
     if (!isObj(a) || typeof a.label !== "string") return false;
     if (a.kind === "link") return typeof a.url === "string" && /^https:\/\/app\.fabric\.microsoft\.com\//.test(a.url);
+    if (a.kind === "say" || a.kind === "done") return typeof a.say === "string" && a.say.length > 0 && a.tool === undefined;   // n229
     if (!Object.prototype.hasOwnProperty.call(ACT_ALLOWED, a.tool) || !isObj(a.arguments)) return false;
     if (a.kind === "call") return ACT_ALLOWED[a.tool] === "call";
     if (a.kind === "dry_run") return ACT_ALLOWED[a.tool] === "build" && a.arguments.dry_run === true;
     if (a.kind === "create") return ACT_ALLOWED[a.tool] === "build" && a.arguments.dry_run === false && fromDryRun === true;
+    // n227: Check status only reads: `check` is set (the tool then creates nothing) and dry_run is never false
+    if (a.kind === "status") return ACT_ALLOWED[a.tool] === "build" && typeof a.arguments.check === "string" && !!a.arguments.check && a.arguments.dry_run !== false;
     return false;
   }
   function sendMessage(text) { return sendChat(text); }            // n218: NEXT_JS, the SDK's array form first
   function viaChat(a, out, button) {
-    out.textContent = "Sent to the chat: “" + a.say + "”";
-    sendMessage(a.say).then(function () { button.disabled = true; }, function () {
-      out.textContent = "This host runs neither tools nor messages from the card. Ask in the chat: “" + a.say + "”";
+    var text = readable(a.ask) || a.say;                             // n227: plain words, no tool's name
+    out.textContent = "Sent to the chat: “" + text + "”";
+    sendMessage(text).then(function () { button.disabled = true; }, function () {
+      out.textContent = "This host runs no steps from the card. Type this in the chat: “" + text + "”";
       button.disabled = false;
     });
   }
+  // n227 (9): after a Create whose outcome the card does not know (the host stopped waiting, or Fabric is still
+  // working), the only step is Check status: the same tool with `check` set, which reads and creates nothing.
+  function statusAction(a, args, check) {
+    var sa = JSON.parse(JSON.stringify(args)); delete sa.dry_run; sa.check = check || "name";
+    return { kind: "status", label: "Check status", who: "builder", tool: a.tool, arguments: sa, name: a.name,
+             say: "Check whether " + (a.name || "it") + " is in Fabric now, without creating anything.",
+             ask: "Check whether " + (a.name || "it") + " is in Fabric now, without creating anything." };
+  }
+  function statusButton(a, args, check, box) {
+    var sa = statusAction(a, args, check), row = el("div", null, "act");
+    var b = el("button", "Check status", "act-b"), out = el("div", null, "out"); b.type = "button"; out.hidden = true;
+    b.setAttribute("data-kind", "status");
+    b.addEventListener("click", function () { runAction(sa, b, out, sa.arguments); });
+    row.appendChild(b); row.appendChild(out); box.appendChild(row);
+  }
+  function linkView(a, out) {
+    out.hidden = false; out.textContent = "";
+    var show = function (u, lead) { out.appendChild(el("p", lead + u)); };
+    if (!canOpenLinks()) { show(a.url, "Open this address: "); }
+    else request("ui/open-link", { url: a.url }).then(function () { out.insertBefore(el("p", "Opened in your browser."), out.firstChild); },
+        function () { out.insertBefore(el("p", "The host did not open it. The address: " + a.url), out.firstChild); });
+    if (typeof a.fallback === "string" && /^https:\/\/app\.fabric\.microsoft\.com\//.test(a.fallback)) {
+      var p = el("p", "If the item does not open there, it is in ", "muted"), lb = el("button", "the workspace's list", "act-b"); lb.type = "button";
+      lb.addEventListener("click", function () {
+        if (!canOpenLinks()) { p.textContent = "The workspace's list: " + a.fallback; return; }
+        request("ui/open-link", { url: a.fallback }).then(function () {}, function () { p.textContent = "The workspace's list: " + a.fallback; });
+      });
+      p.appendChild(lb); out.appendChild(p);
+    }
+  }
   function runAction(a, button, out, dryArgs) {
     out.hidden = false; out.textContent = "";
-    if (a.kind === "link") {
-      if (!canOpenLinks()) { out.textContent = "Open this address: " + a.url; return; }
-      request("ui/open-link", { url: a.url }).then(function () { out.textContent = "Opened in your browser."; },
-        function () { out.textContent = "The host did not open it. The address: " + a.url; });
-      return;
-    }
+    if (a.kind === "link") { linkView(a, out); return; }
+    if (a.kind === "say") { viaChat(a, out, button); return; }       // n229: a sentence for the chat; the card runs nothing
     var args = a.kind === "create" ? JSON.parse(JSON.stringify(dryArgs)) : JSON.parse(JSON.stringify(a.arguments));
     if (a.kind === "create") args.dry_run = false;
     button.disabled = true;
     if (!canCallTools()) { viaChat(a, out, button); return; }
-    out.textContent = a.kind === "create" ? "Asked the host to create it; it may ask you first." : "Asked the host to run " + a.tool + "; it may ask you first.";
-    callTool(a.tool, args, function () { out.textContent = stillWaiting(a.say); }).then(function (r) {
-      out.textContent = "";
+    var wait = waitView(a);                                           // n227 (11): who is working, on what, for how long
+    out.appendChild(wait.el);
+    callTool(a.tool, args, function () { wait.note(stillWaiting()); }).then(function (r) {
+      wait.stop(); out.textContent = "";
       var d = answerOf(r);
       if (isObj(d) && d.kind === "upgrade") { upgradeView(d, out); button.disabled = false; return; }   // n171
       out.appendChild(resultView(a.tool, r));
+      if (isObj(d) && isObj(d.checks)) renderChecks(d, out);       // n229: verify_build's lines, one row per item and figure
       if (d) renderActions(d, out, args);
       if (a.kind !== "create") button.disabled = false;
     }, function (e) {
+      wait.stop();
       if (e && e.kind === "unsupported") { viaChat(a, out, button); return; }
-      out.textContent = callProblem(e, a.tool, a.say);
-      button.disabled = false;
+      if (a.kind === "create" && !(e && e.kind === "tool")) {
+        // The host stopped waiting or did not answer: the request may have reached Fabric. Create stays off; the
+        // user checks instead, so the same item is never created or updated a second time from this card.
+        out.textContent = "";
+        var why = e && typeof e.message === "string" && e.message.trim() ? " (" + e.message.trim().slice(0, 120).replace(/[.\s]+$/, "") + ")" : "";
+        out.appendChild(el("p", "The host stopped waiting" + why + ". Fabric may still be creating " + (a.name || "it") + ", so Create is not offered again here. Check its status instead; that only reads.", "warn"));
+        statusButton(a, args, "name", out);
+        return;
+      }
+      out.textContent = callProblem(e, a.tool, readable(a.ask) || a.say);
+      button.disabled = false;                                        // the tool answered an error: nothing was created
     });
   }
   // n171: a Create refused because the organisation has no active subscription (entitlements.py with
@@ -414,15 +613,29 @@ ACTIONS_JS = r"""
         if (!sameArgs(effective(want, a.defaults), effective(a.arguments, a.defaults))) return;
       }
       var who = WHO[a.who] ? a.who : "builder";
-      if (!groups[who]) {
-        groups[who] = el("div", null, "acts acts-" + who);
-        groups[who].appendChild(el("p", WHO[who] + (who === "thinker" ? " asks" : " suggests"), "act-who"));
-        box.appendChild(groups[who]);
+      if (a.kind === "done") {                                     // n229: already built: a line, never a button
+        if (!groups.done) { groups.done = el("div", null, "acts acts-done"); groups.done.appendChild(el("p", "Already built", "act-who")); box.appendChild(groups.done); }
+        groups.done.appendChild(el("p", a.label + ": already built" + (a.name ? " (" + a.name + ")" : "") + ".", "muted act-done"));
+        return;
+      }
+      // n229: the next steps after a Create, and a gate's fix before Create, keep their order: one group, not one per
+      // mascot (each step's own sentence names who says it)
+      var ordered = Array.isArray(d.next_steps) && d.dry_run === false ? "Next steps, in order" : (isObj(d.gate) ? "First this, then Create" : "");
+      var gk = ordered ? "ordered" : who;
+      if (!groups[gk]) {
+        groups[gk] = el("div", null, "acts acts-" + gk);
+        groups[gk].appendChild(el("p", ordered || (WHO[who] + (who === "thinker" ? " asks" : " suggests")), "act-who"));
+        box.appendChild(groups[gk]);
       }
       var row = el("div", null, "act");
       var label = a.label + (a.name && a.kind === "dry_run" ? " (" + a.name + ")" : "");
-      var b = el("button", label, a.kind === "create" ? "act-create" : "act-b"); b.type = "button";
+      var b = el("button", label, a.kind === "create" && a.secondary !== true ? "act-create" : (a.primary === true ? "act-b act-primary" : "act-b")); b.type = "button";
+      b.setAttribute("data-kind", a.kind);
+      if (readable(a.why)) row.appendChild(el("span", WHO[who] + ": " + a.why, "act-reason"));   // n229: the mascot's one sentence
+      if (a.kind === "say") row.appendChild(el("span", "Asks in the chat; nothing runs from this card.", "muted act-why"));
       if (a.kind === "dry_run") row.appendChild(el("span", "Dry run first: nothing is created until you press Create.", "muted act-why"));
+      if (a.kind === "dry_run" && readable(a.name_why)) row.appendChild(el("span", a.name_why, "muted act-why act-name-why"));   // n227: why _3
+      if (a.kind === "status") row.appendChild(el("span", "Only reads: looks whether " + (a.name ? a.name : "it") + " is in Fabric now. Nothing is created again.", "muted act-why"));
       if (a.kind === "create") row.appendChild(el("span", "Creates " + (a.name ? a.name : "it") + " in Fabric with exactly the dry run's arguments.", "muted act-why"));
       var out = el("div", null, "out"); out.hidden = true;
       if (a.kind === "create") {                                   // n218: never writes on the first click
@@ -437,7 +650,7 @@ ACTIONS_JS = r"""
           runAction(a, b, out, callArgs || a.arguments);
         });
       } else b.addEventListener("click", function () { runAction(a, b, out, callArgs || a.arguments); });
-      row.insertBefore(b, row.firstChild); row.appendChild(out); groups[who].appendChild(row);
+      row.insertBefore(b, row.firstChild); row.appendChild(out); groups[gk].appendChild(row);
     });
   }
 """
@@ -448,7 +661,9 @@ ACTIONS_CSS = """
 .act { display: grid; gap: 4px }
 .act-why { font-size: 12.5px }
 .act .out { border-left: 3px solid var(--kg-line); padding-left: 8px; display: grid; gap: 6px }
-button.act-create { background: var(--kg-ink); color: var(--kg-bg) }
+button.act-create, button.act-primary { background: var(--kg-ink); color: var(--kg-bg) }
+.act-reason { font-size: 13.5px }
+.act-done { margin: 0 }
 """
 
 
@@ -523,7 +738,7 @@ __RESULT_CSS__
   __PICTURES__
   <div id="answer"></div>
   <div id="next"></div>
-  <p class="muted">The same answer is in the text of the tool result. A button asks the host to run the tool, and the host may ask you first; a build always shows its dry run before Create.</p>
+  <p class="muted">The same answer is in the text of the tool result. A button asks the host to run that step, and the host may ask you first; a build always shows its dry run before Create.</p>
 </main>
 <script>
 (function () {
@@ -555,11 +770,9 @@ __READ_JS__
     if (isObj(d.summary) && "relationships_active" in d.summary) return "create_semantic_model";
     return "";
   }
-  function detailsOf(d) {                                   // the whole answer, folded: what the summary sentences came from
-    var box = el("div", null, "res-box"), det = el("details"), full = JSON.stringify(d, null, 2);
-    det.appendChild(el("summary", "Show details"));
-    det.appendChild(el("pre", full.length > 60000 ? full.slice(0, 60000) + "\\n… (the rest is in the tool's own answer)" : full));
-    box.appendChild(det);
+  function detailsOf(d) {                                   // the whole answer, folded: readable lines first, raw JSON last
+    var box = el("div", null, "res-box");
+    box.appendChild(detailsView(tool || guessTool(d), d, ""));
     return box;
   }
   function firstLine(s) { return readable(s) ? String(s).split("\\n")[0] : ""; }
@@ -568,7 +781,7 @@ __READ_JS__
     var answer = document.getElementById("answer"), next = document.getElementById("next");
     answer.textContent = ""; next.textContent = ""; mascotsQuiet();
     if (!d) { verdict.textContent = "The card could not read the answer; it is in the text of the tool result."; return; }
-    if (readable(d.error)) { verdict.textContent = d.error + (readable(d.hint) ? " " + d.hint : ""); mascots({ thinker: [d.error, "think"] }, false);
+    if (readable(d.error) && !isObj(d.started)) { verdict.textContent = d.error + (readable(d.hint) ? " " + d.hint : ""); mascots({ thinker: [d.error, "think"] }, false);
       renderNext(d, next); return; }                                // n220: an error ends with 1 to 3 next steps
     var t = tool || guessTool(d);
     // n172: the card's words (mcp_apps_words.py): a short title, the summary as sentences Onto says once, and bubbles
@@ -581,8 +794,18 @@ __READ_JS__
     if (d.choose_schema) {
       verdict.textContent = readable(d.summary);
       thinker = readable(d.summary);
+    } else if (readable(words.result) && !(t === "dbt_schema" && isObj(d.dbt_flow))) {
+      // n227: the card's words first, for a draft, a dry run, a created item and a create Fabric is still working on:
+      // the one-line result (Onto says it once), up to five lines, the notes collapsed, then the details.
+      verdict.textContent = words.result;
+      onto = readable(words.onto) || words.result;
+      verdict.setAttribute("data-echo", "onto"); verdict.setAttribute("data-said", onto);
+      answer.appendChild(resultView(t, { structuredContent: d }, true));
+      if (isObj(d.replaces) && readable(d.replaces.said)) answer.appendChild(el("p", d.replaces.said, "warn"));
     } else if (d.dry_run === true) {
-      verdict.textContent = "Dry run: nothing was created. Read it, then press Create to create it with exactly these arguments.";
+      verdict.textContent = isObj(d.gate) && readable(d.gate.said)   // n229: a build of little use is said first
+        ? "Dry run: nothing was created. " + d.gate.said + " Do the step below first; Create anyway stays possible."
+        : "Dry run: nothing was created. Read it, then press Create to create it with exactly these arguments.";
       answer.appendChild(resultView(t, { structuredContent: d }));
       if (Array.isArray(d.checks_passed)) { var ul = el("ul"); d.checks_passed.forEach(function (c) { if (readable(c)) ul.appendChild(el("li", c)); }); answer.appendChild(ul); }
       if (isObj(d.replaces) && readable(d.replaces.said)) answer.appendChild(el("p", d.replaces.said, "warn"));
@@ -620,7 +843,8 @@ __READ_JS__
     renderActions(d, next, isObj(input) ? input : null);
     renderNext(d, next);                                            // n218: 2 to 4 next steps, each naming its tool
     var acts = (Array.isArray(d.actions) ? d.actions : []).filter(isObj);   // each mascot says its first step, word for word
-    var mine = function (who) { var a = acts.filter(function (x) { return x.who === who; })[0]; return a ? readable(a.say) : ""; };
+    // n229: a step with a reason of its own is said by its reason, never by the sentence with the arguments (n172)
+    var mine = function (who) { var a = acts.filter(function (x) { return x.who === who && x.kind !== "done"; })[0]; return a ? (readable(a.why) || readable(a.say)) : ""; };
     if (next.querySelector("button") && !isObj(d.kg_card)) { builder = builder || mine("builder"); thinker = thinker || mine("thinker"); }
     if (readable(d.actions_note)) thinker = thinker || d.actions_note;
     mascots({ onto: [onto, "point"], thinker: [thinker, "think"], builder: [builder, "explain"] }, false);

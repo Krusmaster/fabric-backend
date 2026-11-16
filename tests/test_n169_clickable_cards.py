@@ -40,6 +40,13 @@ def _call(tool_name, /, **kw):
     return json.loads(_registered(tool_name)(**kw))
 
 
+def _after_check(**src):
+    """n227: a plan leads with Check against the rows only; the three builds come with the check's answer. This is the
+    plan's answer with the check's builds after it, as the card holds them once the check has run."""
+    plan = _call("plan_backend", **src)
+    return {**plan, "actions": plan["actions"] + _call("validate_plan", **src)["actions"]}
+
+
 # ------------------------------------------------------------------ names ---------------------------------------------
 
 def test_a_suggested_name_is_never_one_the_workspace_has():
@@ -55,7 +62,8 @@ def test_a_suggested_name_is_never_one_the_workspace_has():
 # ------------------------------------------------------------------ after planning --------------------------------------
 
 def test_plan_backend_offers_the_check_and_three_dry_run_builds(fabric):
-    out = _call("plan_backend", **SRC)
+    assert [a["label"] for a in _call("plan_backend", **SRC)["actions"]] == ["Check against the rows"]   # n227: one primary step
+    out = _after_check(**SRC)
     acts = out["actions"]
     assert [a["label"] for a in acts] == ["Check against the rows", "Build a semantic model", "Create an ontology",
                                           "Create an API for GraphQL"]
@@ -90,15 +98,16 @@ def test_no_name_is_suggested_when_the_item_names_cannot_be_read(fabric, monkeyp
     def refuse(workspace, ctx):
         raise RuntimeError("403")
     out = json.loads(build.with_actions("plan_backend", server.plan_backend, refuse, server._workspace_id_ctx)(**SRC))
-    assert [a["label"] for a in out["actions"]] == ["Check against the rows"]
-    assert "could not be read" in out["actions_note"]
+    assert [a["label"] for a in out["actions"]] == ["Check against the rows"]     # n227: a plan needs no item names
+    out = json.loads(build.with_actions("validate_plan", server.validate_plan, refuse, server._workspace_id_ctx)(**SRC))
+    assert "actions" not in out and "could not be read" in out["actions_note"]
 
 
 # ------------------------------------------------------------------ dry run, then Create ------------------------------
 
 @pytest.mark.parametrize("tool", ["create_semantic_model", "create_ontology", "create_backend"])
 def test_only_the_dry_run_has_create_with_the_identical_arguments(fabric, tool):
-    plan = _call("plan_backend", **SRC)
+    plan = _after_check(**SRC)
     button = next(a for a in plan["actions"] if a["tool"] == tool)
     dry = _call(tool, **button["arguments"])                        # what the button asks the host to run
     assert dry["dry_run"] is True
@@ -177,7 +186,7 @@ def test_plan_backend_without_a_schema_asks_which_one_and_plans_nothing(two_sche
         assert a["kind"] == "call" and a["tool"] == "plan_backend" and a["who"] == "thinker"
         assert a["arguments"] == {"workspace": "demo", "source": "demo_lh", "schema": schema}
     picked = _call("plan_backend", **card["actions"][1]["arguments"])
-    assert "choose_schema" not in picked and picked["actions"][1]["arguments"]["schema"] == "shop"
+    assert "choose_schema" not in picked and picked["actions"][0]["arguments"]["schema"] == "shop"
 
 
 def test_plan_backend_with_one_schema_plans_it_and_says_which(fabric, monkeypatch):
@@ -248,7 +257,8 @@ def test_the_cards_load_nothing_and_use_only_the_host_calls_of_the_spec(html):
 
 def test_the_card_allows_no_tool_but_the_ones_the_actions_name():
     assert build.ALLOWED == {"validate_plan": "call", "plan_backend": "call", "create_semantic_model": "build",
-                             "create_ontology": "build", "create_backend": "build", "create_report": "build"}
+                             "create_ontology": "build", "create_backend": "build", "create_report": "build",
+                             "verify_build": "call"}                       # n229: read-only, by rules
     assert '"create_views"' not in build.card_html() and '"create_data_agent"' not in build.card_html()
 
 
@@ -309,7 +319,7 @@ def _playwright() -> bool:
 def _browser(tmp_path, mode: str) -> dict:
     import subprocess
     from pathlib import Path
-    plan = _call("plan_backend", **SRC)
+    plan = _after_check(**SRC)
     button = next(a for a in plan["actions"] if a["tool"] == "create_semantic_model")
     dry = _call("create_semantic_model", **button["arguments"])
     created_args = {**button["arguments"], "dry_run": False}
@@ -345,5 +355,7 @@ def test_in_a_browser_a_host_without_tool_calls_gets_the_prompt_as_a_message(tmp
     out = _browser(tmp_path, "msg")
     assert out["errors"] == [] and not [m for m in out["log"] if m.get("method") == "tools/call"]
     [msg] = [m["params"] for m in out["log"] if m.get("method") == "ui/message"]
-    assert msg == {"role": "user", "content": [{"type": "text", "text": out["button"]["say"]}]}   # n218: the SDK's array form
-    assert "dry run" in msg["content"][0]["text"] and "dry_run=true" in msg["content"][0]["text"]
+    assert msg == {"role": "user", "content": [{"type": "text", "text": out["button"]["ask"]}]}   # n218: the SDK's array form
+    # n227: the chat gets the step in plain words; the tool's name and its arguments stay in `say`, for text clients
+    assert msg["content"][0]["text"] == "Build a semantic model named shop_model_2, as a dry run first."
+    assert "dry_run=true" in out["button"]["say"] and "create_semantic_model" in out["button"]["say"]

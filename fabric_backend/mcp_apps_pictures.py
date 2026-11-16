@@ -85,8 +85,9 @@ def extras(tool: str, answer: dict, stash: dict) -> dict:
     elif tool in ("plan_backend", "validate_plan") and stash.get("map"):
         out["map"] = stash["map"]
     elif tool in ("ontology_draft", "create_ontology") and stash.get("ontology"):
-        if tool == "create_ontology" and answer.get("dry_run") is not True:
-            return {}
+        if tool == "create_ontology" and (isinstance(answer.get("started"), dict) or (
+                answer.get("dry_run") is False and (answer.get("result") or {}).get("status") != "Succeeded")):
+            return {}                      # n227: also after a Create that succeeded; not while Fabric still works, nor on a failure
         out["ontology"] = stash["ontology"]
     elif tool == "domain_draft" and stash.get("map"):
         p = products_from(answer, stash["map"])
@@ -649,7 +650,9 @@ RENDER_JS = r"""
     var said = "";
     try {
       var hasProducts = isObj(d) && isObj(d.products);
-      said = drawOntology(document.getElementById("pic-onto"), isObj(d) ? d.ontology : null) || said;
+      // n227: an answer with the card's own words draws its ontology as the static picture (resultView, ontoSvg)
+      var ownWords = isObj(d) && isObj(d.kg_card) && readable(d.kg_card.result);
+      said = drawOntology(document.getElementById("pic-onto"), isObj(d) && !ownWords ? d.ontology : null) || said;
       said = drawProducts(document.getElementById("pic-products"), hasProducts ? d.products : null, isObj(d) ? d.map : null, d, callArgs) || said;
       var mapSaid = drawMap(document.getElementById("pic-map"), isObj(d) && !hasProducts ? d.map : null);
       said = mapSaid || said;

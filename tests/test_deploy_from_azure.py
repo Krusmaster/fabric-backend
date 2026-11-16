@@ -28,7 +28,8 @@ EXPECTED = {
     "tenant_id": TENANT, "subscription_id": APP_SUB, "client_id": ENV["ENTRA_CLIENT_ID"], "domain": "krusgraph.com",
     "location": "swedencentral", "resource_group": "rg-krusgraph", "environment": "cae-krusgraph", "app": "krusgraph",
     "registry": "krusgraphtest", "identity": "krusgraph-pull", "product_name": "Krusgraph",
-    "contact_email": "hello@krusgraph.com", "company_orgnr": "556000-0000", "include_www": True, "min_replicas": 1,
+    "contact_email": "hello@krusgraph.com", "company_orgnr": "556000-0000", "company_address": "", "company_vat": "",  # G1
+    "include_www": True, "min_replicas": 1,
     "ontology_write": True, "key_vault": "kv-krusgraph-test", "log_retention_days": 30, "log_analytics_workspace": "",
     "budget_amount": 0, "budget_email": "", "mcp_apps": False, "read_only": False, "no_row_values": False, "pipeline_execute": False,
     "workload_client_id": "", "workload_app_id_uri": "", "workload_allowed_tenants": "", "workload_host": "",   # n168

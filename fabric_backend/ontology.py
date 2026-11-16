@@ -175,6 +175,11 @@ def bindings(plan: Plan, source_name: str, schema: str = "dbo", tables: list[str
 def ontology_parts(plan: Plan, name: str, *, workspace_id: str, item_id: str, item_name: str, item_kind: str = "Lakehouse",
                    schema: str = "dbo", sql_endpoint: str = "", tables: list[str] | None = None, namespace: str = "default") -> dict[str, str]:
     """The item definition as {part path: text}. Generation 2 (TMDL)."""
+    if namespace != "default":
+        # B2: Learn's ontology definition (read 15 November 2026) says namespaces/default.tmdl is required and referenced
+        # by `ref namespace default`, and an unqualified entities/{name}.tmdl is an entity in the default namespace,
+        # which is what this writer makes. Another namespace would need `{namespace}#{name}` paths; not written yet.
+        raise ValueError(f"only the default namespace is written (asked: {namespace!r})")
     check_tables(plan.schema, tables)
     plan, _, schema, prefix = _carry(plan, tables, schema, item_kind)
     wanted = {x.lower() for x in tables} if tables else None

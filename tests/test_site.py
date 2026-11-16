@@ -85,7 +85,7 @@ def test_home_says_what_it_helps_with_before_how_it_connects(client):
     # n183: the home page keeps one status line; the long status is in the docs' test status
     # n196: and that line is now in every page's footer
     status = re.search(r'<p class="muted tiny footer-status">(.*?)</p>', html, re.S).group(1)
-    assert status.startswith('Krusgraph is a preview service. <a href="/docs#test-status">Test status per tool</a>')
+    assert status.startswith('Krusgraph is a preview service. <a href="/docs#tool-reference">The tools</a>')   # n234
     assert "a tool that has not run against a live Fabric workspace is marked experimental" in docs_all(client)
     # n206: the three steps no longer quote the replay's questions (the replay above them asks them)
     assert "“Plan a backend over the shop lakehouse.”" not in html and "“Create it as shop_api.”" not in html
@@ -197,7 +197,9 @@ def test_privacy_shows_org_nr_only_when_configured(client, monkeypatch):
     html = client.get("/privacy").text
     assert "Kruse Consulting AB, Sweden (org. nr 123456-7890)" in html
     footer = client.get("/").text.split('<footer class="site-footer">')[1]
-    assert "Kruse Consulting AB · Org. no. 123456-7890 · Open source under the MIT licence" in footer and "Sweden" not in _without_agreed_facts(footer)
+    # G1: the company details have their own line (legal.py): the registry address unless the deployment sets another
+    assert "Kruse Consulting AB · Open source under the MIT licence" in footer and "Sweden" not in _without_agreed_facts(footer)
+    assert "Kruse Consulting AB · Org. no. 123456-7890 · Svartmangatan 4 D, 753 12 Uppsala" in footer
 
 
 def test_docs_describe_the_data_path(client):
@@ -300,8 +302,9 @@ def test_home_hero_and_trust_row(client):
 
 # ------------------------------------------------------------------ SEO and agent discovery ---------------------
 
-PUBLIC = ["/", "/check", "/start", "/choose", "/sap", "/docs", "/lovable", "/local", "/use-cases", "/use-cases/build", "/privacy", "/trust", "/security", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms",
-          "/blog", "/blog/fabric-totals-double-after-join"]                                                  # n145
+PUBLIC = ["/", "/check", "/start", "/choose", "/sap", "/docs", "/lovable", "/local", "/use-cases", "/use-cases/build", "/privacy", "/trust", "/security", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms", "/cookies", "/accessibility",   # G1
+          "/blog", "/blog/fabric-totals-double-after-join",                                                  # n145
+          "/blog/sap-sales-tables-in-fabric", "/blog/sap-tables-to-power-bi-report"]                          # D2
 
 
 def test_every_public_page_has_canonical_open_graph_and_twitter_tags(client):
@@ -397,9 +400,10 @@ def test_lovable_page_follows_the_path_of_30_october(client, monkeypatch, regist
         assert step in html, step
     mcp = next(c for c in ts.CLIENTS if c.name == "Lovable" and c.where.startswith("via MCP"))
     api = next(c for c in ts.CLIENTS if c.name == "Lovable" and c.where.startswith("via the GraphQL"))
-    assert f"Lovable as an MCP client: {mcp.status} (works since {mcp.works_since}); {mcp.note}" in html.replace("&#x27;", "'").replace("&#39;", "'")
-    assert f"Lovable reading the API: {api.status}; {api.note}" in html.replace("&#x27;", "'").replace("&#39;", "'")
-    assert "dynamic client registration" in html and "untested" not in html and "<img" not in html.split("<main")[1]
+    # n234: no test record on the page: no dates, no docs/ file, no status set by whom; one plain qualifier for creating
+    assert mcp.note not in html and api.note not in html and "docs/LIVE-TEST.md" not in html and "works since" not in html
+    assert "Creating a new API is experimental" in html
+    assert "untested" not in html and "<img" not in html.split("<main")[1]
     assert ("https://krusgraph.test/mcp/connect" in html) is bool(registration)
     if not registration:
         assert "client registration switched off" in html and "continue at step 2" in html
@@ -508,10 +512,10 @@ def test_docs_list_every_tool_the_server_defines_and_home_states_the_verificatio
     assert "never a cold start" not in docs and "well under a second" not in docs
     home = client.get("/").text
     from fabric_backend import tool_status as ts
-    assert "Check the plan against the data" in home and f"Tested end to end on {ts.LIVE_RUN_DATE}" in docs and "no new item was created" in docs
+    assert "Check the plan against the data" in home and "last tried live" not in docs and "docs/LIVE-TEST.md" not in docs   # n234
     llms = client.get("/llms.txt").text
     assert "`validate_plan`" in llms and "`describe_backend`" in llms and "/demo/validation.json" in llms
-    assert "Forty tools" in llms and "K0–K5 for keys, R0–R4 for relationships" in llms and "Eleven" not in llms
+    assert "Forty-one tools" in llms and "K0–K5 for keys, R0–R4 for relationships" in llms and "Eleven" not in llms
     assert not re.search(r"\b[KR]0–[KR]\d", home) and "K0–K3" not in docs              # no rule ranges in the marketing text
 
 
@@ -529,7 +533,8 @@ def test_the_site_icon_is_served_at_the_root_where_directories_look():
 def test_local_page_registry_line_and_plugin_coming_soon(client):
     html = client.get("/local").text
     assert "Trusted_Connection=yes;TrustServerCertificate=yes" in html and "db_datareader" in html and "FABRIC_SOURCE_KIND" in html
-    assert "Tried on 28 October 2026:" in html and "Not yet tried:" in html and 'href="/docs"' in html    # n146
+    assert "Experimental: tried on SQL Server 2022" in html and "not yet with Windows sign-in" in html and 'href="/docs"' in html
+    assert "28 October 2026" not in html and "docs/LOCAL.md" not in html and "docs/DEMO-20-MIN.md" not in html   # n234
     assert 'href="/local"' in docs_all(client) and "/local" in client.get("/sitemap.xml").text
     assert "https://krusgraph.test/local.md" in client.get("/llms.txt").text and "/local.md -->" in client.get("/llms-full.txt").text
     t = docs_all(client)                                       # n183: the registry line moved from the home page to the docs
@@ -551,8 +556,15 @@ def test_docs_give_every_tool_a_status_in_the_shared_words(client):
     md = client.get("/docs.md").text
     rows = [r for r in md.splitlines() if r.startswith("| `") and r.count("|") >= 6]
     assert "| Tool | Status | What it changes | Does | Arguments |" in md                      # status visible without scrolling
-    tools = {r.split("|")[1].strip().strip("`"): r.split("|")[2].strip() for r in rows}
-    assert len(tools) == 40, sorted(tools)        # n219: start
+    shown = {r.split("|")[1].strip().strip("`"): r.split("|")[2].strip() for r in rows}
+    assert len(shown) == 41, sorted(shown)        # n219: start; n229: verify_build
+    # n234 (the founder, 12 November 2026): the docs page says plain words only; the record below stays in tool_status,
+    # docs/LIVE-TEST.md and these tests
+    for tool, status in shown.items():
+        assert status == (ts.plain(tool) or "—"), (tool, status)
+        assert "last tried live" not in status and "docs/" not in status, tool
+    assert "last tried live" not in md and "docs/LIVE-TEST.md" not in md and "## Test status" in md
+    tools = {t: ts.label(t) for t in shown}
     for tool, status in tools.items():
         assert status.startswith(STATUS_WORDS), (tool, status)
         assert not status.startswith("Available when enabled by the operator"), tool
@@ -561,10 +573,8 @@ def test_docs_give_every_tool_a_status_in_the_shared_words(client):
         assert tools[tool].startswith("Tried live; last tried live 28 October 2026: created") and "been run in Fabric" in tools[tool], tool
     assert tools["create_pipeline"].startswith("Tried live; last tried live 7 November 2026") and "run 9de8bc49" in tools["create_pipeline"]
     assert "all three steps succeeded" in tools["create_pipeline"]
-    assert "HTTP 403 FeatureNotAvailable" in tools["create_ontology"] and "cause unknown" not in md
-    assert "## Test status" in md and "27 October 2026, through the hosted server's build src-df29c45febaec4b0" in md
-    assert "one creating call that updated an existing API in place" in md
-    assert "The first such run was on 26 October 2026 (14 steps)" in md
+    assert "HTTP 403 FeatureNotAvailable" in tools["create_ontology"] and "cause unknown" not in md + tools["create_ontology"]
+    assert ts.LIVE_RUN_BUILD == "src-df29c45febaec4b0 (main 5adace8)" and ts.FIRST_RUN_DATE == "26 October 2026"
     assert "22 tools" not in md and "for real" not in md
     assert tools["create_backend"].startswith("Tested end to end as an update in place; last tried live 30 October 2026")
     assert tools["create_backend"].endswith("still open: creating a new API is unit-tested only")
@@ -709,8 +719,8 @@ def test_creating_the_api_or_the_views_is_never_called_tested_end_to_end(client)
     found = {p: _create_claims(t) for p, t in texts.items() if _create_claims(t)}
     assert not found, found
     status = {name: tag for name, _what, tag in use_cases.OUTPUTS}
-    assert status["GraphQL API"].startswith("creating a new API is experimental") and "querying an existing one: tested end to end" in status["GraphQL API"]
-    assert status["SQL views"].startswith("tested end to end as a dry run")
+    assert status["GraphQL API"] == "creating a new API is experimental"     # n234: plain words, no test record
+    assert status["SQL views"] == "experimental"
 
 
 def test_docs_are_grouped_and_every_old_section_anchor_still_resolves(client):
@@ -764,10 +774,10 @@ def test_experimental_status_sits_next_to_the_creating_step(client):
     # n183: the home page has one status line linking the test status, which says what is experimental
     home = client.get("/").text
     pitch = home[:home.index('id="offering"')]                 # the hub further down keeps its own sources' status
-    assert "xperimental" not in pitch and "Tested end to end on" not in home and 'href="/docs#test-status">Test status per tool' in home
+    assert "xperimental" not in pitch and "Tested end to end on" not in home and 'href="/docs#tool-reference">The tools' in home
     assert "xperimental" in docs_all(client)
     start = client.get("/start").text
-    assert re.search(r"create_backend[^<]{0,200}", start) and "xperimental" in start
+    assert "Creating a new API is experimental" in start              # n234: the plain qualifier beside the step
     lovable = client.get("/lovable").text
     assert "xperimental" in lovable
 
@@ -782,7 +792,7 @@ def test_one_status_source_covers_exactly_the_hosted_tools(client):
     md = client.get("/docs.md").text
     for name, s in ts.STATUS.items():
         assert s.available in (ts.HOSTED, ts.OPERATOR) and s.kind in (ts.READS, ts.DRAFT, ts.CREATES) and s.changes and s.tested
-        assert f"| `{name}` | {ts.label(name)} | {s.changes} | " in md, name
+        assert f"| `{name}` | {ts.plain(name) or '—'} | {s.changes} | " in md, name     # n234: plain words on /docs
         if s.kind == ts.CREATES and s.live:                                       # a dry run, or what the one live call did
             assert (s.dry_run_only and "tested end to end as a dry run" in ts.label(name).lower()
                     or name in ts.LIVE_RUN_PARTLY and "update in place" in ts.label(name)
@@ -972,9 +982,7 @@ def test_start_docs_and_llms_send_other_clients_to_mcp_connect_only_when_registr
     monkeypatch.setenv("KRUSGRAPH_CLIENT_REGISTRATION", "1")
     start, docs, llms = client.get("/start").text, docs_all(client), client.get("/llms.txt").text
     assert "<code>https://krusgraph.test/mcp/connect</code>" in start and 'href="/docs#other-mcp-clients"' in start
-    assert ("Tested end to end: VS Code and Cursor signed in and ran tools here on 27 October 2026 and Lovable on 30 October 2026 "
-            "(status set by Gustav on 2 November 2026); Experimental: Glama was tried here on 27 October 2026; it stays Experimental "
-            "until a full sign-in is confirmed") in start                     # n82: Gustav's decision of 2 November 2026
+    assert "Claude Code and Glama are experimental" in start and "27 October 2026" not in start     # n234: no test record
     assert 'id="other-mcp-clients"' in docs and "https://krusgraph.test/mcp/connect" in docs
     for client_ in ("VS Code", "Cursor", "Glama", "Claude Code"):
         assert client_ in docs, client_
@@ -1041,7 +1049,7 @@ def test_status_words_on_the_site_match_tool_status(client, monkeypatch, registr
             other = any(f.replace("`", "") in sentence for f, *_ in ts.FUNCTIONS) or "(client)" in sentence
             tools = [] if other else _claim_named(sentence, ts.STATUS)
             if len(tools) == 1:
-                own = ts.label(tools[0]).lower()
+                own = ts.label(tools[0]).lower() + " " + ts.plain(tools[0])   # n234: a page may say less than the record
                 bad += [(path, tools[0], w, sentence) for w in used if w not in own]
             for c in ([] if _claim_named(sentence, ts.STATUS) else _claim_named(sentence, clients)):   # not a tool's row
                 if "tested end to end" in used and clients[c] != "tested end to end" and "experimental" not in low:
@@ -1076,8 +1084,7 @@ def test_the_home_page_shows_the_total_that_doubles_first_and_the_map_later(clie
     example = text[text.index('id="example"'):text.index("</section>", text.index('id="example"'))]
     assert f"{amount * 2:,.0f}".replace(",", " ") in example and f"{amount:,.0f}".replace(",", " ") in example
     docs = docs_all(client)                                   # n183: the status sentence moved to the docs' test status
-    assert "403" not in text and "cause unknown" not in text and "The semantic model: created live; reviewed in Fabric" in docs
-    assert "the ontology: created live; reviewed in Fabric" in docs and "not yet reviewed" not in text
+    assert "403" not in text and "cause unknown" not in text and "not yet reviewed" not in text
 
 
 def test_the_same_promise_on_the_site_docs_llms_and_readme(client):

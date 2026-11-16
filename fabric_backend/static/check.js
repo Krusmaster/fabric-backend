@@ -23,6 +23,12 @@
 // engine: an accepted relationship is a `confirmed` entry of the plan (browser_check.decide, browser_build.build), so it
 // is among the evidence report's relationships and checks, counted in the rows, and in the Power BI model; a skipped
 // one stays out of both. The export panel says where each decision went.
+// n240: on a phone, one button above the drop area runs the SAP-shaped example (no login, no files) and says under
+// itself what the engine is doing, since the loading line sits further down there; the result opens with three tiles
+// read from the run itself (keys unique, rows that point at nothing, the doubled total and its factor), never fixed
+// numbers. The "done" event says whether the check was on an example or on the visitor's own input and whether it is
+// this page load's first, and both events carry the address's utm_source/medium/campaign: campaign counts with no
+// cookie and nothing kept in the browser (usage.Campaigns).
 (function () {
   "use strict";
   const $ = (id) => document.getElementById(id);
@@ -35,8 +41,10 @@
   const bootSteps = [];
 
   const loading = $("check-loading"), loadingText = $("check-loading-text");
-  function hop(text) { loadingText.textContent = text; loading.hidden = false; }
-  function landed() { loading.hidden = true; }
+  const tryBtn = $("check-try"), tryNote = $("check-try-note"), tryText = tryNote ? tryNote.textContent : "";
+  const tell = (text) => { if (busy && tryNote) { tryNote.textContent = text; tryBtn.setAttribute("aria-busy", "true"); } };
+  function hop(text) { loadingText.textContent = text; loading.hidden = false; tell(text); }
+  function landed() { loading.hidden = true; if (tryNote) { tryNote.textContent = tryText; tryBtn.removeAttribute("aria-busy"); } }
   const NEXT = { runtime: "Loading the engine…", engine: "The engine is ready." };
 
   worker.onmessage = (e) => {
@@ -49,9 +57,17 @@
   worker.onerror = () => say("The engine could not start in this browser. It needs WebAssembly and module workers (a current Chrome, Edge, Firefox or Safari).");
   // Two counts for the operator, sent as an image request that carries only the step's name (never a file, a file
   // name, a table or a column): "loaded" when the engine has started, "done" when a check has finished.
-  const ping = (step) => { try { new Image().src = "/check/event?e=" + step; } catch (_) { /* counting is optional */ } };
+  // n240: and the campaign the visitor came from, if the address names one (utm_*, nothing else of it)
+  const UTM = (() => {
+    const q = new URLSearchParams(location.search), o = new URLSearchParams();
+    ["utm_source", "utm_medium", "utm_campaign"].forEach((k) => { const v = q.get(k); if (v) o.set(k, v.slice(0, 64)); });
+    const t = o.toString();
+    return t ? "&" + t : "";
+  })();
+  let checksDone = 0;
+  const ping = (step, more) => { try { new Image().src = "/check/event?e=" + step + (more || "") + UTM; } catch (_) { /* counting is optional */ } };
   const call = (msg) => new Promise((resolve) => { const id = ++seq; pending.set(id, resolve); worker.postMessage({ id, ...msg }); });
-  function say(text) { status.textContent = text; }
+  function say(text) { status.textContent = text; tell(text); }
   const seconds = (ms) => (ms / 1000).toFixed(1) + " s";
 
   let booted = false, last = null, lastResult = null, built = null, map = null;
@@ -109,7 +125,7 @@
       if (guided) guide(r.result);
       $("check-build-head").hidden = !r.result.tables.length;
       evidence(r.result);
-      ping("done");
+      ping("done", "&k=" + (kind === "files" || kind === "columns" ? "real" : "sample") + (++checksDone === 1 ? "&n=1" : ""));
       const ms = Math.round(performance.now());
       document.documentElement.dataset.checkMs = String(ms);
       say("Done: " + what + ", read in this browser in " + seconds(performance.now() - t0) + ". The result showed " + seconds(ms) + " after the page opened; nothing was uploaded.");
@@ -180,7 +196,6 @@
   choices.app.addEventListener("click", () => openBuild("app"));
 
   const fmt = (v) => v == null ? "–" : typeof v === "number" ? v.toLocaleString("en-US") : String(v);
-  const tag = (t) => el("span", { class: "status-tag" }, t);
   // n73: a download says what the file holds; n95: the button is short ("Download" and what the file is), the
   // description stands under it as plain text, and the status is said once above the list (statusLines)
   function dlItem(a, desc) {
@@ -243,7 +258,7 @@
   function drawModel(b) {
     const r = b.report, dbl = doubledFinding(lastResult);
     const kids = [el("h3", { id: "check-model-h", tabindex: "-1" }, "A simple report from your rows"),
-      el("p", { class: "tiny" }, tag(b.status.report), " The report preview is drawn here: Krusgraph has no report tool. The model: ", tag(b.status.model), " (semantic_model_draft).")];
+      el("p", { class: "tiny" }, "A preview drawn here from your rows.")];
     if (!r.has_data) kids.push(noRows());
     else {
       kids.push(figures(r.measures));
@@ -261,7 +276,7 @@
       notBuilt(r), decisionsInModel(r),
       ...statusLines([{ what: "the Power BI project", status: b.status.model }]),
       el("div", { class: "ctas" }, download(zip, b.downloads[zip], "Power BI project", "The model (.pbip) with the plan's keys and relationships" + (r.has_data ? " as checked in the rows" : "") + ", and an empty report page.")),
-      el("p", { class: "muted tiny" }, "Creating the model in Fabric (create_semantic_model): ", tag(b.status.create_model), "."));
+      null);
     fill(panels.model, ...kids);       // review M3: notBuilt and decisionsInModel give null when there is nothing to say
   }
   // n150: the count is what the model holds; a relationship of the plan that is not in it is said with its reason
@@ -296,7 +311,7 @@
   function drawApp(b) {
     const a = b.app;
     const kids = [el("h3", { id: "check-app-h", tabindex: "-1" }, "A small app over the same data"),
-      el("p", { class: "tiny" }, tag("Draft only"), " A preview drawn here from your rows. The code: Rayfin connector ", tag(b.status.rayfin), "; app starter ", tag(b.status.app_starter), ".")];
+      el("p", { class: "tiny" }, "A preview drawn here from your rows.")];
     if (!a.has_data) kids.push(noRows());
     else {
       kids.push(figures(a.kpis));
@@ -356,12 +371,37 @@
     return b;
   };
 
+  // n240: the run's three figures, each read from the result: the keys counted unique (the engine's health line), the
+  // relationship with the most rows that point at nothing (its finding's own words), the total that doubles (its sums)
+  const thin = (v) => String(v).replace(/\B(?=(\d{3})+(?!\d))/g, "\u00a0");
+  function headline(r) {
+    const tiles = [];
+    const k = /(\d+) of (\d+) keys unique/.exec(r.health || "");
+    if (k) tiles.push(el("li", { class: k[1] === k[2] ? "ok" : "bad" }, el("span", { class: "check-kpi-v" }, k[1] + " of " + k[2]), el("span", { class: "check-kpi-l" }, "keys unique")));
+    const orphans = r.findings.filter((f) => f.check === "relationship" && f.link)
+      .map((f) => ({ f, m: /(\d+) of (\d+) rows \(([\d.]+)%\) point at nothing/.exec(f.saw || "") }))
+      .filter((x) => x.m && Number(x.m[1]) > 0).sort((a, b) => Number(b.m[1]) - Number(a.m[1]));
+    if (orphans.length) {
+      const { f, m } = orphans[0];
+      tiles.push(el("li", { class: "bad" }, el("span", { class: "check-kpi-v" }, m[1] + " of " + m[2] + " rows (" + m[3] + "%)"),
+        el("span", { class: "check-kpi-l" }, "point at nothing (" + f.link.source + " → " + f.link.target + ")")));
+    }
+    const d = doubledFinding(r);
+    if (d && Number(d.amount.wrong) > Number(d.amount.right) && Number(d.amount.right) > 0) {
+      const a = d.amount, x = (Number(a.wrong) / Number(a.right)).toFixed(1).replace(/\.0$/, "");
+      tiles.push(el("li", { class: "bad" }, el("span", { class: "check-kpi-v" }, thin(a.wrong) + " vs " + thin(a.right)),
+        el("span", { class: "check-kpi-l" }, x + "x: " + a.header + "." + a.column + " summed over the joined " + a.line + " rows, against once per " + a.header + " row")));
+    }
+    return tiles.length ? el("ul", { class: "check-kpis check-headline", id: "check-headline" }, ...tiles) : null;
+  }
+
   function draw(r) {
     result.hidden = false;
     const all = r.findings.concat(r.suggestions), n = all.length, top = all[0];
     $("check-verdict").replaceChildren(
       el("p", { class: "check-state check-" + r.verdict.headline.state }, el("strong", null, r.verdict.headline.title),
         " · " + (n ? n + (n === 1 ? " thing" : " things") + " to check" : "nothing to check")),
+      headline(r) || "",
       top ? el("p", { class: "check-top" }, el("span", { class: "muted" }, "Most important: "), findingButton(top, "check-finding-link")) : el("p", { class: "muted" }, r.verdict.headline.text),
       // n75: how much the run counted in the rows, from the result itself (never a fixed sentence)
       r.coverage && r.coverage.text ? el("p", { class: "muted tiny check-coverage", id: "check-coverage" }, r.coverage.text) : null);

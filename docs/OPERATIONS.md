@@ -479,6 +479,16 @@ A later version: raise `version` in `pyproject.toml`, `fabric_backend/__init__.p
 equal), add its `CHANGELOG.md` section, push to `main`, then tag as above. A wrong tag that has not been used anywhere
 can be removed with `git tag -d vX.Y.Z && git push origin :refs/tags/vX.Y.Z` (maintainer only).
 
+**An SBOM a buyer can fetch (B3, 16 November 2026).** The workflow now writes three CycloneDX files: `sbom.cdx.json`
+(the image's Python versions), `sbom-editor.cdx.json` (the Model editor's npm packages, from its lock file) and, on a
+tag or a manual run, `sbom-image.cdx.json` (the built image with its base image's OS packages). A workflow artifact
+needs a GitHub sign-in and is gone after 90 days, so on a tag a second job attaches the three files to the tag's
+GitHub release **if the maintainer has created one**; it creates no release itself. To publish them: create the
+release for the tag on GitHub (Releases → Draft a new release → choose the tag → Publish), then Actions → SBOM → the
+tag's run → Re-run the job `release`. The files are then at
+`https://github.com/Krusmaster/fabric-backend/releases/download/vX.Y.Z/sbom.cdx.json` (and the two other names). The
+tag path has not run yet: the first tag after this change is its first test. The image is not signed.
+
 The same workflow also builds the SBOM on every push to `main` (artifact `sbom-main-<sha>`); Dependabot and the
 weekly `pip-audit` are described in `SECURITY.md` at the repository root.
 
@@ -646,7 +656,7 @@ each line says where one lives.
 | `KRUSGRAPH_METRICS_TOKEN` | unset (404) | enables `/metrics` for this bearer token (32+ characters) |
 | `KRUSGRAPH_LOG_RETENTION_DAYS` | unset | tells `/privacy` that console logs are kept that many days |
 | `KRUSGRAPH_ACCESS_LOG` | on | `0` drops uvicorn's per-request line with the client IP |
-| `KRUSGRAPH_ENTITLEMENTS` | `0` | the dormant paid-plan check, see `docs/PRICING-NOTES.md` |
+| `KRUSGRAPH_ENTITLEMENTS` | `0` | the dormant paid-plan check, see `docs/ENTITLEMENTS.md` |
 | `KRUSGRAPH_TRIAL` | `0` | n213: the 30-day trial per organisation, then a Marketplace subscription (`docs/BILLING-MODEL.md`) |
 | `KRUSGRAPH_PUBLISHER_TENANT_ID`, `KRUSGRAPH_TRIAL_EXEMPT_TENANTS` | `KRUSGRAPH_MARKETPLACE_TENANT_ID`, unset | the tenants the trial never gates |
 | `KRUSGRAPH_PLAN_USER_CAPS` | unset | `{"<plan id>": <users>}`: the warning over a plan's users |

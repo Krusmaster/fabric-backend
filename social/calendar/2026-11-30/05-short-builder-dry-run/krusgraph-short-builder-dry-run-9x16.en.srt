@@ -1,0 +1,23 @@
+1
+00:00:00,350 --> 00:00:04,175
+Meet Builder. One idea today: a dry run first.
+
+2
+00:00:04,275 --> 00:00:08,748
+Type “start Krusgraph” in Claude. There are 9 steps.
+
+3
+00:00:08,848 --> 00:00:14,158
+8 of them only read: the map, the check, the doubled totals, and the dry run.
+
+4
+00:00:14,258 --> 00:00:17,947
+The last one: “Create, only on your confirmation”.
+
+5
+00:00:18,047 --> 00:00:20,320
+Nothing is built until you say yes.
+
+6
+00:00:20,670 --> 00:00:24,382
+Try it in your browser: krusgraph.com/check

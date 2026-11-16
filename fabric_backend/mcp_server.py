@@ -40,6 +40,7 @@ import re
 from contextlib import contextmanager
 
 from . import create, plan_from
+from . import errors as _errors
 from .errors import safe
 from .infer import check_tables
 from .rayfin import rayfin_files
@@ -67,6 +68,8 @@ INSTRUCTIONS = (
     "databricks_* tools draft informational constraints, a Lakeflow pipeline, metric views and a bundle from the same "
     "plan; create_databricks_constraints and create_databricks_pipeline are dry runs by default. A tool that does not "
     "apply to the source answers kind unsupported with the tool that does. Failures answer error, kind and hint. "
+    "Say what an answer says and no more: please add no reason, source or name that is not in it (for example where a key "
+    "comes from); when the user asks for more than the answer holds, say that the answer does not tell. "
     + _switches.SENTENCE)
 try:
     mcp = _Server("fabric-backend", instructions=INSTRUCTIONS)
@@ -96,6 +99,27 @@ def _tool(title: str, annotations):
     return wrap
 
 
+LOCAL_SETUP_HINT = ("Add FABRIC_ODBC under \"env\" for this server in your MCP client's configuration and restart the client "
+                    "(docs/LOCAL.md, section 3, has the full example), for instance Driver={ODBC Driver 18 for SQL Server};"
+                    "Server=<server>;Database=<database>;Trusted_Connection=yes.")
+LOCAL_DRIVER_HINT = ("Install Microsoft ODBC Driver 18 for SQL Server and the Python package pyodbc "
+                     "(pip install \"fabric-backend[mcp]\"), then restart your MCP client (docs/LOCAL.md, section 1).")
+USAGE = """fabric-backend-mcp: the local Krusgraph MCP server (stdio).
+
+An MCP client (Claude Desktop, Claude Code, ...) starts this command and talks to it over stdin and stdout; run by
+hand it waits silently for a client. It takes no arguments apart from --help and --version. Settings, as environment
+variables in the client's configuration (docs/LOCAL.md):
+
+  FABRIC_ODBC             the ODBC connection string of the database to read (required)
+  FABRIC_SOURCE_KIND      SQLServer, Lakehouse (default), Warehouse or SQLDatabase
+  FABRIC_SCHEMAS_ENABLED  1 for a lakehouse created with schemas
+  FABRIC_TOKEN            a Fabric access token for create_backend; without it the Azure CLI (az login) is asked
+  KRUSGRAPH_PLATFORM      databricks for the Databricks adapter (Draft only; docs/DATABRICKS.md)
+
+Every tool reads; create_views and create_backend are dry runs until dry_run=false.
+"""
+
+
 def _token() -> str:
     return os.environ.get("FABRIC_TOKEN") or token_from_az()
 
@@ -105,8 +129,14 @@ def _execute_factory(schema: str):
         return _platform().connect()
     dsn = os.environ.get("FABRIC_ODBC")
     if not dsn:
-        raise RuntimeError("FABRIC_ODBC is not set: the stdio server needs an ODBC connection string for the SQL analytics endpoint")
-    return _local.odbc_connection(dsn)
+        # F1: locally the reader is the operator, so the hint says where the setting goes (it was "Contact the operator")
+        raise _errors.PlatformError("server_config", "FABRIC_ODBC is not set: this local server needs an ODBC connection string "
+                                    "for the database it reads.", LOCAL_SETUP_HINT)
+    try:
+        return _local.odbc_connection(dsn)
+    except ImportError as e:
+        raise _errors.PlatformError("server_config", "The ODBC driver could not be loaded on this machine: "
+                                    + " ".join(str(e).split())[:200], LOCAL_DRIVER_HINT) from None
 
 
 @contextmanager
@@ -767,7 +797,21 @@ def databricks_lineage(schema: str = "default", table: str | None = None, days: 
                                      "where it can). Draft only: unit-tested; not yet run against a workspace."}, MAX_RESULT_CHARS)
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
+    """F1: --help and --version answer and return (docs/LOCAL.md's install step runs --help); they used to start the
+    stdio server, which waits on stdin and prints nothing. Anything else starts the server as before."""
+    import sys
+    args = sys.argv[1:] if argv is None else argv
+    if any(a in ("-h", "--help") for a in args):
+        print(USAGE)
+        return
+    if any(a in ("-V", "--version") for a in args):
+        from importlib.metadata import PackageNotFoundError, version
+        try:
+            print("fabric-backend-mcp", version("fabric-backend"))
+        except PackageNotFoundError:
+            print("fabric-backend-mcp (version unknown: not installed as a package)")
+        return
     mcp.run()
 
 

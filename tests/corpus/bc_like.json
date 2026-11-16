@@ -1,0 +1,227 @@
+{
+ "name": "bc_like",
+ "title": "Business-Central-like shape",
+ "source": "`<company>$<table>$<app id>` table names, `No_` keys; synthetic, written for this corpus, not Microsoft's schema",
+ "rows": 1181,
+ "names": {
+  "tables": 10,
+  "keys_true": 10,
+  "keys_right": 3,
+  "keys_wrong": 4,
+  "keys_missed": 3,
+  "keys_extra": 0,
+  "keys_extra_list": [],
+  "links_true": 12,
+  "links_found": 0,
+  "links_wrong": 0,
+  "keys_wrong_list": [
+   "Example AB$Purchase Header$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Purchase Line$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Sales Line$437dbf0e-84ff-417a-965d-ed2bb9650972"
+  ],
+  "keys_missed_list": [
+   "Example AB$Country_Region$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Cust_ Ledger Entry$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Salesperson_Purchaser$437dbf0e-84ff-417a-965d-ed2bb9650972"
+  ],
+  "links_missed_list": [
+   "Example AB$Cust_ Ledger Entry$437dbf0e-84ff-417a-965d-ed2bb9650972.customer no_ -> Example AB$Customer$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Customer$437dbf0e-84ff-417a-965d-ed2bb9650972.country_region code -> Example AB$Country_Region$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Customer$437dbf0e-84ff-417a-965d-ed2bb9650972.salesperson code -> Example AB$Salesperson_Purchaser$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Purchase Header$437dbf0e-84ff-417a-965d-ed2bb9650972.buy-from vendor no_ -> Example AB$Vendor$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Purchase Line$437dbf0e-84ff-417a-965d-ed2bb9650972.document no_+document type -> Example AB$Purchase Header$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Purchase Line$437dbf0e-84ff-417a-965d-ed2bb9650972.no_ -> Example AB$Item$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972.bill-to customer no_ -> Example AB$Customer$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972.salesperson code -> Example AB$Salesperson_Purchaser$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972.sell-to customer no_ -> Example AB$Customer$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Sales Line$437dbf0e-84ff-417a-965d-ed2bb9650972.document no_+document type -> Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Sales Line$437dbf0e-84ff-417a-965d-ed2bb9650972.no_ -> Example AB$Item$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Vendor$437dbf0e-84ff-417a-965d-ed2bb9650972.country_region code -> Example AB$Country_Region$437dbf0e-84ff-417a-965d-ed2bb9650972"
+  ],
+  "links_wrong_list": []
+ },
+ "before": {
+  "tables": 10,
+  "keys_true": 10,
+  "keys_right": 3,
+  "keys_wrong": 4,
+  "keys_missed": 3,
+  "keys_extra": 0,
+  "keys_extra_list": [],
+  "links_true": 12,
+  "links_found": 0,
+  "links_wrong": 0,
+  "keys_wrong_list": [
+   "Example AB$Purchase Header$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Purchase Line$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Sales Line$437dbf0e-84ff-417a-965d-ed2bb9650972"
+  ],
+  "keys_missed_list": [
+   "Example AB$Country_Region$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Cust_ Ledger Entry$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Salesperson_Purchaser$437dbf0e-84ff-417a-965d-ed2bb9650972"
+  ],
+  "links_missed_list": [
+   "Example AB$Cust_ Ledger Entry$437dbf0e-84ff-417a-965d-ed2bb9650972.customer no_ -> Example AB$Customer$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Customer$437dbf0e-84ff-417a-965d-ed2bb9650972.country_region code -> Example AB$Country_Region$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Customer$437dbf0e-84ff-417a-965d-ed2bb9650972.salesperson code -> Example AB$Salesperson_Purchaser$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Purchase Header$437dbf0e-84ff-417a-965d-ed2bb9650972.buy-from vendor no_ -> Example AB$Vendor$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Purchase Line$437dbf0e-84ff-417a-965d-ed2bb9650972.document no_+document type -> Example AB$Purchase Header$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Purchase Line$437dbf0e-84ff-417a-965d-ed2bb9650972.no_ -> Example AB$Item$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972.bill-to customer no_ -> Example AB$Customer$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972.salesperson code -> Example AB$Salesperson_Purchaser$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972.sell-to customer no_ -> Example AB$Customer$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Sales Line$437dbf0e-84ff-417a-965d-ed2bb9650972.document no_+document type -> Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Sales Line$437dbf0e-84ff-417a-965d-ed2bb9650972.no_ -> Example AB$Item$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Vendor$437dbf0e-84ff-417a-965d-ed2bb9650972.country_region code -> Example AB$Country_Region$437dbf0e-84ff-417a-965d-ed2bb9650972"
+  ],
+  "links_wrong_list": []
+ },
+ "after": {
+  "tables": 10,
+  "keys_true": 10,
+  "keys_right": 8,
+  "keys_wrong": 2,
+  "keys_missed": 0,
+  "keys_extra": 0,
+  "keys_extra_list": [],
+  "links_true": 12,
+  "links_found": 10,
+  "links_wrong": 1,
+  "keys_wrong_list": [
+   "Example AB$Purchase Header$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972"
+  ],
+  "keys_missed_list": [],
+  "links_missed_list": [
+   "Example AB$Purchase Line$437dbf0e-84ff-417a-965d-ed2bb9650972.document no_+document type -> Example AB$Purchase Header$437dbf0e-84ff-417a-965d-ed2bb9650972",
+   "Example AB$Sales Line$437dbf0e-84ff-417a-965d-ed2bb9650972.document no_+document type -> Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972"
+  ],
+  "links_wrong_list": [
+   "Example AB$Cust_ Ledger Entry$437dbf0e-84ff-417a-965d-ed2bb9650972.document no_ -> Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972"
+  ]
+ },
+ "plan": {
+  "keys": {
+   "Example AB$Country_Region$437dbf0e-84ff-417a-965d-ed2bb9650972": {
+    "columns": [
+     "Code"
+    ],
+    "rule": "K6"
+   },
+   "Example AB$Cust_ Ledger Entry$437dbf0e-84ff-417a-965d-ed2bb9650972": {
+    "columns": [
+     "Entry No_"
+    ],
+    "rule": "K6"
+   },
+   "Example AB$Customer$437dbf0e-84ff-417a-965d-ed2bb9650972": {
+    "columns": [
+     "No_"
+    ],
+    "rule": "K2"
+   },
+   "Example AB$Item$437dbf0e-84ff-417a-965d-ed2bb9650972": {
+    "columns": [
+     "No_"
+    ],
+    "rule": "K2"
+   },
+   "Example AB$Purchase Header$437dbf0e-84ff-417a-965d-ed2bb9650972": {
+    "columns": [
+     "No_"
+    ],
+    "rule": "K2"
+   },
+   "Example AB$Purchase Line$437dbf0e-84ff-417a-965d-ed2bb9650972": {
+    "columns": [
+     "Document Type",
+     "Document No_",
+     "Line No_"
+    ],
+    "rule": "K6"
+   },
+   "Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972": {
+    "columns": [
+     "No_"
+    ],
+    "rule": "K2"
+   },
+   "Example AB$Sales Line$437dbf0e-84ff-417a-965d-ed2bb9650972": {
+    "columns": [
+     "Document Type",
+     "Document No_",
+     "Line No_"
+    ],
+    "rule": "K6"
+   },
+   "Example AB$Salesperson_Purchaser$437dbf0e-84ff-417a-965d-ed2bb9650972": {
+    "columns": [
+     "Code"
+    ],
+    "rule": "K6"
+   },
+   "Example AB$Vendor$437dbf0e-84ff-417a-965d-ed2bb9650972": {
+    "columns": [
+     "No_"
+    ],
+    "rule": "K2"
+   }
+  },
+  "links": [
+   "Example AB$Cust_ Ledger Entry$437dbf0e-84ff-417a-965d-ed2bb9650972.Customer No_ -> Example AB$Customer$437dbf0e-84ff-417a-965d-ed2bb9650972.No_ [R6]",
+   "Example AB$Cust_ Ledger Entry$437dbf0e-84ff-417a-965d-ed2bb9650972.Document No_ -> Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972.No_ [R6]",
+   "Example AB$Customer$437dbf0e-84ff-417a-965d-ed2bb9650972.Country_Region Code -> Example AB$Country_Region$437dbf0e-84ff-417a-965d-ed2bb9650972.Code [R6]",
+   "Example AB$Customer$437dbf0e-84ff-417a-965d-ed2bb9650972.Salesperson Code -> Example AB$Salesperson_Purchaser$437dbf0e-84ff-417a-965d-ed2bb9650972.Code [R6]",
+   "Example AB$Purchase Header$437dbf0e-84ff-417a-965d-ed2bb9650972.Buy-from Vendor No_ -> Example AB$Vendor$437dbf0e-84ff-417a-965d-ed2bb9650972.No_ [R6]",
+   "Example AB$Purchase Line$437dbf0e-84ff-417a-965d-ed2bb9650972.No_ -> Example AB$Item$437dbf0e-84ff-417a-965d-ed2bb9650972.No_ [R6]",
+   "Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972.Bill-to Customer No_ -> Example AB$Customer$437dbf0e-84ff-417a-965d-ed2bb9650972.No_ [R6]",
+   "Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972.Salesperson Code -> Example AB$Salesperson_Purchaser$437dbf0e-84ff-417a-965d-ed2bb9650972.Code [R6]",
+   "Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972.Sell-to Customer No_ -> Example AB$Customer$437dbf0e-84ff-417a-965d-ed2bb9650972.No_ [R6]",
+   "Example AB$Sales Line$437dbf0e-84ff-417a-965d-ed2bb9650972.No_ -> Example AB$Item$437dbf0e-84ff-417a-965d-ed2bb9650972.No_ [R6]",
+   "Example AB$Vendor$437dbf0e-84ff-417a-965d-ed2bb9650972.Country_Region Code -> Example AB$Country_Region$437dbf0e-84ff-417a-965d-ed2bb9650972.Code [R6]"
+  ],
+  "ambiguous": [],
+  "proposed": [
+   "Example AB$Purchase Line$437dbf0e-84ff-417a-965d-ed2bb9650972.Document No_ -> Example AB$Purchase Header$437dbf0e-84ff-417a-965d-ed2bb9650972 [R6]: 134 of 134 value(s) of Example AB$Purchase Line$437dbf0e-84ff-417a-965d-ed2bb9650972.Document No_ are in Example AB$Purchase Header$437dbf0e-84ff-417a-965d-ed2bb9650972.No_, but the name gives no support: confirm it to apply it",
+   "Example AB$Sales Line$437dbf0e-84ff-417a-965d-ed2bb9650972.Document No_ -> Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972 [R6]: 420 of 420 value(s) of Example AB$Sales Line$437dbf0e-84ff-417a-965d-ed2bb9650972.Document No_ are in Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972.No_, but the name gives no support: confirm it to apply it"
+  ],
+  "keys_from_rows": {
+   "Example AB$Salesperson_Purchaser$437dbf0e-84ff-417a-965d-ed2bb9650972": "Code is unique and never NULL in all 5 rows, and is named like an identifier; also unique: Name",
+   "Example AB$Country_Region$437dbf0e-84ff-417a-965d-ed2bb9650972": "Code is unique and never NULL in all 5 rows, and is named like an identifier; also unique: Name",
+   "Example AB$Sales Line$437dbf0e-84ff-417a-965d-ed2bb9650972": "no single column is taken; the first 3 columns together are unique and never NULL in all 420 rows; the key by name (No_, K2) is not unique in the rows and gives way",
+   "Example AB$Purchase Line$437dbf0e-84ff-417a-965d-ed2bb9650972": "no single column is taken; the first 3 columns together are unique and never NULL in all 134 rows; the key by name (No_, K2) is not unique in the rows and gives way",
+   "Example AB$Cust_ Ledger Entry$437dbf0e-84ff-417a-965d-ed2bb9650972": "Entry No_ is unique and never NULL in all 127 rows, and is named like an identifier; also unique: Document No_"
+  }
+ },
+ "row_results": {
+  "summary": "10 of 10 keys unique, 11 of 11 relationships hold without orphans",
+  "keys": {
+   "Example AB$Customer$437dbf0e-84ff-417a-965d-ed2bb9650972": "unique in all 90 rows",
+   "Example AB$Vendor$437dbf0e-84ff-417a-965d-ed2bb9650972": "unique in all 40 rows",
+   "Example AB$Item$437dbf0e-84ff-417a-965d-ed2bb9650972": "unique in all 110 rows",
+   "Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972": "unique in all 180 rows",
+   "Example AB$Sales Line$437dbf0e-84ff-417a-965d-ed2bb9650972": "unique in all 420 rows",
+   "Example AB$Purchase Header$437dbf0e-84ff-417a-965d-ed2bb9650972": "unique in all 70 rows",
+   "Example AB$Purchase Line$437dbf0e-84ff-417a-965d-ed2bb9650972": "unique in all 134 rows",
+   "Example AB$Salesperson_Purchaser$437dbf0e-84ff-417a-965d-ed2bb9650972": "unique in all 5 rows",
+   "Example AB$Country_Region$437dbf0e-84ff-417a-965d-ed2bb9650972": "unique in all 5 rows",
+   "Example AB$Cust_ Ledger Entry$437dbf0e-84ff-417a-965d-ed2bb9650972": "unique in all 127 rows"
+  },
+  "links": {
+   "Example AB$Customer$437dbf0e-84ff-417a-965d-ed2bb9650972.Country_Region Code -> Example AB$Country_Region$437dbf0e-84ff-417a-965d-ed2bb9650972": "holds for all 90 rows with a value",
+   "Example AB$Customer$437dbf0e-84ff-417a-965d-ed2bb9650972.Salesperson Code -> Example AB$Salesperson_Purchaser$437dbf0e-84ff-417a-965d-ed2bb9650972": "holds for all 90 rows with a value",
+   "Example AB$Vendor$437dbf0e-84ff-417a-965d-ed2bb9650972.Country_Region Code -> Example AB$Country_Region$437dbf0e-84ff-417a-965d-ed2bb9650972": "holds for all 40 rows with a value",
+   "Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972.Sell-to Customer No_ -> Example AB$Customer$437dbf0e-84ff-417a-965d-ed2bb9650972": "holds for all 180 rows with a value",
+   "Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972.Bill-to Customer No_ -> Example AB$Customer$437dbf0e-84ff-417a-965d-ed2bb9650972": "holds for all 180 rows with a value",
+   "Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972.Salesperson Code -> Example AB$Salesperson_Purchaser$437dbf0e-84ff-417a-965d-ed2bb9650972": "holds for all 180 rows with a value",
+   "Example AB$Sales Line$437dbf0e-84ff-417a-965d-ed2bb9650972.No_ -> Example AB$Item$437dbf0e-84ff-417a-965d-ed2bb9650972": "holds for all 420 rows with a value",
+   "Example AB$Purchase Header$437dbf0e-84ff-417a-965d-ed2bb9650972.Buy-from Vendor No_ -> Example AB$Vendor$437dbf0e-84ff-417a-965d-ed2bb9650972": "holds for all 70 rows with a value",
+   "Example AB$Purchase Line$437dbf0e-84ff-417a-965d-ed2bb9650972.No_ -> Example AB$Item$437dbf0e-84ff-417a-965d-ed2bb9650972": "holds for all 134 rows with a value",
+   "Example AB$Cust_ Ledger Entry$437dbf0e-84ff-417a-965d-ed2bb9650972.Customer No_ -> Example AB$Customer$437dbf0e-84ff-417a-965d-ed2bb9650972": "holds for all 127 rows with a value",
+   "Example AB$Cust_ Ledger Entry$437dbf0e-84ff-417a-965d-ed2bb9650972.Document No_ -> Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972": "holds for all 127 rows with a value"
+  }
+ }
+}

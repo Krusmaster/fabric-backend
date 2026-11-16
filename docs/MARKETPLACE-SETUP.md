@@ -196,7 +196,7 @@ revision (the landing page then accepts work accounts only) and prints what to r
 no such step.
 
 The container app's identity needs **Storage Table Data Contributor** on that table (the webhook writes; the reader
-role of `docs/PRICING-NOTES.md` is not enough) and **Key Vault Secrets User** on the vault for the Key Vault reference.
+role of `docs/ENTITLEMENTS.md` is not enough) and **Key Vault Secrets User** on the vault for the Key Vault reference.
 With `KRUSGRAPH_MARKETPLACE=1` and a setting missing, the server does not start and says which.
 
 Storing the secret without showing it, either way:
@@ -229,7 +229,7 @@ Vault reference has no such step.
   `bash deploy/krusgraph.sh --update --dry-run`, then `bash deploy/krusgraph.sh --update`.
 - **Off:** `"marketplace": false` (and/or `"entitlements": false`) and `--update`: the variable becomes `0`, the
   `/marketplace` routes are gone at the next revision, the table and its rows stay. With `entitlements` off nothing
-  is gated; with `marketplace` off and `entitlements` on, the check falls back to `docs/PRICING-NOTES.md`'s rules.
+  is gated; with `marketplace` off and `entitlements` on, the check falls back to `docs/ENTITLEMENTS.md`'s rules.
 - Self-hosted and open-source use: both unset, nothing changes.
 
 ## 5. Testing with the DEV offer [L9][L11][M9]

@@ -396,6 +396,49 @@ def _value_source(plan: Plan, tables: list[str], u: dict) -> dict:
                          "quantity by; summing a quantity would answer a different question. Name the column to sum"}
 
 
+def _own_column(plan: Plan, u: dict) -> tuple[str, str] | None:
+    """n229: "total NETWR per sales order" where NETWR is a column of the lines (sap_vbap) and of the order (sap_vbak): the
+    column read from the question sits on a line table, the question groups by the table those lines point at, and that
+    table has a column of the same name: the group's own column is the one meant. None otherwise."""
+    from .graphs import safest_path
+    if u.get("aggregate") not in ("sum", "average", "avg") or not u.get("measure") or not u.get("group_table"):
+        return None
+    (mt, mc), g = u["measure"], u["group_table"]
+    if mt == g:
+        return None
+    col = next((c for c in plan.schema[g].column_names if c.lower() == mc.lower()), None)
+    path = safest_path(plan, mt, g)
+    if not col or _type(plan.schema[g], col) not in NUMERIC or path is None or not all(s["forward"] for s in path):
+        return None
+    return g, col
+
+
+def _header_level(plan: Plan, u: dict, involved: list[str]) -> list[str]:
+    """n229: the tables a header-level sum or average has no use for. The value's table is the header (sap_vbak.NETWR);
+    a table reached from it only against a relationship's direction (its lines, sap_vbap) that the question neither
+    groups by nor names a column of adds nothing to the answer, and joining it drops every header without a line
+    (founder, 12 November 2026: "total NETWR per sales order" was drafted over sap_vbap JOIN sap_vbak with DISTINCT).
+    Empty when the question is not a sum or an average of a known column, or when nothing can be left out."""
+    from .graphs import safest_path
+    if u.get("aggregate") not in ("sum", "average", "avg") or not u.get("measure"):
+        return []
+    mt = u["measure"][0]
+    needed = {mt, u.get("group_table"), (u.get("group_column") or [None])[0], (u.get("asked_column") or [None])[0]}
+    needed |= {c[0] for c in u.get("columns_named") or []} | set(u.get("with") or [])
+    out = []
+    for t in involved:
+        if t in needed:
+            continue
+        path = safest_path(plan, mt, t)
+        if path is not None and not all(s["forward"] for s in path):
+            out.append(t)
+    rest = [t for t in involved if t not in out]
+    # only when the header then reaches everything that is left by many-to-one steps: the query starts at the header
+    if not out or not all((p := safest_path(plan, mt, o)) is not None and all(s["forward"] for s in p) for o in rest if o != mt):
+        return []
+    return out
+
+
 def tsql(plan: Plan, question: str, tables: list[str], show_personal_data: bool = False) -> dict:
     names = {t.name.lower(): t.name for t in plan.schema}
     missing = [t for t in tables if t.lower() not in names]
@@ -426,6 +469,7 @@ def tsql(plan: Plan, question: str, tables: list[str], show_personal_data: bool 
     if u["unread"]:                                           # a negation that names nothing: no query, never another question
         return {"understood": u, "root": None, "tables": tables, "measure": None, "path": [], "sql": None, "assumptions": [],
                 "_steps": [], "personal_left_out": left_out, "_personal": personal, "not_understood": list(u["unread"])}
+    own_note = None
     involved = list(dict.fromkeys(tables + [x for x in (u["group_table"], u["counted"]) if x] + u["without"]
                                   + [c[0] for c in u["without_columns"]]))
     negation = bool(u["without"] or u["without_columns"])
@@ -434,6 +478,21 @@ def tsql(plan: Plan, question: str, tables: list[str], show_personal_data: bool 
         u["measure"] = list(value["amount"])
     if computed:
         involved = list(dict.fromkeys(involved + [computed["table"], computed["dimension"]]))
+    if not (negation or computed or u["counted"]):
+        own = _own_column(plan, u)
+        if own:
+            was, u["measure"] = u["measure"], list(own)
+            u["columns_named"] = [list(own) if list(c) == list(was) else c for c in u.get("columns_named") or []]
+            own_note = (f"{was[1]} is a column of both {was[0]} and {own[0]}; the question asks per {own[0]} row, so {own[0]}.{own[1]}, "
+                        f"the {own[0]} row's own value, is used. Name {was[0]}.{was[1]} to sum that one instead")
+        elif u.get("measure") and u.get("aggregate") in ("sum", "average", "avg"):
+            mt0, mc0 = u["measure"]                               # F1 B1: the same column name on another of the tables: say which
+            twins = [t for t in tables if t != mt0 and any(c.lower() == mc0.lower() for c in plan.schema[t].column_names)]
+            if twins:
+                own_note = (f"{mc0} is a column of {mt0} and of {', '.join(twins)}; {mt0}.{mc0} is used. Name "
+                            f"{twins[0]}.{mc0} in the question to use that one instead")
+    header_only = _header_level(plan, u, involved) if not (negation or computed or u["counted"]) else []
+    involved = [t for t in involved if t not in header_only]
     root = (computed["table"] if computed and not u["counted"] else None) or u["counted"] or (u["subject"] if negation else None) \
         or _grain(plan, [t for t in involved if t not in u["without"]] or involved)
     conditions: list[str] = []
@@ -448,7 +507,14 @@ def tsql(plan: Plan, question: str, tables: list[str], show_personal_data: bool 
                 joined.remove(t)
                 u["with"].append(t)
     steps, alias, fans_out = _join_tree(plan, root, joined)
-    assumptions = []
+    assumptions = [own_note] if own_note else []
+    if header_only:
+        mt, mc = u["measure"]
+        assumptions.append(f"{mt}.{mc} is a value on {mt}, and the question asks for nothing from {', '.join(header_only)}: it is "
+                           f"{'summed' if u['aggregate'] == 'sum' else 'averaged'} on {mt} alone. {', '.join(header_only)} "
+                           f"{'is' if len(header_only) == 1 else 'are'} not joined: an inner join would drop every {mt} row without "
+                           f"a row there and repeat the others, once per row; an amount on {mt} and one on {header_only[0]} are "
+                           "different levels")
 
     def on(s, a, b):
         r = s["rel"]

@@ -8,7 +8,7 @@ No Entra registration, permission, DNS or billing-account changes are made here.
 
 deploy/krusgraph.json (see krusgraph.example.json): tenant_id, subscription_id, client_id, domain, location,
 resource_group, environment, app, registry, identity, product_name, contact_email, include_www and the optional
-company_orgnr (shown on the privacy page and in the footer when set; leave "" to hide the line), key_vault (the name of
+company_orgnr, company_address, company_vat (the footer and the privacy page; unset, the registry details in fabric_backend/legal.py apply), key_vault (the name of
 a Key Vault for the client secret, read only by --key-vault; leave "" to keep the secret in the container app) and
 log_retention_days (0 while console logs go nowhere; the number of days once they go to Log Analytics, which also
 turns off the access line with IP addresses; docs/OPERATIONS.md) and log_analytics_workspace (optional: the name of a
@@ -491,6 +491,11 @@ def plain_env(config, build=None):
         "ENTRA_REQUIRED": "true", "PRODUCT_NAME": config["product_name"],
         "CONTACT_EMAIL": config["contact_email"], "COMPANY_ORGNR": (config.get("company_orgnr") or "").strip(),
     }
+    # G1: the registered address and VAT number in the footer and on /privacy (legal.py), set only when filled in (an
+    # empty address shows a marked placeholder on the site)
+    for key, variable in (("company_address", "COMPANY_ADDRESS"), ("company_vat", "COMPANY_VAT")):
+        if (config.get(key) or "").strip():
+            env[variable] = config[key].strip()
     if build:
         env["KRUSGRAPH_BUILD"] = build
     for key, variable in OPERATOR_FLAGS.items():
@@ -1248,7 +1253,8 @@ def config_from_azure(az, app=None, resource_group=None):
         "domain": domain, "location": az.run("group", "show", "--name", rg)["location"], "resource_group": rg,
         "environment": _last(environment), "app": name, "registry": registry["server"].split(".")[0],
         "identity": _last(identity), "product_name": env["PRODUCT_NAME"], "contact_email": env["CONTACT_EMAIL"],
-        "company_orgnr": env.get("COMPANY_ORGNR", ""), "include_www": "www." + domain.lower() in domains,
+        "company_orgnr": env.get("COMPANY_ORGNR", ""), "company_address": env.get("COMPANY_ADDRESS", ""),
+        "company_vat": env.get("COMPANY_VAT", ""), "include_www": "www." + domain.lower() in domains,
         "min_replicas": int((template.get("scale") or {}).get("minReplicas") or 0),
         "ontology_write": env.get("KRUSGRAPH_ONTOLOGY_WRITE", "").lower() in {"1", "true", "yes"},
         "key_vault": vault.split(".")[0], "log_retention_days": int(days) if days.isdigit() else 0, "log_analytics_workspace": "",

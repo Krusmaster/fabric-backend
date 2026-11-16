@@ -1,0 +1,1 @@
+Builder, a coral egg-shaped mascot, on a pale coral circle. Text: 'Builder. Builds, after your yes. I show you a dry run first, and I build only when you say yes.' A stats line: 9 steps in start Krusgraph, 8 only read, the last: Create, only on your confirmation.

@@ -1,16 +1,15 @@
 # Build a Lovable app on your Fabric tables
 
-Three steps, the way they ran on 30 October 2026 against a Fabric workspace with synthetic data (workspace `demo`,
-lakehouse `demo_lh`, schema `shop`; the record is `docs/LIVE-TEST.md`, section 6). {{PRODUCT}} as a custom MCP connector
+Three steps, shown on a Fabric workspace with synthetic data (workspace `demo`, lakehouse `demo_lh`, schema `shop`). {{PRODUCT}} as a custom MCP connector
 in Lovable plans, checks and creates the API for GraphQL item; three settings in Microsoft Entra and the Fabric portal
 let an app's service principal query it; Lovable's own Microsoft Fabric connector reads it. The API item in your
 workspace is what joins the two.
 
-| Step | Where | Done by | Status |
+| Step | Where | Done by | Note |
 | --- | --- | --- | --- |
-| 1. Plan, check and create the API | Lovable's chat, with {{PRODUCT}} as a custom MCP connector | {{PRODUCT}}, when you ask | Lovable as an MCP client: {{LOVABLE_MCP_STATUS}} |
+| 1. Plan, check and create the API | Lovable's chat, with {{PRODUCT}} as a custom MCP connector | {{PRODUCT}}, when you ask | {{CREATE_API_PLAIN}} |
 | 2. The three portal steps | Microsoft Entra and the Fabric portal | you or an administrator, by hand | introspection has no API; {{PRODUCT}} sets none of the three |
-| 3. Connect Lovable's Fabric connector | Lovable | you, by hand | Lovable reading the API: {{LOVABLE_API_STATUS}} |
+| 3. Connect Lovable's Fabric connector | Lovable | you, by hand | Lovable's own connector reads the API |
 
 ## 1. Plan, check and create the API from Lovable's chat
 
@@ -30,7 +29,7 @@ In the chat, ask for the plan first, then the check, then the item:
 2. *"Check the plan against the data."* `validate_plan` counts duplicate key values, references with no matching row
    and the total that doubles, in the rows.
 3. *"Create it as shop_api."* `create_backend` creates one API for GraphQL item with nested relationships, or updates it
-   in place when the name exists. {{CREATE_API_STATUS}}.
+   in place when the name exists. {{CREATE_API_PLAIN}}.
 
 On 30 October 2026 the same chat went on to `create_semantic_model` and `create_report`; an app needs neither.
 
@@ -56,8 +55,7 @@ In Lovable, open **Connectors**, choose **Microsoft Fabric** and enter the tenan
 and the API item's endpoint URL (in the item's settings; it ends in `/graphql`). Lovable runs an introspection query to
 test the connection. Lovable's documentation says the credentials are stored in Lovable's gateway and never reach the
 browser or the app's frontend, and that every app and builder on the connection queries Fabric as the same principal:
-rows a user may not see are the app's job to hide (see [App access](/docs#app-access)). Lovable reading the API:
-{{LOVABLE_API_STATUS}}.
+rows a user may not see are the app's job to hide (see [App access](/docs#app-access)).
 
 Lovable's own guide lists every prerequisite and limit: https://docs.lovable.dev/integrations/microsoft-fabric
 
@@ -77,8 +75,7 @@ app computes the answer from the rows it returns. Click Demo in the app for a gu
   {{PRODUCT}} creates read-only items unless you ask for a writable one.
 - **What Lovable sees** is what the item exposes, under the service principal's permissions.
 - **Without Lovable's connector:** `app_starter` gives a Lovable prompt, the queries and a Supabase edge function that
-  keeps the secret on the server side. The whole chain, with who does each step and what still blocks, is in the
-  repository's `docs/LOVABLE-END-TO-END.md`.
+  keeps the secret on the server side.
 
 ## Next
 

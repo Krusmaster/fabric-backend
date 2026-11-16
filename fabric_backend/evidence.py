@@ -479,6 +479,22 @@ def validate(plan: Plan, execute, max_items: int = 60, on_step=None, tables=None
         else:
             count_ext(x)
 
+    # F2 (propose.recount): a relationship with orphans is re-counted once, both sides cast to text, then trimmed, case
+    # folded and with leading zeros stripped: "297 of 300 rows with a value match after stripping leading zeros". One
+    # statement each, after the checks; skipped when the call's time is up. `recount` on the entry, counts only.
+    recounts = 0
+    for i in sorted(rel_out):
+        e = rel_out[i]
+        if not e.get("orphans") or _budget.expired():
+            continue
+        from . import propose
+        r = rels_all[i]
+        rc = propose.recount(schema, r.source, r.source_cols, r.target, r.target_cols, execute, args_of(r)["blank_is_none"])
+        recounts += 1
+        e["recount"] = rc.get("sentence") or rc.get("not_counted")
+        if rc.get("helps"):
+            e["recount_match"] = rc["match"]
+
     keys = [key_out[t] for t in plan.keys if t in key_out]                         # the plan's order, as before n226
     rels = [rel_out[i] for i in range(len(rels_all)) if i in rel_out] + [ext_out[j] for j in range(len(ext_all)) if j in ext_out]
     checked = len(keys) + len(rels)
@@ -508,6 +524,8 @@ def validate(plan: Plan, execute, max_items: int = 60, on_step=None, tables=None
         # Round n108: the statement that ran, once per source table with two or more relationships, and each of its
         # relationships' own statement (relationship_sql), which gives the same counts and can be run alone.
         out["combined_relationship_queries"] = combined
+    if recounts:
+        out["recount_queries"] = recounts
     if not_done:
         out["not_counted"] = [{"id": item_id(plan, it), "kind": {"key": "key", "rel": "relationship", "ext": "extended relationship"}[it[0]],
                                "evidence": not_done[it]} for it in selected if it in not_done]

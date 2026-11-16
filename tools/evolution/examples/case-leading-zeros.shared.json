@@ -1,0 +1,75 @@
+{
+ "format": "krusgraph-case",
+ "version": 1,
+ "scope": "shared",
+ "kind": "orphans",
+ "rule_ids": [
+  "R1"
+ ],
+ "pack": "sap",
+ "tables": [
+  {
+   "ref": "t1",
+   "role": "header",
+   "entity": "order"
+  },
+  {
+   "ref": "t2",
+   "role": "master",
+   "entity": "customer"
+  }
+ ],
+ "columns": [
+  {
+   "ref": "c1",
+   "table": "t1",
+   "role": "reference",
+   "type": "string",
+   "length": 10,
+   "char_class": "digits",
+   "leading_zeros": false,
+   "padded": false
+  },
+  {
+   "ref": "c1",
+   "table": "t2",
+   "role": "key",
+   "type": "string",
+   "length": 10,
+   "char_class": "digits",
+   "leading_zeros": true,
+   "padded": false
+  }
+ ],
+ "before": {
+  "rows": "1e4-1e5",
+  "distinct": "1e3-1e4",
+  "nulls": "0",
+  "orphans": "1e4-1e5",
+  "matched": "0",
+  "orphan_ratio": "100%",
+  "match_ratio": "0"
+ },
+ "fix": {
+  "id": "strip_leading_zeros"
+ },
+ "after": {
+  "rows": "1e4-1e5",
+  "distinct": "1e3-1e4",
+  "nulls": "0",
+  "orphans": "0",
+  "matched": "1e4-1e5",
+  "orphan_ratio": "0",
+  "match_ratio": "100%"
+ },
+ "outcome": "holds",
+ "decision": {
+  "review": "accepted",
+  "role": "steward"
+ },
+ "engine": "0.8.0",
+ "contributor": "0123456789abcdef",
+ "share_id": "00000000000000000000000000000001",
+ "consent": "example-consent-1",
+ "case_id": "73535e890a13564b"
+}

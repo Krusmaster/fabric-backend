@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import shutil
 import subprocess
 import time
@@ -58,16 +59,19 @@ def _row_values() -> set[str]:
 def test_the_plan_card_offers_check_doubled_totals_draft_and_review(fabric):
     r, d = _sc("plan_backend", **SRC)
     steps = d["next"]
-    assert [s["label"] for s in steps] == ["Check against the rows", "Show the doubled totals", "Draft a semantic model",
-                                           "Review keys and links"]
-    assert [s["tool"] for s in steps] == ["validate_plan", "validate_plan", "semantic_model_draft", "review_plan"]
-    assert steps[1]["arguments"]["detail"] == "full" and steps[2]["arguments"]["validate"] is True
+    # n227: before the check the card leads with one primary step, Check against the rows (an action); the next steps
+    # neither repeat it nor suggest a draft of something to build
+    assert [(a["label"], a["tool"], a.get("primary")) for a in d["actions"]] == [("Check against the rows", "validate_plan", True)]
+    assert [s["label"] for s in steps] == ["Show the doubled totals", "Review keys and links"]
+    assert [s["tool"] for s in steps] == ["validate_plan", "review_plan"]
+    assert steps[0]["arguments"]["detail"] == "full"
     listing = _listing()
     for s in steps:
         assert {k: s["arguments"][k] for k in SRC} == SRC
         assert set(s["arguments"]) <= set(listing[s["tool"]].input_schema["properties"]), s
         assert listing[s["tool"]].annotations.read_only_hint is True, s                 # a next step never writes
         assert s["tool"] in s["say"] and s["label"] in s["say"]
+        assert s["tool"] not in s["ask"] and s["label"] in s["ask"]                     # n227: the same step in plain words
     assert "next" not in json.loads(r.content[-1].text)                             # structuredContent only
 
 
@@ -75,16 +79,19 @@ def test_the_text_answer_leads_with_the_result_and_lists_the_same_next_steps(fab
     for tool, args in (("plan_backend", SRC), ("validate_plan", SRC), ("review_plan", {**SRC, "validate": True})):
         r, d = _sc(tool, **args)
         lead, full = r.content[0].text, r.content[-1].text
-        assert len(r.content) == 2 and not lead.lstrip().startswith("{") and len(lead) < 1400, (tool, lead)
+        assert len(r.content) == 2 and not lead.lstrip().startswith("{") and len(lead) < 2000, (tool, lead)
         plain, shown = json.loads(getattr(server, tool)(**args)), json.loads(full)
         assert {k: v for k, v in shown.items() if k in plain} == plain                # the JSON answer, unchanged
         first, _, rest = lead.partition("\n\n")
         assert first and "Next steps:" in rest
-        for s in d["next"]:
-            assert f"- {s['label']} ({s['tool']})" in lead, (tool, s)
+        user, _, model = lead.partition("For the assistant, not for the user:")
+        for s in d["next"]:                               # n227: numbered, in plain words; the call is in the model's paragraph
+            assert re.search(rf"\n\d\. {re.escape(s['label'])}\n", user) and s["tool"] not in user, (tool, s)
+            assert f"= {s['tool']}" in model, (tool, s)
+        assert re.search(r"\nReply 1(, \d)* or \d\.", user), (tool, user)
         assert 2 <= len(d["next"]) <= 4
     v = _sc("validate_plan", **SRC)[0].content[0].text
-    assert v.startswith("6 of 6 keys hold. 7 of 7 links hold, with no orphans.") and "\n\nNext steps:\n- " in v
+    assert v.startswith("6 of 6 keys hold. 7 of 7 links hold, with no orphans.") and "\n\nNext steps:\n1. " in v
 
 
 def test_the_check_card_lists_every_key_and_link_with_counts_and_no_row_values(fabric):
@@ -168,7 +175,9 @@ def test_a_next_step_button_sends_its_tool_and_arguments(tmp_path, fabric, card,
     assert _calls(out) == [{"name": step["tool"], "arguments": step["arguments"]}]
     assert not _calls(out, "ui/message")
     for s in d["next"]:
-        assert s["label"] in out["text"] and s["tool"] in out["text"]                # each button names its tool
+        assert s["label"] in out["text"]
+    shown = out["text"].split("Show details")[0]
+    assert not any(s["tool"] in shown for s in d["next"])                            # n227: no button names a tool
 
 
 @needs_browser
@@ -178,8 +187,10 @@ def test_without_server_tools_the_button_sends_the_exact_message(tmp_path, fabri
     out = _browse(tmp_path, build.card_html(), {"args": SRC, "result": _result(r), "caps": {},
                                                 "clicks": [{"css": '.nx-b[data-tool="validate_plan"]'}]})
     assert not _calls(out)
-    assert _calls(out, "ui/message") == [{"role": "user", "content": [{"type": "text", "text": step["say"]}]}]
-    assert f"Sent to the chat: “{step['say']}”" in out["text"]
+    # n227: the message is the step in plain words (`ask`); `say`, with the tool and its arguments, is for text clients
+    assert step["ask"] == "Show the doubled totals for shop." and "validate_plan" in step["say"]
+    assert _calls(out, "ui/message") == [{"role": "user", "content": [{"type": "text", "text": step["ask"]}]}]
+    assert f"Sent to the chat: “{step['ask']}”" in out["text"]
 
 
 @needs_browser
@@ -187,7 +198,7 @@ def test_a_host_that_refuses_both_shows_the_sentence_to_ask(tmp_path, fabric):
     r, d = _sc("plan_backend", **SRC)
     out = _browse(tmp_path, build.card_html(), {"args": SRC, "result": _result(r), "caps": {"refuseMessages": True},
                                                 "clicks": [{"css": '.nx-b[data-tool="validate_plan"]'}]})
-    assert "This host runs neither tools nor messages from the card. Ask in the chat: “" + d["next"][0]["say"] in out["text"]
+    assert "This host runs no steps from the card. Type this in the chat: “" + d["next"][0]["ask"] in out["text"]
 
 
 @needs_browser
@@ -231,7 +242,7 @@ def test_accept_works_from_the_keyboard_and_replan_falls_back_to_the_chat(tmp_pa
                    {"css": "#replan", "key": "Space"}]})
     assert "key:orders:accepted" in out["pressed"] and not _calls(out)
     [msg] = _calls(out, "ui/message")
-    assert msg["content"][0]["text"].startswith("Re-plan shop with my decisions using review_plan: accept key:orders.")
+    assert msg["content"][0]["text"].startswith("Re-plan shop with my decisions: accept key:orders.")   # n227: no tool's name
 
 
 @needs_browser

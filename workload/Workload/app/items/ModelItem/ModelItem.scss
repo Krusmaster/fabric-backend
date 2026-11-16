@@ -516,3 +516,53 @@
     overflow-wrap: anywhere;
   }
 }
+
+// n229: "Verify what was built" (verifyBuilt.tsx). The state is always a word; the colour only repeats it.
+.krusgraph-verify {
+  display: grid;
+  gap: 8px;
+  max-width: 100%;
+}
+
+.krusgraph-verify-by,
+.krusgraph-verify-label,
+.krusgraph-verify-budget,
+.krusgraph-verify-next .kg-how,
+.krusgraph-verify-next .kg-built {
+  color: var(--colorNeutralForeground2);
+}
+
+.krusgraph-verify-lines {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  overflow-wrap: anywhere;
+}
+
+.krusgraph-verify .kg-state {
+  font-weight: 600;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 0 8px;
+  white-space: nowrap;
+}
+
+.krusgraph-verify .kg-state-verified {
+  color: var(--colorPaletteGreenForeground1);
+}
+
+.krusgraph-verify .kg-state-differs {
+  color: var(--colorPaletteRedForeground1);
+}
+
+.krusgraph-verify .kg-state-not-checked {
+  color: var(--colorNeutralForeground2);
+}
+
+.krusgraph-verify-sql pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--colorNeutralBackground2);
+  padding: 6px 8px;
+}

@@ -9,6 +9,99 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n227: **The chat cards after the founder's test in claude.ai.** The founder tried the MCP Apps cards on
+  12 November 2026 (deploy `src-37ff21adce4ff691`): the Start stepper and its buttons worked and real items were
+  created, but the cards drew the raw `summary` where the answer already held plain words in `kg_card`. Now every card
+  reads `kg_card` first and every tool has one (with `KRUSGRAPH_MCP_APPS=1` every tool's answer is also
+  `structuredContent`; the text answer is unchanged): one result line, at most five lines, repeated notes collapsed
+  ("24 links need a combined key column; Krusgraph can add them in a gold view", the list behind Show), details as
+  readable lines with the raw JSON behind a second toggle, and never "no summary in it". No tool's name in a button or
+  a sentence a person reads; "SAP pack: Krusgraph's list of known SAP keys" the first time it appears; numbers agree
+  with their nouns ("1 table", "1 row") and no label is doubled. A sentence the mascot says is on the card only with
+  the mascots off. Before the check a plan leads with one primary button, Check against the rows; the builds come
+  after a check whose keys hold, and a name ending in `_3` says why. The schema choice never offers
+  `krusgraph_quarantine`, and the card no `silver` or `gold` layer while a source schema is there. While a tool runs
+  the card says who works on what and for how long (no CSS animation; still under reduced motion), and a create's
+  result names the item ("Created shop_api_3, an API for GraphQL, in Fabric."), not the plan again. **A create answers
+  in time:** `create_backend`, `create_semantic_model`, `create_ontology` and `create_report` end their wait for
+  Fabric 40 seconds after the call began and answer `started` (kind `timeout`, as before) with the operation's id; the
+  new parameter `check` on these four reads how it went and creates nothing; Create is never offered or sent a second
+  time while the first one's outcome is unknown. "Open in Fabric" is the item's own address for each kind
+  (`ontologies/{id}` from Microsoft Learn; `graphql/{id}` is Unverified and the card also offers the workspace's
+  list). A created ontology is drawn as a static SVG with its keys marked, readable at 375 px. The text lead is a
+  numbered list ("Reply 1, 2 or 3") for clients that draw no card, and the servers' instructions ask the model, with
+  the reason, not to repeat a card nor add what the answer does not hold. `docs/MCP-APPS-N227.md` has each point with
+  its before and after. Verified by unit tests and Chromium at 375 px under a fake host
+  (`tests/test_n227_cards.py`); not tried in claude.ai, and not deployed.
+- Round n229: **a verifier of what was built, next steps after every Create, and a gate before a build of little
+  use.** The founder, 12 November 2026, in claude.ai with the hosted connector: "an agent that double-checks Krusgraph's
+  deployed proposals", "no more suggestions after we built what was proposed", and a Create he pressed although the dry
+  run said "Relationships: 0 active, 0 inactive, 24 not expressible". Krusgraph for Fabric uses no AI model, so the first
+  is a verifier by rules, and every answer says so. **A, `verify_build`** (new tool, read-only; `verify_build.py`):
+  each built item named in `items` is read back with getDefinition and compared with its dry run, built again by the
+  same rules from the same plan: a semantic model's tables, columns (the combined key columns of a composite key among
+  them), relationships (active or inactive, cardinality, cross-filter) and measures with the table each sits on; a
+  report's visuals and the model it is bound to; an ontology's entity types, keys, relationship types and data bindings;
+  an API for GraphQL's types, fields and relationships; a pipeline's steps and its three notebooks, line by line. Each
+  card of the report (or each measure of a model without one) is counted again from the rows with one SQL statement and
+  put beside the model's own number (one DAX query; without a Power BI answer the figure is shown and the line reads
+  "not checked", never "verified"). A SUM of a header's amount repeated on every line, a SUMX over line rows of a RELATED
+  header amount and a figure equal to a header amount summed over its lines are flagged as doubled totals with both
+  sums. State: a model never refreshed, a pipeline never run, an ontology with no graph item beside it, an App still
+  empty, each with its one action. One line per item (verified, differs, or not checked with the reason), the counts,
+  every SQL statement, and the call's time budget: what it does not reach is "not checked (time)". The answer invites an
+  AI client to add its own review under its own heading, apart from Krusgraph's states. 41 tools, 31 read-only; the
+  read-only listing's guard goes from 66 700 to 69 000 characters for it. `answer_query_draft`: a sum or average of a
+  header's column now starts at the header ("total NETWR per sales order" over sap_vbak and sap_vbap sums on sap_vbak
+  alone; the join it replaces dropped orders without lines), a column that is on both the lines and the table the
+  question groups by is read as the group's own, and when two of the tables carry the summed column the answer says
+  which one was used and how to get the other (F1's B1 and the first half of B2). **B, after a Create** (`after_create.py`): the answer of every creating
+  tool ends with `next_steps` in the order of what the data product still lacks (verify what was built; refresh the model
+  once; the pipeline with Run once or Schedule; the report; the data agent; the Rayfin App, said as an empty App item and
+  one package command that opens inside Fabric only; a drift monitor; register as a data product), each with one sentence
+  from the mascot who says it; an item that exists from this plan (read from its type and the description Krusgraph
+  wrote) is listed as "already built", and "Download a dbt project draft" is under More, labelled a draft. No step
+  writes: a read, a dry run, or a sentence for the chat. `create_semantic_model(refresh=true)` refreshes a new model once
+  and only refreshes one that exists. On the build card the steps are buttons in that order. **C, the gate:** a semantic
+  model's dry run with no expressible relationship (or most not), or one that reads silver tables that are not there
+  yet, and an ontology with most entity types keyless, carry `gate`: one sentence, the step that fixes it first (the
+  silver step that writes the combined key columns, n226) and Create second as "Create anyway", no longer the filled
+  button. **In the Model editor:** "Verify what was built" under Built in Fabric (`POST /workload/v1/verify`) with the
+  result lines, Show the SQL and the next steps. Verified by unit tests on synthetic data with Fabric, the SQL endpoint
+  and Power BI replaced by test doubles (`tests/test_n229_verify_build.py`, `tests/test_n229_after_create.py` with the
+  card in a real browser, the editor's `verifyBuilt.test.tsx`). Not run against Fabric or Power BI, and not deployed. The
+  two Power BI reads and the refresh need `Dataset.Read.All` and `Dataset.ReadWrite.All` (docs/SCOPES.md); the ontology
+  graph's state is judged from the workspace's item list, since no documented call gives it. Not done, n227 holds them:
+  the server instructions' own sentence inviting Claude's review (it is in the tool's answer instead) and the cards'
+  own tests.
+- Round F1: **A first-user test without Fabric, and its small fixes.** `docs/FINDINGS-13NOV.md` ranks what a first user
+  meets in the hosted and the local MCP server (on the synthetic shop and the synthetic SAP tables), on the site at 375,
+  768 and 1280 px and in the Model editor, each with where it is, the fix and the round that should take it, and ends
+  with five ideas. Fixed: `fabric-backend-mcp --help` and `--version` answer and return (they started the stdio server,
+  which waits and prints nothing); the local server says what to set or install when `FABRIC_ODBC`, the ODBC driver or
+  the Azure CLI is missing (kind `server_config` or `sign_in` with the step, where it said "Contact the operator" or
+  "Try again"); `docs/LOCAL.md` section 4 lists the 24 local tools as the code has them; four texts in the Model editor
+  (the page title, "1 person or group has", "1 try", the source sentence); the health test that read the real clock and
+  failed from 14 November 2026 on. Tests: `tests/test_f1_findings_fixes.py`, `f1Words.test.ts`.
+- Round n228: **Krusgraph's diagrams as draw.io files.** The founder, 12 November 2026, looking at the semantic model
+  draft card in claude.ai: "can I see this as a draw.io file/flow if I want?" The new `fabric_backend/drawio.py` writes
+  three diagrams as draw.io's uncompressed mxfile XML, by rules, with the standard library only: the map (tables with
+  their key, "no key" marked, composite keys in full; arrows labelled with the column and the rule: R1, R5, SAP pack),
+  the semantic model draft (fact and dimension tables in two colours, many-to-one relationships, inactive ones dashed,
+  the ones a tabular model cannot express dotted red with the reason, the date table, the measures in their table's
+  box; read from the draft's own relationships.tmdl and summary) and the data flow (data_flow.py's nodes and edges:
+  bronze, silver, gold, the items on the source, a report on the model, an app on the API). Left to right in columns;
+  an edge runs in the gutters between columns and passes a column in a row of its own, so no edge goes through a box
+  and no boxes overlap (checked by `drawio.problems()` on 60 and 200 synthetic tables). Ids come from the names and
+  every cell is one line, so a re-export of an unchanged plan is the same text. **In the chat:**
+  `plan_backend(..., drawio="map" | "model" | "flow")` answers `{filename, mime_type, content, boxes, arrows}` and reads
+  what the plain call reads; no tool was added (40 tools, 30 read-only) and the read-only listing is at its cap of
+  66 700 characters, which took three small cuts in `plan_backend`'s own words. A file over the answer's 60 000
+  characters is left out with how to get a part (`tables`). **In the Model editor:** "Download as draw.io" under the map
+  and under the data flow; `POST /workload/v1/drawio` turns what the editor shows into the file and calls nothing in
+  Fabric. Not done, because n227 holds the chat cards: the button on the MCP Apps cards and the card map's own routing
+  (sap_vbap -> sap_vbak drawn through sap_t001). Verified by unit tests (`tests/test_n228_drawio.py`, golden files in
+  `tests/golden/drawio/`; the editor's `drawioDownload.test.tsx`); not yet opened in draw.io itself, and not deployed.
 - Round n225: **the Krusgraph Model editor, from the founder's phone test in Fabric of 12 November 2026** (package
   1.0.1074). The Data product page: the plan of every Create is recorded in outputs.json (`plan`, `productWords.withPlan`)
   even when the finish did not answer, and shown with its date; the items are every item that plan built, from every
@@ -26,6 +119,23 @@ next deploy.
   text at 14 px or more and tap targets at 44 px or more. Tests: `n225DataProduct.test.ts`, `phonePages.test.tsx` (pages in
   `tests/fixtures/n225/`), `tests/test_n225_phone.py` with `tests/n225_browser.js` (Chromium at 375, 412 and 1280 px);
   the n198 pages rendered again.
+- Round F2: **count before claiming, the data proposes, and a regression corpus with published scores**
+  (`docs/SCOPE-REVIEW.md` section 6, items 4 and 5; unit tests only, not run in Fabric). With a connection the hosted
+  plan counts every key by name or from a pack in the same call (`plan.profile`, evidence state "counted unique" in
+  `plan_backend`'s own answer); K6 gives a keyless table a key from the rows (the identifier-named or first column
+  that is unique and never NULL, else the shortest unique combination of the leading columns); R6 links a column the
+  names left ambiguous or unlinked when every value is in one key and the name supports it, and proposes the rest
+  with counts; a relationship with orphans is re-counted once under trim, case fold, leading-zero strip and cast
+  (`recount` in `validate_plan`: "N of M rows with a value match after stripping leading zeros"); a table the SAP
+  pack does not know by name is recognised by its key columns (`plan.pack.by_signature`). The profile uses at most
+  half of the call's time budget and 60 statements (`KRUSGRAPH_PROFILE_QUERIES`, `0` turns it off). New
+  `fabric_backend/propose.py`; hooks in `infer.py`, `evidence.py`, `coverage.py`, `profile.py`,
+  `platforms/local.py` and `server.py`'s `_hosted_plan`. The corpus: `tests/f2_corpus.py`, `tests/corpus/*.json`
+  (AdventureWorks with rows generated from its declared constraints, the shop, the two SAP-shaped samples, the same
+  with renamed tables, a Nordic-ERP-like and a Business-Central-like shape), `tests/test_f2_corpus.py` and
+  `tests/test_f2_propose.py`; the scores are `docs/SCORES.md` and `docs/scores.json`, written from the expected files
+  and kept equal by a test. AdventureWorks: keys 47 of 71 before, 62 after; links 62 of 90 before, 87 after; wrong
+  links 17 before, 6 after. All rows are synthetic.
 - Round n226: **evidence state and coverage, one time budget per call, composite keys carried through**
   (`docs/SCOPE-REVIEW.md` section 6, items 1 to 3; unit tests only, not run in Fabric). Every key and link of
   plan_backend and validate_plan says its evidence state (counted unique, counted and holds, by name only, not counted:

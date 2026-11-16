@@ -122,6 +122,9 @@ def derive(pack: str) -> dict:
             e["variants"] = list(t["variants"])
         if t.get("area"):
             e["area"] = t["area"]
+        for k in ("source_name", "aliases", "corresponds_to"):               # n230: a released CDS view and the table it reads
+            if t.get(k):
+                e[k] = t[k]
         if t.get("note"):
             e["note"] = t["note"]
         e["sources"] = list(t["sources"])
@@ -130,7 +133,7 @@ def derive(pack: str) -> dict:
     for r in p["relationships"]:
         row = {"from": _ref(r["source"], r["source_cols"]), "to": _ref(r["target"], r["target_cols"]), "cardinality": r["cardinality"],
                "kind": r.get("kind", "key"), "module": r["module"], "rule": p["rule"], "applied": r.get("apply", True) is not False}
-        for k in ("role", "condition", "variants", "where", "valid_on", "verified"):
+        for k in ("role", "association", "condition", "variants", "where", "valid_on", "verified"):
             if r.get(k):
                 row[k] = r[k]
         row["validation"] = _validation(r, p["tables"][r["target"]])

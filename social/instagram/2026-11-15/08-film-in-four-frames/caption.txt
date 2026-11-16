@@ -1,0 +1,14 @@
+The SAP joining problem, in four frames. For anyone who scrolls past video.
+
+1. The map. Onto: every key and link names its rule.
+2. The check. Thinker: 2 links need a look. One has a row that points at nothing.
+3. The trap. Thinker: order 0000000001 is 600. The join counts it 3 times: 1 800.
+4. The fix. Builder: over all orders, 750 on sap_vbak, not 1 950.
+
+Every number is the engine's own output on our SAP-shaped example. The full 40-second film, "The SAP joining problem. Krusgraph does the trick!", is in our Reels.
+
+Krusgraph is independent and is not affiliated with, tested or endorsed by SAP or Microsoft.
+
+#MicrosoftFabric #PowerBI #SAP #ERP #DataQuality #DataModeling #Krusgraph
+
+Try it in your browser: krusgraph.com/check (link in bio)

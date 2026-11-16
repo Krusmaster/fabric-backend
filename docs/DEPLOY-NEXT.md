@@ -32,8 +32,8 @@ New pages: the Concepts group of `/docs` (n86b, n117):
   `/docs/concepts/how-they-connect`, `/docs/concepts/where-it-runs`, `/docs/concepts/vision`
 - the same content in `/docs.md`, `/llms.txt`, `/llms-full.txt` and the sitemap; `/healthz` gains a `mode` field.
 
-Internal docs only, not on the site: `docs/COMPARISON-MYRIADE.md` (n113), `docs/LANDSCAPE.md` (n118),
-`docs/SEGMENTATION.md` (n121).
+Internal docs only, not on the site: `docs/COMPARISON-MYRIADE.md` (n113), `docs/LANDSCAPE.md` (n118).
+The segmentation note (n121) is kept with the business material, outside this repository.
 
 ## Environment settings and their defaults
 

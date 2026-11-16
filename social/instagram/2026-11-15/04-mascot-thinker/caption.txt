@@ -1,0 +1,13 @@
+Meet Thinker. Thinker counts against the rows.
+
+"I tell you what held, what did not, and what I did not count."
+
+Onto proposes the links. Thinker checks them: is every key unique, and does every row point at something that exists? Then it says which links need a look, and which amounts a join would count twice.
+
+In our SAP-shaped example: 17 of 17 keys unique, 32 of 34 links hold. Of the two that do not, one has a row that points at nothing, and one has nothing to check yet.
+
+It counts over whole tables, up to 60 keys and links per call (200 at most), and lists what it did not count. No score out of 100: counts you can read.
+
+#MicrosoftFabric #PowerBI #DataQuality #DataEngineering #Analytics #Krusgraph #OpenSource
+
+Try it in your browser: krusgraph.com/check (link in bio)

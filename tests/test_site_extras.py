@@ -132,7 +132,7 @@ def test_security_txt_follows_rfc_9116(monkeypatch):
         it = c.get("/it").text
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/plain")
     fields = dict(line.split(": ", 1) for line in r.text.strip().splitlines())
-    assert fields == {"Contact": "mailto:gustav@krusgraph.com", "Expires": discovery.SECURITY_EXPIRES, "Preferred-Languages": "en, sv",
+    assert fields == {"Contact": "mailto:hello@krusgraph.com", "Expires": discovery.SECURITY_EXPIRES, "Preferred-Languages": "en, sv",
                       "Policy": "https://krusgraph.test/security",
                       "Canonical": "https://krusgraph.test/.well-known/security.txt"}
     expires = datetime.strptime(fields["Expires"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)

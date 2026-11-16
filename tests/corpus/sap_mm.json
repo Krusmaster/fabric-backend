@@ -1,0 +1,171 @@
+{
+ "name": "sap_mm",
+ "title": "SAP-shaped sample, purchase to pay",
+ "source": "fabric_backend/sap_sample.py, synthetic, SAP-shaped, not SAP data",
+ "rows": 2637,
+ "names": {
+  "tables": 8,
+  "keys_true": 8,
+  "keys_right": 7,
+  "keys_wrong": 0,
+  "keys_missed": 1,
+  "keys_extra": 0,
+  "keys_extra_list": [],
+  "links_true": 7,
+  "links_found": 7,
+  "links_wrong": 1,
+  "keys_wrong_list": [],
+  "keys_missed_list": [
+   "ZMM_PO_CONF"
+  ],
+  "links_missed_list": [],
+  "links_wrong_list": [
+   "ZMM_PO_CONF.ebeln+mandt -> EKKO"
+  ]
+ },
+ "before": {
+  "tables": 8,
+  "keys_true": 8,
+  "keys_right": 7,
+  "keys_wrong": 0,
+  "keys_missed": 1,
+  "keys_extra": 0,
+  "keys_extra_list": [],
+  "links_true": 7,
+  "links_found": 7,
+  "links_wrong": 1,
+  "keys_wrong_list": [],
+  "keys_missed_list": [
+   "ZMM_PO_CONF"
+  ],
+  "links_missed_list": [],
+  "links_wrong_list": [
+   "ZMM_PO_CONF.ebeln+mandt -> EKKO"
+  ]
+ },
+ "after": {
+  "tables": 8,
+  "keys_true": 8,
+  "keys_right": 8,
+  "keys_wrong": 0,
+  "keys_missed": 0,
+  "keys_extra": 0,
+  "keys_extra_list": [],
+  "links_true": 7,
+  "links_found": 7,
+  "links_wrong": 1,
+  "keys_wrong_list": [],
+  "keys_missed_list": [],
+  "links_missed_list": [],
+  "links_wrong_list": [
+   "ZMM_PO_CONF.ebeln+mandt -> EKKO"
+  ]
+ },
+ "plan": {
+  "keys": {
+   "EKBE": {
+    "columns": [
+     "MANDT",
+     "EBELN",
+     "EBELP",
+     "ZEKKN",
+     "VGABE",
+     "GJAHR",
+     "BELNR",
+     "BUZEI"
+    ],
+    "rule": "SAP pack"
+   },
+   "EKKO": {
+    "columns": [
+     "MANDT",
+     "EBELN"
+    ],
+    "rule": "SAP pack"
+   },
+   "EKPO": {
+    "columns": [
+     "MANDT",
+     "EBELN",
+     "EBELP"
+    ],
+    "rule": "SAP pack"
+   },
+   "LFA1": {
+    "columns": [
+     "MANDT",
+     "LIFNR"
+    ],
+    "rule": "SAP pack"
+   },
+   "MAKT": {
+    "columns": [
+     "MANDT",
+     "MATNR",
+     "SPRAS"
+    ],
+    "rule": "SAP pack"
+   },
+   "MARA": {
+    "columns": [
+     "MANDT",
+     "MATNR"
+    ],
+    "rule": "SAP pack"
+   },
+   "T001": {
+    "columns": [
+     "MANDT",
+     "BUKRS"
+    ],
+    "rule": "SAP pack"
+   },
+   "ZMM_PO_CONF": {
+    "columns": [
+     "MANDT",
+     "EBELN",
+     "EBELP"
+    ],
+    "rule": "K6"
+   }
+  },
+  "links": [
+   "EKBE.MANDT+EBELN+EBELP -> EKPO.MANDT+EBELN+EBELP [SAP pack]",
+   "EKKO.MANDT+BUKRS -> T001.MANDT+BUKRS [SAP pack]",
+   "EKKO.MANDT+LIFNR -> LFA1.MANDT+LIFNR [SAP pack]",
+   "EKPO.MANDT+EBELN -> EKKO.MANDT+EBELN [SAP pack]",
+   "EKPO.MANDT+MATNR -> MARA.MANDT+MATNR [SAP pack]",
+   "MAKT.MANDT+MATNR -> MARA.MANDT+MATNR [SAP pack]",
+   "ZMM_PO_CONF.MANDT+EBELN -> EKKO.MANDT+EBELN [R3]",
+   "ZMM_PO_CONF.MANDT+EBELN+EBELP -> EKPO.MANDT+EBELN+EBELP [R3]"
+  ],
+  "ambiguous": [],
+  "proposed": [],
+  "keys_from_rows": {
+   "ZMM_PO_CONF": "no single column is taken; the first 3 columns together are unique and never NULL in all 642 rows"
+  }
+ },
+ "row_results": {
+  "summary": "8 of 8 keys unique, 7 of 8 relationships hold without orphans",
+  "keys": {
+   "T001": "unique in all 2 rows",
+   "LFA1": "unique in all 40 rows",
+   "MARA": "unique in all 150 rows",
+   "MAKT": "unique in all 300 rows",
+   "EKKO": "unique in all 260 rows",
+   "EKPO": "unique in all 643 rows",
+   "EKBE": "unique in all 600 rows",
+   "ZMM_PO_CONF": "unique in all 642 rows"
+  },
+  "links": {
+   "MAKT.MANDT+MATNR -> MARA": "holds for all 300 rows with a value",
+   "EKKO.MANDT+LIFNR -> LFA1": "holds for all 260 rows with a value",
+   "EKKO.MANDT+BUKRS -> T001": "holds for all 260 rows with a value",
+   "EKPO.MANDT+EBELN -> EKKO": "1 of 643 rows (0.2%) point at nothing | re-count: 642 of 643 rows with a value match as written; trimming spaces, folding case and stripping leading zeros match no more",
+   "EKPO.MANDT+MATNR -> MARA": "holds for all 643 rows with a value",
+   "EKBE.MANDT+EBELN+EBELP -> EKPO": "holds for all 600 rows with a value",
+   "ZMM_PO_CONF.MANDT+EBELN -> EKKO": "holds for all 642 rows with a value",
+   "ZMM_PO_CONF.MANDT+EBELN+EBELP -> EKPO": "holds for all 642 rows with a value"
+  }
+ }
+}

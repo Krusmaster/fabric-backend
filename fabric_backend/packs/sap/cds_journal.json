@@ -1,0 +1,64 @@
+{
+  "pack": "sap",
+  "module": "cds_journal",
+  "format_version": 1,
+  "title": "SAP S/4HANA released CDS views, the universal journal: journal entries and their line items (I_JournalEntry, I_JournalEntryItem, I_GLAccountLineItemRawData)",
+  "rule": "SAP pack",
+  "status": "documented",
+  "status_note": "Proposed, not tested on a customer. Every view, key, association and amount below is taken from public documentation and written in our own words; none of it has been checked against an SAP system by this project, and where a page could not be opened the source says so. validate_plan checks it against your rows. A pack is a sourced suggestion, not proof.",
+  "variants": {
+    "ecc": "SAP ERP 6.0 (ECC). Field lengths and tables as documented for ECC; not verified per enhancement package.",
+    "s4hana": "SAP S/4HANA (on-premise and private cloud). Not verified per release."
+  },
+  "sources": {
+    "sap_release_list": {
+      "title": "SAP Cloudification Repository: the released objects of SAP S/4HANA Cloud (objectReleaseInfoLatest.json, objectReleaseInfo_PCELatest.json): which CDS views are released, deprecated, and their successors",
+      "url": "https://github.com/SAP/abap-atc-cr-cv-s4hc",
+      "publisher": "SAP",
+      "fetched": true,
+      "note": "Read 15 November 2026 (repository commit of 12 November 2026). Gives the release state of each view named here (all 'released'; I_Material is not to be released, C_SalesDocumentItemDEX is deprecated for C_SalesDocumentItemDEX_1). It lists no fields, keys or associations."
+    },
+    "sap_hub_cds": {
+      "title": "SAP Business Accelerator Hub: CDS views of SAP S/4HANA (the fields, key fields and associations of each released view)",
+      "url": "https://api.sap.com/content-type/CDSViews/cdsviews/cdsviews",
+      "publisher": "SAP",
+      "fetched": false,
+      "note": "Not opened: the host could not be reached from the session that wrote this module on 15 November 2026 (network policy). Unverified; cited from public knowledge of the documentation, to be re-checked."
+    },
+    "sap_help_vdm": {
+      "title": "SAP Help Portal: SAP S/4HANA, the virtual data model and CDS views (interface views I_, consumption views C_, the tables a view reads)",
+      "url": "https://help.sap.com/docs/SAP_S4HANA_ON-PREMISE",
+      "publisher": "SAP",
+      "fetched": false,
+      "note": "Not opened: the host could not be reached from the session that wrote this module on 15 November 2026 (network policy). Unverified; cited from public knowledge of the documentation, to be re-checked."
+    },
+    "sap_help_s4_journal": {
+      "title": "SAP Help Portal: SAP S/4HANA Finance, the universal journal and its CDS views (I_JournalEntryItem over ACDOCA; ledgers and currencies)",
+      "url": "https://help.sap.com/docs/SAP_S4HANA_ON-PREMISE",
+      "publisher": "SAP",
+      "fetched": false,
+      "note": "Not opened: the host could not be reached from the session that wrote this module on 15 November 2026 (network policy). Unverified; cited from public knowledge of the documentation, to be re-checked."
+    }
+  },
+  "tables": [
+    {"name": "I_JOURNAL_ENTRY", "source_name": "I_JournalEntry", "aliases": ["JOURNAL_ENTRY"], "level": "header", "en": "Journal entry (CDS view), header", "key": ["COMPANY_CODE", "FISCAL_YEAR", "ACCOUNTING_DOCUMENT"], "variants": ["s4hana"], "number_columns": ["ACCOUNTING_DOCUMENT"], "delta": ["ACCOUNTING_DOCUMENT_CREATION_DATE"], "currency_columns": ["TRANSACTION_CURRENCY"], "source_columns": ["CompanyCode", "FiscalYear", "AccountingDocument", "AccountingDocumentType", "PostingDate", "DocumentDate", "TransactionCurrency", "AccountingDocumentCreationDate"], "corresponds_to": {"table": "BKPF", "note": "One row per BKPF row.", "sources": ["sap_release_list", "sap_hub_cds"]}, "note": "AccountingDocument is unique only within company code and fiscal year: all three are needed.", "sources": ["sap_release_list", "sap_hub_cds"]},
+    {"name": "I_JOURNAL_ENTRY_ITEM", "source_name": "I_JournalEntryItem", "aliases": ["JOURNAL_ENTRY_ITEM"], "level": "item", "en": "Journal entry items of the universal journal (CDS view)", "key": ["SOURCE_LEDGER", "COMPANY_CODE", "FISCAL_YEAR", "ACCOUNTING_DOCUMENT", "LEDGER_GL_LINE_ITEM", "LEDGER"], "variants": ["s4hana"], "number_columns": ["ACCOUNTING_DOCUMENT", "CUSTOMER", "SUPPLIER", "GL_ACCOUNT"], "delta": ["POSTING_DATE"], "currency_columns": ["TRANSACTION_CURRENCY", "COMPANY_CODE_CURRENCY", "GLOBAL_CURRENCY"], "amounts": [{"column": "AMOUNT_IN_TRANSACTION_CURRENCY", "level": "item", "currency": "TRANSACTION_CURRENCY"}, {"column": "AMOUNT_IN_COMPANY_CODE_CURRENCY", "level": "item", "currency": "COMPANY_CODE_CURRENCY"}, {"column": "AMOUNT_IN_GLOBAL_CURRENCY", "level": "item", "currency": "GLOBAL_CURRENCY"}], "source_columns": ["SourceLedger", "CompanyCode", "FiscalYear", "AccountingDocument", "LedgerGLLineItem", "Ledger", "GLAccount", "ChartOfAccounts", "Customer", "Supplier", "PostingDate", "DocumentDate", "AccountingDocumentType", "DebitCreditCode", "AmountInTransactionCurrency", "TransactionCurrency", "AmountInCompanyCodeCurrency", "CompanyCodeCurrency", "AmountInGlobalCurrency", "GlobalCurrency"], "corresponds_to": {"table": "ACDOCA", "note": "One row per ACDOCA row and ledger: SourceLedger is RLDNR, LedgerGLLineItem is DOCLN, CompanyCode RBUKRS, FiscalYear GJAHR, AccountingDocument BELNR.", "sources": ["sap_release_list", "sap_hub_cds", "sap_help_s4_journal"]}, "key_note": "The ledger is part of the key: one posting has a line per ledger. Ledger and SourceLedger are equal for a standard ledger; for an extension ledger, Ledger is the extension ledger and SourceLedger the ledger the line was read from.", "note": "Amounts are signed. Filter on one Ledger before summing, or each posting counts once per ledger.", "sources": ["sap_release_list", "sap_hub_cds", "sap_help_s4_journal"]},
+    {"name": "I_GL_ACCOUNT_LINE_ITEM_RAW_DATA", "source_name": "I_GLAccountLineItemRawData", "aliases": ["GL_ACCOUNT_LINE_ITEM_RAW_DATA"], "level": "item", "en": "G/L account line items, raw data for extraction (CDS view)", "key": ["SOURCE_LEDGER", "COMPANY_CODE", "FISCAL_YEAR", "ACCOUNTING_DOCUMENT", "LEDGER_GL_LINE_ITEM"], "variants": ["s4hana"], "number_columns": ["ACCOUNTING_DOCUMENT", "CUSTOMER", "SUPPLIER", "GL_ACCOUNT"], "delta": ["POSTING_DATE"], "currency_columns": ["TRANSACTION_CURRENCY", "COMPANY_CODE_CURRENCY", "GLOBAL_CURRENCY"], "amounts": [{"column": "AMOUNT_IN_TRANSACTION_CURRENCY", "level": "item", "currency": "TRANSACTION_CURRENCY"}, {"column": "AMOUNT_IN_COMPANY_CODE_CURRENCY", "level": "item", "currency": "COMPANY_CODE_CURRENCY"}, {"column": "AMOUNT_IN_GLOBAL_CURRENCY", "level": "item", "currency": "GLOBAL_CURRENCY"}], "source_columns": ["SourceLedger", "CompanyCode", "FiscalYear", "AccountingDocument", "LedgerGLLineItem", "GLAccount", "ChartOfAccounts", "Customer", "Supplier", "PostingDate", "DocumentDate", "AccountingDocumentType", "DebitCreditCode", "AmountInTransactionCurrency", "TransactionCurrency", "AmountInCompanyCodeCurrency", "CompanyCodeCurrency", "AmountInGlobalCurrency", "GlobalCurrency"], "corresponds_to": {"table": "ACDOCA", "note": "One row per ACDOCA row, without the authorization and ledger logic of I_JournalEntryItem; the view SAP names for extracting the universal journal.", "sources": ["sap_release_list", "sap_hub_cds", "sap_help_s4_journal"]}, "key_note": "The five fields that are ACDOCA's key without the client. Not verified: the view's own key may differ by release.", "note": "Amounts are signed. Filter on one ledger before summing. The same rows as I_JournalEntryItem: land one of them.", "sources": ["sap_release_list", "sap_hub_cds", "sap_help_s4_journal"]}
+  ],
+  "relationships": [
+    {"source": "I_JOURNAL_ENTRY_ITEM", "source_cols": ["COMPANY_CODE", "FISCAL_YEAR", "ACCOUNTING_DOCUMENT"], "target": "I_JOURNAL_ENTRY", "target_cols": ["COMPANY_CODE", "FISCAL_YEAR", "ACCOUNTING_DOCUMENT"], "cardinality": "many-to-one", "association": "I_JournalEntryItem._JournalEntry [1..1]", "sources": ["sap_release_list", "sap_hub_cds", "sap_help_s4_journal"]},
+    {"source": "I_JOURNAL_ENTRY_ITEM", "source_cols": ["COMPANY_CODE"], "target": "I_COMPANY_CODE", "target_cols": ["COMPANY_CODE"], "cardinality": "many-to-one", "association": "I_JournalEntryItem._CompanyCode [1..1]", "sources": ["sap_release_list", "sap_hub_cds", "sap_help_s4_journal"]},
+    {"source": "I_JOURNAL_ENTRY_ITEM", "source_cols": ["CUSTOMER"], "target": "I_CUSTOMER", "target_cols": ["CUSTOMER"], "cardinality": "many-to-one", "role": "customer", "association": "I_JournalEntryItem._Customer [0..1]", "condition": "Only lines on customer accounts carry a customer; the others leave it blank.", "sources": ["sap_release_list", "sap_hub_cds", "sap_help_s4_journal"]},
+    {"source": "I_JOURNAL_ENTRY_ITEM", "source_cols": ["SUPPLIER"], "target": "I_SUPPLIER", "target_cols": ["SUPPLIER"], "cardinality": "many-to-one", "role": "supplier", "association": "I_JournalEntryItem._Supplier [0..1]", "condition": "Only lines on supplier accounts carry a supplier; the others leave it blank.", "sources": ["sap_release_list", "sap_hub_cds", "sap_help_s4_journal"]},
+    {"source": "I_GL_ACCOUNT_LINE_ITEM_RAW_DATA", "source_cols": ["COMPANY_CODE", "FISCAL_YEAR", "ACCOUNTING_DOCUMENT"], "target": "I_JOURNAL_ENTRY", "target_cols": ["COMPANY_CODE", "FISCAL_YEAR", "ACCOUNTING_DOCUMENT"], "cardinality": "many-to-one", "association": "I_GLAccountLineItemRawData._JournalEntry [1..1]", "sources": ["sap_release_list", "sap_hub_cds", "sap_help_s4_journal"]},
+    {"source": "I_GL_ACCOUNT_LINE_ITEM_RAW_DATA", "source_cols": ["COMPANY_CODE"], "target": "I_COMPANY_CODE", "target_cols": ["COMPANY_CODE"], "cardinality": "many-to-one", "association": "I_GLAccountLineItemRawData._CompanyCode [1..1]", "sources": ["sap_release_list", "sap_hub_cds", "sap_help_s4_journal"]},
+    {"source": "I_GL_ACCOUNT_LINE_ITEM_RAW_DATA", "source_cols": ["CUSTOMER"], "target": "I_CUSTOMER", "target_cols": ["CUSTOMER"], "cardinality": "many-to-one", "role": "customer", "condition": "Only lines on customer accounts carry a customer; the others leave it blank.", "sources": ["sap_release_list", "sap_hub_cds", "sap_help_s4_journal"]},
+    {"source": "I_GL_ACCOUNT_LINE_ITEM_RAW_DATA", "source_cols": ["SUPPLIER"], "target": "I_SUPPLIER", "target_cols": ["SUPPLIER"], "cardinality": "many-to-one", "role": "supplier", "condition": "Only lines on supplier accounts carry a supplier; the others leave it blank.", "sources": ["sap_release_list", "sap_hub_cds", "sap_help_s4_journal"]},
+    {"source": "I_JOURNAL_ENTRY", "source_cols": ["COMPANY_CODE"], "target": "I_COMPANY_CODE", "target_cols": ["COMPANY_CODE"], "cardinality": "many-to-one", "association": "I_JournalEntry._CompanyCode [1..1]", "sources": ["sap_release_list", "sap_hub_cds"]},
+    {"source": "I_BILLING_DOCUMENT", "source_cols": ["COMPANY_CODE", "FISCAL_YEAR", "ACCOUNTING_DOCUMENT"], "target": "I_JOURNAL_ENTRY", "target_cols": ["COMPANY_CODE", "FISCAL_YEAR", "ACCOUNTING_DOCUMENT"], "cardinality": "one-to-one", "role": "accounting_document", "condition": "Set once the billing document has been posted to accounting; empty before that.", "sources": ["sap_hub_cds", "sap_help_vdm"]}
+  ],
+  "traps": [
+    {"id": "cds_ledger", "title": "One line per ledger in I_JournalEntryItem", "text": "The universal journal holds every posting once per ledger, and Ledger is part of the key of I_JournalEntryItem. A sum of AmountInCompanyCodeCurrency without a filter on one Ledger counts each posting once per ledger. The amounts are signed: debit positive, credit negative, so a whole document sums to zero.", "sources": ["sap_release_list", "sap_hub_cds", "sap_help_s4_journal"]},
+    {"id": "cds_three_currencies", "title": "Three amounts, three currencies", "text": "A journal line carries its amount in the transaction currency (AmountInTransactionCurrency, TransactionCurrency), the company code currency (AmountInCompanyCodeCurrency, CompanyCodeCurrency) and the global currency (AmountInGlobalCurrency, GlobalCurrency). Only the company code amount can be added within a company code without converting; the transaction amount differs from document to document.", "sources": ["sap_release_list", "sap_hub_cds", "sap_help_s4_journal"]}
+  ]
+}

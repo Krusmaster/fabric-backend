@@ -44,6 +44,10 @@ Review = Annotated[dict | str | None, _d('With fixes: a review_plan file.')]
 AcceptedFixes = Annotated[list | None, _d('Ids from validate_plan(fixes=true).')]
 DryRun = Annotated[bool, _d(
     'true (default) returns what would be created and the REST calls, changing nothing; false creates or updates.')]
+RefreshOnce = Annotated[bool, _d('true: refresh the model once (dry_run=false). Default false.')]
+VerifyItems = Annotated[dict[str, str], _d(
+    'Built items by kind (semantic_model, report, ontology, api, pipeline, app). Example: {"report": "shop_report"}.')]
+CreateCheck = Annotated[str, _d('After a create answered started: its operation id, or "name". Reads how it went; creates nothing.')]
 ShowPersonalData = Annotated[bool, _d(
     'true includes columns named like personal data; false (default) masks or omits them.')]
 Api = Annotated[str, _d('API for GraphQL item, name or id (list_sources: graphql_apis).')]
@@ -73,7 +77,8 @@ def _name(item: str, example: str, default: str | None = None) -> Field:
 
 # ------------------------------------------------------------------ per tool -------------------
 
-Mermaid = Annotated[bool, _d('false leaves the Mermaid ER diagram out of a full answer. Default true. Example: false.')]
+Mermaid = Annotated[bool, _d('false leaves the Mermaid ER diagram out. Default true.')]
+Drawio = Annotated[str, _d('map, model or flow: that diagram as a draw.io file.')]   # n228
 Decisions = Annotated[list[dict] | None, _d(
     'Review decisions, [{"item", "review", "reason"}]; review is accepted, rejected, open or proposed; item ids are '
     'in the file. Default: none. Example: [{"item": "rel:orders.ship_to_id>addresses", "review": "accepted", '

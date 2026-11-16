@@ -1,0 +1,6 @@
+Slide 1. Title card: 'Why does your SAP order total come out too large? The total that doubles.' Three small mascots, green, violet and coral.
+Slide 2. An order header table, sap_vbak: order 0000000001 with NETWR 600, ticked. Thinker, the violet mascot, says: NETWR is the whole order's amount, one row per order.
+Slide 3. The order lines joined to their header: 3 rows for order 0000000001, each showing 600 in red. Sum row: the join counts it 3 times, 1 800.
+Slide 4. Two sums side by side: 1 950, struck through, summed over the joined lines; 750, ticked, summed once per header. In this sample the join gives 2.6 times the sum per header.
+Slide 5. Builder, the coral mascot: 'Sum the amount where it lives: on the order header.' Below, the engine's next step in monospace: Aggregate NETWR on sap_vbak (one row per sap_vbak) and join the result, or sum a sap_vbap amount; never SUM(sap_vbak.NETWR) over sap_vbap rows.
+Slide 6. krusgraph.com/check, with the three mascots. Your files are read in this browser and are not uploaded. Open source, for Microsoft Fabric, works with Claude.

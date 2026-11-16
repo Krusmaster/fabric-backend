@@ -156,6 +156,69 @@
 .kgc-big-body { overflow-y: auto; overflow-x: hidden; padding: 12px; display: grid; gap: 10px; align-content: start; overscroll-behavior: contain }
 .kgc-big-body p { margin: 0; font-size: 14px; color: var(--ink) }
 
+/* n233: the data flow, left to right as the Model editor draws it: the columns side by side, lines between the boxes.
+   In the chat the boxes are compact and the columns scroll sideways inside the card (.kgd-scroll); the overlay
+   (.kgd-big) shows the same diagram as wide as the window. */
+.kgd { --kgd-w: 124px; --kgd-gap: 30px; display: grid; gap: 6px; min-width: 0 }
+.kgd-wide { --kgd-w: 210px; --kgd-gap: 56px }
+.kgd-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end }
+.kgd-hint { margin: 0; flex: 1 1 140px; font-size: 12.5px; color: var(--muted) }
+.kgd-scroll {
+  position: relative; overflow-x: auto; overflow-y: hidden; max-width: 100%; min-width: 0;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--bg);
+  overscroll-behavior-x: contain; scrollbar-width: thin;
+}
+.kgd-scroll:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px }
+.kgd-more { box-shadow: inset -18px 0 14px -14px rgba(0, 0, 0, .28) }
+.kgd-stage {
+  position: relative; display: grid; column-gap: var(--kgd-gap); row-gap: 6px; align-items: center;
+  width: max-content; min-width: 100%; padding: 16px 10px 10px; box-sizing: border-box;
+}
+.kgd-wide .kgd-stage { justify-content: center }
+.kgd-lines { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible }
+.kgd-e { fill: none; stroke: var(--muted); stroke-width: 1.4; opacity: .75 }
+.kgd-e.off { stroke-dasharray: 5 4 }
+.kgd-h {
+  grid-row: 1; margin: 0 0 8px; align-self: end; font-family: var(--font-head); font-weight: 600; font-size: 12.5px;
+  line-height: 1.2; color: var(--ink)
+}
+.kgd-box {
+  position: relative; z-index: 1; display: grid; gap: 1px; text-align: left; min-width: 0; margin: 0;
+  font: inherit; font-size: 12px; line-height: 1.25; color: var(--ink); background: var(--card);
+  border: 1.5px solid var(--line-strong); border-radius: 9px; padding: 4px 7px;
+}
+button.kgd-box { cursor: pointer }
+button.kgd-box:hover { border-color: var(--muted) }
+.kgd-box[aria-expanded="true"] { border-color: var(--ink); background: var(--card-2) }
+.kgd-box.kgd-off { border-style: dashed; background: transparent }
+.kgd-bronze { border-left: 4px solid var(--coral-d) }
+.kgd-silver { border-left: 4px solid var(--lav-d) }
+.kgd-gold { border-left: 4px solid var(--mustard-d) }
+.kgd-built { border-left: 4px solid var(--sage-d) }
+.kgd-n { font-weight: 800; overflow-wrap: anywhere }
+.kgd-l { font-size: 11px; color: var(--muted); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical }
+.kgd-wide .kgd-box { font-size: 13.5px; padding: 6px 10px }
+.kgd-wide .kgd-l { font-size: 12.5px; -webkit-line-clamp: unset; display: block }
+.kgd-wide .kgd-h { font-size: 14px }
+.kgd-code { display: grid; gap: 4px; border-left: 3px solid var(--line-strong); padding-left: 8px; min-width: 0 }
+.kgd-code[hidden] { display: none }
+.kgd-code p { margin: 0; font-size: 12px; font-weight: 700; color: var(--ink) }
+.kgd-code pre {
+  margin: 0; max-height: 260px; overflow: auto; font: 12px/1.45 var(--mono); white-space: pre; color: var(--ink);
+  background: var(--card-2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px
+}
+.kgd-big {
+  position: fixed; inset: 0; z-index: 40; display: grid; padding: 16px;
+  background: rgba(27, 27, 31, .45);
+}
+.kgd-big-panel {
+  display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; min-height: 0; overflow: hidden;
+  background: var(--bg); color: var(--ink); border: 1px solid var(--line-strong); border-radius: 18px;
+  box-shadow: 0 14px 44px rgba(0, 0, 0, .3); font-size: 15px; line-height: 1.45;
+}
+.kgd-big-body { overflow-y: auto; overflow-x: hidden; padding: 14px; min-width: 0; overscroll-behavior: contain }
+.kgd-big-body .kgd-code pre { max-height: 40vh }
+
 /* a restored chat appears as it was: no animation, the figures of its messages still too */
 .kgc.kgc-still, .kgc-msg.still, .kgc-you.still { animation: none }
 .kgc-msg.still .kgc-fig * { animation: none !important }
@@ -174,6 +237,9 @@ html[data-mascots="off"] .kgc-msg { grid-template-columns: minmax(0, 1fr) }
 html[data-mascots="off"] .kgc-picks { grid-column: 1 }
 
 @media (max-width: 560px) {
+  .kgd-big { padding: 0 }
+  .kgd-big-panel { border-radius: 0; border: 0 }
+  .kgd-wide { --kgd-w: 160px; --kgd-gap: 38px }
   .kgc-big-head, .kgc-big-body {
     padding-left: max(12px, env(safe-area-inset-left, 0px));
     padding-right: max(12px, env(safe-area-inset-right, 0px));
@@ -191,6 +257,6 @@ html[data-mascots="off"] .kgc-picks { grid-column: 1 }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .kgc, .kgc *, .kgc-launch { animation: none !important; transition: none !important }
+  .kgc, .kgc *, .kgc-launch, .kgd-big, .kgd-big * { animation: none !important; transition: none !important }
   .kgc-pick:hover { transform: none }
 }

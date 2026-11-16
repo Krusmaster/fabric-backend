@@ -1,0 +1,30 @@
+# Ask your agent where the amount lives
+# Upload: krusgraph-short-where-the-amount-lives-9x16-v2.mp4 (1080x1920, 28.3 s, H1 v5's pipeline; QA in QA-v2.md); cover: cover-v2.jpg. 'Voice: AI-generated' is on the end card. The first version (krusgraph-short-where-the-amount-lives-9x16.mp4) is kept and not to be used.
+# Turn on each platform's AI-generated content label when it asks.
+
+== Instagram Reels (caption) ==
+Ask your agent where the amount lives.
+
+Ask your agent for total sales: which number do you get? In our example shaped like SAP CDS views, the order total sits on the sales document header. Joined to its items, an order counts up to 3 times: 1 900. Summed once per order: 700. Krusgraph flags this against your rows, so the agent can sum at the right level.
+
+Everything on screen is the engine's own output on our example. Voice: AI-generated.
+
+#MicrosoftFabric #PowerBI #DataQuality #Krusgraph
+
+Try it in your browser: krusgraph.com/check (link in bio)
+
+== TikTok (caption) ==
+Ask your agent where the amount lives. Ask your agent for total sales: which number do you get? In our example shaped like SAP CDS views, the order total sits on the sales document header. Joined to its items, an order counts up to 3 times: 1 900. Summed once per order: 700. Krusgraph flags this against your rows, so the agent can sum at the right level. Voice: AI-generated. #MicrosoftFabric #AIAgents #SAP
+
+Try it in your browser: krusgraph.com/check (link in bio)
+
+== YouTube Shorts ==
+Title: Ask your agent where the amount lives #Shorts
+Description:
+Ask your agent for total sales: which number do you get? In our example shaped like SAP CDS views, the order total sits on the sales document header. Joined to its items, an order counts up to 3 times: 1 900. Summed once per order: 700. Krusgraph flags this against your rows, so the agent can sum at the right level.
+
+Voice: AI-generated. Krusgraph is independent and is not affiliated with, tested or endorsed by SAP or Microsoft.
+
+#MicrosoftFabric #PowerBI #Shorts
+
+Try it in your browser: krusgraph.com/check (link in bio)

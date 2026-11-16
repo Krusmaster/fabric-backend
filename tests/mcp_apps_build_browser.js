@@ -44,7 +44,7 @@ const caps = process.argv[4] === 'tools' ? { serverTools: {}, openLinks: {} } : 
       await fr.locator('button', { hasText: 'See the subscription' }).click({ timeout: 10000 });
       await page.waitForTimeout(200);
     } else {
-      await fr.locator('button', { hasText: 'Open in Fabric' }).click({ timeout: 10000 });
+      await fr.locator('button', { hasText: /^Open .*in Fabric$/ }).click({ timeout: 10000 });   // n227: "Open <name> in Fabric"
       await page.waitForTimeout(200);
       reportButtons = await fr.locator('button', { hasText: 'Create a report on it' }).count();
     }

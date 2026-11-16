@@ -1,0 +1,13 @@
+Thinker explains one word: orphan.
+
+"An orphan is a row that points at something that is not there."
+
+An order line whose order is missing. An invoice for a customer nobody has. Every join drops it or keeps it quietly, and a total moves without a sound.
+
+In our SAP-shaped example Thinker counts the link from the order lines (sap_vbap) to the orders (sap_vbak): 1 of 6 rows (16.7%) point at nothing. One row, found before a report is built on it.
+
+Thinker counts against the rows, and says what held, what did not, and what was not counted.
+
+#MicrosoftFabric #PowerBI #DataQuality #DataModeling #SAP #Krusgraph
+
+Try it in your browser: krusgraph.com/check (link in bio)

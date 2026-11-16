@@ -63,16 +63,15 @@ def test_the_table_has_four_places_three_tasks_and_a_text_version(client):
 
 def test_every_status_comes_from_tool_status(client):
     plain = _plain(_main(client.get(PATH).text))
-    assert f"validate_plan : {ts.task_status(['validate_plan'])}" in plain or f"validate_plan: {ts.task_status(['validate_plan'])}" in plain
+    # n234: plain words only; no test record, dates or docs/ files
+    assert "last tried live" not in plain and "docs/" not in plain.replace("/docs", "") and "tested end to end" not in plain.lower()
     for t in ("semantic_model_draft", "ontology_draft", "dbt_schema", "silver_notebook_draft", "gold_views_draft", "drift_monitor_draft"):
-        assert re.sub(r"[`\s]", "", f"{t}:{ts.phrase(t)}") in re.sub(r"\s", "", plain), t
+        assert re.sub(r"[`\s]", "", f"{t}:{ts.plain(t)}") in re.sub(r"\s", "", plain), t
     for t in ts.STATUS:
         if ts.STATUS[t].kind == ts.CREATES:
             assert re.sub(r"\s", "", f"{t}:{concepts.mark(t)[1]}") in re.sub(r"\s", "", plain), t
-    word, _at, what = next((w, a, x) for n, w, a, x in ts.FUNCTIONS if n == "`fabric-backend-mcp`")
-    assert re.sub(r"\s", "", f"{word.lower()}; {what}".replace("`", "")) in re.sub(r"\s", "", plain)   # n146: code spans in it
-    claude = next(c for c in ts.CLIENTS if c.name == "Claude")
-    assert f"since {claude.works_since}" in plain
+    assert "fabric-backend-mcp : experimental" in plain or "fabric-backend-mcp: experimental" in plain
+    assert "Live: Claude as a client." in plain
     # the local tools are the ones the local server has
     local = (ROOT / "fabric_backend" / "mcp_server.py").read_text()
     for t in ("semantic_model_draft", "ontology_draft", "dbt_schema", "silver_notebook_draft"):
@@ -92,7 +91,7 @@ def test_status_words_sit_next_to_their_own_tool_and_no_sales_words(client):
             other = any(f.replace("`", "") in sentence for f, *_ in ts.FUNCTIONS)
             tools = [] if other else _claim_named(sentence, ts.STATUS)
             if used and len(tools) == 1:
-                own = ts.label(tools[0]).lower()
+                own = ts.label(tools[0]).lower() + " " + ts.plain(tools[0])   # n234: a page may say less than the record
                 assert all(w in own for w in used), sentence
 
 

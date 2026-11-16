@@ -15,7 +15,7 @@ Authentication, in order:
      "custom connection" model Lovable's Fabric connector uses: one principal, no per-user identity.
 The server stores nothing: no tokens beyond their lifetime, no data, no query results.
 
-Tools (all annotated for the Claude directory): forty, from start to sap_pack_draft; docs page
+Tools (all annotated for the Claude directory): forty-one, from start to verify_build; docs page
 /docs lists them. Around every tool: fair-use limits (limits.py), anonymous usage counts (usage.py) and the dormant paid-plan
 check (entitlements.py).
 """
@@ -48,6 +48,7 @@ from . import domains as _domains
 from . import limits as _limits, usage as _usage, entitlements as _entitlements
 from . import billing as _billing
 from .deploy import create_semantic_model as _create_semantic_model
+from .deploy import answer_by as _answer_by  # noqa: E402  (n227: a Create answers before the host stops waiting)
 from .deploy import find_item as _find_item
 from . import report as _report
 from .platforms import fabric as _fabric
@@ -60,6 +61,8 @@ except ImportError as e:  # pragma: no cover
 
 FABRIC_SCOPE = "https://api.fabric.microsoft.com/.default"
 SQL_SCOPE = "https://database.windows.net/.default"
+POWERBI_SCOPE = "https://analysis.windows.net/powerbi/api/.default"     # n229: refresh history, DAX queries, one refresh
+POWERBI = "https://api.powerbi.com/v1.0/myorg"
 
 from .discovery import package_version as _package_version  # noqa: E402
 from . import tool_status as _tool_status  # noqa: E402
@@ -72,6 +75,7 @@ from . import mcp_apps_pictures as _pictures  # noqa: E402  (n170: the cards' pi
 from . import mcp_apps_words as _mcp_apps_words  # noqa: E402  (n172: the cards' words; computed only while a card listens)
 from . import mcp_apps_next as _mcp_apps_next  # noqa: E402  (n218: next steps and the check rows; only while a card listens)
 from . import start_flow as _start_flow  # noqa: E402  (n219: Start Krusgraph)
+from . import after_create as _after_create, verify_build as _verify  # noqa: E402  (n229: next steps, the gate, the verifier)
 
 mcp = MCPServer("fabric-backend", version=_package_version(), extensions=_mcp_apps.extensions(), instructions=(
     "Tables in a Microsoft Fabric lakehouse/warehouse → a GraphQL API with inferred keys and relationships, "
@@ -82,8 +86,8 @@ mcp = MCPServer("fabric-backend", version=_package_version(), extensions=_mcp_ap
     "it also suggests composite keys), sample_rows when a column's meaning is unclear, validate_plan to check keys and "
     "relationships against the rows (create_backend does not run it), then create_backend. Before query_graphql, describe_backend gives the exact field "
     "names. Every inferred key/relationship carries the rule that produced it (K0–K5, R0–R5, or \"SAP pack\" for SAP tables such as "
-    "VBAK/VBAP, whose keys with MANDT and order-to-cash relationships come from public sources; sap_pack_draft shows what the pack "
-    "recognises and what is missing); "
+    "VBAK/VBAP: the SAP pack is Krusgraph's list of known SAP keys and links, and that is how to explain it; sap_pack_draft "
+    "shows what the pack recognises and what is missing); "
     "ambiguous columns are reported, never guessed. From the same plan, without creating anything: semantic_model_draft "
     "(a Power BI model in TMDL, Direct Lake) when a report is the goal; join_path when the user asks how two tables "
     "connect or wants the SQL for it; data_dictionary for hand-over documentation; dbt_schema when the team tests with dbt; "
@@ -91,7 +95,12 @@ mcp = MCPServer("fabric-backend", version=_package_version(), extensions=_mcp_ap
     "create_backend (the API for GraphQL), create_semantic_model (a Power BI semantic model item from the TMDL draft), "
     "create_ontology (a Fabric IQ ontology item: entity types with keys, relationship types, bindings), create_views (wide T-SQL views in a schema of "
     "their own on the SQL endpoint), create_data_agent (a Fabric data agent with the plan as instructions and examples) — all "
-    "answer with what they would create until dry_run=false. create_report adds a Power BI report bound to an existing semantic model, its page drawn from the model's own measures (cards, a column chart by month, a bar chart, a table; empty_page=true for a blank page); a report of that name is left alone. Creating a semantic model, ontology, data agent, notebook "
+    "answer with what they would create until dry_run=false. After a Create that succeeded the answer's next_steps list what the "
+    "data product still lacks, in order; offer them, and never one listed as already built. verify_build then reads back what was "
+    "built, compares it with the dry run and counts the report's figures again from the rows: a check by rules, not by AI. Show its "
+    "lines as Krusgraph's; you may add your own review after them, under a heading of your own and labelled as yours, never "
+    "changing a state the rules gave. A dry run with a gate says why the build would be of little use: do its first step before "
+    "Create. create_report adds a Power BI report bound to an existing semantic model, its page drawn from the model's own measures (cards, a column chart by month, a bar chart, a table; empty_page=true for a blank page); a report of that name is left alone. Creating a semantic model, ontology, data agent, notebook "
     "or pipeline needs a permission the operator may not have granted the app; without it the tool answers kind consent naming "
     "the scope, and the dry run still works. app_starter gives a Lovable prompt, connection details, queries and "
     "the Supabase edge function for an app on a created API; app_readiness lists what that API still needs before an app can use "
@@ -130,6 +139,8 @@ mcp = MCPServer("fabric-backend", version=_package_version(), extensions=_mcp_ap
     "database) and api take a name or an id; confirmed lists relationships the user confirmed and is not an approval flag; "
     "an entry has source, source_cols, target, target_cols (default source_cols) and optional field_name and reverse_name; "
     "tables narrows what is shown or included while the plan is still made from the whole schema. "
+    + _mcp_apps_next.AFTER_RESULT + " A create that answers started (kind timeout) was sent once: do not send it again; the "
+    "same tool with check set reads how it went. "
     + _tool_status.instructions_sentence() + " " + _switches.SENTENCE))
 
 
@@ -239,6 +250,19 @@ class Auth:
         return t.strip() if t else self._client_credentials(SQL_SCOPE)
 
 
+    def powerbi(self, ctx: Context | None) -> str:
+        """n229: a token for the Power BI REST API (a model's refresh history and its DAX queries, verify_build; one
+        refresh, create_semantic_model refresh=true). The workload's own exchange inside a workload request; in Entra
+        mode the same on-behalf-of exchange as fabric() for the Power BI audience; else the request's bearer, or client
+        credentials. A caller treats a failure as "not read", never as a pass."""
+        if (w := _WORKLOAD_TOKENS.get()) is not None:
+            return w.powerbi()
+        if self.entra:
+            return self._user_token(ctx, POWERBI_SCOPE)
+        tok = self._bearer(ctx)
+        return tok if tok else self._client_credentials(POWERBI_SCOPE)
+
+
 auth = Auth()
 
 
@@ -303,7 +327,10 @@ def _hosted_plan(s, keys, confirmed, execute):
     the names left unlinked over the call's open connection, bounded by R5_SAMPLE and R5_MAX_QUERIES. Every tool that
     builds on the plan sees the same relationships as plan_backend. Nothing is kept between calls: the counting runs
     again on every call, over the connection the call opened and closes."""
-    p = make_plan(s, keys, confirmed, execute=execute, sample=R5_SAMPLE, max_queries=R5_MAX_QUERIES)
+    from . import propose                                      # F2: keys counted in this call, K6 and R6 from the rows
+    n = propose.max_queries()
+    p = make_plan(s, keys, confirmed, execute=execute, sample=R5_SAMPLE, max_queries=R5_MAX_QUERIES,
+                  profile=n > 0, profile_queries=n)
     scope = _PLAN_SCOPE.get()                                  # n174: the workload's review applied (plan_scope)
     return scope["adjust"](p) if scope else p
 
@@ -529,7 +556,7 @@ def list_tables(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = 
     try:
         p, _, _ = _plan(workspace, source, schema, None, None, ctx)
     except SchemaEmpty:                                        # n218: dbo empty in a schema-enabled lakehouse: list them
-        schemas = _schemas_or_none(workspace, source, ctx)
+        schemas = _candidate_schemas(_schemas_or_none(workspace, source, ctx) or [])
         if schemas:
             return json.dumps({**_schema_choice(source, schemas),
                                "summary": f"{schema!r} has no tables in {source}. "
@@ -570,21 +597,23 @@ def _with_schemas(text: str, schemas: list[dict] | None) -> str:
 @safe
 def plan_backend(workspace: _p.Workspace, source: _p.Source, schema: _p.PlanSchema = None, keys: _p.Keys = None,
                  confirmed: _p.Confirmed = None, tables: _p.TablesShown = None, detail: _p.Detail = "auto",
-                 mermaid: _p.Mermaid = True, ctx: Context = None) -> str:
-    """Infers primary keys and relationships for the tables in a schema and proposes them as a plan. Requires workspace and
+                 mermaid: _p.Mermaid = True, drawio: _p.Drawio = "", ctx: Context = None) -> str:
+    """Infers primary keys and relationships for a schema's tables and proposes them as a plan. Requires workspace and
     source. Returns JSON: summary, keys and relationships each with the rule behind it (K0–K5, R0–R5), ambiguous
     columns, keyless tables, suggested composite keys and a Mermaid ER diagram. Rule R5 counts code and role columns
     the names left unlinked against the rows (read-only counting queries, at most 20, over the first 200 distinct values
     of a column); candidates it could not confirm are listed as proposed. Changes nothing in Fabric. validate_plan
-    checks it against the rows; create_backend builds the API. Without schema, a source with several schemas that
-    hold tables gets {choose_schema, schemas: [{schema, tables}], summary, hint} and nothing is planned (n169).
+    checks it against the rows; create_backend builds the API. Without schema, a source with several schemas
+    gets {choose_schema, schemas: [{schema, tables}], summary, hint} and nothing is planned.
     Errors: {error, kind, hint}."""
     chosen = None
     if not (schema or "").strip():                                    # n169: the call named no schema
-        schemas = _source_schemas(workspace, source, ctx)
+        schemas = _candidate_schemas(_source_schemas(workspace, source, ctx))   # n227: never krusgraph_quarantine
         if len(schemas) > 1:
             return json.dumps(_schema_choice(source, schemas), indent=2)
         schema = chosen = schemas[0]["schema"] if schemas else "dbo"
+    if (drawio or "").strip():                                        # n228: the map, the model draft or the data flow as a file
+        return _with_schema_chosen(_drawio_file(drawio, workspace, source, schema, keys, confirmed, tables, ctx), chosen)
     p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx, rows=True)
     schema = p.schema.schema                                   # n175: the name the metadata returns
     keep = _compact.match_tables(p.schema, tables)
@@ -601,6 +630,23 @@ def plan_backend(workspace: _p.Workspace, source: _p.Source, schema: _p.PlanSche
                                 p, per_item=False)
         text = _bounded(body, MAX_RESULT_CHARS, _compact.NARROW_HINT, drop=("mermaid",))
     return _with_schema_chosen(text, chosen)
+
+
+def _drawio_file(which: str, workspace: str, source: str, schema: str, keys, confirmed, tables, ctx) -> str:
+    """n228: plan_backend(drawio=...): one of Krusgraph's diagrams as a draw.io file (drawio.py), from the same plan the
+    JSON answer gives. Read-only: the map needs the plan; the model draft and the data flow also what the drafts read of
+    the source item (its name, its SQL endpoint, whether it has schemas). Answers {filename, mime_type, content, ...}."""
+    from . import drawio as _drawio
+    from .infer import PlanInputError
+    if str(which).strip().lower() not in _drawio.WHICH:
+        raise PlanInputError('drawio: "map", "model" or "flow"')
+    if _drawio.WHICH[str(which).strip().lower()] == "map":
+        p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx, rows=True)
+        info = None
+    else:
+        p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
+    keep = _compact.match_tables(p.schema, tables)
+    return json.dumps(_drawio.export(which, p, info, f"{source}.{p.schema.schema}", keep, MAX_RESULT_CHARS - 1500), indent=2)
 
 
 # n169: the schemas of a source that hold tables, for plan_backend called without a schema. INFORMATION_SCHEMA.TABLES
@@ -628,10 +674,17 @@ def _source_schemas(workspace: str, source: str, ctx) -> list[dict]:
             if r.get("TABLE_SCHEMA") and int(r.get("TABLE_COUNT") or 0) > 0]
 
 
+# n227: Krusgraph's own quarantine tables are never something to plan (mcp_apps_build.OWN_SCHEMAS).
+def _candidate_schemas(schemas: list[dict]) -> list[dict]:
+    kept = [s for s in schemas if str(s.get("schema", "")).lower() not in _mcp_apps_build.OWN_SCHEMAS]
+    return kept or schemas
+
+
 def _schema_choice(source: str, schemas: list[dict]) -> dict:
-    listed = ", ".join(f"{s['schema']} ({s['tables']} tables)" for s in schemas)
+    listed = ", ".join(f"{s['schema']} ({s['tables']} {'table' if s['tables'] == 1 else 'tables'})" for s in schemas)
     return {"choose_schema": True,
-            "summary": f"{source} has {len(schemas)} schemas with tables: {listed}. Which one should be planned?",
+            "summary": f"{source} has {len(schemas)} {'schema' if len(schemas) == 1 else 'schemas'} with tables: {listed}. "
+                       "Which one should be planned?",
             "schemas": schemas,
             "hint": "Ask the user which schema they mean, then call plan_backend again with schema set to it. Nothing was "
                     "planned: picking one would plan tables the user may not mean."}
@@ -812,13 +865,87 @@ def _privacy_rows(table: str, columns: list[str], rows: list[dict], schema, show
     return out
 
 
+# ------------------------------------------------------------------ n229: after a Create ------------------------------
+# The founder, 12 November 2026: "no more suggestions after we built what was proposed". A Create that succeeded now ends
+# with the next steps of the data product (after_create.next_steps): verify what was built first, then what it still
+# lacks, each with one sentence of reason; what already exists from this plan is listed as already built, not offered
+# again. No step writes. The steps are in the tool's own JSON, so a text client reads them too; the cards draw them as
+# buttons (mcp_apps_build.actions_for).
+
+_BUILT_FROM = re.compile(r"(?i)created by krusgraph from (.+?) \((.+?)\)")
+
+
+def _created_ok(data: dict) -> bool:
+    r = data.get("result")
+    return data.get("dry_run") is False and not data.get("error") and isinstance(r, dict) and r.get("status") == "Succeeded"
+
+
+def _lifecycle(kind: str):
+    """The decorator of a creating tool: its answer after a Create that succeeded gets next_steps, more and
+    already_built. A dry run, a refusal and an error are returned as they are; a failure here never changes the answer."""
+    import functools
+    import inspect
+
+    def wrap(fn):
+        sig = inspect.signature(fn)
+
+        @functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            text = fn(*args, **kwargs)
+            try:
+                data = json.loads(text) if isinstance(text, str) else None
+                if not isinstance(data, dict) or not _created_ok(data) or "next_steps" in data or _WORKLOAD_TOKENS.get() is not None:
+                    return text                                            # the Model editor has its own list (workload_api.run_verify)
+                call = sig.bind_partial(*args, **kwargs).arguments
+                found = re.search(r"/workspaces/([0-9a-fA-F-]{36})", text)   # the Create's own answer names the workspace's id
+                data.update(_next_after(kind, dict(call), found.group(1) if found else None))
+                return json.dumps(data, indent=2, default=str)
+            except Exception:                                              # noqa: BLE001 - the Create's answer stands
+                return text
+        return wrapper
+    return wrap
+
+
+def _next_after(kind: str, call: dict, workspace_id: str | None = None) -> dict:
+    ctx = call.get("ctx")
+    args = {k: call.get(k) for k in ("workspace", "source", "schema", "keys", "confirmed")}
+    name = call.get("name")
+    items, taken, lakehouse, source_name = None, None, True, None
+    try:
+        headers = _headers(ctx)
+        ws = _out_ws(workspace_id or _workspace_id(str(call["workspace"]), headers))   # no second lookup of a name
+        items = _list_items(ws, headers)
+        taken = [i.get("displayName") for i in items if i.get("displayName")]
+    except Exception:                                                      # noqa: BLE001 - then only this Create counts as built
+        items = None
+    if kind == "report" and items:                                         # a report names its model; the model names its source
+        model = str(call.get("model") or "")
+        m = next((i for i in items if i.get("type") == "SemanticModel" and model.lower() in (str(i.get("displayName") or "").lower(),
+                                                                                           str(i.get("id") or "").lower())), None)
+        hit = _BUILT_FROM.search(str((m or {}).get("description") or ""))
+        if hit:
+            args.update(source=hit.group(1), schema=hit.group(2))
+    if args.get("source") and items is not None:
+        src = next((i for i in items if str(args["source"]).lower() in (str(i.get("displayName") or "").lower(), str(i.get("id") or "").lower())
+                    and i.get("type") in SOURCE_ITEM_TYPES), None)
+        if src:
+            source_name, lakehouse = src.get("displayName"), src.get("type") == "Lakehouse"
+    built = _after_create.built_from_plan(items, str(args.get("source") or ""), str(args.get("schema") or ""), source_name) if items is not None else None
+    if kind == "report" and call.get("model") and built is not None and not _GUID.match(str(call["model"])):
+        built.setdefault("semantic_model", [])
+        if str(call["model"]).lower() not in {n.lower() for n in built["semantic_model"]}:
+            built["semantic_model"].append(str(call["model"]))
+    return _after_create.next_steps(kind, args, built, name, lakehouse=lakehouse, taken=taken)
+
+
 @mcp.tool(title="Create or update the GraphQL API (dry run by default)",
           annotations=ToolAnnotations(read_only_hint=False, destructive_hint=True, idempotent_hint=True, open_world_hint=True))
 @safe
+@_lifecycle("api")
 def create_backend(workspace: _p.Workspace, source: _p.Source, name: _p.BackendName, schema: _p.Schema = "dbo", writable: _p.Writable = False,
                    keys: _p.Keys = None, confirmed: _p.Confirmed = None,
                    tables: _p.CreateBackendTables = None, allow_removals: _p.AllowRemovals = False,
-                   dry_run: _p.DryRun = True, ctx: Context = None) -> str:
+                   dry_run: _p.DryRun = True, check: _p.CreateCheck = "", ctx: Context = None) -> str:
     """Creates a Fabric API for GraphQL item over the source's tables with the plan's keys and relationships, or updates
     the API of that name in place. Requires workspace, source and name. Returns JSON {summary, dry_run, result, card
     (endpoint, portal steps left), skipped_relationships}; the dry run returns instead whether the item exists and
@@ -828,12 +955,16 @@ def create_backend(workspace: _p.Workspace, source: _p.Source, name: _p.BackendN
     no item is deleted. When an update would drop relationships the API has, nothing is written and the answer (kind
     would_remove) lists them as confirmed entries. It does not run validate_plan; plan_backend
     proposes, validate_plan checks, plan_drift previews an update. Errors: {error, kind, hint}."""
+    if (check or "").strip():                                # n227: how a started create went; reads only
+        return _create_status("create_backend", workspace, name, check, ctx)
+    began = time.monotonic()
     workspace = _workspace_id(workspace, _headers(ctx))      # a display name becomes the id every call below needs
     p, item, headers = _plan(workspace, source, schema, keys, confirmed, ctx)
     schema = p.schema.schema                                   # n175: the name the metadata returns
     check_tables(p.schema, tables)
-    return _create_backend_from_plan(p, item, headers, workspace, name, writable, tables, confirmed, allow_removals, dry_run,
-                                     token_provider=lambda: auth.fabric(ctx))
+    with _answer_by(began + CREATE_ANSWER_SECONDS):          # n227: the answer reaches the chat before the host stops waiting
+        return _create_backend_from_plan(p, item, headers, workspace, name, writable, tables, confirmed, allow_removals, dry_run,
+                                         token_provider=lambda: auth.fabric(ctx))
 
 
 def _create_backend_from_plan(p, item, headers, workspace, name, writable, tables, confirmed, allow_removals, dry_run,
@@ -858,7 +989,11 @@ def _create_backend_from_plan(p, item, headers, workspace, name, writable, table
     env = definition(p, name, workspace, source_id, source_type, writable=writable, tables=tables)
     if dry_run:
         return _backend_dry_run(p, env, workspace, source_id, source_type, found, kept, writable, tables, confirmed, headers, out_ws)
+    again = _still_running("create_backend", out_ws, name, env.get("definition"))       # n227: never a second create
+    if again:
+        return json.dumps({"dry_run": False, **again}, indent=2)
     result = deploy(env, out_ws, token_provider=token_provider)
+    _remember("create_backend", out_ws, name, env.get("definition"), result)
     out = {"summary": p.summary(), "dry_run": False, "source": {"id": source_id, "type": source_type}, "result": result,
            "skipped_relationships": env.get("skipped_relationships", [])}
     if kept:
@@ -871,9 +1006,8 @@ def _create_backend_from_plan(p, item, headers, workspace, name, writable, table
     elif result.get("status") == "Failed":                                  # the long-running operation failed
         err = result.get("error") if isinstance(result.get("error"), dict) else {}
         out.update(classify_http(400, json.dumps(err) if err else "", f"creating {name!r} in workspace {workspace}"))
-    elif result.get("status") == "Timeout":
-        out.update({"error": f"Fabric is still working on {name!r}; the operation did not finish in time.", "kind": "timeout",
-                    "hint": "Check the item in the Fabric portal in a minute; re-running create_backend updates it in place."})
+    elif result.get("status") == "Timeout":                              # n227: started, with a way to look again
+        out.update(_started("create_backend", name, result.get("operation"), result.get("note")))
     return json.dumps(out, indent=2)
 
 
@@ -1012,14 +1146,18 @@ def ontology_draft(workspace: _p.Workspace, source: _p.Source, name: _p.Ontology
 
 @mcp.tool(title="Create or update a Fabric IQ ontology from the plan (dry run by default)", annotations=WRITE)
 @safe
+@_lifecycle("ontology")
 def create_ontology(workspace: _p.Workspace, source: _p.Source, name: _p.OntologyName, schema: _p.Schema = "dbo", keys: _p.Keys = None,
                     confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, dry_run: _p.DryRun = True,
-                    ctx: Context = None) -> str:
+                    check: _p.CreateCheck = "", ctx: Context = None) -> str:
     """Creates a Fabric IQ ontology (preview) item from the plan, or updates the item of that name in place. Requires
     workspace, source and name; the delegated permission Item.ReadWrite.All, Contributor on the workspace and a
     Fabric capacity. Returns JSON with the definition parts and the REST call; with dry_run=false also the result,
     or kind consent when the permission is missing. Changes Fabric only with dry_run=false: an update replaces the
     item's definition, so entity types not in the plan leave it; no item is deleted. Errors: {error, kind, hint}."""
+    if (check or "").strip():                                # n227: how a started create went; reads only
+        return _create_status("create_ontology", workspace, name, check, ctx)
+    began = time.monotonic()
     p, args = _ontology_inputs(workspace, source, schema, keys, confirmed, ctx)
     schema = p.schema.schema                                   # n175: the name the metadata returns
     check_tables(p.schema, tables)
@@ -1039,6 +1177,10 @@ def create_ontology(workspace: _p.Workspace, source: _p.Source, name: _p.Ontolog
            "note": ("Ontology (preview): the definition follows the generation-2 layout of the specification's example (model, database, namespaces, "
                     "entities, tables, relationships), checked against recorded definitions. " + _tool_status.answer_note("create_ontology"))}
     if dry_run:
+        gate = _after_create.ontology_gate(out["summary"], {"workspace": workspace, "source": source, "schema": schema, "keys": keys,
+                                                           "confirmed": confirmed}, args.get("item_kind") == "Lakehouse", name)
+        if gate:                                                   # n229
+            out = {"gate": gate, **out}
         out["parts"] = parts
         text = json.dumps(out, indent=2)
         if len(text) > MAX_RESULT_CHARS:
@@ -1046,8 +1188,13 @@ def create_ontology(workspace: _p.Workspace, source: _p.Source, name: _p.Ontolog
             out["parts"] = {k: v for k, v in parts.items() if not k.startswith(("entities/", "tables/"))}
             text = json.dumps(out, indent=2)
         return text
-    result = _create_ontology(body, _out_ws(args["workspace_id"]), token_provider=lambda: auth.fabric(ctx))   # n221
-    return _finish_create(out, result, "Item.ReadWrite.All", f"creating the ontology {name!r}")
+    again = _still_running("create_ontology", _out_ws(args["workspace_id"]), name, body)   # n227: never a second create
+    if again:
+        return json.dumps({"dry_run": False, **again}, indent=2)
+    with _answer_by(began + CREATE_ANSWER_SECONDS):
+        result = _create_ontology(body, _out_ws(args["workspace_id"]), token_provider=lambda: auth.fabric(ctx))   # n221
+    _remember("create_ontology", _out_ws(args["workspace_id"]), name, body, result)
+    return _finish_create(out, result, "Item.ReadWrite.All", f"creating the ontology {name!r}", "create_ontology", name)
 
 
 # ------------------------------------------------------------------ consultant tools -------
@@ -1492,7 +1639,95 @@ def _consent(result: dict, scope: str, where: str) -> dict | None:
                     f"Check that the token has {scope}, that the account is Contributor on the workspace, and the tenant settings for this item type."}
 
 
-def _finish_create(out: dict, result: dict, scope: str, where: str) -> str:
+# ------------------------------------------------------------------ n227: a Create that answers in time ----------------
+# Founder, 12 November 2026, in claude.ai: a long create ended as "Request timed out" in the host, and a second click
+# updated what the first had made. The four creating tools a card can run now answer before the host stops waiting:
+# the write is sent, the wait for Fabric's long-running operation ends CREATE_ANSWER_SECONDS after the call began
+# (deploy.answer_by), and the answer then says `started` with the operation's id. `check` on the same tool reads how
+# it went (the operation's state, and whether an item of that name and kind is in the workspace) and creates nothing.
+# A second create of the same definition while the first one's outcome is unknown is not sent (_RECENT).
+CREATE_ANSWER_SECONDS = 40      # like DRIFT_SECONDS: below the client's own tool timeout
+CARD_ITEM_TYPES = {"create_backend": "GraphQLApi", "create_semantic_model": "SemanticModel",
+                   "create_ontology": "Ontology", "create_report": "Report"}
+_RECENT: dict[tuple, dict] = {}                 # (tool, workspace id, name) -> {hash, at, operation}; this process only
+RECENT_SECONDS = 600
+
+
+def _body_hash(body) -> str:
+    import hashlib
+    return hashlib.sha256(json.dumps(body, sort_keys=True, default=str).encode("utf-8")).hexdigest()
+
+
+def _started(tool: str, name: str, operation: str | None, note: str | None = None) -> dict:
+    """What a create answers while Fabric is still working: the stable kind `timeout` as before, plus `started` and
+    how to look again without creating."""
+    check = operation or "name"
+    return {"error": f"Fabric is still working on {name!r}; the operation did not finish before this answer.", "kind": "timeout",
+            "started": {"name": name, "operation": operation, "check": check, **({"note": note} if note else {})},
+            "hint": f"Do not run the create again: it was sent once and Fabric is working on it. To see how it went, call "
+                    f"{tool} with the same arguments and check={check!r}; that only reads."}
+
+
+def _still_running(tool: str, workspace_id: str, name: str, body) -> dict | None:
+    """The `started` answer of an earlier create of exactly this definition whose outcome is not known yet, or None."""
+    seen = _RECENT.get((tool, workspace_id, name.lower()))
+    if not seen or time.monotonic() - seen["at"] > RECENT_SECONDS or seen["hash"] != _body_hash(body):
+        return None
+    out = _started(tool, name, seen.get("operation"))
+    out["not_sent_again"] = "The same definition was sent a moment ago and Fabric has not answered yet, so nothing was sent again."
+    return out
+
+
+def _remember(tool: str, workspace_id: str, name: str, body, result: dict) -> None:
+    key = (tool, workspace_id, name.lower())
+    if result.get("status") == "Timeout":
+        _RECENT[key] = {"hash": _body_hash(body), "at": time.monotonic(), "operation": result.get("operation")}
+    else:
+        _RECENT.pop(key, None)
+    for k in [k for k, v in _RECENT.items() if time.monotonic() - v["at"] > RECENT_SECONDS]:
+        _RECENT.pop(k, None)
+
+
+def _create_status(tool: str, workspace: str, name: str, check: str, ctx) -> str:
+    """`check` on a creating tool: how a create that answered `started` went. Reads only: the operation's state when
+    `check` is its id, and whether an item of that name and kind is in the workspace."""
+    headers = _headers(ctx)
+    workspace_id = _out_ws(_workspace_id(workspace, headers))
+    op = check.strip() if _GUID.match(check.strip()) else None
+    state, problem = None, None
+    if op:
+        try:
+            r = requests.get(f"{FABRIC}/v1/operations/{op}", headers=headers, timeout=30)
+            body = r.json() if r.status_code < 400 else {}
+            state = body.get("status") if isinstance(body, dict) else None
+            problem = body.get("error") if isinstance(body, dict) and isinstance(body.get("error"), dict) else None
+        except (requests.RequestException, ValueError):
+            state = None
+    item = find_item_by_name(workspace_id, name, headers, (CARD_ITEM_TYPES[tool],))
+    out: dict = {"checked": True, "name": name, "operation": {"id": op, "status": state} if op else None}
+    if item and state != "Failed":
+        out["result"] = {"status": "Succeeded", "id": item["id"], "mode": "created"}
+        _RECENT.pop((tool, workspace_id, name.lower()), None)
+        return json.dumps(out, indent=2)
+    if state == "Failed":
+        code, msg = (problem or {}).get("errorCode"), (problem or {}).get("message")
+        out.update({"error": f"Fabric could not create {name!r}" + (f": {msg}" if msg else "") + (f" ({code})" if code else "") + ".",
+                    "kind": "fabric_error",
+                    "hint": "Nothing of that name was created by this operation. Run the dry run again and read what it says before creating."})
+        _RECENT.pop((tool, workspace_id, name.lower()), None)
+        return json.dumps(out, indent=2)
+    out.update(_started(tool, name, op))
+    if state in ("Running", "NotStarted"):
+        out["error"] = f"Fabric is still working on {name!r} (the operation is {state})."
+    else:
+        out["error"] = (f"No item named {name!r} is in the workspace yet. Fabric may still be working on it, or the create did "
+                        "not reach Fabric.")
+        out["hint"] = (f"Check again in a moment (check={out['started']['check']!r}; it only reads). If the item stays missing, "
+                       "run the dry run again; nothing was created twice.")
+    return json.dumps(out, indent=2)
+
+
+def _finish_create(out: dict, result: dict, scope: str, where: str, tool: str | None = None, name: str | None = None) -> str:
     out["result"] = {k: v for k, v in result.items() if k != "body"}
     if result.get("status") != "Succeeded":
         consent = _consent(result, scope, where)
@@ -1500,6 +1735,8 @@ def _finish_create(out: dict, result: dict, scope: str, where: str) -> str:
             out.update(consent)
         elif result.get("http"):
             out.update(classify_http(int(result["http"]), result.get("body", ""), where))
+        elif result.get("status") == "Timeout" and tool in CARD_ITEM_TYPES and name:     # n227: started, with a way to look again
+            out.update(_started(tool, name, result.get("operation"), result.get("note")))
         elif result.get("status") == "Timeout":
             out.update({"error": f"Fabric is still working on {where}; the operation did not finish in time.", "kind": "timeout",
                         "hint": "Check the item in the Fabric portal in a minute; running the tool again updates it in place."})
@@ -1591,16 +1828,76 @@ def _model_reads(workspace, source, schema, p, tables, ctx) -> dict:
     return out
 
 
+# n229: one refresh of a semantic model from the MCP tools (the Model editor has had it since n180, workload_api.
+# refresh_new_model, whose REST notes apply here: Datasets - Refresh Dataset In Group, 202 Accepted, Dataset.ReadWrite.All;
+# Get Refresh History In Group). The founder's shop_model_3 of 12 November 2026 showed "Data refreshed: Invalid Date" and
+# warning triangles: nobody had refreshed it. The tool waits a short while only, so the host's timeout is never met.
+REFRESH_SCOPE = "Dataset.ReadWrite.All"
+REFRESH_POLLS, REFRESH_PAUSE = 4, 5
+
+
+def _refresh_once(workspace_id: str, model_id: str, ctx) -> dict:
+    """{status: refreshed | refreshing | failed | not_run, ...}: one refresh asked for and waited for briefly."""
+    from .deploy import send
+    portal = "Refresh it once in Fabric instead: open the semantic model and choose Refresh now."
+    try:
+        headers = {"Authorization": f"Bearer {auth.powerbi(ctx)}", "Content-Type": "application/json"}
+    except Exception as e:                                                # noqa: BLE001 - no token: said, never guessed
+        return {"status": "not_run", "reason": f"no Power BI sign-in for the refresh ({type(e).__name__})", "scope": REFRESH_SCOPE, "hint": portal}
+    base = f"{POWERBI}/groups/{workspace_id}/datasets/{model_id}/refreshes"
+    try:
+        r = send("post", base, headers, write=True, json={"notifyOption": "NoNotification"}, timeout=30)
+        status = getattr(r, "status_code", 0)
+        if status in (401, 403):
+            return {"status": "not_run", "reason": f"Power BI refused the refresh (HTTP {status}); it needs {REFRESH_SCOPE}.",
+                    "scope": REFRESH_SCOPE, "hint": portal}
+        if status >= 400:
+            return {"status": "failed", "reason": f"Power BI answered HTTP {status} to the refresh request", "hint": portal}
+        request_id = (getattr(r, "headers", {}) or {}).get("x-ms-request-id")
+        for _ in range(REFRESH_POLLS):
+            if REFRESH_PAUSE:
+                time.sleep(REFRESH_PAUSE)
+            h = send("get", base + "?$top=1", headers, write=False, timeout=30)
+            if getattr(h, "status_code", 0) >= 400:
+                continue
+            entry = next((e for e in (h.json() or {}).get("value") or [] if not request_id or e.get("requestId") == request_id), None)
+            if not entry or entry.get("status") == "Unknown":
+                continue
+            if entry.get("status") == "Completed":
+                return {"status": "refreshed"}
+            return {"status": "failed", "reason": str(entry.get("serviceExceptionJson") or f"status {entry.get('status')}")[:400], "hint": portal}
+        return {"status": "refreshing", "reason": "the refresh was accepted and is still running in Fabric; verify_build reads how it ended"}
+    except Exception as e:                                                # noqa: BLE001 - the model stands
+        return {"status": "failed", "reason": type(e).__name__, "hint": portal}
+
+
+def _silver_there(workspace: str, source: str, summary: dict, ctx) -> bool | None:
+    """n229: whether the silver tables a model would read exist (its dry run reads the silver layer when composite keys
+    are carried, n226). None when the model reads the source tables, or when the source's schemas could not be listed."""
+    reads = summary.get("reads") if isinstance(summary.get("reads"), dict) else None
+    if not reads or reads.get("layer") != "silver" or not reads.get("schema") or "<table>" != str(reads.get("tables")):
+        return None
+    try:
+        return any(str(x["schema"]).lower() == str(reads["schema"]).lower() for x in _source_schemas(workspace, source, ctx))
+    except Exception:                                                     # noqa: BLE001 - not known is not a gate
+        return None
+
+
 @mcp.tool(title="Create or update a Power BI semantic model (dry run by default)", annotations=WRITE)
 @safe
+@_lifecycle("semantic_model")
 def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.ModelName, schema: _p.Schema = "dbo", keys: _p.Keys = None,
                           confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, dry_run: _p.DryRun = True,
-                          ctx: Context = None) -> str:
+                          refresh: _p.RefreshOnce = False, check: _p.CreateCheck = "", ctx: Context = None) -> str:
     """Creates a Fabric semantic model item from semantic_model_draft's TMDL (Direct Lake), or updates the item of that
     name in place. Requires workspace, source and name; SemanticModel.ReadWrite.All or Item.ReadWrite.All and
     Contributor on the workspace. Returns JSON with the parts and the REST call; with dry_run=false also the result,
     or kind consent. Changes Fabric only with dry_run=false: an update replaces the model's definition, so tables,
-    relationships and measures added outside the plan leave it; no item is deleted. Errors: {error, kind, hint}."""
+    relationships and measures added outside the plan leave it; no item is deleted. refresh=true refreshes the model
+    once after a create, and only refreshes a model that exists. Errors: {error, kind, hint}."""
+    if (check or "").strip():                                # n227: how a started create went; reads only
+        return _create_status("create_semantic_model", workspace, name, check, ctx)
+    began = time.monotonic()
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
     schema = p.schema.schema                                   # n175: the name the metadata returns
     check_tables(p.schema, tables)
@@ -1618,7 +1915,16 @@ def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.M
                               "Open the model in the portal or Power BI Desktop and check the relationships README.generated.md lists as inactive."],
            "note": "Unit-tested against Microsoft's sample definitions. " + _tool_status.answer_note("create_semantic_model")
                    + " Without the permission the create answers kind=consent naming it, see docs/SCOPES.md."}
+    if refresh:                                                    # n229: one refresh, the fix for a model that shows no data
+        out["refresh"] = {"planned": True, "said": (f"{name} exists: with dry_run=false it is refreshed once and its definition is left as it is."
+                                                   if replaces else f"With dry_run=false {name} is refreshed once right after it is created."),
+                          "rest": f"POST {POWERBI}/groups/{{workspace}}/datasets/{{id}}/refreshes", "delegated_scope": REFRESH_SCOPE}
     if dry_run:
+        gate = _after_create.model_gate(draft["summary"], {"workspace": workspace, "source": source, "schema": schema, "keys": keys,
+                                                           "confirmed": confirmed}, info.get("item_kind") == "Lakehouse",
+                                        _silver_there(workspace, source, draft["summary"], ctx), name)
+        if gate:                                                   # n229: said first, and Create is no longer the first button
+            out = {"gate": gate, **out}
         out["parts"] = draft["parts"]
         out["rest"]["body_preview"] = {"displayName": body["displayName"], "definition": {"format": "TMDL", "parts": "<base64 parts, see parts>"}}
         text = json.dumps(out, indent=2)
@@ -1627,8 +1933,21 @@ def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.M
             out["parts"] = {k: v for k, v in draft["parts"].items() if not k.startswith("definition/tables/")}
             text = json.dumps(out, indent=2)
         return text
-    result = _create_semantic_model(body, _out_ws(info["workspace_id"]), token_provider=lambda: auth.fabric(ctx))   # n221
-    return _finish_create(out, result, "SemanticModel.ReadWrite.All (or Item.ReadWrite.All)", f"creating the semantic model {name!r}")
+    if refresh and replaces and replaces.get("id"):                # n229: the model exists: one refresh, nothing else is written
+        out["refresh"] = _refresh_once(_out_ws(info["workspace_id"]), replaces["id"], ctx)
+        out["result"] = {"status": "Succeeded", "id": replaces["id"], "mode": "refreshed_only",
+                         "said": "The model's definition was not sent again; only the refresh was asked for."}
+        return json.dumps(out, indent=2, default=str)
+    again = _still_running("create_semantic_model", _out_ws(info["workspace_id"]), name, body)   # n227: never a second create
+    if again:
+        return json.dumps({"dry_run": False, **again}, indent=2)
+    with _answer_by(began + CREATE_ANSWER_SECONDS):
+        result = _create_semantic_model(body, _out_ws(info["workspace_id"]), token_provider=lambda: auth.fabric(ctx))   # n221
+    _remember("create_semantic_model", _out_ws(info["workspace_id"]), name, body, result)
+    if refresh and result.get("status") == "Succeeded" and result.get("id"):
+        out["refresh"] = _refresh_once(_out_ws(info["workspace_id"]), result["id"], ctx)
+    return _finish_create(out, result, "SemanticModel.ReadWrite.All (or Item.ReadWrite.All)", f"creating the semantic model {name!r}",
+                          "create_semantic_model", name)
 
 
 REPORT_AFTER_CREATION = ("Open the report in the Fabric portal (the workspace's item list) and check the page; edit it there or "
@@ -1651,10 +1970,14 @@ class _ModelNotReadable(Exception):
         self.attempts, self.reason = attempts, reason
 
 
-def _fresh_model_definition(workspace_id: str, model_id: str, headers: dict) -> dict[str, str]:
+def _fresh_model_definition(workspace_id: str, model_id: str, headers: dict, give_up_at: float | None = None) -> dict[str, str]:
+    """`give_up_at` (time.monotonic, n227): a pause that would end after it is not taken, so the tool's answer still
+    reaches the chat; the tries made so far are what the answer reports."""
     import time as _time
     reason = ""
     for attempt, pause in enumerate((0,) + tuple(MODEL_DEFINITION_PAUSES), start=1):
+        if pause and give_up_at is not None and _time.monotonic() + pause > give_up_at:
+            raise _ModelNotReadable(attempt - 1, reason)
         if pause:
             _time.sleep(pause)
         try:
@@ -1670,8 +1993,9 @@ def _fresh_model_definition(workspace_id: str, model_id: str, headers: dict) -> 
     raise _ModelNotReadable(len(MODEL_DEFINITION_PAUSES) + 1, reason)
 @mcp.tool(title="Create a Power BI report on a semantic model (dry run by default)", annotations=WRITE)
 @safe
+@_lifecycle("report")
 def create_report(workspace: _p.Workspace, model: _p.ReportModel, name: _p.ReportName, empty_page: _p.EmptyPage = False,
-                  dry_run: _p.DryRun = True, ctx: Context = None) -> str:
+                  dry_run: _p.DryRun = True, check: _p.CreateCheck = "", ctx: Context = None) -> str:
     """Creates a Power BI report item bound to an existing semantic model: one page with cards, a column chart by
     month, a bar chart and a table built only on the model's measures and columns (PBIR definition), or one blank
     page with empty_page=true. Requires workspace, model and name; Report.ReadWrite.All or Item.ReadWrite.All,
@@ -1680,6 +2004,9 @@ def create_report(workspace: _p.Workspace, model: _p.ReportModel, name: _p.Repor
     adding one item: a report of that name is left as it is (kind already_exists), nothing is updated or deleted.
     Errors: {error, kind, hint}."""
     from . import model_compare as _mc
+    if (check or "").strip():                                # n227: how a started create went; reads only
+        return _create_status("create_report", workspace, name, check, ctx)
+    began = time.monotonic()
     headers = _headers(ctx)
     workspace_id = _out_ws(_workspace_id(workspace, headers))   # n221: the report goes with the model, in the build's workspace
     if _GUID.match(model.strip()):
@@ -1711,7 +2038,8 @@ def create_report(workspace: _p.Workspace, model: _p.ReportModel, name: _p.Repor
     drawn = None
     if not empty_page:
         try:
-            tmdl = _mc.from_tmdl(_fresh_model_definition(workspace_id, model_item["id"], headers))
+            tmdl = _mc.from_tmdl(_fresh_model_definition(workspace_id, model_item["id"], headers,
+                                                         give_up_at=began + CREATE_ANSWER_SECONDS - 10))
         except _ModelNotReadable as e:
             return json.dumps({"error": f"Fabric did not give the definition of the semantic model {model_item['displayName']!r} after "
                                         f"{e.attempts} tries ({e.reason}). The report's visuals are drawn from that definition, so no "
@@ -1773,12 +2101,14 @@ def create_report(workspace: _p.Workspace, model: _p.ReportModel, name: _p.Repor
     taken = _taken("create")                                        # n220: again right before the create
     if taken:
         return taken
-    result = _report.create(body, workspace_id, token_provider=lambda: auth.fabric(ctx))
+    with _answer_by(began + CREATE_ANSWER_SECONDS):                 # n227: the answer comes before the host stops waiting
+        result = _report.create(body, workspace_id, token_provider=lambda: auth.fabric(ctx))
     if _report.name_in_use(result):                                 # taken between the check and the create
         taken = _taken("create")
         if taken:
             return taken
-    return _finish_create(out, result, "Report.ReadWrite.All (or Item.ReadWrite.All)", f"creating the report {name!r}")
+    return _finish_create(out, result, "Report.ReadWrite.All (or Item.ReadWrite.All)", f"creating the report {name!r}",
+                          "create_report", name)
 
 
 @mcp.tool(title="Create or alter T-SQL views in a schema of their own (dry run by default)", annotations=WRITE)
@@ -1852,6 +2182,7 @@ def _layer_words(spec: dict, layer: str) -> str:
 
 @mcp.tool(title="Create or update a Fabric data agent from the plan (dry run by default)", annotations=WRITE)
 @safe
+@_lifecycle("data_agent")
 def create_data_agent(workspace: _p.Workspace, source: _p.Source, name: _p.AgentName, schema: _p.Schema = "dbo", keys: _p.Keys = None,
                       confirmed: _p.Confirmed = None, publish: _p.Publish = True, show_personal_data: _p.ShowPersonalData = False,
                       validate: _p.Validate = False, dry_run: _p.DryRun = True, test_questions: _p.AgentTests = False,
@@ -2317,6 +2648,7 @@ def drift_monitor_draft(workspace: _p.Workspace, source: _p.Source, schema: _p.S
 
 @mcp.tool(title="Create or update the nightly drift monitor in Fabric (dry run by default)", annotations=WRITE)
 @safe
+@_lifecycle("drift_monitor")
 def create_drift_monitor(workspace: _p.Workspace, source: _p.Source, name: _p.MonitorName, schema: _p.Schema = "dbo", at: _p.At = "02:00",
                          time_zone: _p.TimeZone = "W. Europe Standard Time", library_ref: _p.LibraryRef = None, schedule: _p.Schedule = False,
                          dry_run: _p.DryRun = True, ctx: Context = None) -> str:
@@ -2466,6 +2798,7 @@ def _pipeline_content(build: dict, ids: dict, workspace_id: str) -> dict:
 
 @mcp.tool(title="Create or update the silver, gold and check pipeline in Fabric (dry run by default)", annotations=WRITE)
 @safe
+@_lifecycle("pipeline")
 def create_pipeline(workspace: _p.Workspace, source: _p.Source, name: _p.PipelineName, schema: _p.Schema = "dbo",
                     silver_schema: _p.SilverSchema = "silver", gold_schema: _p.GoldSchema = "gold",
                     silver_name: _p.PipelineSilverName = "", gold_name: _p.PipelineGoldName = "", keys: _p.Keys = None,
@@ -2821,6 +3154,250 @@ def export_item_definitions(workspace: _p.Workspace, source: _p.Source, schema: 
         out["note"] += " Files left out of this answer because of its size are under `omitted`; pass `items` (one tool) or `tables` for them."
         text = json.dumps(out, indent=2)
     return text
+
+
+# ------------------------------------------------------------------ n229: verify what was built ------------------------
+# The founder, 12 November 2026: "an agent that double-checks Krusgraph's deployed proposals". Krusgraph for Fabric uses no
+# AI model, so this is a verifier by rules (verify_build.py): what is in Fabric read back with getDefinition and compared
+# with the dry run built again from the same plan; each report card counted again from the rows with one SQL statement;
+# doubled totals; a model never refreshed, a pipeline never run, an ontology without a graph, an App still empty. Only
+# reads. The two Power BI reads (a DAX query per figure, the refresh history) need a Power BI token; without one the line
+# says "not checked" and why, never "verified".
+VERIFY_ORDER = ("semantic_model", "report", "ontology", "api", "pipeline", "app")
+
+
+def _powerbi_headers(ctx) -> dict:
+    return {"Authorization": f"Bearer {auth.powerbi(ctx)}", "Content-Type": "application/json"}
+
+
+def _powerbi_refreshes(workspace_id: str, model_id: str, ctx) -> list[dict]:
+    """The model's refresh history, newest first (Power BI REST, Datasets - Get Refresh History In Group; Dataset.Read.All
+    or Dataset.ReadWrite.All). A read."""
+    from . import budget as _budget
+    from .deploy import send
+    r = send("get", f"{POWERBI}/groups/{workspace_id}/datasets/{model_id}/refreshes?$top=5", _powerbi_headers(ctx), write=False,
+             timeout=_budget.http_timeout(30))
+    r.raise_for_status()
+    return list((r.json() or {}).get("value") or [])
+
+
+def _powerbi_dax(workspace_id: str, model_id: str, query: str, ctx) -> list[dict]:
+    """The rows of one DAX query on the model (Power BI REST, Datasets - Execute Queries In Group: Dataset.Read.All with
+    Read and Build on the model, and the tenant setting "Dataset Execute Queries REST API"). A read; one query a call."""
+    from . import budget as _budget
+    from .deploy import send
+    r = send("post", f"{POWERBI}/groups/{workspace_id}/datasets/{model_id}/executeQueries", _powerbi_headers(ctx), write=False,
+             json={"queries": [{"query": query}], "serializerSettings": {"includeNulls": True}}, timeout=_budget.http_timeout(30))
+    r.raise_for_status()
+    body = r.json() or {}
+    first = (body.get("results") or [{}])[0]
+    err = body.get("error") or first.get("error")
+    if err:
+        raise RuntimeError(str((err.get("message") if isinstance(err, dict) else err) or "the DAX query failed")[:300])
+    return list(((first.get("tables") or [{}])[0]).get("rows") or [])
+
+
+def _verify_fix_steps(fixes: list[dict], args: dict, items: dict) -> list[dict]:
+    """The one action per state finding, as a next step a person can click: a sentence for the chat, nothing written."""
+    common = {k: v for k, v in args.items() if v not in (None, "", [], {})}
+    shown = lambda a: ", ".join(f"{k}={json.dumps(v, ensure_ascii=False)}" for k, v in a.items())
+    out = []
+    for f in fixes:
+        step = {"label": f["label"], "who": "builder", "why": f["how"], "item": f["item"]}
+        if f.get("action") == "refresh_model":
+            a = {**common, "name": f["item"], "refresh": True, "dry_run": False}
+            step["ask"] = (f"Refresh the semantic model {f['item']} once: run create_semantic_model with {shown(a)}. It only "
+                           "refreshes a model that exists; ask me to confirm first.")
+        elif f.get("action") == "run_pipeline":
+            a = {**common, "name": f["item"], "run_once": True, "dry_run": True}
+            step["ask"] = (f"Run the pipeline {f['item']} once: first run create_pipeline with {shown(a)} to show what would run, "
+                           "then ask me before anything starts.")
+        else:
+            step["ask"] = f"{f['label']} for {f['item']}: {f['how']} Tell me the steps in Fabric."
+        out.append(step)
+    return out
+
+
+def _verify_checks(result: dict) -> dict:
+    """n229: the result as the cards' rows (mcp_apps_next's renderChecks): one row per item, figure and doubled total."""
+    state = {_verify.VERIFIED: "passed", _verify.DIFFERS: "failed", _verify.NOT_CHECKED: "not_checked"}
+    rows = []
+    for ln in result["lines"]:
+        rows.append({"kind": "item", "what": _verify.WORD_OF.get(ln["kind"], ln["kind"]).capitalize(), "id": f"item:{ln['kind']}:{ln['item']}",
+                     "label": ln["item"], "state": state[ln["state"]], "counts": ln["said"].split(". ", 1)[-1]})
+        for f in ln.get("figures") or []:
+            rows.append({"kind": "figure", "what": "Figure", "id": f"figure:{ln['item']}:{f['measure']}", "label": f"{f['kpi']} ({f['measure']})",
+                         "state": state[f["state"]], "counts": f["said"], **({"sql": f["sql"]} if f.get("sql") else {})})
+        for d in ln.get("doubled_totals") or []:
+            rows.append({"kind": "doubled", "what": "Doubled total", "id": f"doubled:{ln['item']}:{d['measure']}", "label": d["kpi"],
+                         "state": "failed", "counts": d["said"], **({"sql": "\n\n".join(d["sql"])} if d.get("sql") else {})})
+    counts = {s: sum(1 for r in rows if r["state"] == s) for s in ("passed", "failed", "not_checked")}
+    return {"rows": rows[:_mcp_apps_next.CHECK_MAX], "counts": counts, "sql_for_all": True, "title": "Every item and figure",
+            "words": {"passed": _verify.VERIFIED, "failed": _verify.DIFFERS, "not_checked": _verify.NOT_CHECKED},
+            "label": _verify.LABEL}
+
+
+def _verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx, skip: dict | None = None) -> dict:
+    from . import budget as _budget, model_compare as _mc
+    from .infer import PlanInputError
+    if not isinstance(items, dict) or not items:
+        raise PlanInputError("items: name what was built, by kind, for example {\"semantic_model\": \"shop_model\"}; kinds: "
+                             + ", ".join(VERIFY_ORDER))
+    unknown = [k for k in items if k not in VERIFY_ORDER]
+    if unknown or not all(isinstance(v, str) and v.strip() for v in items.values()):
+        raise PlanInputError("items: {kind: name} with kinds " + ", ".join(VERIFY_ORDER) + (f"; not known: {', '.join(map(str, unknown))}" if unknown else ""))
+    items = {k: items[k].strip() for k in VERIFY_ORDER if k in items}
+    p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
+    schema = p.schema.schema
+    check_tables(p.schema, tables)
+    headers = _headers(ctx)
+    ws = _out_ws(info["workspace_id"])
+    listing = _workspace_items(ws, headers)
+    lakehouse = info.get("item_kind") == "Lakehouse"
+    conn: dict = {}
+
+    def execute(sql):                                              # the source's SQL endpoint, opened once, on first use
+        if "run" not in conn:
+            conn["run"] = _connected(workspace, source, schema, ctx)[1]
+        return conn["run"](sql)
+
+    def find(kind: str, name: str) -> dict | None:
+        typ = _verify.TYPE_OF[kind]
+        return next((i for i in listing if i.get("type") == typ and name.lower() in (str(i.get("displayName") or "").lower(),
+                                                                                   str(i.get("id") or "").lower())), None)
+
+    def reading(what: str):
+        _budget.check(what)
+
+    def not_read(e: BaseException) -> str:
+        if isinstance(e, TimeLimit):
+            return f"{_budget.NOT_CHECKED}: the call's time budget ran out before it was read; run verify_build again for this item alone"
+        status = getattr(getattr(e, "response", None), "status_code", None)
+        if status in (401, 403):
+            return f"Fabric refused reading its definition (HTTP {status}); reading a definition needs Item.ReadWrite.All and write permission on the item"
+        return f"its definition could not be read ({_verify._why(e)})"
+
+    def missing(kind: str, name: str) -> dict:
+        return _verify.line(kind, name, not_checked=f"no {_verify.WORD_OF[kind]} named {name} in the workspace's item list")
+
+    def state_of(read):
+        try:
+            return read()
+        except Exception as e:                                             # noqa: BLE001 - "not read", with the reason
+            return e
+    lines, models = [], {}
+
+    def model_of(item: dict) -> dict:
+        if item["id"] not in models:
+            reading(f"reading the semantic model {item.get('displayName')}")
+            models[item["id"]] = _item_definition_parts(ws, "semanticModels", item["id"], headers, fmt="TMDL")
+        return models[item["id"]]
+
+    def figures_for(model: dict, shape: dict | None, model_id: str):
+        figs = _verify.figures(model, shape, execute, lambda q: _powerbi_dax(ws, model_id, q, ctx), schema, reading)
+        return figs, _verify.doubled(p, model, figs, execute, reading)
+    try:
+        for kind, name in items.items():
+            try:
+                reading(f"reading {name}")
+                item = find(kind, name)
+                if not item:
+                    lines.append(missing(kind, name))
+                    continue
+                shown = item.get("displayName") or name
+                if (skip or {}).get(kind):                                 # the caller knows why this one cannot be compared here
+                    lines.append(_verify.line(kind, shown, not_checked=skip[kind]))
+                    continue
+                if kind == "semantic_model":
+                    draft = _semantic_model.draft(p, info, shown, tables)
+                    cmp = _verify.compare_model(draft["parts"], model_of(item), draft["summary"].get("combined_key_columns"))
+                    figs = doubles = None
+                    if "report" not in items:                              # without a report the model's own measures are the figures
+                        figs, doubles = figures_for(cmp["model"], None, item["id"])
+                    lines.append(_verify.line(kind, shown, cmp, figs=figs, doubles=doubles,
+                                              state_check=_verify.model_state(state_of(lambda: _powerbi_refreshes(ws, item["id"], ctx)))))
+                elif kind == "report":
+                    actual = _item_definition_parts(ws, "reports", item["id"], headers)
+                    shape = _verify.report_shape(actual)
+                    m_item = next((i for i in listing if i.get("type") == "SemanticModel" and str(i.get("id") or "").lower() == (shape["model_id"] or "")), None)
+                    if not m_item:
+                        lines.append(_verify.line(kind, shown, not_checked="the semantic model it is bound to is not in the workspace's item list, "
+                                                                           "so its visuals and figures have nothing to be compared with"))
+                        continue
+                    model = _mc.from_tmdl(model_of(m_item))
+                    notes = [f"Bound to the semantic model {m_item.get('displayName')}."]
+                    if not shape["visuals"]:
+                        cmp = {"differences": [], "checked": {}}
+                        notes.append("The report has no visuals (one blank page, as empty_page=true makes it): nothing to compare.")
+                    else:
+                        cmp = _verify.compare_report(_report.definition_parts(model, m_item["id"], model_name=m_item.get("displayName") or "")["parts"], actual)
+                    figs, doubles = figures_for(model, shape if shape["visuals"] else None, m_item["id"])
+                    lines.append(_verify.line(kind, shown, cmp, figs=figs, doubles=doubles, notes=notes))
+                elif kind == "ontology":
+                    parts = _ontology.ontology_parts(p, shown, tables=tables, **{k: info[k] for k in ("workspace_id", "item_id", "item_name",
+                                                                                                        "item_kind", "schema", "sql_endpoint")})
+                    cmp = _verify.compare_ontology(parts, _item_definition_parts(ws, "ontologies", item["id"], headers))
+                    lines.append(_verify.line(kind, shown, cmp, state_check=_verify.ontology_state(shown, listing)))
+                elif kind == "api":
+                    import base64 as _b64
+                    actual = _graphql_definition(ws, item["id"], headers)
+                    source_id, source_type = source_for(info["workspace_id"], {"type": info["item_kind"], "id": info["item_id"]}, headers)
+                    api_plan, _kept = _drift.keep_api_names(p, actual, confirmed)
+                    writable = any(t["writable"] for t in _verify.api_shape(actual).values())
+                    env = definition(api_plan, shown, info["workspace_id"], source_id, source_type, writable=writable, tables=tables)
+                    part = next(x for x in env["definition"]["parts"] if x.get("path") == "graphql-definition.json")
+                    lines.append(_verify.line(kind, shown, _verify.compare_api(json.loads(_b64.b64decode(part["payload"])), actual)))
+                elif kind == "pipeline":
+                    if not lakehouse:
+                        lines.append(_verify.line(kind, shown, not_checked="the pipeline is built for a lakehouse source, and this source is not one"))
+                        continue
+                    content = json.loads(_item_definition_parts(ws, "dataPipelines", item["id"], headers).get("pipeline-content.json") or "{}")
+                    by_id = {str(i.get("id")): i for i in listing if i.get("type") == "Notebook"}
+                    names = {i: n.get("displayName") for i, n in by_id.items()}
+                    ran = [s["notebook"] for s in _verify.pipeline_steps(content, names)]
+                    known = len(ran) == 3 and all(n in names.values() for n in ran)
+                    build = _pipeline_build(p, info, schema, "silver", "gold", tables, False, shown, ran[0] if known else "", ran[1] if known else "")
+                    expected = _pipeline_content(build, {n["name"]: n["name"] for n in build["notebooks"]}, ws)
+                    cmp = _verify.compare_pipeline(expected, content, None, names, notebooks_known=known)
+                    lines.append(_verify.line(kind, shown, cmp, state_check=_verify.pipeline_state(state_of(lambda: _job_instances(ws, item["id"], headers))),
+                                              notes=["Compared with silver and gold in the schemas silver and gold (the defaults) and no schedule in the check."]))
+                    for n in build["notebooks"]:                           # the three notebooks, each a line of its own
+                        try:
+                            reading(f"reading the notebook {n['name']}")
+                            nb = next((i for i in by_id.values() if str(i.get("displayName") or "").lower() == n["name"].lower()), None)
+                            if not nb:
+                                lines.append(missing("notebook", n["name"]))
+                                continue
+                            src = _item_definition_parts(ws, "notebooks", nb["id"], headers).get("notebook-content.py") or ""
+                            lines.append(_verify.line("notebook", n["name"], _verify.compare_notebook(n["content"], src)))
+                        except Exception as e:                             # noqa: BLE001
+                            lines.append(_verify.line("notebook", n["name"], not_checked=not_read(e)))
+                elif kind == "app":
+                    lines.append(_verify.line(kind, shown, state_check=_verify.app_state()))
+            except Exception as e:                                         # noqa: BLE001 - one item not read is one line
+                lines.append(_verify.line(kind, name, not_checked=not_read(e)))
+    finally:
+        getattr(conn.get("run"), "close", lambda: None)()
+    out = _verify.result(lines, _budget.ran_out())
+    args = {"workspace": workspace, "source": source, "schema": schema, "keys": keys, "confirmed": confirmed}
+    if out["fixes"]:
+        out["next_steps"] = _verify_fix_steps(out["fixes"], args, items)
+    out["note"] = ("Unit-tested with Fabric's REST API and the SQL endpoint replaced by test doubles (identical definitions, one "
+                   "differing relationship, a model never refreshed, a doubled total). " + _tool_status.answer_note("verify_build"))
+    if _mcp_apps.enabled():                                        # the cards' rows; with the flag off the answer has none
+        out["checks"] = _verify_checks(out)
+    return out
+
+
+@mcp.tool(title="Verify what was built (by rules, no AI)", annotations=RO)
+@safe
+def verify_build(workspace: _p.Workspace, source: _p.Source, items: _p.VerifyItems, schema: _p.Schema = "dbo", keys: _p.Keys = None,
+                 confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, ctx: Context = None) -> str:
+    """After a Create: verifies built items by rules, not by AI. Reads each back and compares it with its dry run,
+    counts a report's cards again from the rows with SQL, flags doubled totals and what was never refreshed or run.
+    Requires workspace, source and items. Returns JSON: one line per item (verified, differs, or not checked and
+    why), counts and the SQL. Changes nothing. Errors: {error, kind, hint}."""
+    return json.dumps(_verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx), indent=2, default=str)
 
 
 @mcp.tool(title="Starter pack for an app on a GraphQL API", annotations=RO)
@@ -3246,9 +3823,9 @@ def build_app(host: str = "0.0.0.0"):
         return JSONResponse({"status": "ok"}, headers={"Cache-Control": "no-store"})
     app.router.routes.append(Route("/health", health_public, methods=["GET", "HEAD"]))
 
-    async def metrics(request):
-        """Usage totals (usage.py) in the Prometheus text format. Off unless KRUSGRAPH_METRICS_TOKEN is set (32
-        characters or more); then only for a request carrying it as a bearer token. Otherwise this path is a 404."""
+    def operator_refusal(request) -> Response | None:
+        """The operator's views (/metrics, n240: /admin/campaigns): off unless KRUSGRAPH_METRICS_TOKEN is set (32
+        characters or more), then only for a request carrying it as a bearer token. None when the request may pass."""
         import hmac
         expected = os.environ.get("KRUSGRAPH_METRICS_TOKEN", "").strip()
         if len(expected) < 32:
@@ -3257,8 +3834,24 @@ def build_app(host: str = "0.0.0.0"):
         given = a[7:].strip() if a.lower().startswith("bearer ") else ""
         if not given or not hmac.compare_digest(given.encode(), expected.encode()):
             return PlainTextResponse("unauthorized", status_code=401, headers={"Cache-Control": "no-store"})
+        return None
+
+    async def metrics(request):
+        """Usage totals (usage.py) in the Prometheus text format, for the operator (operator_refusal); a 404 otherwise."""
+        refused = operator_refusal(request)
+        if refused is not None:
+            return refused
         return PlainTextResponse(_usage.usage.prometheus(), media_type="text/plain; version=0.0.4", headers={"Cache-Control": "no-store"})
     app.router.routes.append(Route("/metrics", metrics))
+
+    # n240: /check's visits and checks per UTC day and utm_source/medium/campaign (usage.Campaigns), read-only, JSON,
+    # behind the same token as /metrics. Counts only: no cookie, IP address or identifier is behind any of them.
+    async def admin_campaigns(request):
+        refused = operator_refusal(request)
+        if refused is not None:
+            return refused
+        return JSONResponse(_usage.campaigns.report(), headers={"Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow"})
+    app.router.routes.append(Route("/admin/campaigns", admin_campaigns))
 
     from starlette.responses import FileResponse, HTMLResponse
     from .pages import (PAGES, STATIC_TYPES, THEME_HASH, docs_html, docs_md, lovable_html, lovable_md, local_html, local_md, not_found_html, privacy_html,
@@ -3311,7 +3904,8 @@ def build_app(host: str = "0.0.0.0"):
             headers = {"Cache-Control": PAGE_CACHE, **(check_headers(request) if path == "/check" else home_headers(request) if path == "/" else PAGE_HEADERS)}
             if path == "/mascots":
                 headers["X-Robots-Tag"] = "noindex, nofollow"
-            _usage.page_view(path)                    # one line for /, /check, /explore, /start, /partners; nothing else
+            # one line for /, /check, /start, /partners; nothing else (n240: on /check, with the address's cleaned utm values)
+            _usage.page_view(path, _usage.utm_of(request.query_params) if path == "/check" else None)
             body = fn()
             if "connect-src 'none'" in headers["Content-Security-Policy"]:
                 body = strip_chat(body)               # n93: no chat button where the chat could not fetch its plan (n154: unless the page carries it)
@@ -3460,9 +4054,11 @@ def build_app(host: str = "0.0.0.0"):
         return compressed(request, p.read_bytes(), STATIC_TYPES[".js"], headers)
     app.router.routes.append(Route("/check/worker.js", check_worker))
 
-    # /check's two events, loaded as an image (the page itself may fetch nothing): the step is the whole request
+    # /check's two events, loaded as an image (the page itself may fetch nothing): the step, and (n240) the kind of check
+    # (sample or real), whether it is the page load's first, and the page address's utm values; nothing else is read
     async def check_event(request):
-        _usage.check_event(request.query_params.get("e", ""))
+        q = request.query_params
+        _usage.check_event(q.get("e", ""), kind=q.get("k"), first=q.get("n") == "1", utm=_usage.utm_of(q))
         return Response(status_code=204, headers={"Cache-Control": "no-store"})
     app.router.routes.append(Route("/check/event", check_event))
 

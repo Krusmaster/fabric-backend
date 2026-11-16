@@ -92,8 +92,13 @@ view.srcdoc = ${JSON.stringify(card).replace(/<\//g, "<\\/")};
       results: [...document.querySelectorAll(".res-box")].filter(shown).map((o) => ({
         lines: [...o.querySelectorAll(":scope > ul.res:not(.res-q) > li")].map((li) => li.textContent),
         questions: [...o.querySelectorAll("ul.res-q > li")].map((li) => [li.firstChild.textContent, li.querySelector(".res-why").textContent]),
-        details: o.querySelector("details") ? { open: o.querySelector("details").open, summary: o.querySelector("details > summary").textContent,
-                                                 preShown: o.querySelector("details pre").checkVisibility(), text: o.querySelector("details pre").textContent } : null,
+        // n227: "Show details" (readable lines first) holds the raw JSON behind a second toggle; the notes are collapsed
+        details: o.querySelector("details.res-details") ? { open: o.querySelector("details.res-details").open, summary: o.querySelector("details.res-details > summary").textContent,
+                                                 preShown: o.querySelector("details.res-details pre").checkVisibility(), text: o.querySelector("details.res-details pre").textContent,
+                                                 lines: [...o.querySelectorAll("details.res-details > ul.res:not(.res-q) > li")].map((li) => li.textContent),
+                                                 raw: o.querySelector("details.res-raw > summary").textContent } : null,
+        line: o.querySelector(":scope > .res-line, :scope > .res-words > .res-line") ? o.querySelector(":scope > .res-line, :scope > .res-words > .res-line").textContent : "",
+        notes: [...o.querySelectorAll(":scope > .res-note, :scope > .res-words > .res-note")].map((n) => [n.querySelector("summary") ? n.querySelector("summary").firstChild.textContent.trim() : n.textContent, [...n.querySelectorAll("li")].map((li) => li.textContent)]),
         visible: o.innerText })),
       docWidth: document.documentElement.scrollWidth, viewWidth: document.documentElement.clientWidth,
       background: getComputedStyle(document.body).backgroundColor, text: document.body.innerText };
@@ -106,7 +111,7 @@ view.srcdoc = ${JSON.stringify(card).replace(/<\//g, "<\\/")};
     const buttons = frame.locator(".step button");
     for (let i = 0; i < await buttons.count(); i++) {
       await buttons.nth(i).click();
-      await frame.locator(".step .out").nth(i).locator("details").waitFor({ state: "attached", timeout: 10000 });
+      await frame.locator(".step .out").nth(i).locator("details.res-details").waitFor({ state: "attached", timeout: 10000 });
     }
     after = await read();
     if (shot) await page.screenshot({ path: shot.replace(/\.png$/, "-after.png"), fullPage: true });
@@ -117,8 +122,10 @@ view.srcdoc = ${JSON.stringify(card).replace(/<\//g, "<\\/")};
     await first.click();
     if (await first.getAttribute("data-item")) await frame.locator("#replan").click();   // n218: Accept, then Re-plan
     if (mode === "silent") await page.clock.runFor(60000);
-    const done = mode === "silent" ? /No answer/ : /^(?!Asked the host)./;
-    await frame.locator("#steps .out, #call").filter({ hasText: done }).first().waitFor({ timeout: 10000 });
+    // n227: while the host has not answered the card shows its progress state (.wait); "silent" ends with its note
+    const outs = frame.locator("#steps .out, #call");
+    if (mode === "silent") await outs.filter({ hasText: /Still working/ }).first().waitFor({ timeout: 10000 });
+    else await outs.filter({ hasText: /./, hasNot: frame.locator(".wait") }).first().waitFor({ timeout: 10000 });
     after = await read();
   }
   const log = await page.evaluate(() => window.log);

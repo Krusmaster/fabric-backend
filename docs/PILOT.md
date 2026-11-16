@@ -2,7 +2,7 @@
 
 A bounded pilot: one customer, one Fabric workspace, one agreed outcome. This document is what a partner or a
 customer gets before a pilot starts. It states what is in, what is out, what the customer must have, and what
-they receive. Prices appear only as **proposals to test**, clearly marked; nothing here is a price list.
+they receive. Prices are not in this document; they are agreed per pilot.
 
 ## Goal
 
@@ -73,20 +73,9 @@ Hosting of anything beyond the API for GraphQL item that Fabric itself hosts; su
 answering questions by email for 30 days; any statement that the inferred relationships are correct for purposes
 the customer did not review. The engine infers from names and says so on every link.
 
-## Price levels — proposals to test, not a price list
+## Price
 
-These are *hypotheses* to try with the first pilots, to be marked as such in any offer. They may be wrong in
-either direction and will be revised after three pilots.
-
-| Proposal | Content | Why test it |
-| --- | --- | --- |
-| **Guided pilot** (proposal: 15 000 SEK ex. VAT) | the two sessions, the deliverables above, up to ~60 tables | tests whether a fixed, bounded price lowers the threshold for a first conversation |
-| **Self-run pilot** (proposal: 0 SEK) | the customer runs the open-source engine themselves with the docs and the demo; one hour of questions by email | tests how far the docs carry on their own |
-| **Partner-led pilot** (proposal: the partner's own rate; Krusgraph charges nothing) | a consultancy runs the pilot with their customer using this package | tests whether partners pick it up without a programme |
-
-What is *not* proposed: per-seat licences, per-query fees or a hosted tier with SLAs. There is nothing behind
-such promises today, and the website makes none (no payment is connected, and /support is a help page with no
-promised response time).
+Agreed per pilot, in writing, before it starts. This document is not a price list.
 
 ## Risks to name up front
 

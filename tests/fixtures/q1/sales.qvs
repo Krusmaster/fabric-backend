@@ -1,0 +1,83 @@
+///$tab Main
+// Synthetic: an invented shop written as a Qlik load script by hand for round Q1.
+// No customer data, no real names. It was not exported from a Qlik app.
+SET DateFormat='YYYY-MM-DD';
+
+///$tab Maps
+RegionMap:
+MAPPING LOAD * INLINE [
+country_code, region
+SE, Nordics
+NO, Nordics
+DE, DACH
+];
+
+SegmentMap:
+MAPPING LOAD segment_code, segment_name FROM [lib://Shop/segments.qvd] (qvd);
+
+///$tab Dimensions
+QUALIFY Name;
+
+Customers:
+LOAD customer_id AS CustomerID,
+     name AS Name,
+     country AS Country,
+     ApplyMap('SegmentMap', segment_code) AS Segment
+FROM [lib://Shop/customers.qvd] (qvd);
+
+Products:
+LOAD product_id AS ProductID, name AS Name, list_price AS ListPrice
+FROM [lib://Shop/products.qvd] (qvd);
+
+UNQUALIFY Name;
+
+Stores:
+LOAD store_id AS StoreID,
+     store_name AS StoreName,
+     country AS Country,
+     ApplyMap('RegionMap', country, 'Other') AS Region
+FROM [lib://Shop/stores.qvd] (qvd);
+
+///$tab Facts
+Orders:
+LOAD OrderID, CustomerID, StoreID, [Order Date], Status;
+SQL SELECT order_id AS OrderID, customer_id AS CustomerID, store_id AS StoreID, order_date AS [Order Date], status AS Status
+FROM shop.orders WHERE order_date >= '2026-01-01';
+
+CONCATENATE (Orders)
+LOAD OrderID, CustomerID, StoreID, [Order Date], Status
+FROM [lib://Shop/orders_archive.qvd] (qvd);
+
+// OrderID and Status are both in Orders: a synthetic key. Status means something else here.
+Shipments:
+LOAD shipment_id AS ShipmentID, order_id AS OrderID, status AS Status, shipped_on AS ShippedOn
+FROM [lib://Shop/shipments.qvd] (qvd);
+
+OrderItems:
+LOAD order_id AS OrderID, line_no AS LineNo, product_id AS ProductID, quantity AS Quantity
+FROM [lib://Shop/order_items.qvd] (qvd);
+
+LEFT JOIN (OrderItems)
+LOAD ProductID, ListPrice AS UnitPrice RESIDENT Products;
+
+OrderLines:
+NOCONCATENATE LOAD *, Quantity * UnitPrice AS LineAmount RESIDENT OrderItems;
+DROP TABLE OrderItems;
+
+// OrderID and LineNo are both in OrderLines: a synthetic key that is a real composite key.
+Returns:
+LOAD return_id AS ReturnID, order_id AS OrderID, line_no AS LineNo, returned_quantity AS ReturnedQuantity
+FROM [lib://Shop/returns.qvd] (qvd);
+
+///$tab Planning
+// Two facts at different grains that share StoreID and Month: a synthetic key with no unique side.
+Budget:
+LOAD store_id AS StoreID, month AS Month, cost_centre AS CostCentre, amount AS BudgetAmount
+FROM [lib://Shop/budget.qvd] (qvd);
+
+StoreSales:
+LOAD store_id AS StoreID, month AS Month, channel AS Channel, Sum(amount) AS SalesAmount
+FROM [lib://Shop/store_sales.qvd] (qvd) GROUP BY store_id, month, channel;
+
+Targets:
+CROSSTABLE (TargetMonth, Target, 1) LOAD * FROM [lib://Shop/targets.xlsx] (ooxml, embedded labels);

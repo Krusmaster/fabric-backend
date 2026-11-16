@@ -188,7 +188,7 @@ def test_the_drawing_is_the_chat_demos_and_a_change_there_is_caught(tmp_path, mo
 
 def test_the_cards_stay_self_contained_and_small():
     for html in (mcp_apps.card_html(), mcp_apps_review.card_html(), build.card_html()):
-        assert len(html) < 120_000
+        assert len(html) < 126_000                       # n227: the shared result script (progress, words, the static ontology)
         assert 'id="pictures"' in html and "kgDemoPicture" in html
         for bad in ("fetch(", "XMLHttpRequest", " src=", "@import", "url("):
             assert bad not in html
@@ -248,6 +248,9 @@ def test_the_build_card_draws_the_plans_map_and_the_review_card_the_rejected_lin
 @pytest.mark.skipif(not _playwright(), reason="node + playwright not available")
 def test_the_ontology_and_products_cards_in_a_browser(fabric, tmp_path):
     _, d = _sc("ontology_draft", **SRC)
+    # n227: an answer with the card's own words draws the ontology as the static picture (tests/test_n227_cards.py);
+    # this is the chat demo's picture, which an answer without them still gets
+    d = {k: v for k, v in d.items() if k != "kg_card"}
     out = _draw(tmp_path, build.card_html(), d, "ontology_draft", args=SRC)
     assert out["errors"] == [] and out["overlaps"] == 0 and out["noKeyTags"] == 2 and out["keyMarks"] == 5
     nokey = {n["table"] for n in out["nodes"] if "nokey" in n["cls"]}

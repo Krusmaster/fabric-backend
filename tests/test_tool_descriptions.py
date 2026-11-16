@@ -71,4 +71,7 @@ def test_read_only_listing_stays_small():
     # its descriptions and parameters were cut to the minimum first, and the guard stays tight above that
     # 66 700 since n226: validate_plan's resume_from and its words on evidence states and the time budget (66 390 before,
     # 66 637 after; the parameter descriptions were cut to one short sentence each first)
-    assert size <= 66_700, f"read-only tools/list is {size} characters"
+    # 69 000 since n229: the verify_build tool (2 271 characters, of which 1 459 are the parameters it shares with the plan
+    # tools: it builds the dry run again from the same plan; its own words were cut to four sentences first): 66 637 before,
+    # 68 972 after
+    assert size <= 69_000, f"read-only tools/list is {size} characters"

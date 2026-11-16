@@ -530,7 +530,7 @@ def _amount_note(header: str, line: str, line_columns: list, column: str, ex: di
 def _domains(p, src, validation: dict | None, notes: dict[str, list[dict]] | None = None) -> dict:
     """domains.draft on the plan, with each domain's contract (ODCS YAML) and the checks validate_plan made on its
     tables and on the relationships they hold."""
-    from . import domains, tool_status as ts
+    from . import domains
     schema = getattr(src.schema, "schema", None) or "dbo"
     # n73: the amount notes go to every domain that holds the header or the line table (by name)
     def extra(d):                                          # once per note, even when both its tables are in the domain
@@ -542,7 +542,7 @@ def _domains(p, src, validation: dict | None, notes: dict[str, list[dict]] | Non
                     out.append(n)
         return out
     out = domains.draft(p, schema, src.label, validation, extra=extra)
-    out["status"] = ts.label("domain_draft")             # the status word the page puts on the contract download
+    out["status"] = "Draft"                              # n234: the one plain word the page puts on the contract download
     for i in out["interfaces"]:                          # the panel prints the interface's rule: the pack by its own name (n79)
         i["rule"] = p.label(i["rule"])
     for d in out["domains"]:

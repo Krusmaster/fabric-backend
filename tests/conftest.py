@@ -10,6 +10,16 @@ def _no_existing_api_lookup(monkeypatch):
     monkeypatch.setattr(server, "_existing_api", lambda workspace, name, headers: None)
 
 
+@pytest.fixture(autouse=True)
+def _no_create_remembered():
+    """n227: the hosted server remembers a create whose outcome it does not know and does not send the same definition
+    again (server._RECENT). Tests share one process, so each starts and ends with nothing remembered."""
+    from fabric_backend import server
+    server._RECENT.clear()
+    yield
+    server._RECENT.clear()
+
+
 def docs_all(client) -> str:
     """n86a: /docs is split into sub-pages; the whole docs text is all of them together."""
     from fabric_backend.pages import docs_pages

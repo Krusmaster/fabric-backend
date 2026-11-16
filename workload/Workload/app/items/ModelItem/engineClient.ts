@@ -606,7 +606,7 @@ export function engineScope(
 
 export type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
-type Route = "review" | "check" | "build" | "schemas" | "pipeline-run" | "operation" | "product" | "health" | "access";
+type Route = "review" | "check" | "build" | "schemas" | "pipeline-run" | "operation" | "product" | "health" | "access" | "drawio" | "verify";
 
 /** n197: send the request in the background (202 and an operation id) and read the operation until it ends; an engine
  * that answers at once (200, an older server, or no store for operations) is taken as it answers. */
@@ -958,6 +958,19 @@ export async function health(workloadClient: WorkloadClientAPI, body: Record<str
   } catch {
     return null;
   }
+}
+
+/** n228: the map or the data flow the editor shows, as a draw.io file (POST /workload/v1/drawio, fabric_backend/drawio.py).
+ * The engine turns the data sent into a file; it reads nothing in Fabric and writes nothing. */
+export function drawio<T>(workloadClient: WorkloadClientAPI, body: object, fetchImpl?: Fetch): Promise<T> {
+  return callOnce<T>(workloadClient, "drawio", body, REQUEST_WAIT_MS, fetchImpl ?? ((u, i) => fetch(u, i)), false);
+}
+
+/** n229: "Verify what was built" (POST /workload/v1/verify, fabric_backend/verify_build.py): the items this Model built are
+ * read back and compared with their dry run by rules, the report's cards are counted again from the rows, and the next
+ * steps of the data product come with it. Read-only; it may read for a while, so it goes through the background path. */
+export function verify<T>(workloadClient: WorkloadClientAPI, body: object, fetchImpl?: Fetch, opts: CallOptions = {}): Promise<T> {
+  return call<T>(workloadClient, "verify", body, REQUEST_WAIT_MS, fetchImpl, opts);
 }
 
 /** n213: the organisation's trial or subscription (POST /workload/v1/access, fabric_backend/billing.py). Opening the item

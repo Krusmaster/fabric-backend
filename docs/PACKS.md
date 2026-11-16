@@ -2,7 +2,8 @@
 
 Round n77, 2 November 2026. A knowledge pack is what Krusgraph knows about a named source system before it has seen
 a row: the tables, their keys, the relationships between them, the amounts and their levels, and the traps a person
-falls into when joining them. Two packs exist: `sap` ([SAP.md](SAP.md), six modules) and `younium_salesforce`
+falls into when joining them. Two packs exist: `sap` ([SAP.md](SAP.md), six modules for tables and, since round n230,
+three for released CDS views, [SAP-CDS.md](SAP-CDS.md)) and `younium_salesforce`
 ([YOUNIUM-SALESFORCE.md](YOUNIUM-SALESFORCE.md), two modules). Each lives in `fabric_backend/packs/<pack>/`, one JSON
 file per module (`pack.schema.json` is their schema, `sap_pack.py` their loader), and since this round one
 **manifest** per pack, `fabric_backend/packs/<pack>/manifest.yaml`, in one shape for every pack.
@@ -82,6 +83,22 @@ The benchmark table in `examples/benchmark/README.md` is unchanged by the manife
    Mark a table `common_name` in the module file when its name is an ordinary word another system's table can carry
    (`ACCOUNTS`, `INVOICES`, `Contact`): tables of that kind alone never light the pack. A manifest does not change
    what the engine reads.
+
+## A view over a table (round n230)
+
+A source system can publish views over its own tables under other names: SAP S/4HANA's released CDS views
+(`I_SalesDocument` over `VBAK`). Such a view is a pack entity like a table, in a module file of its own
+(`packs/sap/cds_*.json`), with four optional fields the tables do not need ([SAP-CDS.md](SAP-CDS.md)):
+
+| Field | What it holds |
+| --- | --- |
+| `source_name` | The name as the source spells it (`I_SalesDocument`); the pack's own name is upper case with underscores (`I_SALES_DOCUMENT`). Names and columns are compared without case and underscores, so one reads the other. |
+| `aliases`, `common_alias` | Other names a landing gives it (`SALES_DOCUMENT`, the view without `I_`), and whether such a name is an ordinary word (`Customer`, `Product`) that alone never lights the pack. |
+| `source_columns` | The columns the pack names on it, in the source's spelling (`SalesDocumentItem`); `sap_pack.problems` fails when the pack uses a column that is not among them. |
+| `corresponds_to` | The table of the same pack whose rows the view reads, what differs, and the source of the statement. For a person: the engine never joins a view to its table. |
+
+A relationship written from a CDS association says which one in `association`, with the cardinality the view
+declares. The manifest carries `source_name`, `aliases`, `corresponds_to` and `association`.
 
 ## The review step
 

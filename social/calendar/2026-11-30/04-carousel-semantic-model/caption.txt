@@ -1,0 +1,15 @@
+A semantic model that counts each order once.
+
+From our SAP-shaped example, Krusgraph drafts the model for the data product Order to cash: 13 tables, each with a role from the keys and links the check confirmed.
+
+• The order header keeps its amount, NETWR. It is not summed over its lines.
+• The measures sit on their own tables: Net order value (SUM('sap_vbak'[NETWR])), Billed net value (SUM('sap_vbrk'[NETWR])), Order lines (COUNTROWS('sap_vbap')).
+• Net order value: EUR 750.0. The same rows summed over the joined order lines would give 1 950.
+
+Roles by rules, measures at the level where the amount lives, and a dry run before anything is created in Fabric.
+
+Krusgraph is independent and is not affiliated with, tested or endorsed by SAP or Microsoft.
+
+#MicrosoftFabric #PowerBI #SemanticModel #DataModeling #SQL #SAP #Krusgraph
+
+Try it in your browser: krusgraph.com/check (link in bio)

@@ -68,7 +68,7 @@ def key_rule_state(rule: str) -> str:
         return GIVEN
     if rule == PACK_RULE:
         return PACK
-    if rule == "R5":                         # R5 gave the key after counting it unique and never NULL over the whole table
+    if rule in ("R5", "K6"):                 # R5 and K6 gave the key after counting it unique and never NULL over the whole table
         return COUNTED_UNIQUE
     return BY_NAME
 
@@ -81,7 +81,7 @@ def rel_rule_state(r) -> str:
         return GIVEN
     if rule == PACK_RULE:
         return PACK
-    if rule == "R5":
+    if rule in ("R5", "R6"):
         return SAMPLE_HOLDS if "a sample" in (getattr(r, "note", "") or "") else HOLDS
     return BY_NAME
 
@@ -111,6 +111,9 @@ def states(plan: Plan, checks: dict | None = None) -> dict[str, str]:
     out: dict[str, str] = {}
     for t, (_cols, rule) in plan.keys.items():
         out[_key_id(t)] = key_rule_state(rule)
+    for t, c in ((getattr(plan, "profile", None) or {}).get("key_counts") or {}).items():   # F2: counted in the plan's own call
+        if t in plan.keys and [x.lower() for x in plan.keys[t][0]] == [x.lower() for x in c["columns"]]:
+            out[_key_id(t)] = (COUNTED_UNIQUE if c["unique"] else "not counted: the table is empty" if not c["rows"] else COUNTED_NOT_UNIQUE)
     for r in list(plan.relationships) + list(getattr(plan, "extended", [])):
         out[_rel_id(r.source, r.source_cols, r.target)] = rel_rule_state(r)
     if checks:

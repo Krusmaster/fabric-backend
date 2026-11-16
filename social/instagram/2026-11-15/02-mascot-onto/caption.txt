@@ -1,0 +1,13 @@
+Meet Onto. Onto draws the map.
+
+"I show which tables connect, and the rule behind every link."
+
+Every link Onto draws comes with the rule that proposed it: a column name, a declared key, or a knowledge pack for SAP-shaped tables. A rule is a reason, not proof. That is why Thinker counts next (next week).
+
+In our SAP-shaped example the map has 17 tables and 24 links, and each link names its rule.
+
+Onto is one of three figures who explain what Krusgraph does for Microsoft Fabric, one step at a time. Behind them are rules and counts. The checks are not AI.
+
+#MicrosoftFabric #PowerBI #DataModeling #SemanticModel #DataEngineering #Krusgraph #OpenSource
+
+Try it in your browser: krusgraph.com/check (link in bio)

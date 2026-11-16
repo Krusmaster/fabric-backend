@@ -8,6 +8,7 @@
  * Plain elements only (no Fluent component), so the view renders on the server in unit tests (FlowView.test.ts).
  */
 import React, { useMemo, useState } from "react";
+import { DrawioButton, flowForFile } from "./drawioDownload";
 import { DataFlow } from "./engineClient";
 import { boxLabel, layoutFlow, toggleOpen, togglesOn } from "./dataFlow";
 import { MAP_CSS, MASCOT_COLOURS, MASCOT_NAMES } from "./cardMap.generated";
@@ -127,6 +128,7 @@ export function FlowView(props: { flow: DataFlow; mascotsOn?: boolean; initialOp
         <span className="lg off">Dashed: not part of this build</span>
         <span>Click a box, or press Enter on it, to see its code.</span>
       </p>
+      <DrawioButton what="data flow" request={() => ({ diagram: "data_flow", flow: flowForFile(flow) })} />
       {flow.notes.map((t) => (
         <p key={t} className="krusgraph-flow-note">
           {t}

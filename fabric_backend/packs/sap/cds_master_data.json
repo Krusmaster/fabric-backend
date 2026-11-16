@@ -1,0 +1,48 @@
+{
+  "pack": "sap",
+  "module": "cds_master_data",
+  "format_version": 1,
+  "title": "SAP S/4HANA released CDS views, master data: customer, product, supplier, company code, sales organization (I_Customer, I_Product, ...)",
+  "rule": "SAP pack",
+  "status": "documented",
+  "status_note": "Proposed, not tested on a customer. Every view, key, association and amount below is taken from public documentation and written in our own words; none of it has been checked against an SAP system by this project, and where a page could not be opened the source says so. validate_plan checks it against your rows. A pack is a sourced suggestion, not proof.",
+  "variants": {
+    "ecc": "SAP ERP 6.0 (ECC). Field lengths and tables as documented for ECC; not verified per enhancement package.",
+    "s4hana": "SAP S/4HANA (on-premise and private cloud). Not verified per release."
+  },
+  "sources": {
+    "sap_release_list": {
+      "title": "SAP Cloudification Repository: the released objects of SAP S/4HANA Cloud (objectReleaseInfoLatest.json, objectReleaseInfo_PCELatest.json): which CDS views are released, deprecated, and their successors",
+      "url": "https://github.com/SAP/abap-atc-cr-cv-s4hc",
+      "publisher": "SAP",
+      "fetched": true,
+      "note": "Read 15 November 2026 (repository commit of 12 November 2026). Gives the release state of each view named here (all 'released'; I_Material is not to be released, C_SalesDocumentItemDEX is deprecated for C_SalesDocumentItemDEX_1). It lists no fields, keys or associations."
+    },
+    "sap_hub_cds": {
+      "title": "SAP Business Accelerator Hub: CDS views of SAP S/4HANA (the fields, key fields and associations of each released view)",
+      "url": "https://api.sap.com/content-type/CDSViews/cdsviews/cdsviews",
+      "publisher": "SAP",
+      "fetched": false,
+      "note": "Not opened: the host could not be reached from the session that wrote this module on 15 November 2026 (network policy). Unverified; cited from public knowledge of the documentation, to be re-checked."
+    }
+  },
+  "tables": [
+    {"name": "I_CUSTOMER", "source_name": "I_Customer", "aliases": ["CUSTOMER"], "common_alias": true, "level": "master", "en": "Customer (CDS view), general data", "key": ["CUSTOMER"], "variants": ["s4hana"], "number_columns": ["CUSTOMER"], "delta": ["CREATION_DATE"], "personal": [{"column": "CUSTOMER_NAME", "rule": "P1"}, {"column": "CUSTOMER_FULL_NAME", "rule": "P1"}, {"column": "STREET_NAME", "rule": "P5"}, {"column": "POSTAL_CODE", "rule": "P5"}, {"column": "CITY_NAME", "rule": "P5"}, {"column": "TELEPHONE_NUMBER1", "rule": "P3"}], "source_columns": ["Customer", "CustomerName", "CustomerFullName", "Country", "CityName", "PostalCode", "StreetName", "TelephoneNumber1", "CreationDate"], "corresponds_to": {"table": "KNA1", "note": "One row per KNA1 row.", "sources": ["sap_release_list", "sap_hub_cds"]}, "note": "A customer can be a person: the name, address and telephone fields are named as personal data, so sample_rows masks them.", "sources": ["sap_release_list", "sap_hub_cds"]},
+    {"name": "I_CUSTOMER_SALES_AREA", "source_name": "I_CustomerSalesArea", "aliases": ["CUSTOMER_SALES_AREA"], "level": "master", "en": "Customer (CDS view), sales area data", "key": ["CUSTOMER", "SALES_ORGANIZATION", "DISTRIBUTION_CHANNEL", "DIVISION"], "variants": ["s4hana"], "number_columns": ["CUSTOMER"], "source_columns": ["Customer", "SalesOrganization", "DistributionChannel", "Division"], "corresponds_to": {"table": "KNVV", "note": "One row per KNVV row: a customer in a sales area.", "sources": ["sap_release_list", "sap_hub_cds"]}, "sources": ["sap_release_list", "sap_hub_cds"]},
+    {"name": "I_SUPPLIER", "source_name": "I_Supplier", "aliases": ["SUPPLIER"], "common_alias": true, "level": "master", "en": "Supplier (CDS view), general data", "key": ["SUPPLIER"], "variants": ["s4hana"], "number_columns": ["SUPPLIER"], "delta": ["CREATION_DATE"], "personal": [{"column": "SUPPLIER_NAME", "rule": "P1"}, {"column": "SUPPLIER_FULL_NAME", "rule": "P1"}, {"column": "STREET_NAME", "rule": "P5"}, {"column": "POSTAL_CODE", "rule": "P5"}, {"column": "CITY_NAME", "rule": "P5"}], "source_columns": ["Supplier", "SupplierName", "SupplierFullName", "Country", "CityName", "PostalCode", "StreetName", "CreationDate"], "corresponds_to": {"table": "LFA1", "note": "One row per LFA1 row.", "sources": ["sap_release_list", "sap_hub_cds"]}, "sources": ["sap_release_list", "sap_hub_cds"]},
+    {"name": "I_PRODUCT", "source_name": "I_Product", "aliases": ["PRODUCT"], "common_alias": true, "level": "master", "en": "Product (CDS view), general data", "key": ["PRODUCT"], "variants": ["s4hana"], "number_columns": ["PRODUCT"], "delta": ["CREATION_DATE", "LAST_CHANGE_DATE"], "source_columns": ["Product", "ProductType", "ProductGroup", "BaseUnit", "CreationDate", "LastChangeDate"], "corresponds_to": {"table": "MARA", "note": "One row per MARA row; Product is the material number (MATNR).", "sources": ["sap_release_list", "sap_hub_cds"]}, "note": "Product is 40 characters in S/4HANA; numeric material numbers are stored with leading zeros.", "sources": ["sap_release_list", "sap_hub_cds"]},
+    {"name": "I_PRODUCT_TEXT", "source_name": "I_ProductText", "aliases": ["PRODUCT_TEXT"], "level": "text", "en": "Product descriptions (CDS view)", "key": ["PRODUCT", "LANGUAGE"], "variants": ["s4hana"], "number_columns": ["PRODUCT"], "source_columns": ["Product", "Language", "ProductName"], "corresponds_to": {"table": "MAKT", "note": "One row per MAKT row.", "sources": ["sap_release_list", "sap_hub_cds"]}, "note": "One row per product and language: filter on Language before joining, or every line is repeated once per language.", "sources": ["sap_release_list", "sap_hub_cds"]},
+    {"name": "I_COMPANY_CODE", "source_name": "I_CompanyCode", "aliases": ["COMPANY_CODE"], "level": "organization", "en": "Company code (CDS view)", "key": ["COMPANY_CODE"], "variants": ["s4hana"], "currency_columns": ["CURRENCY"], "source_columns": ["CompanyCode", "CompanyCodeName", "Currency", "ChartOfAccounts", "Country"], "corresponds_to": {"table": "T001", "note": "One row per T001 row.", "sources": ["sap_release_list", "sap_hub_cds"]}, "sources": ["sap_release_list", "sap_hub_cds"]},
+    {"name": "I_SALES_ORGANIZATION", "source_name": "I_SalesOrganization", "aliases": ["SALES_ORGANIZATION"], "level": "organization", "en": "Sales organization (CDS view)", "key": ["SALES_ORGANIZATION"], "variants": ["s4hana"], "currency_columns": ["SALES_ORGANIZATION_CURRENCY"], "source_columns": ["SalesOrganization", "CompanyCode", "SalesOrganizationCurrency"], "corresponds_to": {"table": "TVKO", "note": "One row per TVKO row.", "sources": ["sap_release_list", "sap_hub_cds"]}, "sources": ["sap_release_list", "sap_hub_cds"]}
+  ],
+  "relationships": [
+    {"source": "I_PRODUCT_TEXT", "source_cols": ["PRODUCT"], "target": "I_PRODUCT", "target_cols": ["PRODUCT"], "cardinality": "many-to-one", "association": "I_ProductText._Product [1..1]; I_Product._Text [0..*]", "sources": ["sap_release_list", "sap_hub_cds"]},
+    {"source": "I_CUSTOMER_SALES_AREA", "source_cols": ["CUSTOMER"], "target": "I_CUSTOMER", "target_cols": ["CUSTOMER"], "cardinality": "many-to-one", "association": "I_CustomerSalesArea._Customer [1..1]; I_Customer._CustomerSalesArea [0..*]", "sources": ["sap_release_list", "sap_hub_cds"]},
+    {"source": "I_CUSTOMER_SALES_AREA", "source_cols": ["SALES_ORGANIZATION"], "target": "I_SALES_ORGANIZATION", "target_cols": ["SALES_ORGANIZATION"], "cardinality": "many-to-one", "association": "I_CustomerSalesArea._SalesOrganization [0..1]", "sources": ["sap_release_list", "sap_hub_cds"]},
+    {"source": "I_SALES_ORGANIZATION", "source_cols": ["COMPANY_CODE"], "target": "I_COMPANY_CODE", "target_cols": ["COMPANY_CODE"], "cardinality": "many-to-one", "association": "I_SalesOrganization._CompanyCode [0..1]", "sources": ["sap_release_list", "sap_hub_cds"]}
+  ],
+  "traps": [
+    {"id": "cds_texts", "title": "Text views have one row per language", "text": "I_ProductText has one row per product and language; filter Language before joining.", "sources": ["sap_release_list", "sap_hub_cds"]},
+    {"id": "cds_leading_zeros", "title": "Leading zeros stay in an extraction", "text": "Customer, Product, SalesDocument and the other number fields are text; an extraction holds the stored value, numeric numbers right-aligned with leading zeros (SalesDocument '0000012345'), while a screen or an OData service may show 12345. A join with a source that stores the short form finds nothing. Pad or strip on one side, the same way everywhere.", "sources": ["sap_release_list", "sap_hub_cds"]}
+  ]
+}

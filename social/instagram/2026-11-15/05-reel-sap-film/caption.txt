@@ -1,0 +1,15 @@
+The SAP joining problem. Krusgraph does the trick!
+
+Why does an SAP order total come out too large? 40 seconds, no sound needed.
+
+You type "start Krusgraph" in Claude. Onto draws the map: 17 tables, 24 links, each naming its rule. Thinker counts against the rows: 17 of 17 keys unique, 32 of 34 links hold. Then the trap: NETWR sits on the order header, and a join with the lines repeats it. Order 0000000001 of 600 becomes 1 800. Over all orders: 1 950 instead of 750.
+
+Builder's fix: sum the amount where it lives, on the order header.
+
+Everything in the film is the engine's own output on our example. Krusgraph is independent and is not affiliated with SAP or Microsoft.
+
+The same example runs on the site. Your files are read in this browser and are not uploaded.
+
+#MicrosoftFabric #PowerBI #SAP #ERP #DataQuality #DataEngineering #SemanticModel #Krusgraph
+
+Try it in your browser: krusgraph.com/check (link in bio)

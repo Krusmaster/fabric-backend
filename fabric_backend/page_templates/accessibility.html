@@ -1,0 +1,35 @@
+<div data-page="accessibility">
+<article class="wrap prose legal-page">
+  <p class="eyebrow">Accessibility statement, last updated {{ACCESSIBILITY_UPDATED}}</p>
+  <h1>Accessibility</h1>
+  <p class="lede">We want everyone to be able to use {{DOMAIN}}, whatever device, browser or assistive technology they use. Our aim is the WCAG 2.2 level AA standard. This page says how we check, what we found, and what is still missing.</p>
+
+  <h2 id="checked">How the site was checked</h2>
+  <p>On {{A11Y_CHECKED}} every public page was opened in Chromium at 375, 768 and 1280 pixels wide, in the light and the dark theme, and tested with axe-core 4.10.3, an open-source checker, against its rules for WCAG 2.0, 2.1 and 2.2 at levels A and AA. A check that runs with the site’s tests looks at every public page for text contrast, alt text on images, names on buttons, links and form fields, keyboard focus and requests to other websites.</p>
+  <p>Automatic checks find only part of the problems. The site has not yet been tested by people who use a screen reader, a magnifier or voice control.</p>
+
+  <h2 id="works">What works today</h2>
+  <ul>
+    <li>Links, buttons and form fields can be reached and used with a keyboard, with a visible focus outline and a <em>Skip to content</em> link first on the page.</li>
+    <li>Text and controls meet the AA contrast ratios in both the light and the dark theme, and the theme follows your system setting unless you choose one.</li>
+    <li>Images have alt text, and decorative ones are hidden from screen readers. The mascots can be switched off.</li>
+    <li>Animations are reduced when your system asks for reduced motion.</li>
+    <li>The overview film has English captions and plays only when you start it.</li>
+    <li>Pages fit a 375-pixel-wide phone screen without sideways scrolling, except inside wide tables and code blocks, which scroll on their own and can be scrolled from the keyboard.</li>
+  </ul>
+
+  <h2 id="gaps">Known gaps</h2>
+  <ul>
+    <li>The relationship maps on <a href="/check">{{LABEL_CHECK}}</a> and <a href="/use-cases">Use cases</a> are drawn graphics. Moving around inside a map with a screen reader has not been tested, and not every relationship drawn there may also be given as text.</li>
+    <li>The “Try a demo” chat is scripted. It has not been tested with screen readers, so some of its steps may not be announced as they appear.</li>
+    <li>The sign-in and approval pages under <code>/oauth</code> and <code>/marketplace</code> have not had the same check as the public pages.</li>
+    <li>Some pages use technical terms (SQL, keys, Fabric item names) that are hard to avoid; the docs explain them.</li>
+  </ul>
+
+  <h2 id="report">Tell us about a problem</h2>
+  <p>If something on the site does not work for you, write to <a href="mailto:{{CONTACT}}">{{CONTACT}}</a> with the page and what happened. We will answer and, where we can, fix it or send you the content in another form.</p>
+
+  <h2 id="who">Who is responsible</h2>
+  <p>{{COMPANY_LINE}}. This statement is published voluntarily and will be updated after each check.</p>
+</article>
+</div>

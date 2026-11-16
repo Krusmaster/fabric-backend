@@ -79,6 +79,7 @@ import { MapData } from "./cardMap";
 import { MASCOT_COLOURS, MASCOT_CSS, MASCOT_GLAD, MASCOT_NAMES } from "./cardMap.generated";
 import { MascotFigure } from "./mascotFigure";
 import { OntoWait } from "./OntoWait";
+import { VerifyButton } from "./verifyBuilt";
 import { Wait, newWait } from "./waitWords";
 import {
   CheckState,
@@ -98,6 +99,12 @@ import {
   rejectedHoldingText,
   rejectedRowText,
 } from "./modelWords";
+
+/** F1: the empty view's sentence ("SAP via SAP Datasphere among it" read as a slip). */
+export const CHOOSE_SOURCE_WORDS =
+  "Krusgraph reads the table and column names of a lakehouse, a warehouse, a SQL database or a mirrored database " +
+  "(data mirrored into Fabric, for example SAP through SAP Datasphere) and proposes keys and relationships, each with the " +
+  "rule that found it. Nothing is created until you choose Create.";
 
 export type MascotKind = "onto" | "thinker" | "builder";
 import "./ModelItem.scss";
@@ -191,9 +198,7 @@ export function EmptyView(props: {
     <ItemEditorEmptyView
       title="Choose a source"
       description={
-        "Krusgraph reads the table and column names of a lakehouse, a warehouse, a SQL database or a mirrored database " +
-        "(data mirrored into Fabric, SAP via SAP Datasphere among it) and proposes keys and relationships, each with the " +
-        "rule that found it. Nothing is created until you choose Create."
+        CHOOSE_SOURCE_WORDS
       }
       imageSrc="/assets/items/ModelItem/EditorEmpty.svg"
       imageAlt=""
@@ -1226,6 +1231,8 @@ export function ResultView(props: {
       ) : (
         <Body1>{said}</Body1>
       )}
+      {/* n229: after every Create, and on reopening: read back what was built and compare it with the dry run, by rules */}
+      {!live && <VerifyButton built={props.outputs.created.length} busy={props.busy} />}
       {stored && <ProductView product={stored} onOpen={props.onOpen} />}
       {a?.flow && <FlowView flow={a.flow} mascotsOn={false} idPrefix="kg-flow-result" />}
       {a ? (

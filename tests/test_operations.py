@@ -439,13 +439,13 @@ def test_entitlements_on_refuses_paid_features_with_upgrade_but_dry_runs_stay_fr
         json.loads(server.lineage("Sales", "shop_lh", schema="shop"))["kind"] != "upgrade"
 
 
-def test_feature_map_matches_the_pricing_notes():
+def test_feature_map_matches_the_entitlements_doc():
     assert entitlements.feature_of("create_backend", False) is None                       # the free tier's one API
     assert entitlements.feature_of("create_views", True) is None and entitlements.feature_of("create_views", False) == "create"
     assert entitlements.feature_of("lineage", None) == "lineage"
     assert entitlements.feature_of("drift_monitor_draft", None) == "drift_monitor"
     assert entitlements.feature_of("plan_drift", None) is None and entitlements.feature_of("plan_backend", None) is None
-    notes = (Path(__file__).resolve().parents[1] / "docs" / "PRICING-NOTES.md").read_text(encoding="utf-8")
+    notes = (Path(__file__).resolve().parents[1] / "docs" / "ENTITLEMENTS.md").read_text(encoding="utf-8")
     assert "KRUSGRAPH_ENTITLEMENTS" in notes and "kind: upgrade" in notes
     for tools in entitlements.FEATURES.values():
         for t in tools:

@@ -43,6 +43,14 @@ Round n24 added links the first versions lacked, found when the measurement was 
 only, the partner, status and document-flow rows of deliveries and invoices (`VBPA`, `VBUK`, `VBUP`, `VBFA` → `LIKP`,
 `LIPS`, `VBRK`, `VBRP`).
 
+### Released CDS views (round n230)
+
+Since round n230 the pack also knows 19 released CDS views of SAP S/4HANA for order to cash, customer and product
+master data and the universal journal (`I_SalesDocument`, `I_SalesDocumentItem`, `I_BillingDocument`, `I_Customer`,
+`I_Product`, `I_JournalEntryItem`, ...): their key fields, their associations as candidate links, their amounts and
+the table each reads. Proposed, not tested on a customer; how the views reach Fabric, what is covered, the synthetic
+sample and how to test it are in [SAP-CDS.md](SAP-CDS.md).
+
 ## The traps it explains
 
 - **`MANDT` in every join.** One database can hold several clients; a join on `VBELN` alone pairs documents across

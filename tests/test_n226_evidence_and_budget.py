@@ -273,8 +273,10 @@ def test_hosted_validate_plan_scopes_resumes_and_says_each_state(hosted):
     assert len(first["keys"]) + len(first["relationships"]) + len(rest["keys"]) + len(rest["relationships"]) == n
     summary = json.loads(hosted.validate_plan(**SRC, max_items=5))
     assert {"tool": "validate_plan", "arguments": {"max_items": n}} in [{k: s[k] for k in ("tool", "arguments")} for s in summary["next_steps"]]
-    # five items in check order: 2 keys and 3 links counted here, plus the link R5 counted while planning (ship_to_id)
-    assert summary["coverage"]["headline"] == ("7 tables: 2 with a counted key, 4 with a key by name only, 1 without a key; "
+    # five items in check order: 2 keys and 3 links counted here, plus the link R5 counted while planning (ship_to_id).
+    # F2: the hosted plan counts every key by name in the same call, so all 6 are counted before the check starts
+    # (2 counted, 4 by name only, before)
+    assert summary["coverage"]["headline"] == ("7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; "
                                                "7 links proposed, 4 counted, 4 hold; 0 columns that look like references "
                                                "are unlinked.")
     plan_answer = json.loads(hosted.plan_backend(**SRC))

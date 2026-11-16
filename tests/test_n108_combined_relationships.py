@@ -272,8 +272,8 @@ def test_query_counts_shop_and_adventureworks():
     aw = _benchmark_plan("adventureworks")
     con = _fill(aw.schema, 1)
     assert len(aw.relationships) == 79 and not aw.extended
-    assert count(aw, _execute(con), False) == (150, 79)
-    assert count(aw, _execute(con), True) == (116, 45)
+    assert count(aw, _execute(con), False) == (201, 79)     # F2: 150 and the re-count of each of the 51 relationships with orphans in these rows
+    assert count(aw, _execute(con), True) == (167, 45)      # F2: 116 and the same 51 re-counts
 
 
 def test_a_failing_combined_statement_falls_back_and_says_so():

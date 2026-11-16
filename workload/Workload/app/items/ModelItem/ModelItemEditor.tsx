@@ -17,7 +17,7 @@
  * them in order and keeps the created ids and the product in outputs.json. Re-opened, the item shows its product and
  * offers Update where the output's tool updates in place, a new name where it does not (a report).
  */
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { NotificationType } from "@ms-fabric/workload-client";
 import {
@@ -73,6 +73,8 @@ import { DataProductPage, preloadParts } from "./lazyParts";   // n223: the Data
 import { OntoWait } from "./OntoWait";
 import { Wait, WaitSignal, checkLabel, newWait, reviewLabel, withSignal } from "./waitWords";
 import { accessLine } from "./accessWords";
+import { DrawioContext, DrawioFile, DrawioSource } from "./drawioDownload";
+import { VerifyAnswer, VerifyContext, VerifySource } from "./verifyBuilt";
 import {
   LeftoversAnswer, OutOfDate, ProductRow, RetireAnswer, StatusAnswer, createdAtOf, healthFor, outOfDate, planOf, withAdopted, withOwner,
   withPlan, withRemoved,
@@ -1184,7 +1186,28 @@ export function ModelItemEditor(props: PageProps) {
     ),
   });
 
+  // n228: "Download as draw.io" under the map and the data flow (drawioDownload.tsx); the engine makes the file from what is shown
+  const drawioName = [def.source?.displayName, def.source?.schema].filter(Boolean).join(".");
+  const drawioSource = useMemo<DrawioSource>(
+    () => ({ get: (body) => engine.drawio<DrawioFile>(workloadClient, body), name: drawioName || undefined }),
+    [workloadClient, drawioName]
+  );
+
+  // n229: "Verify what was built" after a Create (verifyBuilt.tsx): the engine reads back what outputs.json records, by rules
+  const verifySource = useMemo<VerifySource>(
+    () => ({
+      run: () => {
+        const d = defRef.current;
+        return engine.verify<VerifyAnswer>(workloadClient, { ...sourceRequest(d), review: d.review, created: d.outputs.created, item_id: metaRef.current?.id });
+      },
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [workloadClient]
+  );
+
   return (
+    <DrawioContext.Provider value={drawioSource}>
+    <VerifyContext.Provider value={verifySource}>
     <ItemEditor
       isLoading={isLoading}
       loadingMessage="Opening the model…"
@@ -1196,5 +1219,7 @@ export function ModelItemEditor(props: PageProps) {
         if (!setView) setSetView(() => setter);
       }}
     />
+    </VerifyContext.Provider>
+    </DrawioContext.Provider>
   );
 }

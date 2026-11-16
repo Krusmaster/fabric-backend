@@ -156,13 +156,13 @@ def test_check_page_policy_worker_and_files(client):
     r = client.get("/check")
     csp = r.headers["content-security-policy"]
     assert "connect-src 'none'" in csp and "worker-src 'self'" in csp and "form-action 'none'" in csp
-    assert r.text.count("Synthetic Data") == 5 and "Synthetic data<" not in r.text and "A total that doubles" in r.text and "SAP sales tables" in r.text and "Salesforce + ERP" in r.text
+    assert "A total that doubles" in r.text and "SAP sales tables" in r.text and "Salesforce + ERP" in r.text
     assert "Subscription billing" in r.text and 'data-example="billing"' in r.text                                 # n78
     assert "Manufacturing sample" in r.text and 'data-example="mill"' in r.text                                     # n192
-    assert r.text.count("<strong>SAP-shaped sample</strong>") == 2 and r.text.count("<em>Example data, not from an SAP system</em>") == 2   # n202, n231
-    # n231: a sample card says what its data is once, in its badge; no "(synthetic)" in a card title, no SAP-certified wording
+    assert r.text.count("<strong>SAP-shaped sample</strong>") == 2   # n202, n231
+    # n232: no badge on any sample card (the founder, 12 Nov 2026); no "(synthetic)" or "synthetic" on a card, no SAP-certified wording
     cards = r.text.split('class="check-examples"')[1].split("</div>")[0]
-    assert "(synthetic)" not in cards.lower() and "Synthetic, not SAP data" not in cards and "certified" not in cards.lower() and "compatible" not in cards.lower()
+    assert "<em>" not in cards and "synthetic" not in cards.lower() and "not from an SAP system" not in cards and "certified" not in cards.lower() and "compatible" not in cards.lower()
     assert 'data-example="sap_sd"' in r.text and 'data-example="sap_mm"' in r.text
     assert "<input type=\"text\"" not in r.text and "chat" not in r.text.lower().split("<main")[1].split("</main>")[0]   # n154: the chat's button and plan come after the footer
     assert "are not uploaded" in r.text and 'href="/check?example=sample&amp;guide=1"' in r.text and 'href="/local"' in r.text and "Get help" in r.text
@@ -280,13 +280,13 @@ def test_in_a_browser_no_request_carries_the_files(site):
     for w in ("375", "1280"):
         bl = r["billing"][w]
         assert bl["ids"] == ["check-sample", "check-sap", "check-crm", "check-billing", "check-mill", "check-sap_sd", "check-sap_mm"] and bl["inside"] and not bl["overflow"], (w, bl)
-        assert "Subscription billing" in bl["label"] and "Younium + Salesforce" in bl["label"] and "Synthetic Data" in bl["label"]
+        assert "Subscription billing" in bl["label"] and "Younium + Salesforce" in bl["label"] and "Synthetic" not in bl["label"]
         assert "Done: the example “Subscription billing”" in bl["status"] and not bl["overflowAfter"], (w, bl["status"])
         assert "Younium + Salesforce pack" in bl["text"] and "SAP pack" not in bl["text"] and "external_crm_id" in bl["text"] and bl["ms"] > 0, w   # n79
     # n192: the manufacturing sample has a row of its own, loads and runs to the end with the planted problems
     for w in ("375", "1280"):
         m = r["mill"][w]
-        assert "Manufacturing sample" in m["label"] and "Synthetic Data" in m["label"] and m["inside"] and not m["overflow"], (w, m)
+        assert "Manufacturing sample" in m["label"] and "Synthetic" not in m["label"] and m["inside"] and not m["overflow"], (w, m)
         # n202: a row of its own on a phone; on a wide screen it shares the row with the two SAP-shaped samples
         assert (m["full"] and not m["withSap"]) if w == "375" else (m["half"] and m["withSap"]), (w, m)
     assert "Done: the example “Manufacturing sample”" in r["mill"]["status"] and r["mill"]["ms"] > 0, r["mill"]["status"]
@@ -294,7 +294,7 @@ def test_in_a_browser_no_request_carries_the_files(site):
     # n202: the SAP-shaped sample beside the shop and the mill, inside the viewport, and it loads and runs
     for w in ("375", "1280"):
         sp = r["sap_sd"][w]
-        assert "SAP-shaped sample" in sp["label"] and "(synthetic)" not in sp["label"] and "Example data, not from an SAP system" in sp["label"] and sp["inside"] and not sp["overflow"], (w, sp)
+        assert "SAP-shaped sample" in sp["label"] and "synthetic" not in sp["label"].lower() and "not from an SAP system" not in sp["label"] and sp["inside"] and not sp["overflow"], (w, sp)
     assert "Done: the example “SAP-shaped sample: order to invoice”" in r["sap_sd"]["status"] and r["sap_sd"]["ms"] > 0, r["sap_sd"]["status"]
     assert "VBAK.NETWR" in r["sap_sd"]["text"] and "ZSD_ORDER_EXT" in r["sap_sd"]["text"] and "SAP pack" in r["sap_sd"]["text"]
     assert len(r["finding_marks"]) == 1 and "audit_log" in r["finding_marks"][0]
@@ -345,11 +345,11 @@ def test_build_gives_a_power_bi_project_and_an_app_starter_from_the_same_plan(ki
     assert pbir["datasetReference"]["byPath"]["path"] == f"../{r['name']}_model.SemanticModel"
     assert f"{r['name']}_model.SemanticModel/definition/model.tmdl" in names and f"{r['name']}_model.SemanticModel/definition.pbism" in names
     readme = model.read("README.md").decode()
-    assert ts.label("semantic_model_draft") in readme and "Opened in Power BI Desktop on 30 October 2026" in readme
+    assert "Status: a draft for you to review" in readme and "last tried live" not in readme and "docs/" not in readme   # n234
+    assert "Opened in Power BI Desktop on 30 October 2026" in readme
     app = zipfile.ZipFile(io.BytesIO(__import__("base64").b64decode(r["downloads"][f"{r['name']}_app.zip"])))
     assert "app/rayfin/connectors/data/schema.ts" in app.namelist() and "app/lovable-prompt.md" in app.namelist()
-    assert r["status"] == {"model": ts.label("semantic_model_draft"), "report": "Draft only", "create_model": ts.short("create_semantic_model"),
-                           "rayfin": ts.label("rayfin_connector"), "app_starter": ts.label("app_starter")}
+    assert r["status"] == {"model": "Draft", "app_starter": "Draft"}          # n234: one plain word, no test record
     assert r["report"]["has_data"] and r["report"]["measures"] and r["app"]["kpis"]
 
 
@@ -384,7 +384,7 @@ def test_one_example_row_runs_through_the_finding_the_contract_and_the_preview()
     assert f["saw"].endswith("For example order_id 1: 1 000 on its orders row; 2 order_lines rows point at it, so the join counts it twice: 2 000.")
     c = r["domains"]["contracts"]["customers"]
     assert c.count("amountLevel.orders.order_amount") == 1 and "order_id 1 is 1 000 on its orders row and 2 order_lines rows point at it, so the join counts it twice (2 000)" in c
-    assert "A synthetic example beside these tables (fabric_backend.seed.AMOUNT_DEMO)" in c and r["domains"]["status"] == ts.label("domain_draft")
+    assert "A synthetic example beside these tables (fabric_backend.seed.AMOUNT_DEMO)" in c and r["domains"]["status"] == "Draft"
     other = next(x for x in r["findings"] if x["check"] == "amount_level" and x["amount"]["column"] == "list_price")
     assert other["amount"]["example"] == {"key": "product_id", "id": "4", "amount": 5.9, "lines": 27, "repeated": 159.3}
     assert "amountLevel.products.list_price" in r["domains"]["contracts"]["products"] and "product_id 4 is 5.90 on its products row" in c
@@ -444,7 +444,7 @@ def test_in_a_browser_the_mascot_hops_while_loading_and_the_drafts_download_with
         o = r[motion]
         assert o["loading_at_start"] and o["mascot_drawn"] and o["hop_animation"] == anim, o
         assert o["loading_after_result"] is False and o["build_shown"]
-        assert "Draft only" in o["model_text"] and "Summed once per header (sales_orders)" in o["model_text"]
+        assert "A preview drawn here from your rows." in o["model_text"] and "no report tool" not in o["model_text"] and "Summed once per header (sales_orders)" in o["model_text"]
         assert "Summed over the joined lines (sales_order_lines)" in o["model_text"] and "14,400" in o["model_text"]
         for w in ("at_1280", "at_375"):                              # n73: finding, folded list, map, the two choices, the folded steps
             assert o[w] == {"in_map_col": True, "below_map": True, "verdict_above_map": True, "engine_below_choices": True, "engine_closed": True, "dom_order": True}, (w, o[w])
@@ -453,7 +453,7 @@ def test_in_a_browser_the_mascot_hops_while_loading_and_the_drafts_download_with
         assert o["requests_while_building"] == [], o["requests_while_building"]
         assert o["app_rows"] > 0 and "Download app starterFor Lovable, with Rayfin connector entities from the same plan; the API itself does not exist yet." in o["app_text"]
         assert "Supabase" not in o["app_text"] and "an app starter for Lovable" in o["app_text"]       # n80: the word stays in /docs and /lovable
-        assert "This file is " + ts.label("semantic_model_draft")[0].lower() + ts.label("semantic_model_draft")[1:] + "." in o["model_text"]   # n95: said once, above
+        assert "This file is a draft for you to review." in o["model_text"] and "last tried live" not in o["model_text"]   # n95; n234: plain words
         assert "Download Power BI projectThe model (.pbip) with the plan's keys and relationships as checked in the rows, and an empty report page." in o["model_text"]
         assert "sales_order_no SO5001" in o["model_text"] and "counts it 3 times" in o["model_text"] and "The model's measure sums it the right way." in o["model_text"]   # n73: the row the finding names
         assert o["next_links"] == ["Connect to my Fabric /start", "Get help /support"]

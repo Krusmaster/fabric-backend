@@ -205,6 +205,68 @@ expressible before, 19 (10 active, 9 inactive) and 0 after; ontology 0 of 12 ent
 before, 10 and 19 after. sap_mm: model 0 and 8 before, 8 (7 active, 1 inactive) and 0 after; ontology 0 of 8 and 0
 before, 7 and 8 after. The keys themselves are still by name or from the pack until validate_plan counts them.
 
+## Count before claiming, and let the data propose (round F2, 15 November 2026; unit tests only, not run in Fabric)
+
+`docs/SCOPE-REVIEW.md` section 6, mechanisms 4 and 5. The code is `fabric_backend/propose.py`; the scores are in
+`docs/SCORES.md`. With a connection, the hosted tools' plan now runs a row profile after the name rules. Every statement
+is a count; none returns a row value.
+
+- **Keys counted in the same call.** A key by name (K2, K4, K5) or from a pack is counted (rows, NULLs, distinct) when
+  the plan is made, the keys most links point at first. Its evidence state is then "counted unique" or "counted, not
+  unique" in `plan_backend`'s own answer, not only after `validate_plan`. A key counted not unique stays and is listed
+  (`plan.profile.not_unique`). One exception: a key by a bare name (`id`, `no`, `nr`) or a composite guess (K4, K5) with
+  a NULL or with distinct values for at most 90 of 100 rows gives way when the rows offer a key in the same table
+  (`No_` in a Business Central line table is the item's number, not the line's key).
+- **K6, a key from the rows** where no name gives one. One aggregate statement per keyless table. A column unique and
+  never NULL in two or more rows, of a type a key can have (whole number, text, uniqueidentifier), is a candidate.
+  Names rank them: the first column named like an identifier, else the table's first column. A unique column that is
+  neither (`rowguid`) is listed, not taken. When no single column is taken, the first two, three and four columns are
+  counted together and the shortest unique combination is the key; never every column of the table (that says only
+  that no row repeats) and never a combination with a column that is unique alone. A client column that leads the
+  table is part of the key.
+- **R6, a link from the rows.** For a column the names left ambiguous, an unlinked column named like a reference, a
+  table's own key column that another key is named as (a subtype), a link by name whose column another key is also
+  named as, and then other unlinked text columns: the values are looked up in the single-column keys of the same type
+  class, one statement per column for up to eight keys. Names rank the keys the values fit (the key's own name, then a
+  column that carries the table's whole name, the longer name first); between keys of one name the key with the
+  fewest rows is the nearest, and that is decided over every value, never over a sample. A link is applied only with
+  support from the name; whole numbers without name support are not even compared (1..n fits any dense id). What the
+  rows fit without a name is in `plan.proposed` with its counts.
+- **Orphans re-counted once.** When a link's values are not all in the key, one more statement counts the matches with
+  both sides cast to text, then trimmed, then case folded, then without leading zeros, and the answer says for example
+  "158 of 158 rows with a value match after stripping leading zeros (0 as written)". `validate_plan` adds it as
+  `recount` to every relationship with orphans; the verdict stays the count as written. A link that holds only after a
+  conversion is proposed, never applied: the join would need the same conversion on both sides.
+- **A pack table by its key columns.** A table the SAP pack does not know by name is read as pack table P when, after
+  an optional client column, its first columns are exactly P's key, it has at least two more columns the pack
+  documents for P, and no other pack table with that key has as many. `plan.pack.by_signature` names each one and
+  why; `signature_unresolved` names what could not be told apart (an extension table keyed like VBAK). The key is
+  counted in the same call like any other. Only `plan()` uses this; `sap_model` and the pack's own tools still go by
+  the table's name.
+
+The limits: the profile stops when half of the call's time budget (45 s, `budget.py`) is used or after 60 statements per
+call (`KRUSGRAPH_PROFILE_QUERIES`; `0` turns the profile off), and says what it did not reach
+(`plan.profile.not_checked`). Nothing is applied from what was not counted. No time was measured: the statements are
+`COUNT(DISTINCT …)` over whole tables and joins against `SELECT DISTINCT` of a key, and how long they take on a large
+lakehouse is not known. The leading-zero strip is `PATINDEX` on T-SQL and `REGEXP_REPLACE` on Databricks; both
+statements are parsed in the tests (sqlglot) and the T-SQL form runs on SQLite with `PATINDEX` emulated; neither has run
+on a Fabric SQL endpoint.
+
+What the profile found that the names missed, on the corpus (`docs/SCORES.md`, synthetic rows):
+
+| Corpus | Names missed | The profile |
+| --- | --- | --- |
+| AdventureWorks | the keys of 20 tables whose key is not named after the table (`BusinessEntityID` in Person, Employee, Store, Vendor); 17 links by name to the wrong table | 15 more keys right (62 of 71), 25 more links found (87 of 90), wrong links 17 to 6: `Employee.BusinessEntityID` is in Person and in BusinessEntity, and Person has fewer rows |
+| SAP-shaped samples | the keys of the three Z tables | all three, the client column included |
+| SAP-shaped, tables renamed | everything (0 of 12 keys) | 7 of 10 standard tables by their key columns, 11 of 12 keys, 13 of 18 links |
+| Nordic-ERP-like | everything (`kus`, `oh`, `orp`, `ftgnr`) | 8 of 8 keys, 5 of 9 links; `fh.kundnr` is proposed with "158 of 158 … after stripping leading zeros" |
+| Business-Central-like | 3 of 10 keys right (`No_` taken as the key of the line tables too), no link | 8 of 10 keys, 10 of 12 links |
+
+What it gets wrong or leaves, said on the same page: two keys that are unique in the generated rows but narrower than
+the declared key; an identity key of the same name in a smaller table read as a subtype
+(`TransactionHistoryArchive.TransactionID`); a link with three orphan rows proposed instead of applied
+(`orp.ordernr`); links whose column name says nothing (`kus.saljare`, `KUNAG`) proposed, not applied.
+
 ## Tokens per answer: the ten most used tools, before and after
 
 Measured on 26 October 2026 with Fabric mocked and the shop rows in SQLite (`validate_plan`, `sample_rows` and

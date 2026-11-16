@@ -1,0 +1,199 @@
+{
+ "name": "nordic_erp",
+ "title": "Nordic-ERP-like shape",
+ "source": "short Swedish names (kus, oh, orp, ftgnr, artnr); synthetic, written for this corpus, not a product's schema",
+ "rows": 1150,
+ "names": {
+  "tables": 8,
+  "keys_true": 8,
+  "keys_right": 0,
+  "keys_wrong": 0,
+  "keys_missed": 8,
+  "keys_extra": 0,
+  "keys_extra_list": [],
+  "links_true": 9,
+  "links_found": 0,
+  "links_wrong": 0,
+  "keys_wrong_list": [],
+  "keys_missed_list": [
+   "ar",
+   "fh",
+   "kus",
+   "lagsaldo",
+   "oh",
+   "orp",
+   "salj",
+   "vg"
+  ],
+  "links_missed_list": [
+   "ar.varugrupp -> vg",
+   "fh.kundnr -> kus",
+   "fh.ordernr -> oh",
+   "kus.saljare -> salj",
+   "lagsaldo.artnr -> ar",
+   "oh.ftgnr -> kus",
+   "oh.saljare -> salj",
+   "orp.artnr -> ar",
+   "orp.ordernr -> oh"
+  ],
+  "links_wrong_list": []
+ },
+ "before": {
+  "tables": 8,
+  "keys_true": 8,
+  "keys_right": 0,
+  "keys_wrong": 0,
+  "keys_missed": 8,
+  "keys_extra": 0,
+  "keys_extra_list": [],
+  "links_true": 9,
+  "links_found": 0,
+  "links_wrong": 0,
+  "keys_wrong_list": [],
+  "keys_missed_list": [
+   "ar",
+   "fh",
+   "kus",
+   "lagsaldo",
+   "oh",
+   "orp",
+   "salj",
+   "vg"
+  ],
+  "links_missed_list": [
+   "ar.varugrupp -> vg",
+   "fh.kundnr -> kus",
+   "fh.ordernr -> oh",
+   "kus.saljare -> salj",
+   "lagsaldo.artnr -> ar",
+   "oh.ftgnr -> kus",
+   "oh.saljare -> salj",
+   "orp.artnr -> ar",
+   "orp.ordernr -> oh"
+  ],
+  "links_wrong_list": []
+ },
+ "after": {
+  "tables": 8,
+  "keys_true": 8,
+  "keys_right": 8,
+  "keys_wrong": 0,
+  "keys_missed": 0,
+  "keys_extra": 0,
+  "keys_extra_list": [],
+  "links_true": 9,
+  "links_found": 5,
+  "links_wrong": 0,
+  "keys_wrong_list": [],
+  "keys_missed_list": [],
+  "links_missed_list": [
+   "fh.kundnr -> kus",
+   "kus.saljare -> salj",
+   "oh.saljare -> salj",
+   "orp.ordernr -> oh"
+  ],
+  "links_wrong_list": []
+ },
+ "plan": {
+  "keys": {
+   "ar": {
+    "columns": [
+     "artnr"
+    ],
+    "rule": "K6"
+   },
+   "fh": {
+    "columns": [
+     "faktnr"
+    ],
+    "rule": "K6"
+   },
+   "kus": {
+    "columns": [
+     "ftgnr"
+    ],
+    "rule": "K6"
+   },
+   "lagsaldo": {
+    "columns": [
+     "lagplats",
+     "artnr"
+    ],
+    "rule": "K6"
+   },
+   "oh": {
+    "columns": [
+     "ordernr"
+    ],
+    "rule": "K6"
+   },
+   "orp": {
+    "columns": [
+     "ordernr",
+     "ordradnr"
+    ],
+    "rule": "K6"
+   },
+   "salj": {
+    "columns": [
+     "sign"
+    ],
+    "rule": "K6"
+   },
+   "vg": {
+    "columns": [
+     "varugrupp"
+    ],
+    "rule": "K6"
+   }
+  },
+  "links": [
+   "ar.varugrupp -> vg.varugrupp [R6]",
+   "fh.ordernr -> oh.ordernr [R6]",
+   "lagsaldo.artnr -> ar.artnr [R6]",
+   "oh.ftgnr -> kus.ftgnr [R6]",
+   "orp.artnr -> ar.artnr [R6]"
+  ],
+  "ambiguous": [],
+  "proposed": [
+   "fh.kundnr -> kus [R6]: fh.kundnr fits no key as written; 158 of 158 rows with a value match after stripping leading zeros (0 as written) in kus.ftgnr: the link holds only with that conversion, so it is proposed, not applied (the join needs the same conversion on both sides)",
+   "kus.saljare -> salj [R6]: 80 of 80 value(s) of kus.saljare are in salj.sign, but the name gives no support: confirm it to apply it",
+   "oh.saljare -> salj [R6]: 200 of 200 value(s) of oh.saljare are in salj.sign, but the name gives no support: confirm it to apply it",
+   "orp.ordernr -> oh [R6]: 3 of 491 value(s) of orp.ordernr are not in oh.ordernr; re-counted over all rows: 488 of 491 rows with a value match as written; trimming spaces, folding case and stripping leading zeros match no more"
+  ],
+  "keys_from_rows": {
+   "kus": "ftgnr is unique and never NULL in all 80 rows, and is named like an identifier; also unique: ftgnamn",
+   "ar": "artnr is unique and never NULL in all 120 rows, and is named like an identifier; also unique: artbeskr",
+   "vg": "varugrupp is unique and never NULL in all 8 rows, and is the table's first column; also unique: vgbeskr",
+   "salj": "sign is unique and never NULL in all 6 rows, and is the table's first column; also unique: namn",
+   "oh": "ordernr is unique and never NULL in all 200 rows, and is named like an identifier",
+   "orp": "no single column is taken; the first 2 columns together are unique and never NULL in all 491 rows",
+   "fh": "faktnr is unique and never NULL in all 158 rows, and is named like an identifier; also unique: ordernr",
+   "lagsaldo": "no single column is taken; the first 2 columns together are unique and never NULL in all 87 rows"
+  }
+ },
+ "row_results": {
+  "summary": "8 of 8 keys unique, 5 of 5 relationships hold without orphans",
+  "keys": {
+   "kus": "unique in all 80 rows",
+   "ar": "unique in all 120 rows",
+   "vg": "unique in all 8 rows",
+   "salj": "unique in all 6 rows",
+   "oh": "unique in all 200 rows",
+   "orp": "unique in all 491 rows",
+   "fh": "unique in all 158 rows",
+   "lagsaldo": "unique in all 87 rows"
+  },
+  "links": {
+   "ar.varugrupp -> vg": "holds for all 120 rows with a value",
+   "oh.ftgnr -> kus": "holds for all 200 rows with a value",
+   "orp.artnr -> ar": "holds for all 491 rows with a value",
+   "fh.ordernr -> oh": "holds for all 158 rows with a value",
+   "lagsaldo.artnr -> ar": "holds for all 87 rows with a value"
+  }
+ },
+ "planted": {
+  "leading_zeros": "fh.kundnr holds kus.ftgnr without its leading zeros: the link holds only after stripping them",
+  "orphans": "orp: 3 rows of order 59999, which is not in oh"
+ }
+}

@@ -1,0 +1,13 @@
+On the workbench: Qlik Sense to Power BI.
+
+Krusgraph's engine reads a data model and says how its tables connect, each link with its reason. We are applying the same idea to Qlik Sense load scripts, on the way to Power BI and Fabric.
+
+The script is read as text, by fixed rules: nothing runs, and Qlik is not asked. On our hand-written example script the reader finds 9 tables, 8 linking fields, 3 synthetic keys and 1 circular reference, each of them something to decide before a semantic model is built.
+
+It is not a product yet, and there is no date. If you are moving from Qlik to Power BI and want to follow along, say hello.
+
+Qlik and Qlik Sense are trademarks of QlikTech International AB. Krusgraph is independent and is not affiliated with, tested or endorsed by Qlik or Microsoft.
+
+#PowerBI #Qlik #DataMigration #MicrosoftFabric #DataModeling #Krusgraph
+
+Try it in your browser: krusgraph.com/check (link in bio)

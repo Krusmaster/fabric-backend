@@ -102,7 +102,7 @@ hosted service is down, the customer's pipelines and reports are not affected; o
 | Information owner (*informationsägare*) of the customer's data | **The customer** | It owns its tables, decides who may read them in Fabric, and decides whether to use Krusgraph at all |
 | System owner (*systemägare*) of the hosted service and the workload | **Kruse Consulting AB** | It runs and changes the hosted service, decides its settings, and answers for its security |
 | System owner of a self-hosted installation | **The customer** | Kruse Consulting AB supplies the code only |
-| Security contact | **The founder of Kruse Consulting AB** (one person), by role | `gustav@krusgraph.com`, the address in `SECURITY.md` and `/.well-known/security.txt`. Whether to add a role address such as `security@krusgraph.com` is a founder decision (section 8) |
+| Security contact | **The founder of Kruse Consulting AB** (one person), by role | `hello@krusgraph.com` (since 15 November 2026), the address in `SECURITY.md` and `/.well-known/security.txt`. Whether to add a role address such as `security@krusgraph.com` is a founder decision (section 8) |
 | GDPR roles (working position) | Customer controller, Kruse Consulting AB processor for the hosted service | `docs/DPA-DRAFT.md`; to be confirmed by each side's lawyer |
 
 ## 4. What is in place today
@@ -172,7 +172,7 @@ something is in place for Krusgraph's own service; it does not say the customer'
 ## 8. What the founder must decide
 
 1. **Notification target** to customers after a confirmed incident (proposal in `docs/INCIDENT-RESPONSE.md` §4).
-2. **Security contact address**: keep `gustav@krusgraph.com`, or add a role address such as `security@krusgraph.com`
+2. **Security contact address**: `hello@krusgraph.com` since 15 November 2026 (G1); add a role address such as `security@krusgraph.com` later, or keep it
    (then update `fabric_backend/discovery.py` `SECURITY_CONTACT`, `SECURITY.md` and its test together).
 3. **DPA**: have a lawyer turn `docs/DPA-DRAFT.md` into a template, including the breach clause (channel and time limit).
 4. Whether and when to buy an external penetration test.

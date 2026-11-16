@@ -15,6 +15,11 @@ import {
 } from "./productWords";
 import { SaveStatus, savedWords } from "./saveState";
 
+/** F1: how many people and groups Fabric lists with a role in the workspace; one is "1 person or group has". */
+export function roleLine(n: number): string {
+  return n === 1 ? "1 person or group has a role in this workspace." : `${n} people and groups have a role in this workspace.`;
+}
+
 export const PRODUCT_CSS = `
 .kg-dp{--kg-fg:var(--colorNeutralForeground1,#1f1f1f);--kg-fg2:var(--colorNeutralForeground2,#424242);
 --kg-bg:var(--colorNeutralBackground1,#ffffff);--kg-bg2:var(--colorNeutralBackground2,#f5f5f5);
@@ -141,7 +146,7 @@ export function DataProductView(props: DataProductProps) {
           {props.status?.you && <button type="button" onClick={() => { setOwner(props.status!.you!); props.onOwner?.(props.status!.you!); }} disabled={busy}>Me ({props.status.you})</button>}
         </div>
         <p>{OWNER_WHY}</p>
-        <p className="kg-dp-muted">{people.length ? `${people.length} people and groups have a role in this workspace.` : "Kept in this item (outputs.json)."}</p>
+        <p className="kg-dp-muted">{people.length ? roleLine(people.length) : "Kept in this item (outputs.json)."}</p>
       </section>
 
       <section aria-labelledby="kg-dp-items">

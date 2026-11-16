@@ -1,7 +1,7 @@
 """n224: the site's sentences that S1 (docs/SCOPE-REVIEW.md, sections 3.2 and 4) found promising more than the evidence.
 
 Site only: /check loses the seconds measured on a local server and the "two minutes"; /use-cases/build loses "about N
-minutes"; the ten industry cards on /use-cases each say they are illustrative, not run on customer data; the headline
+minutes"; the industry cards (ten then, nine since n239) on /use-cases each say they are illustrative, not run on customer data; the headline
 (USP), the server card's description, the three points and llms.txt say "the rule behind every proposed link" instead of
 "the proof", count "up to 60 keys and links per call (200 at most)" instead of "every", give each built item its status,
 and say an SAP pack link cites a public SAP page rather than resting on a verified source. The body text's qualifiers stay.
@@ -58,11 +58,11 @@ def test_use_cases_build_has_no_minutes_estimate(client):
 def test_each_industry_card_says_it_is_illustrative(client):
     html = client.get("/use-cases").text
     cards = re.findall(r'<li class="card soft uc-ind" id="([\w-]+)">(.*?)</li>', html, re.S)
-    assert len(cards) == len(use_cases.INDUSTRIES) == 10
+    assert len(cards) == len(use_cases.INDUSTRIES) == 9
     for slug, body in cards:
         assert "Illustrative, not run on customer data" in body, slug
     md = client.get("/use-cases.md").text
-    assert md.count("*Illustrative, not run on customer data.*") == 10
+    assert md.count("*Illustrative, not run on customer data.*") == 9
 
 
 def test_the_headline_and_llms_txt_promise_the_rule_not_proof(client):

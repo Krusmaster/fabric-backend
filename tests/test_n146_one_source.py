@@ -144,9 +144,18 @@ def _statements(client, name):  # noqa: F811
     return out
 
 
+def _visitor(tool, phrase):
+    """n234: a visitor page may say the tool's plain word (tool_status.plain) instead of the record; that word is
+    "experimental" only for a tool experimental() calls so, never "tested end to end" or "tried live"."""
+    word = ts.plain(tool)
+    return bool(word) and phrase.strip().lower().rstrip(".;") == word
+
+
 def _wrong(tool, phrase):
     """The stated word is not the tool's, or drops the qualifier that limits it (as a dry run, as an update in place)."""
     want, base, low = ts.word(tool), _base(phrase), phrase.lower()
+    if _visitor(tool, phrase):
+        return False
     if base != _base(want):
         return True
     return any(q in want.lower() and q not in low and not low.startswith(base.lower() + " on")
@@ -163,10 +172,12 @@ def test_two_pages_never_give_one_tool_two_status_words(client):  # noqa: F811
     seen: dict = {}
     for name in _all_paths():
         for tool, phrase in _statements(client, name):
-            seen.setdefault(tool, set()).add(_base(phrase))
+            if not _visitor(tool, phrase):                                      # n234: the plain word is checked in _wrong
+                seen.setdefault(tool, set()).add(_base(phrase))
     two = {t: w for t, w in seen.items() if len(w) > 1}
     assert not two, two
-    assert seen.get("create_pipeline") == {"Tried live"}                        # run live on 7 November 2026, not Experimental
+    assert seen.get("create_pipeline", {"Tried live"}) == {"Tried live"}        # run live on 7 November 2026, not Experimental
+    assert ts.plain("create_pipeline") != "experimental"
 
 
 def test_experimental_means_never_tried_live():

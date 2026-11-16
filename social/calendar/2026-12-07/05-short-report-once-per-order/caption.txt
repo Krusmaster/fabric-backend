@@ -1,0 +1,30 @@
+# A report that counts each order once
+# Upload: krusgraph-short-report-once-per-order-9x16-v2.mp4 (1080x1920, 25.9 s, H1 v5's pipeline; QA in QA-v2.md); cover: cover-v2.jpg. 'Voice: AI-generated' is on the end card. The first version (krusgraph-short-report-once-per-order-9x16.mp4) is kept and not to be used.
+# Turn on each platform's AI-generated content label when it asks.
+
+== Instagram Reels (caption) ==
+A report that counts each order once.
+
+A report on SAP-shaped tables: is the total right? The semantic model keeps the order amount on the order header. Net order value: EUR 750.0, counted once per order; summed over the order lines it would be 1 950. After the build, Krusgraph reads the model back and counts the figures again from the rows.
+
+Everything on screen is the engine's own output on our example. Voice: AI-generated.
+
+#MicrosoftFabric #PowerBI #DataQuality #Krusgraph
+
+Try it in your browser: krusgraph.com/check (link in bio)
+
+== TikTok (caption) ==
+A report that counts each order once. A report on SAP-shaped tables: is the total right? The semantic model keeps the order amount on the order header. Net order value: EUR 750.0, counted once per order; summed over the order lines it would be 1 950. After the build, Krusgraph reads the model back and counts the figures again from the rows. Voice: AI-generated. #MicrosoftFabric #PowerBI #SemanticModel
+
+Try it in your browser: krusgraph.com/check (link in bio)
+
+== YouTube Shorts ==
+Title: A report that counts each order once #Shorts
+Description:
+A report on SAP-shaped tables: is the total right? The semantic model keeps the order amount on the order header. Net order value: EUR 750.0, counted once per order; summed over the order lines it would be 1 950. After the build, Krusgraph reads the model back and counts the figures again from the rows.
+
+Voice: AI-generated. Krusgraph is independent and is not affiliated with, tested or endorsed by SAP or Microsoft.
+
+#MicrosoftFabric #PowerBI #Shorts
+
+Try it in your browser: krusgraph.com/check (link in bio)

@@ -1,0 +1,1 @@
+Headline: 'Try it in your browser, krusgraph.com/check'. A screenshot of the page's result for the shop example: 'Enough to start, 4 things to check', and a map of tables with links labelled R1. Three ticks: your files are read in this browser and are not uploaded; CSV or Excel exports, or a list of columns; no files? 7 examples to try.

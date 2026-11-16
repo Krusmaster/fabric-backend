@@ -32,7 +32,7 @@ pip install "fabric-backend[mcp] @ git+https://github.com/Krusmaster/fabric-back
 fabric-backend-mcp --help
 ```
 
-The second line proves the executable is on the PATH; if PowerShell cannot find it, it is in the `Scripts` folder of
+The second line prints the settings and returns, which proves the executable is on the PATH; if PowerShell cannot find it, it is in the `Scripts` folder of
 your Python installation (`python -c "import sysconfig; print(sysconfig.get_path('scripts'))"`), and you can use that
 full path in the configuration below.
 
@@ -71,12 +71,31 @@ dbo"*, *"Check the plan against the data"*, *"How do orders connect to products?
 
 ## 4. What works locally, and what answers with an explanation
 
-Works: `list_tables`, `plan_backend`, `validate_plan`, `sample_rows`, `join_path`, `data_dictionary`, `dbt_schema`,
-`analyze_schema`, `suggest_relationships`, `rayfin_connector`, `create_views` (dry run by default; `CREATE OR ALTER
-VIEW` in a schema of its own, never DROP; `CREATE OR ALTER` needs SQL Server 2016 SP1 or later), `answer_query_draft` (a
-question in Swedish or English as T-SQL over the safest join path; runs nothing) and, with `FABRIC_SOURCE_KIND=Lakehouse`,
-`silver_notebook_draft` (the PySpark notebook that builds silver tables, without a default lakehouse since the item ids are
-not known locally; attach it in Fabric).
+The local server has 24 tools (`fabric_backend/mcp_server.py`; `tests/test_f1_findings_fixes.py` holds this section to
+the code). `fabric-backend-mcp --help` lists the settings and returns; without arguments the command waits for an MCP
+client on stdin and prints nothing, which is how a client starts it.
+
+Works on every source: `list_tables`, `plan_backend`, `validate_plan`, `review_plan` (the plan, the decisions and the
+checks as one file), `sample_rows`, `join_path`, `data_dictionary`, `dbt_schema`, `analyze_schema`,
+`suggest_relationships`, `rayfin_connector`, `create_views` (dry run by default; `CREATE OR ALTER VIEW` in a schema of
+its own, never DROP; `CREATE OR ALTER` needs SQL Server 2016 SP1 or later) and `answer_query_draft` (a question in
+Swedish or English as T-SQL over the safest join path; runs nothing).
+
+Works when the source is a Fabric item (`FABRIC_SOURCE_KIND` is `Lakehouse`, `Warehouse` or `SQLDatabase`):
+`semantic_model_draft` and `ontology_draft`, and with `Lakehouse` only `silver_notebook_draft` (the PySpark notebook
+that builds silver tables, without a default lakehouse since the item ids are not known locally; attach it in Fabric).
+`create_backend` is here too, as a dry run by default: it is the one local tool that calls Fabric's REST API, so it
+needs a Fabric sign-in (`FABRIC_TOKEN`, or the Azure CLI after `az login`) and answers `kind: sign_in` with that step
+when there is none.
+
+Seven tools belong to the Databricks adapter (Draft only, `KRUSGRAPH_PLATFORM=databricks`, [DATABRICKS.md](DATABRICKS.md)):
+`databricks_constraints_draft`, `create_databricks_constraints`, `databricks_pipeline_draft`,
+`create_databricks_pipeline`, `databricks_metric_view_draft`, `export_databricks_bundle` and `databricks_lineage`.
+On any other source they answer `kind: unsupported`.
+
+The local plan is made from names and declared keys. The hosted connector also counts code and role columns in the rows
+while it plans (rule R5), so on the same tables it can show a link the local plan does not; `suggest_relationships`
+finds those candidates locally and counts them.
 
 On SQL Server the declared primary and foreign keys are read from `INFORMATION_SCHEMA` and become rules K0 and R0, so
 the plan starts from what the database says; name inference fills in the rest. Constraints are matched by schema and
@@ -88,10 +107,10 @@ spaces or other odd characters in their names are bracket-quoted in every query 
 Two drafts are Fabric-specific and, with `FABRIC_SOURCE_KIND=SQLServer`, answer `kind: unsupported` with the reason
 and the alternative: `semantic_model_draft` (Direct Lake needs a Fabric SQL analytics endpoint; open the tables in Power
 BI Desktop in Import or DirectQuery mode and use the plan's keys and relationships, or mirror the database into Fabric)
-and `ontology_draft` (Fabric IQ binds to a Fabric item). The tools that need Fabric item ids (`create_backend`,
-`describe_backend`, `plan_drift`, `app_starter`, `app_readiness`, `create_semantic_model`, `create_data_agent`,
-`lineage`, `create_silver_notebook`, the drift monitor, and the GraphQL form of `answer_query_draft`) exist in the hosted
-connector only.
+and `ontology_draft` (Fabric IQ binds to a Fabric item). The tools that need Fabric item ids (`describe_backend`,
+`plan_drift`, `app_starter`, `app_readiness`, `create_semantic_model`, `create_data_agent`, `lineage`,
+`create_silver_notebook`, the drift monitor, and the GraphQL form of `answer_query_draft`) exist in the hosted connector
+only, as do `start` (Start Krusgraph) and the cards.
 
 ## 5. The 20-minute demo
 

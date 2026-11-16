@@ -2607,7 +2607,143 @@ def routes(cfg, validator=None, obo=None) -> list:
             Route(f"{PREFIX}/operation", endpoint(operation_request, run_operation, "operation"), methods=["POST", "OPTIONS"]),
             Route(f"{PREFIX}/product", endpoint(product_request, run_product, "product"), methods=["POST", "OPTIONS"]),
             Route(f"{PREFIX}/health", endpoint(health_request, run_health, "health"), methods=["POST", "OPTIONS"]),
+            Route(f"{PREFIX}/drawio", endpoint(drawio_request, run_drawio, "drawio"), methods=["POST", "OPTIONS"]),   # n228
+            Route(f"{PREFIX}/verify", endpoint(verify_request, run_verify, "verify"), methods=["POST", "OPTIONS"]),   # n229
             Route(f"{PREFIX}/access", endpoint(access_request, None, "access"), methods=["POST", "OPTIONS"])]
+
+
+def _rows(v, what: str, need: tuple[str, ...], lists: tuple[str, ...] = (), limit: int = 20000) -> list[dict]:
+    if not isinstance(v, list) or len(v) > limit or not all(
+            isinstance(x, dict) and all(isinstance(x.get(k), str) and x[k] for k in need)
+            and all(isinstance(x.get(k, []), list) and all(isinstance(c, str) for c in x.get(k, [])) for k in lists) for x in v):
+        raise BadRequest(f"{what}: a list of at most {limit} objects, each with {', '.join(need)}")
+    return v
+
+
+# ------------------------------------------------------------------ n229: Verify what was built ----------------------
+# The founder, 12 November 2026: "an agent that double-checks Krusgraph's deployed proposals". The Model editor's button
+# after a Create: the items outputs.json records are read back and compared with their dry run, the report's cards are
+# counted again from the rows, and what was never refreshed or run is said, each with its one action (verify_build.py, by
+# rules; no AI model). Read-only. The answer also carries the next steps of the data product (after_create.py), from what
+# this Model has built: what it still lacks, never what is already there.
+VERIFY_KIND = {"semantic_model": "semantic_model", "report": "report", "ontology": "ontology", "graphql": "api", "pipeline": "pipeline",
+               "rayfin_app": "app"}
+# the editor's own words for a step, in place of a tool call: which box to tick, which button to press
+EDITOR_HOW = {
+    "refresh": "Choose Create again with the semantic model ticked: a model this Model built is refreshed once.",
+    "pipeline": "Tick Pipeline under What to build; Run once and Schedule are its two choices, both off until you tick them.",
+    "report": "Tick Report under What to build and choose Create.",
+    "data_agent": "Tick Data agent under What to build and choose Create.",
+    "app": "Tick App under What to build; Create makes the empty App item and gives the package with its one command.",
+    "drift_monitor": "The pipeline's first step compares the source with the plan on every run; a nightly monitor of its own is "
+                     "not built from this editor yet.",
+    "data_product": "Open the Data product page of this Model and set the owner.",
+    "dbt": "Not built from this editor: the dbt project is a draft the hosted tools give (dbt_schema).",
+}
+
+
+def verify_request(body) -> dict:
+    """POST /workload/v1/verify {workspace, source, source_name, schema, review, created}: created is outputs.json's
+    created list ({type, id, name, workspace, output}); the review gives the keys and links the items were built from."""
+    if not isinstance(body, dict):
+        raise BadRequest("the body must be a JSON object")
+    req = _source(body)
+    if not isinstance(body.get("review"), dict):
+        raise BadRequest("'review' (the item's review.json) is required: the items were built from its decisions")
+    created = body.get("created") or []
+    if (not isinstance(created, list) or len(created) > 200
+            or not all(isinstance(c, dict) and isinstance(c.get("id"), str) and _GUID.match(c["id"]) and isinstance(c.get("name"), str)
+                       for c in created)):
+        raise BadRequest("'created' must be outputs.json's created list ({type, id, name, workspace, output})")
+    out = {**req, "review": body["review"],
+           "created": [{k: str(c.get(k) or "")[:200] for k in ("type", "id", "name", "workspace", "output")} for c in created]}
+    out.update(_ids(body))
+    return out
+
+
+def run_verify(req: dict) -> dict:
+    """The verifier on what this Model built, as the signed-in user, on the plan the review left. Only reads."""
+    from . import after_create as AC, review as R, server as S
+    rv = R.read(req["review"])
+    carried = R.carried_arguments(rv)
+    keys, confirmed = carried["keys"] or None, carried["confirmed"] or None
+    from . import verify_build as V
+    items, built = {}, {}
+    for c in req["created"]:                                       # the latest item of each kind this Model built
+        kind = VERIFY_KIND.get(c.get("output") or "")
+        if kind and c.get("type") == V.TYPE_OF[kind]:              # a pipeline's Create also records its three notebooks
+            items[kind] = c["id"]
+            built.setdefault(kind, []).append(c["name"])
+        elif c.get("output") == "data_agent" and c.get("type") == "DataAgent":
+            built.setdefault("data_agent", []).append(c["name"])
+    ws = next((c["workspace"] for c in req["created"] if _GUID.match(c.get("workspace") or "")), None)
+    cross = bool(ws) and ws.lower() != str(req["workspace"]).lower()
+    skip = {}
+    if cross and "pipeline" in items:                              # n221: silver and gold then live in a lakehouse of the build's workspace
+        skip["pipeline"] = ("this Model builds in another workspace than its source, and the verifier compares a pipeline and its "
+                            "notebooks only where the source is; open the pipeline's latest run instead")
+    if not items:
+        return _with_schema({"label": "A check by rules, not a review by AI.", "summary": "Nothing to verify yet: this Model has built "
+                             "no semantic model, report, ontology, API, pipeline or App.", "lines": [], "counts": {"items": 0},
+                             "next_steps": [], "note": NOTHING_CHANGED}, req)
+
+    def adjust(plan):
+        return apply_review(plan, rv)[0]
+    build_in = S.BUILD_IN.set(ws if cross else None)               # n221: where the build went
+    try:
+        with S.plan_scope(adjust):
+            from . import budget
+            with budget.call():
+                out = S._verify_built(req["workspace"], req["source"], items, req["schema"], keys, confirmed, None, None, skip=skip)
+    finally:
+        S.BUILD_IN.reset(build_in)
+    out.pop("review_by_ai", None)                                  # the editor has no AI client beside it
+    out.pop("checks", None)
+    args = {"workspace": req["workspace"], "source": req.get("source_name") or req["source"], "schema": req["schema"]}
+    steps = AC.next_steps("semantic_model" if built.get("semantic_model") else next(iter(built), "semantic_model"), args, built)
+    todo = [s for s in steps["next_steps"] if s["step"] != "verify"]
+    out["next_steps"] = [{"step": s["step"], "label": s["label"], "who": s["who"], "why": s["why"],
+                          "how": EDITOR_HOW.get(s["step"], ""), **({"state": s["state"]} if s.get("state") else {})} for s in todo]
+    for f in out.get("fixes") or []:                               # a state finding's one action comes first
+        out["next_steps"].insert(0, {"step": f.get("action"), "label": f["label"], "who": "builder", "why": f["how"],
+                                     "how": EDITOR_HOW["refresh"] if f.get("action") == "refresh_model" else f["how"], "item": f["item"]})
+    out["already_built"] = steps["already_built"]
+    out["more"] = [{"step": m["step"], "label": m["label"] + " (a draft)", "who": m["who"], "why": m["why"], "how": EDITOR_HOW["dbt"]}
+                   for m in steps["more"]]
+    c = out["counts"]
+    log("verify", items=c.get("items"), verified=c.get("verified"), differs=c.get("differs"), not_checked=c.get("not_checked"))
+    out["note"] = NOTHING_CHANGED + " The verifier only reads: definitions, counts and run history; never a row value."
+    return _with_schema(out, req)
+
+
+def drawio_request(body) -> dict:
+    """n228: POST /workload/v1/drawio {diagram: "map" | "data_flow", map | flow, name?} - the map or the data flow the
+    editor is showing, as a draw.io file (drawio.py). The editor sends what an earlier answer gave it (/review's map,
+    /build's flow), so this route reads nothing in Fabric and writes nothing: it turns that data into a file."""
+    if not isinstance(body, dict) or body.get("diagram") not in ("map", "data_flow"):
+        raise BadRequest('diagram: "map" or "data_flow"')
+    diagram = body["diagram"]
+    data = body.get("map" if diagram == "map" else "flow")
+    if not isinstance(data, dict):
+        raise BadRequest("map: the map of a review" if diagram == "map" else "flow: the data flow of a build")
+    if diagram == "map":
+        data = {"tables": _rows(data.get("tables"), "map.tables", ("name",), ("key",)),
+                "relationships": _rows(data.get("relationships") or [], "map.relationships", ("source", "target"), ("source_cols", "target_cols")),
+                **({"left_out": data["left_out"]} if isinstance(data.get("left_out"), str) else {})}
+    else:
+        data = {"columns": _rows(data.get("columns") or [], "flow.columns", ("id", "title"), limit=20),
+                "nodes": _rows(data.get("nodes"), "flow.nodes", ("id", "column"), ("lines",)),
+                "edges": _rows(data.get("edges") or [], "flow.edges", ("from", "to")),
+                "notes": [n for n in data.get("notes") or [] if isinstance(n, str)][:50],
+                "said": data.get("said") if isinstance(data.get("said"), str) else ""}
+    return {"diagram": diagram, "data": data, "name": _text(body, "name", "krusgraph", 120), "workspace": "", "source_name": ""}
+
+
+def run_drawio(req: dict) -> dict:
+    from . import drawio
+    title = f"{req['name']}: the map" if req["diagram"] == "map" else f"{req['name']}: the data flow"
+    text = drawio.map_file(req["data"], title) if req["diagram"] == "map" else drawio.flow_file(req["data"], title)
+    return drawio.answer(req["diagram"], req["name"], text)
 
 
 def access_request(body) -> dict:

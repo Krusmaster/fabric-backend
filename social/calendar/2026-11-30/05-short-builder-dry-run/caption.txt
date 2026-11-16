@@ -1,0 +1,30 @@
+# Builder: a dry run first
+# Upload: krusgraph-short-builder-dry-run-9x16-v2.mp4 (1080x1920, 25.8 s, H1 v5's pipeline; QA in QA-v2.md); cover: cover-v2.jpg. 'Voice: AI-generated' is on the end card. The first version (krusgraph-short-builder-dry-run-9x16.mp4) is kept and not to be used.
+# Turn on each platform's AI-generated content label when it asks.
+
+== Instagram Reels (caption) ==
+Builder: a dry run first.
+
+Builder explains one idea: a dry run first. Type "start Krusgraph" in Claude. 9 steps; 8 only read: the map, the check, the doubled totals and the dry run. The last: "Create, only on your confirmation". Nothing is built until you say yes.
+
+Everything on screen is the engine's own output on our example. Voice: AI-generated.
+
+#MicrosoftFabric #PowerBI #DataQuality #Krusgraph
+
+Try it in your browser: krusgraph.com/check (link in bio)
+
+== TikTok (caption) ==
+Builder: a dry run first. Builder explains one idea: a dry run first. Type "start Krusgraph" in Claude. 9 steps; 8 only read: the map, the check, the doubled totals and the dry run. The last: "Create, only on your confirmation". Nothing is built until you say yes. Voice: AI-generated. #MicrosoftFabric #MCP #PowerBI
+
+Try it in your browser: krusgraph.com/check (link in bio)
+
+== YouTube Shorts ==
+Title: Builder: a dry run first #Shorts
+Description:
+Builder explains one idea: a dry run first. Type "start Krusgraph" in Claude. 9 steps; 8 only read: the map, the check, the doubled totals and the dry run. The last: "Create, only on your confirmation". Nothing is built until you say yes.
+
+Voice: AI-generated. Krusgraph is independent and is not affiliated with, tested or endorsed by SAP or Microsoft.
+
+#MicrosoftFabric #PowerBI #Shorts
+
+Try it in your browser: krusgraph.com/check (link in bio)

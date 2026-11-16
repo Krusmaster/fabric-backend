@@ -305,7 +305,7 @@
      "tables": 7
     }
    ],
-   "summary": "'dbo' has no tables in demo_lh. demo_lh has 1 schemas with tables: shop (7 tables). Which one should be listed?"
+   "summary": "'dbo' has no tables in demo_lh. demo_lh has 1 schema with tables: shop (7 tables). Which one should be listed?"
   },
   "args": {
    "schema": "dbo",
@@ -404,10 +404,10 @@
    },
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -434,21 +434,21 @@
      "columns": [
       "address_id"
      ],
-     "evidence": "by name only",
+     "evidence": "counted unique",
      "rule": "K2"
     },
     "categories": {
      "columns": [
       "id"
      ],
-     "evidence": "by name only",
+     "evidence": "counted unique",
      "rule": "K2"
     },
     "customers": {
      "columns": [
       "customer_id"
      ],
-     "evidence": "by name only",
+     "evidence": "counted unique",
      "rule": "K2"
     },
     "order_items": {
@@ -456,21 +456,21 @@
       "order_id",
       "line_no"
      ],
-     "evidence": "by name only",
+     "evidence": "counted unique",
      "rule": "K5"
     },
     "orders": {
      "columns": [
       "order_id"
      ],
-     "evidence": "by name only",
+     "evidence": "counted unique",
      "rule": "K2"
     },
     "products": {
      "columns": [
       "product_id"
      ],
-     "evidence": "by name only",
+     "evidence": "counted unique",
      "rule": "K2"
     }
    },
@@ -577,7 +577,7 @@
     }
    ],
    "suggested_keys": [],
-   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\nno key (query only; can reference others, cannot be referenced): audit_log"
+   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\ncounted in this call: 6 key(s), 6 unique\nno key (query only; can reference others, cannot be referenced): audit_log"
   },
   "args": {
    "schema": "shop",
@@ -613,10 +613,10 @@
    },
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 1 with a key you gave, not counted, 5 with a key by name only, 1 without a key; 7 links proposed, 0 counted, 0 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 5 with a counted key, 1 with a key you gave, not counted, 0 with a key by name only, 1 without a key; 7 links proposed, 0 counted, 0 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 5,
+      "counted unique": 5,
       "given, not counted": 1
      },
      "with_key": 6,
@@ -644,21 +644,21 @@
      "columns": [
       "address_id"
      ],
-     "evidence": "by name only",
+     "evidence": "counted unique",
      "rule": "K2"
     },
     "categories": {
      "columns": [
       "id"
      ],
-     "evidence": "by name only",
+     "evidence": "counted unique",
      "rule": "K2"
     },
     "customers": {
      "columns": [
       "customer_id"
      ],
-     "evidence": "by name only",
+     "evidence": "counted unique",
      "rule": "K2"
     },
     "order_items": {
@@ -673,14 +673,14 @@
      "columns": [
       "order_id"
      ],
-     "evidence": "by name only",
+     "evidence": "counted unique",
      "rule": "K2"
     },
     "products": {
      "columns": [
       "product_id"
      ],
-     "evidence": "by name only",
+     "evidence": "counted unique",
      "rule": "K2"
     }
    },
@@ -786,7 +786,7 @@
     }
    ],
    "suggested_keys": [],
-   "summary": "7 tables, 6 with keys, 7 relationships\nno key (query only; can reference others, cannot be referenced): audit_log"
+   "summary": "7 tables, 6 with keys, 7 relationships\ncounted in this call: 5 key(s), 5 unique\nno key (query only; can reference others, cannot be referenced): audit_log"
   },
   "args": {
    "confirmed": [
@@ -840,10 +840,10 @@
    },
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -865,12 +865,6 @@
    "detail": "summary",
    "evidence": {
     "by name only": [
-     "key:customers",
-     "key:categories",
-     "key:products",
-     "key:addresses",
-     "key:orders",
-     "key:order_items",
      "rel:products.category_id>categories",
      "rel:addresses.customer_id>customers",
      "rel:orders.customer_id>customers",
@@ -880,6 +874,14 @@
     ],
     "counted and holds": [
      "rel:orders.ship_to_id>addresses"
+    ],
+    "counted unique": [
+     "key:customers",
+     "key:categories",
+     "key:products",
+     "key:addresses",
+     "key:orders",
+     "key:order_items"
     ]
    },
    "keyless": [
@@ -904,7 +906,7 @@
     "orders.ship_to_id -> addresses [R5] (R5 (role column), counted in the rows: 15 of 15 value(s) of orders.ship_to_id are in addresses.address_id, same type family (number))"
    ],
    "suggested_keys": [],
-   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\nno key (query only; can reference others, cannot be referenced): audit_log",
+   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\ncounted in this call: 6 key(s), 6 unique\nno key (query only; can reference others, cannot be referenced): audit_log",
    "synonyms": []
   },
   "args": {
@@ -974,10 +976,10 @@
    },
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 1 with a declared key not counted, 5 with a key by name only, 1 without a key; 7 links proposed, 0 counted, 0 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 5 with a counted key, 1 with a declared key not counted, 0 with a key by name only, 1 without a key; 7 links proposed, 0 counted, 0 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 5,
+      "counted unique": 5,
       "declared, not counted": 1
      },
      "with_key": 6,
@@ -1005,14 +1007,14 @@
      "columns": [
       "address_id"
      ],
-     "evidence": "by name only",
+     "evidence": "counted unique",
      "rule": "K2"
     },
     "categories": {
      "columns": [
       "id"
      ],
-     "evidence": "by name only",
+     "evidence": "counted unique",
      "rule": "K2"
     },
     "customers": {
@@ -1027,21 +1029,21 @@
       "order_id",
       "line_no"
      ],
-     "evidence": "by name only",
+     "evidence": "counted unique",
      "rule": "K5"
     },
     "orders": {
      "columns": [
       "order_id"
      ],
-     "evidence": "by name only",
+     "evidence": "counted unique",
      "rule": "K2"
     },
     "products": {
      "columns": [
       "product_id"
      ],
-     "evidence": "by name only",
+     "evidence": "counted unique",
      "rule": "K2"
     }
    },
@@ -1147,7 +1149,7 @@
     }
    ],
    "suggested_keys": [],
-   "summary": "7 tables, 6 with keys, 7 relationships\nno key (query only; can reference others, cannot be referenced): audit_log"
+   "summary": "7 tables, 6 with keys, 7 relationships\ncounted in this call: 5 key(s), 5 unique\nno key (query only; can reference others, cannot be referenced): audit_log"
   },
   "args": {
    "schema": "shop",
@@ -2253,10 +2255,10 @@
    ],
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -2598,7 +2600,7 @@
     "id": "aaaaaaaa-0000-0000-0000-000000000002",
     "type": "SqlAnalyticsEndpoint"
    },
-   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\nno key (query only; can reference others, cannot be referenced): audit_log",
+   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\ncounted in this call: 6 key(s), 6 unique\nno key (query only; can reference others, cannot be referenced): audit_log",
    "would": "create",
    "would_change": true
   },
@@ -2658,10 +2660,10 @@
    ],
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 0 counted, 0 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 0 counted, 0 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -3004,7 +3006,7 @@
     "id": "aaaaaaaa-0000-0000-0000-000000000002",
     "type": "SqlAnalyticsEndpoint"
    },
-   "summary": "7 tables, 6 with keys, 7 relationships\nno key (query only; can reference others, cannot be referenced): audit_log",
+   "summary": "7 tables, 6 with keys, 7 relationships\ncounted in this call: 6 key(s), 6 unique\nno key (query only; can reference others, cannot be referenced): audit_log",
    "would": "update",
    "would_change": false
   },
@@ -3060,13 +3062,14 @@
  },
  {
   "answer": {
+   "already_built": [],
    "card": "GraphQL endpoint:  https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/graphqlapis/new-graphQLApis/graphql\nTenant ID / Client ID / Client secret: from your Entra app registration\n\nStill to do in the Fabric portal (no API for these yet):\n  [ ] shop_api_v2 -> Settings -> Introspection -> On   (workspace admin; Lovable needs this)\n  [ ] shop_api_v2 -> Manage permissions -> add the service principal with 'Run Queries and Mutations'\n  [ ] once per tenant: Admin portal -> 'Service principals can call Fabric public APIs' = enabled",
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -3086,6 +3089,80 @@
     "unlinked_reference_columns": 0
    },
    "dry_run": false,
+   "more": [
+    {
+     "ask": "Give me the dbt project as a draft, labelled as a draft: run dbt_schema with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", project=true.",
+     "draft": true,
+     "label": "Download a dbt project draft",
+     "step": "dbt",
+     "who": "builder",
+     "why": "A draft only: the dbt drafts are frozen, and the project has not run against your warehouse."
+    }
+   ],
+   "next_steps": [
+    {
+     "args": {
+      "items": {
+       "api": "shop_api_v2"
+      },
+      "schema": "shop",
+      "source": "demo_lh",
+      "workspace": "demo"
+     },
+     "ask": "Verify what was built: run verify_build with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", items={\"api\": \"shop_api_v2\"}.",
+     "label": "Verify what was built",
+     "order": 1,
+     "step": "verify",
+     "tool": "verify_build",
+     "who": "thinker",
+     "why": "I read back what Fabric holds and count the figures again from the rows, so you know it is what the dry run showed."
+    },
+    {
+     "ask": "Show the pipeline as a dry run: run create_pipeline with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", name=\"pipeline_shop\", dry_run=true. Then offer me the two choices for the Create: Run once (run_once=true) and a Schedule (schedule), both off unless I choose them.",
+     "choices": [
+      "Run once",
+      "Schedule"
+     ],
+     "label": "Build the pipeline (silver, gold, check)",
+     "order": 2,
+     "step": "pipeline",
+     "who": "builder",
+     "why": "Nothing keeps the silver tables and the gold views up to date yet; the pipeline does, and its check fails the run when a key or a sum breaks."
+    },
+    {
+     "ask": "Show a data agent as a dry run: run create_data_agent with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", name=\"shop_agent\", dry_run=true. Say that it is experimental.",
+     "label": "Create a data agent (experimental)",
+     "order": 3,
+     "step": "data_agent",
+     "who": "builder",
+     "why": "People can then ask the data in words; it is experimental and judged by its answers, so try its questions first."
+    },
+    {
+     "ask": "What does the Rayfin App (preview) take? Say it plainly: Krusgraph for Fabric makes an empty App item and a package with one command, and the App opens inside Fabric only. From this chat, rayfin_connector gives the connector's entities for workspace=\"demo\", source=\"demo_lh\", schema=\"shop\".",
+     "label": "A Rayfin App (preview)",
+     "order": 4,
+     "step": "app",
+     "who": "builder",
+     "why": "Honest: I make an empty App item and a package with one command; the App opens inside Fabric only."
+    },
+    {
+     "ask": "Show a drift monitor as a dry run: run create_drift_monitor with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", name=\"drift_monitor_shop\", dry_run=true.",
+     "label": "Add a drift monitor",
+     "order": 5,
+     "step": "drift_monitor",
+     "who": "thinker",
+     "why": "Tables and columns change; a nightly monitor tells you when the plan no longer matches the source."
+    },
+    {
+     "ask": "Draft the data product with an owner and a contract: run domain_draft with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", then ask me who owns it.",
+     "label": "Register it as a data product",
+     "order": 6,
+     "step": "data_product",
+     "who": "onto",
+     "why": "It has items and no owner or contract yet; with those, others know whom to ask and what is promised."
+    }
+   ],
+   "next_steps_note": "By rules, in the order of what the data product still lacks. No step writes: each is a read, a dry run or a question; a Create comes only from its own dry run.",
    "result": {
     "id": "new-graphQLApis",
     "mode": "created",
@@ -3096,7 +3173,7 @@
     "id": "aaaaaaaa-0000-0000-0000-000000000002",
     "type": "SqlAnalyticsEndpoint"
    },
-   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\nno key (query only; can reference others, cannot be referenced): audit_log"
+   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\ncounted in this call: 6 key(s), 6 unique\nno key (query only; can reference others, cannot be referenced): audit_log"
   },
   "args": {
    "dry_run": false,
@@ -3133,19 +3210,24 @@
    [
     "POST",
     "/v1/workspaces/11111111-2222-3333-4444-555555555555/graphQLApis"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
    ]
   ],
   "tool": "create_backend"
  },
  {
   "answer": {
+   "already_built": [],
    "card": "GraphQL endpoint:  https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/graphqlapis/aaaaaaaa-0000-0000-0000-000000000004/graphql\nTenant ID / Client ID / Client secret: from your Entra app registration\n\nStill to do in the Fabric portal (no API for these yet):\n  [ ] shop_api -> Settings -> Introspection -> On   (workspace admin; Lovable needs this)\n  [ ] shop_api -> Manage permissions -> add the service principal with 'Run Queries and Mutations'\n  [ ] once per tenant: Admin portal -> 'Service principals can call Fabric public APIs' = enabled",
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -3165,6 +3247,80 @@
     "unlinked_reference_columns": 0
    },
    "dry_run": false,
+   "more": [
+    {
+     "ask": "Give me the dbt project as a draft, labelled as a draft: run dbt_schema with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", project=true.",
+     "draft": true,
+     "label": "Download a dbt project draft",
+     "step": "dbt",
+     "who": "builder",
+     "why": "A draft only: the dbt drafts are frozen, and the project has not run against your warehouse."
+    }
+   ],
+   "next_steps": [
+    {
+     "args": {
+      "items": {
+       "api": "shop_api"
+      },
+      "schema": "shop",
+      "source": "demo_lh",
+      "workspace": "demo"
+     },
+     "ask": "Verify what was built: run verify_build with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", items={\"api\": \"shop_api\"}.",
+     "label": "Verify what was built",
+     "order": 1,
+     "step": "verify",
+     "tool": "verify_build",
+     "who": "thinker",
+     "why": "I read back what Fabric holds and count the figures again from the rows, so you know it is what the dry run showed."
+    },
+    {
+     "ask": "Show the pipeline as a dry run: run create_pipeline with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", name=\"pipeline_shop\", dry_run=true. Then offer me the two choices for the Create: Run once (run_once=true) and a Schedule (schedule), both off unless I choose them.",
+     "choices": [
+      "Run once",
+      "Schedule"
+     ],
+     "label": "Build the pipeline (silver, gold, check)",
+     "order": 2,
+     "step": "pipeline",
+     "who": "builder",
+     "why": "Nothing keeps the silver tables and the gold views up to date yet; the pipeline does, and its check fails the run when a key or a sum breaks."
+    },
+    {
+     "ask": "Show a data agent as a dry run: run create_data_agent with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", name=\"shop_agent\", dry_run=true. Say that it is experimental.",
+     "label": "Create a data agent (experimental)",
+     "order": 3,
+     "step": "data_agent",
+     "who": "builder",
+     "why": "People can then ask the data in words; it is experimental and judged by its answers, so try its questions first."
+    },
+    {
+     "ask": "What does the Rayfin App (preview) take? Say it plainly: Krusgraph for Fabric makes an empty App item and a package with one command, and the App opens inside Fabric only. From this chat, rayfin_connector gives the connector's entities for workspace=\"demo\", source=\"demo_lh\", schema=\"shop\".",
+     "label": "A Rayfin App (preview)",
+     "order": 4,
+     "step": "app",
+     "who": "builder",
+     "why": "Honest: I make an empty App item and a package with one command; the App opens inside Fabric only."
+    },
+    {
+     "ask": "Show a drift monitor as a dry run: run create_drift_monitor with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", name=\"drift_monitor_shop\", dry_run=true.",
+     "label": "Add a drift monitor",
+     "order": 5,
+     "step": "drift_monitor",
+     "who": "thinker",
+     "why": "Tables and columns change; a nightly monitor tells you when the plan no longer matches the source."
+    },
+    {
+     "ask": "Draft the data product with an owner and a contract: run domain_draft with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", then ask me who owns it.",
+     "label": "Register it as a data product",
+     "order": 6,
+     "step": "data_product",
+     "who": "onto",
+     "why": "It has items and no owner or contract yet; with those, others know whom to ask and what is promised."
+    }
+   ],
+   "next_steps_note": "By rules, in the order of what the data product still lacks. No step writes: each is a read, a dry run or a question; a Create comes only from its own dry run.",
    "result": {
     "id": "aaaaaaaa-0000-0000-0000-000000000004",
     "mode": "updated",
@@ -3175,7 +3331,7 @@
     "id": "aaaaaaaa-0000-0000-0000-000000000002",
     "type": "SqlAnalyticsEndpoint"
    },
-   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\nno key (query only; can reference others, cannot be referenced): audit_log"
+   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\ncounted in this call: 6 key(s), 6 unique\nno key (query only; can reference others, cannot be referenced): audit_log"
   },
   "args": {
    "dry_run": false,
@@ -3216,19 +3372,24 @@
    [
     "POST",
     "/v1/workspaces/11111111-2222-3333-4444-555555555555/items/aaaaaaaa-0000-0000-0000-000000000004/updateDefinition"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
    ]
   ],
   "tool": "create_backend"
  },
  {
   "answer": {
+   "already_built": [],
    "card": "GraphQL endpoint:  https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/graphqlapis/new-graphQLApis/graphql\nTenant ID / Client ID / Client secret: from your Entra app registration\n\nStill to do in the Fabric portal (no API for these yet):\n  [ ] shop_api_v2 -> Settings -> Introspection -> On   (workspace admin; Lovable needs this)\n  [ ] shop_api_v2 -> Manage permissions -> add the service principal with 'Run Queries and Mutations'\n  [ ] once per tenant: Admin portal -> 'Service principals can call Fabric public APIs' = enabled",
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -3248,6 +3409,80 @@
     "unlinked_reference_columns": 0
    },
    "dry_run": false,
+   "more": [
+    {
+     "ask": "Give me the dbt project as a draft, labelled as a draft: run dbt_schema with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", project=true.",
+     "draft": true,
+     "label": "Download a dbt project draft",
+     "step": "dbt",
+     "who": "builder",
+     "why": "A draft only: the dbt drafts are frozen, and the project has not run against your warehouse."
+    }
+   ],
+   "next_steps": [
+    {
+     "args": {
+      "items": {
+       "api": "shop_api_v2"
+      },
+      "schema": "shop",
+      "source": "demo_lh",
+      "workspace": "11111111-2222-3333-4444-555555555555"
+     },
+     "ask": "Verify what was built: run verify_build with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", items={\"api\": \"shop_api_v2\"}.",
+     "label": "Verify what was built",
+     "order": 1,
+     "step": "verify",
+     "tool": "verify_build",
+     "who": "thinker",
+     "why": "I read back what Fabric holds and count the figures again from the rows, so you know it is what the dry run showed."
+    },
+    {
+     "ask": "Show the pipeline as a dry run: run create_pipeline with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", name=\"pipeline_shop\", dry_run=true. Then offer me the two choices for the Create: Run once (run_once=true) and a Schedule (schedule), both off unless I choose them.",
+     "choices": [
+      "Run once",
+      "Schedule"
+     ],
+     "label": "Build the pipeline (silver, gold, check)",
+     "order": 2,
+     "step": "pipeline",
+     "who": "builder",
+     "why": "Nothing keeps the silver tables and the gold views up to date yet; the pipeline does, and its check fails the run when a key or a sum breaks."
+    },
+    {
+     "ask": "Show a data agent as a dry run: run create_data_agent with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", name=\"shop_agent\", dry_run=true. Say that it is experimental.",
+     "label": "Create a data agent (experimental)",
+     "order": 3,
+     "step": "data_agent",
+     "who": "builder",
+     "why": "People can then ask the data in words; it is experimental and judged by its answers, so try its questions first."
+    },
+    {
+     "ask": "What does the Rayfin App (preview) take? Say it plainly: Krusgraph for Fabric makes an empty App item and a package with one command, and the App opens inside Fabric only. From this chat, rayfin_connector gives the connector's entities for workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\".",
+     "label": "A Rayfin App (preview)",
+     "order": 4,
+     "step": "app",
+     "who": "builder",
+     "why": "Honest: I make an empty App item and a package with one command; the App opens inside Fabric only."
+    },
+    {
+     "ask": "Show a drift monitor as a dry run: run create_drift_monitor with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", name=\"drift_monitor_shop\", dry_run=true.",
+     "label": "Add a drift monitor",
+     "order": 5,
+     "step": "drift_monitor",
+     "who": "thinker",
+     "why": "Tables and columns change; a nightly monitor tells you when the plan no longer matches the source."
+    },
+    {
+     "ask": "Draft the data product with an owner and a contract: run domain_draft with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", then ask me who owns it.",
+     "label": "Register it as a data product",
+     "order": 6,
+     "step": "data_product",
+     "who": "onto",
+     "why": "It has items and no owner or contract yet; with those, others know whom to ask and what is promised."
+    }
+   ],
+   "next_steps_note": "By rules, in the order of what the data product still lacks. No step writes: each is a read, a dry run or a question; a Create comes only from its own dry run.",
    "result": {
     "id": "new-graphQLApis",
     "mode": "created",
@@ -3258,7 +3493,7 @@
     "id": "aaaaaaaa-0000-0000-0000-000000000002",
     "type": "SqlAnalyticsEndpoint"
    },
-   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\nno key (query only; can reference others, cannot be referenced): audit_log"
+   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\ncounted in this call: 6 key(s), 6 unique\nno key (query only; can reference others, cannot be referenced): audit_log"
   },
   "args": {
    "dry_run": false,
@@ -3291,19 +3526,24 @@
    [
     "POST",
     "/v1/workspaces/11111111-2222-3333-4444-555555555555/graphQLApis"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
    ]
   ],
   "tool": "create_backend"
  },
  {
   "answer": {
+   "already_built": [],
    "card": "GraphQL endpoint:  https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/graphqlapis/aaaaaaaa-0000-0000-0000-000000000004/graphql\nTenant ID / Client ID / Client secret: from your Entra app registration\n\nStill to do in the Fabric portal (no API for these yet):\n  [ ] shop_api -> Settings -> Introspection -> On   (workspace admin; Lovable needs this)\n  [ ] shop_api -> Manage permissions -> add the service principal with 'Run Queries and Mutations'\n  [ ] once per tenant: Admin portal -> 'Service principals can call Fabric public APIs' = enabled",
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -3323,6 +3563,80 @@
     "unlinked_reference_columns": 0
    },
    "dry_run": false,
+   "more": [
+    {
+     "ask": "Give me the dbt project as a draft, labelled as a draft: run dbt_schema with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", project=true.",
+     "draft": true,
+     "label": "Download a dbt project draft",
+     "step": "dbt",
+     "who": "builder",
+     "why": "A draft only: the dbt drafts are frozen, and the project has not run against your warehouse."
+    }
+   ],
+   "next_steps": [
+    {
+     "args": {
+      "items": {
+       "api": "shop_api"
+      },
+      "schema": "shop",
+      "source": "demo_lh",
+      "workspace": "11111111-2222-3333-4444-555555555555"
+     },
+     "ask": "Verify what was built: run verify_build with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", items={\"api\": \"shop_api\"}.",
+     "label": "Verify what was built",
+     "order": 1,
+     "step": "verify",
+     "tool": "verify_build",
+     "who": "thinker",
+     "why": "I read back what Fabric holds and count the figures again from the rows, so you know it is what the dry run showed."
+    },
+    {
+     "ask": "Show the pipeline as a dry run: run create_pipeline with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", name=\"pipeline_shop\", dry_run=true. Then offer me the two choices for the Create: Run once (run_once=true) and a Schedule (schedule), both off unless I choose them.",
+     "choices": [
+      "Run once",
+      "Schedule"
+     ],
+     "label": "Build the pipeline (silver, gold, check)",
+     "order": 2,
+     "step": "pipeline",
+     "who": "builder",
+     "why": "Nothing keeps the silver tables and the gold views up to date yet; the pipeline does, and its check fails the run when a key or a sum breaks."
+    },
+    {
+     "ask": "Show a data agent as a dry run: run create_data_agent with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", name=\"shop_agent\", dry_run=true. Say that it is experimental.",
+     "label": "Create a data agent (experimental)",
+     "order": 3,
+     "step": "data_agent",
+     "who": "builder",
+     "why": "People can then ask the data in words; it is experimental and judged by its answers, so try its questions first."
+    },
+    {
+     "ask": "What does the Rayfin App (preview) take? Say it plainly: Krusgraph for Fabric makes an empty App item and a package with one command, and the App opens inside Fabric only. From this chat, rayfin_connector gives the connector's entities for workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\".",
+     "label": "A Rayfin App (preview)",
+     "order": 4,
+     "step": "app",
+     "who": "builder",
+     "why": "Honest: I make an empty App item and a package with one command; the App opens inside Fabric only."
+    },
+    {
+     "ask": "Show a drift monitor as a dry run: run create_drift_monitor with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", name=\"drift_monitor_shop\", dry_run=true.",
+     "label": "Add a drift monitor",
+     "order": 5,
+     "step": "drift_monitor",
+     "who": "thinker",
+     "why": "Tables and columns change; a nightly monitor tells you when the plan no longer matches the source."
+    },
+    {
+     "ask": "Draft the data product with an owner and a contract: run domain_draft with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", then ask me who owns it.",
+     "label": "Register it as a data product",
+     "order": 6,
+     "step": "data_product",
+     "who": "onto",
+     "why": "It has items and no owner or contract yet; with those, others know whom to ask and what is promised."
+    }
+   ],
+   "next_steps_note": "By rules, in the order of what the data product still lacks. No step writes: each is a read, a dry run or a question; a Create comes only from its own dry run.",
    "result": {
     "id": "aaaaaaaa-0000-0000-0000-000000000004",
     "mode": "updated",
@@ -3333,7 +3647,7 @@
     "id": "aaaaaaaa-0000-0000-0000-000000000002",
     "type": "SqlAnalyticsEndpoint"
    },
-   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\nno key (query only; can reference others, cannot be referenced): audit_log"
+   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\ncounted in this call: 6 key(s), 6 unique\nno key (query only; can reference others, cannot be referenced): audit_log"
   },
   "args": {
    "dry_run": false,
@@ -3370,19 +3684,24 @@
    [
     "POST",
     "/v1/workspaces/11111111-2222-3333-4444-555555555555/items/aaaaaaaa-0000-0000-0000-000000000004/updateDefinition"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
    ]
   ],
   "tool": "create_backend"
  },
  {
   "answer": {
+   "already_built": [],
    "card": "GraphQL endpoint:  https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/graphqlapis/aaaaaaaa-0000-0000-0000-000000000004/graphql\nTenant ID / Client ID / Client secret: from your Entra app registration\n\nStill to do in the Fabric portal (no API for these yet):\n  [ ] shop_api -> Settings -> Introspection -> On   (workspace admin; Lovable needs this)\n  [ ] shop_api -> Manage permissions -> add the service principal with 'Run Queries and Mutations'\n  [ ] once per tenant: Admin portal -> 'Service principals can call Fabric public APIs' = enabled",
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 0 counted, 0 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 0 counted, 0 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -3402,6 +3721,92 @@
     "unlinked_reference_columns": 0
    },
    "dry_run": false,
+   "more": [
+    {
+     "ask": "Give me the dbt project as a draft, labelled as a draft: run dbt_schema with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", confirmed=[{\"source\": \"orders\", \"source_cols\": [\"ship_to_id\"], \"target\": \"addresses\", \"target_cols\": [\"address_id\"]}], project=true.",
+     "draft": true,
+     "label": "Download a dbt project draft",
+     "step": "dbt",
+     "who": "builder",
+     "why": "A draft only: the dbt drafts are frozen, and the project has not run against your warehouse."
+    }
+   ],
+   "next_steps": [
+    {
+     "args": {
+      "confirmed": [
+       {
+        "source": "orders",
+        "source_cols": [
+         "ship_to_id"
+        ],
+        "target": "addresses",
+        "target_cols": [
+         "address_id"
+        ]
+       }
+      ],
+      "items": {
+       "api": "shop_api"
+      },
+      "schema": "shop",
+      "source": "demo_lh",
+      "workspace": "11111111-2222-3333-4444-555555555555"
+     },
+     "ask": "Verify what was built: run verify_build with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", confirmed=[{\"source\": \"orders\", \"source_cols\": [\"ship_to_id\"], \"target\": \"addresses\", \"target_cols\": [\"address_id\"]}], items={\"api\": \"shop_api\"}.",
+     "label": "Verify what was built",
+     "order": 1,
+     "step": "verify",
+     "tool": "verify_build",
+     "who": "thinker",
+     "why": "I read back what Fabric holds and count the figures again from the rows, so you know it is what the dry run showed."
+    },
+    {
+     "ask": "Show the pipeline as a dry run: run create_pipeline with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", confirmed=[{\"source\": \"orders\", \"source_cols\": [\"ship_to_id\"], \"target\": \"addresses\", \"target_cols\": [\"address_id\"]}], name=\"pipeline_shop\", dry_run=true. Then offer me the two choices for the Create: Run once (run_once=true) and a Schedule (schedule), both off unless I choose them.",
+     "choices": [
+      "Run once",
+      "Schedule"
+     ],
+     "label": "Build the pipeline (silver, gold, check)",
+     "order": 2,
+     "step": "pipeline",
+     "who": "builder",
+     "why": "Nothing keeps the silver tables and the gold views up to date yet; the pipeline does, and its check fails the run when a key or a sum breaks."
+    },
+    {
+     "ask": "Show a data agent as a dry run: run create_data_agent with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", confirmed=[{\"source\": \"orders\", \"source_cols\": [\"ship_to_id\"], \"target\": \"addresses\", \"target_cols\": [\"address_id\"]}], name=\"shop_agent\", dry_run=true. Say that it is experimental.",
+     "label": "Create a data agent (experimental)",
+     "order": 3,
+     "step": "data_agent",
+     "who": "builder",
+     "why": "People can then ask the data in words; it is experimental and judged by its answers, so try its questions first."
+    },
+    {
+     "ask": "What does the Rayfin App (preview) take? Say it plainly: Krusgraph for Fabric makes an empty App item and a package with one command, and the App opens inside Fabric only. From this chat, rayfin_connector gives the connector's entities for workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\".",
+     "label": "A Rayfin App (preview)",
+     "order": 4,
+     "step": "app",
+     "who": "builder",
+     "why": "Honest: I make an empty App item and a package with one command; the App opens inside Fabric only."
+    },
+    {
+     "ask": "Show a drift monitor as a dry run: run create_drift_monitor with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", name=\"drift_monitor_shop\", dry_run=true.",
+     "label": "Add a drift monitor",
+     "order": 5,
+     "step": "drift_monitor",
+     "who": "thinker",
+     "why": "Tables and columns change; a nightly monitor tells you when the plan no longer matches the source."
+    },
+    {
+     "ask": "Draft the data product with an owner and a contract: run domain_draft with workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\", confirmed=[{\"source\": \"orders\", \"source_cols\": [\"ship_to_id\"], \"target\": \"addresses\", \"target_cols\": [\"address_id\"]}], then ask me who owns it.",
+     "label": "Register it as a data product",
+     "order": 6,
+     "step": "data_product",
+     "who": "onto",
+     "why": "It has items and no owner or contract yet; with those, others know whom to ask and what is promised."
+    }
+   ],
+   "next_steps_note": "By rules, in the order of what the data product still lacks. No step writes: each is a read, a dry run or a question; a Create comes only from its own dry run.",
    "result": {
     "id": "aaaaaaaa-0000-0000-0000-000000000004",
     "mode": "updated",
@@ -3412,7 +3817,7 @@
     "id": "aaaaaaaa-0000-0000-0000-000000000002",
     "type": "SqlAnalyticsEndpoint"
    },
-   "summary": "7 tables, 6 with keys, 7 relationships\nno key (query only; can reference others, cannot be referenced): audit_log"
+   "summary": "7 tables, 6 with keys, 7 relationships\ncounted in this call: 6 key(s), 6 unique\nno key (query only; can reference others, cannot be referenced): audit_log"
   },
   "args": {
    "confirmed": [
@@ -3461,6 +3866,10 @@
    [
     "POST",
     "/v1/workspaces/11111111-2222-3333-4444-555555555555/items/aaaaaaaa-0000-0000-0000-000000000004/updateDefinition"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
    ]
   ],
   "tool": "create_backend"
@@ -3469,10 +3878,10 @@
   "answer": {
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -3846,10 +4255,10 @@
    ],
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -4056,10 +4465,10 @@
    ],
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -4175,10 +4584,10 @@
   "answer": {
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -4381,10 +4790,10 @@
    ],
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -4528,10 +4937,10 @@
   "answer": {
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -4699,10 +5108,10 @@
   "answer": {
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -4986,10 +5395,10 @@
    },
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -5084,10 +5493,10 @@
    "checked_against_data": 0,
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -5138,10 +5547,10 @@
   "answer": {
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -5160,9 +5569,9 @@
     "tables": 7,
     "unlinked_reference_columns": 0
    },
-   "markdown": "# Data dictionary: demo_lh / shop\n\nGenerated by Krusgraph from the source's metadata (table and column names and types). Keys and relationships are inferred where the source declares none; every one names its rule. Descriptions are left blank on purpose — fill them in with the business meaning.\n\n## Summary\n\n- 7 tables, 6 with keys, 7 relationships\n- Tables without a key: audit_log\n- Ambiguous columns (not applied): 0\n\n## Tables\n\n### customers\n\nKey: customer_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| customer_id | int | yes |  |  |\n| name | string |  |  |  |\n| country | string |  |  |  |\n\n### categories\n\nKey: id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| id | int | yes |  |  |\n| name | string |  |  |  |\n\n### products\n\nKey: product_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| product_id | int | yes |  |  |\n| name | string |  |  |  |\n| category_id | int |  | categories.id (R1) |  |\n| list_price | double |  |  |  |\n\n### addresses\n\nKey: address_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| address_id | int | yes |  |  |\n| customer_id | int |  | customers.customer_id (R1) |  |\n| city | string |  |  |  |\n\n### orders\n\nKey: order_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| order_id | int | yes |  |  |\n| customer_id | int |  | customers.customer_id (R1) |  |\n| order_date | date |  |  |  |\n| ship_to_id | int |  | addresses.address_id (R5) |  |\n\n### order_items\n\nKey: order_id+line_no (rule K5)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| order_id | int | yes | orders.order_id (R1) |  |\n| line_no | int | yes |  |  |\n| product_id | int |  | products.product_id (R1) |  |\n| quantity | double |  |  |  |\n\n### audit_log\n\nKey: none (rule K3)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| event | string |  |  |  |\n| customer_id | int |  | customers.customer_id (R1) |  |\n| happened_at | timestamp |  |  |  |\n\n## Keys\n\n| Table | Columns | Rule | Meaning |\n| --- | --- | --- | --- |\n| customers | customer_id | K2 | a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`); a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| categories | id | K2 | as above (K2) |\n| products | product_id | K2 | as above (K2) |\n| addresses | address_id | K2 | as above (K2) |\n| orders | order_id | K2 | as above (K2) |\n| order_items | order_id+line_no | K5 | line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…) |\n| audit_log | — | K3 | nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it |\n\n## Relationships\n\n| From | Columns | To | Columns | Rule | Field on from / on to |\n| --- | --- | --- | --- | --- | --- |\n| products | category_id | categories | id | R1 | category / products |\n| addresses | customer_id | customers | customer_id | R1 | customer / addresses |\n| orders | customer_id | customers | customer_id | R1 | customer / orders |\n| order_items | order_id | orders | order_id | R1 | order / order_items |\n| order_items | product_id | products | product_id | R1 | product / order_items |\n| audit_log | customer_id | customers | customer_id | R1 | customer / audit_log |\n| orders | ship_to_id | addresses | address_id | R5 | ship_to / orders_as_ship_to |\n\n## Order amount (quantity × price)\n\n- `Order amount` on order_items: `SUMX('order_items', 'order_items'[quantity] * RELATED('products'[list_price]))` (DAX, as semantic_model_draft writes it). order_items.quantity is a quantity and order_items carries no amount; the price is products.list_price, reached through order_items.product_id (R1). The price comes from products.list_price, one row per products, as it stands at query time: a list price, not necessarily the price paid, and a later change of it changes the history. Check against an invoiced amount if there is one.\n\n## Tables without a key\n\n- audit_log: can be queried and can point at other tables; nothing can point at it. Give `keys` to change that.\n\n## Ambiguous columns\n\nNone.\n\n## Roles, subject areas and ambiguity\n\n7 tables, 7 relationships; roles: 3 fact, 4 dimension; 6 relationships can be active at once, 1 would be inactive; 1 cycle(s)\n\n| Table | Role | Why |\n| --- | --- | --- |\n| customers | dimension | 3 reference(s) in, 0 out, few measures (0.0); out 0, in 3, betweenness 0.3333, measure share 0.0 |\n| categories | dimension | 1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0 |\n| products | dimension | 1 reference(s) in, 1 out, few measures (0.0); out 1, in 1, betweenness 0.3333, measure share 0.0 |\n| addresses | dimension | 1 reference(s) in, 1 out, few measures (0.0); out 1, in 1, betweenness 0.0, measure share 0.0 |\n| orders | fact | pointed at by a fact table, 2 reference(s) out, measures 1.0 (a header table); out 2, in 1, betweenness 0.6, measure share 1.0 |\n| order_items | fact | nothing points at it, 2 reference(s) out, measures 1.0; out 2, in 0, betweenness 0.5333, measure share 1.0 |\n| audit_log | fact | nothing points at it, 1 reference(s) out, measures 0.5; out 1, in 0, betweenness 0.0, measure share 0.5 |\n\nSubject areas (label propagation on the relationship graph, named after the most central table):\n\n- customers area: addresses, audit_log, categories, customers, order_items, orders, products\n\nevery relationship beyond a spanning forest closes a cycle; any two tables on a cycle can be reached two ways, so a semantic model must leave one link on each cycle inactive.\n- cycle through orders - customers - addresses, closed by orders.ship_to_id -> addresses (R5)\n\nRelationships a semantic model would have to leave inactive (lower certainty on a cycle):\n\n- orders.ship_to_id -> addresses (R5, certainty 0.5): it would close a cycle with orders - customers - addresses; the active path has certainty 0.8, this link 0.5\n\n## Diagram\n\n```mermaid\nerDiagram\n  customers {\n    customer_id int PK\n    name string\n    country string\n  }\n  categories {\n    id int PK\n    name string\n  }\n  products {\n    product_id int PK\n    name string\n    category_id int\n    list_price double\n  }\n  addresses {\n    address_id int PK\n    customer_id int\n    city string\n  }\n  orders {\n    order_id int PK\n    customer_id int\n    order_date date\n    ship_to_id int\n  }\n  order_items {\n    order_id int PK\n    line_no int PK\n    product_id int\n    quantity double\n  }\n  audit_log {\n    event string\n    customer_id int\n    happened_at timestamp\n  }\n  categories ||--o{ products : \"category_id R1\"\n  customers ||--o{ addresses : \"customer_id R1\"\n  customers ||--o{ orders : \"customer_id R1\"\n  orders ||--o{ order_items : \"order_id R1\"\n  products ||--o{ order_items : \"product_id R1\"\n  customers ||--o{ audit_log : \"customer_id R1\"\n  addresses ||--o{ orders : \"ship_to_id R5\"\n```\n\n## Rules\n\n| Rule | Meaning |\n| --- | --- |\n| K0 | declared primary key |\n| K1 | `keys` override from the caller |\n| K2 | a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`); a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| K3 | nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it |\n| K4 | junction: no column names a key and the table starts with two or more reference columns; together they are the key (not applied to history tables with a start_*/valid_from/effective_* column) |\n| K5 | line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…) |\n| R0 | declared foreign key |\n| R1 | column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key |\n| R2 | column has exactly the same name as B's single key column, and that name is not just `id` |\n| R3 | all of B's composite key columns appear in A |\n| R4 | weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table (`Kunde_ID` → `Kunden`, `cust_id` → `customers`, noted on the relationship), a role before B's name (`manager_staff_id` → staff), or an abbreviation of B of four letters or more (`o_custkey` → customer); never across suffixes (`wwi_order_id` does not point at a table keyed by `order_key`) |\n| R5 | checked against the rows: a code column `<stem>_code` / `<stem>_no` / `<stem>_key` where a table with the same stem (singular/plural, snake/camel) has the key `code`/`no`/`key`, or a role name (`ship_to_id`, `created_by`, `approved_by`) whose role word says what the table holds; planned only when every value is in that table's key, the type family is the same, there are two or more distinct values and one table qualifies, otherwise proposed with the reason |\n| confirmed | given by the caller in `confirmed=[...]`, applied as-is, before inference |\n",
+   "markdown": "# Data dictionary: demo_lh / shop\n\nGenerated by Krusgraph from the source's metadata (table and column names and types). Keys and relationships are inferred where the source declares none; every one names its rule. Descriptions are left blank on purpose — fill them in with the business meaning.\n\n## Summary\n\n- 7 tables, 6 with keys, 7 relationships\n- Tables without a key: audit_log\n- Ambiguous columns (not applied): 0\n\n## Tables\n\n### customers\n\nKey: customer_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| customer_id | int | yes |  |  |\n| name | string |  |  |  |\n| country | string |  |  |  |\n\n### categories\n\nKey: id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| id | int | yes |  |  |\n| name | string |  |  |  |\n\n### products\n\nKey: product_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| product_id | int | yes |  |  |\n| name | string |  |  |  |\n| category_id | int |  | categories.id (R1) |  |\n| list_price | double |  |  |  |\n\n### addresses\n\nKey: address_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| address_id | int | yes |  |  |\n| customer_id | int |  | customers.customer_id (R1) |  |\n| city | string |  |  |  |\n\n### orders\n\nKey: order_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| order_id | int | yes |  |  |\n| customer_id | int |  | customers.customer_id (R1) |  |\n| order_date | date |  |  |  |\n| ship_to_id | int |  | addresses.address_id (R5) |  |\n\n### order_items\n\nKey: order_id+line_no (rule K5)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| order_id | int | yes | orders.order_id (R1) |  |\n| line_no | int | yes |  |  |\n| product_id | int |  | products.product_id (R1) |  |\n| quantity | double |  |  |  |\n\n### audit_log\n\nKey: none (rule K3)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| event | string |  |  |  |\n| customer_id | int |  | customers.customer_id (R1) |  |\n| happened_at | timestamp |  |  |  |\n\n## Keys\n\n| Table | Columns | Rule | Meaning |\n| --- | --- | --- | --- |\n| customers | customer_id | K2 | a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`); a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| categories | id | K2 | as above (K2) |\n| products | product_id | K2 | as above (K2) |\n| addresses | address_id | K2 | as above (K2) |\n| orders | order_id | K2 | as above (K2) |\n| order_items | order_id+line_no | K5 | line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…) |\n| audit_log | — | K3 | nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it |\n\n## Relationships\n\n| From | Columns | To | Columns | Rule | Field on from / on to |\n| --- | --- | --- | --- | --- | --- |\n| products | category_id | categories | id | R1 | category / products |\n| addresses | customer_id | customers | customer_id | R1 | customer / addresses |\n| orders | customer_id | customers | customer_id | R1 | customer / orders |\n| order_items | order_id | orders | order_id | R1 | order / order_items |\n| order_items | product_id | products | product_id | R1 | product / order_items |\n| audit_log | customer_id | customers | customer_id | R1 | customer / audit_log |\n| orders | ship_to_id | addresses | address_id | R5 | ship_to / orders_as_ship_to |\n\n## Order amount (quantity × price)\n\n- `Order amount` on order_items: `SUMX('order_items', 'order_items'[quantity] * RELATED('products'[list_price]))` (DAX, as semantic_model_draft writes it). order_items.quantity is a quantity and order_items carries no amount; the price is products.list_price, reached through order_items.product_id (R1). The price comes from products.list_price, one row per products, as it stands at query time: a list price, not necessarily the price paid, and a later change of it changes the history. Check against an invoiced amount if there is one.\n\n## Tables without a key\n\n- audit_log: can be queried and can point at other tables; nothing can point at it. Give `keys` to change that.\n\n## Ambiguous columns\n\nNone.\n\n## Roles, subject areas and ambiguity\n\n7 tables, 7 relationships; roles: 3 fact, 4 dimension; 6 relationships can be active at once, 1 would be inactive; 1 cycle(s)\n\n| Table | Role | Why |\n| --- | --- | --- |\n| customers | dimension | 3 reference(s) in, 0 out, few measures (0.0); out 0, in 3, betweenness 0.3333, measure share 0.0 |\n| categories | dimension | 1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0 |\n| products | dimension | 1 reference(s) in, 1 out, few measures (0.0); out 1, in 1, betweenness 0.3333, measure share 0.0 |\n| addresses | dimension | 1 reference(s) in, 1 out, few measures (0.0); out 1, in 1, betweenness 0.0, measure share 0.0 |\n| orders | fact | pointed at by a fact table, 2 reference(s) out, measures 1.0 (a header table); out 2, in 1, betweenness 0.6, measure share 1.0 |\n| order_items | fact | nothing points at it, 2 reference(s) out, measures 1.0; out 2, in 0, betweenness 0.5333, measure share 1.0 |\n| audit_log | fact | nothing points at it, 1 reference(s) out, measures 0.5; out 1, in 0, betweenness 0.0, measure share 0.5 |\n\nSubject areas (label propagation on the relationship graph, named after the most central table):\n\n- customers area: addresses, audit_log, categories, customers, order_items, orders, products\n\nevery relationship beyond a spanning forest closes a cycle; any two tables on a cycle can be reached two ways, so a semantic model must leave one link on each cycle inactive.\n- cycle through orders - customers - addresses, closed by orders.ship_to_id -> addresses (R5)\n\nRelationships a semantic model would have to leave inactive (lower certainty on a cycle):\n\n- orders.ship_to_id -> addresses (R5, certainty 0.5): it would close a cycle with orders - customers - addresses; the active path has certainty 0.8, this link 0.5\n\n## Diagram\n\n```mermaid\nerDiagram\n  customers {\n    customer_id int PK\n    name string\n    country string\n  }\n  categories {\n    id int PK\n    name string\n  }\n  products {\n    product_id int PK\n    name string\n    category_id int\n    list_price double\n  }\n  addresses {\n    address_id int PK\n    customer_id int\n    city string\n  }\n  orders {\n    order_id int PK\n    customer_id int\n    order_date date\n    ship_to_id int\n  }\n  order_items {\n    order_id int PK\n    line_no int PK\n    product_id int\n    quantity double\n  }\n  audit_log {\n    event string\n    customer_id int\n    happened_at timestamp\n  }\n  categories ||--o{ products : \"category_id R1\"\n  customers ||--o{ addresses : \"customer_id R1\"\n  customers ||--o{ orders : \"customer_id R1\"\n  orders ||--o{ order_items : \"order_id R1\"\n  products ||--o{ order_items : \"product_id R1\"\n  customers ||--o{ audit_log : \"customer_id R1\"\n  addresses ||--o{ orders : \"ship_to_id R5\"\n```\n\n## Rules\n\n| Rule | Meaning |\n| --- | --- |\n| K0 | declared primary key |\n| K1 | `keys` override from the caller |\n| K2 | a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`); a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| K3 | nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it |\n| K4 | junction: no column names a key and the table starts with two or more reference columns; together they are the key (not applied to history tables with a start_*/valid_from/effective_* column) |\n| K5 | line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…) |\n| R0 | declared foreign key |\n| R1 | column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key |\n| R2 | column has exactly the same name as B's single key column, and that name is not just `id` |\n| R3 | all of B's composite key columns appear in A |\n| R4 | weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table (`Kunde_ID` → `Kunden`, `cust_id` → `customers`, noted on the relationship), a role before B's name (`manager_staff_id` → staff), or an abbreviation of B of four letters or more (`o_custkey` → customer); never across suffixes (`wwi_order_id` does not point at a table keyed by `order_key`) |\n| R5 | checked against the rows: a code column `<stem>_code` / `<stem>_no` / `<stem>_key` where a table with the same stem (singular/plural, snake/camel) has the key `code`/`no`/`key`, or a role name (`ship_to_id`, `created_by`, `approved_by`) whose role word says what the table holds; planned only when every value is in that table's key, the type family is the same, there are two or more distinct values and one table qualifies, otherwise proposed with the reason |\n| K6 | counted in the rows (with a connection and the row profile on), where no name gives a key: the column that is unique and never NULL in two or more rows and is named like an identifier (the first such column), or the table's first column when it is unique; else the shortest unique combination of the table's first two to four columns, never all of its columns |\n| R6 | counted in the rows (with a connection and the row profile on): a column the names left ambiguous or unlinked whose every value is in one single-column key of the same type; names rank the keys (the key's own name, then a column that carries the table's name), and between keys of one name the one with the fewest rows is the nearest; applied only with support from the name, otherwise proposed with the counts; whole numbers without name support are never linked |\n| confirmed | given by the caller in `confirmed=[...]`, applied as-is, before inference |\n",
    "path": "docs/demo_lh-shop-data-dictionary.md",
-   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\nno key (query only; can reference others, cannot be referenced): audit_log"
+   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\ncounted in this call: 6 key(s), 6 unique\nno key (query only; can reference others, cannot be referenced): audit_log"
   },
   "args": {
    "schema": "shop",
@@ -5209,9 +5618,9 @@
     "tables": 7,
     "unlinked_reference_columns": 0
    },
-   "markdown": "# Data dictionary: demo_lh / shop\n\nGenerated by Krusgraph from the source's metadata (table and column names and types). Keys and relationships are inferred where the source declares none; every one names its rule. Descriptions are left blank on purpose — fill them in with the business meaning.\n\n## Summary\n\n- 7 tables, 6 with keys, 7 relationships\n- Tables without a key: audit_log\n- Ambiguous columns (not applied): 0\n- Checked against the data: 6 of 6 keys unique, 7 of 7 relationships hold without orphans\n\n## Tables\n\n### customers\n\nKey: customer_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| customer_id | int | yes |  |  |\n| name | string |  |  |  |\n| country | string |  |  |  |\n\n### categories\n\nKey: id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| id | int | yes |  |  |\n| name | string |  |  |  |\n\n### products\n\nKey: product_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| product_id | int | yes |  |  |\n| name | string |  |  |  |\n| category_id | int |  | categories.id (R1) |  |\n| list_price | double |  |  |  |\n\n### addresses\n\nKey: address_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| address_id | int | yes |  |  |\n| customer_id | int |  | customers.customer_id (R1) |  |\n| city | string |  |  |  |\n\n### orders\n\nKey: order_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| order_id | int | yes |  |  |\n| customer_id | int |  | customers.customer_id (R1) |  |\n| order_date | date |  |  |  |\n| ship_to_id | int |  | addresses.address_id (R5) |  |\n\n### order_items\n\nKey: order_id+line_no (rule K5)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| order_id | int | yes | orders.order_id (R1) |  |\n| line_no | int | yes |  |  |\n| product_id | int |  | products.product_id (R1) |  |\n| quantity | double |  |  |  |\n\n### audit_log\n\nKey: none (rule K3)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| event | string |  |  |  |\n| customer_id | int |  | customers.customer_id (R1) |  |\n| happened_at | timestamp |  |  |  |\n\n## Keys\n\n| Table | Columns | Rule | Meaning |\n| --- | --- | --- | --- |\n| customers | customer_id | K2 | a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`); a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| categories | id | K2 | as above (K2) |\n| products | product_id | K2 | as above (K2) |\n| addresses | address_id | K2 | as above (K2) |\n| orders | order_id | K2 | as above (K2) |\n| order_items | order_id+line_no | K5 | line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…) |\n| audit_log | — | K3 | nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it |\n\n## Relationships\n\n| From | Columns | To | Columns | Rule | Field on from / on to |\n| --- | --- | --- | --- | --- | --- |\n| products | category_id | categories | id | R1 | category / products |\n| addresses | customer_id | customers | customer_id | R1 | customer / addresses |\n| orders | customer_id | customers | customer_id | R1 | customer / orders |\n| order_items | order_id | orders | order_id | R1 | order / order_items |\n| order_items | product_id | products | product_id | R1 | product / order_items |\n| audit_log | customer_id | customers | customer_id | R1 | customer / audit_log |\n| orders | ship_to_id | addresses | address_id | R5 | ship_to / orders_as_ship_to |\n\n## Order amount (quantity × price)\n\n- `Order amount` on order_items: `SUMX('order_items', 'order_items'[quantity] * RELATED('products'[list_price]))` (DAX, as semantic_model_draft writes it). order_items.quantity is a quantity and order_items carries no amount; the price is products.list_price, reached through order_items.product_id (R1). The price comes from products.list_price, one row per products, as it stands at query time: a list price, not necessarily the price paid, and a later change of it changes the history. Check against an invoiced amount if there is one.\n\n## Tables without a key\n\n- audit_log: can be queried and can point at other tables; nothing can point at it. Give `keys` to change that.\n\n## Ambiguous columns\n\nNone.\n\n## Checked against the data\n\nCounts over the whole tables at the moment of the call. They show the data agrees with the plan today; they do not prove the meaning, and new rows can change them.\n\n| Table | Key | Rows | NULLs | Distinct | Verdict |\n| --- | --- | --- | --- | --- | --- |\n| customers | customer_id | 10 | 0 | 10 | unique in all 10 rows |\n| categories | id | 3 | 0 | 3 | unique in all 3 rows |\n| products | product_id | 8 | 0 | 8 | unique in all 8 rows |\n| addresses | address_id | 17 | 0 | 17 | unique in all 17 rows |\n| orders | order_id | 60 | 0 | 60 | unique in all 60 rows |\n| order_items | order_id+line_no | 134 | 0 | 134 | unique in all 134 rows |\n\n| From | Columns | To | Rows with a value | Orphans | Verdict |\n| --- | --- | --- | --- | --- | --- |\n| products | category_id | categories | 8 | 0 | holds for all 8 rows with a value |\n| addresses | customer_id | customers | 17 | 0 | holds for all 17 rows with a value |\n| orders | customer_id | customers | 60 | 0 | holds for all 60 rows with a value |\n| order_items | order_id | orders | 134 | 0 | holds for all 134 rows with a value |\n| order_items | product_id | products | 134 | 0 | holds for all 134 rows with a value |\n| audit_log | customer_id | customers | 40 | 0 | holds for all 40 rows with a value |\n| orders | ship_to_id | addresses | 60 | 0 | holds for all 60 rows with a value |\n\n## Roles, subject areas and ambiguity\n\n7 tables, 7 relationships; roles: 3 fact, 4 dimension; 6 relationships can be active at once, 1 would be inactive; 1 cycle(s)\n\n| Table | Role | Why |\n| --- | --- | --- |\n| customers | dimension | 3 reference(s) in, 0 out, few measures (0.0); out 0, in 3, betweenness 0.3333, measure share 0.0 |\n| categories | dimension | 1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0 |\n| products | dimension | 1 reference(s) in, 1 out, few measures (0.0); out 1, in 1, betweenness 0.3333, measure share 0.0 |\n| addresses | dimension | 1 reference(s) in, 1 out, few measures (0.0); out 1, in 1, betweenness 0.0, measure share 0.0 |\n| orders | fact | pointed at by a fact table, 2 reference(s) out, measures 1.0 (a header table); out 2, in 1, betweenness 0.6, measure share 1.0 |\n| order_items | fact | nothing points at it, 2 reference(s) out, measures 1.0; out 2, in 0, betweenness 0.5333, measure share 1.0 |\n| audit_log | fact | nothing points at it, 1 reference(s) out, measures 0.5; out 1, in 0, betweenness 0.0, measure share 0.5 |\n\nSubject areas (label propagation on the relationship graph, named after the most central table):\n\n- customers area: addresses, audit_log, categories, customers, order_items, orders, products\n\nevery relationship beyond a spanning forest closes a cycle; any two tables on a cycle can be reached two ways, so a semantic model must leave one link on each cycle inactive.\n- cycle through addresses - orders - customers, closed by addresses.customer_id -> customers (R1)\n\nRelationships a semantic model would have to leave inactive (lower certainty on a cycle):\n\n- addresses.customer_id -> customers (R1, certainty 0.9): it would close a cycle with addresses - orders - customers; the active path has certainty 0.9, this link 0.9\n\n## Diagram\n\n```mermaid\nerDiagram\n  customers {\n    customer_id int PK\n    name string\n    country string\n  }\n  categories {\n    id int PK\n    name string\n  }\n  products {\n    product_id int PK\n    name string\n    category_id int\n    list_price double\n  }\n  addresses {\n    address_id int PK\n    customer_id int\n    city string\n  }\n  orders {\n    order_id int PK\n    customer_id int\n    order_date date\n    ship_to_id int\n  }\n  order_items {\n    order_id int PK\n    line_no int PK\n    product_id int\n    quantity double\n  }\n  audit_log {\n    event string\n    customer_id int\n    happened_at timestamp\n  }\n  categories ||--o{ products : \"category_id R1\"\n  customers ||--o{ addresses : \"customer_id R1\"\n  customers ||--o{ orders : \"customer_id R1\"\n  orders ||--o{ order_items : \"order_id R1\"\n  products ||--o{ order_items : \"product_id R1\"\n  customers ||--o{ audit_log : \"customer_id R1\"\n  addresses ||--o{ orders : \"ship_to_id R5\"\n```\n\n## Rules\n\n| Rule | Meaning |\n| --- | --- |\n| K0 | declared primary key |\n| K1 | `keys` override from the caller |\n| K2 | a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`); a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| K3 | nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it |\n| K4 | junction: no column names a key and the table starts with two or more reference columns; together they are the key (not applied to history tables with a start_*/valid_from/effective_* column) |\n| K5 | line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…) |\n| R0 | declared foreign key |\n| R1 | column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key |\n| R2 | column has exactly the same name as B's single key column, and that name is not just `id` |\n| R3 | all of B's composite key columns appear in A |\n| R4 | weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table (`Kunde_ID` → `Kunden`, `cust_id` → `customers`, noted on the relationship), a role before B's name (`manager_staff_id` → staff), or an abbreviation of B of four letters or more (`o_custkey` → customer); never across suffixes (`wwi_order_id` does not point at a table keyed by `order_key`) |\n| R5 | checked against the rows: a code column `<stem>_code` / `<stem>_no` / `<stem>_key` where a table with the same stem (singular/plural, snake/camel) has the key `code`/`no`/`key`, or a role name (`ship_to_id`, `created_by`, `approved_by`) whose role word says what the table holds; planned only when every value is in that table's key, the type family is the same, there are two or more distinct values and one table qualifies, otherwise proposed with the reason |\n| confirmed | given by the caller in `confirmed=[...]`, applied as-is, before inference |\n",
+   "markdown": "# Data dictionary: demo_lh / shop\n\nGenerated by Krusgraph from the source's metadata (table and column names and types). Keys and relationships are inferred where the source declares none; every one names its rule. Descriptions are left blank on purpose — fill them in with the business meaning.\n\n## Summary\n\n- 7 tables, 6 with keys, 7 relationships\n- Tables without a key: audit_log\n- Ambiguous columns (not applied): 0\n- Checked against the data: 6 of 6 keys unique, 7 of 7 relationships hold without orphans\n\n## Tables\n\n### customers\n\nKey: customer_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| customer_id | int | yes |  |  |\n| name | string |  |  |  |\n| country | string |  |  |  |\n\n### categories\n\nKey: id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| id | int | yes |  |  |\n| name | string |  |  |  |\n\n### products\n\nKey: product_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| product_id | int | yes |  |  |\n| name | string |  |  |  |\n| category_id | int |  | categories.id (R1) |  |\n| list_price | double |  |  |  |\n\n### addresses\n\nKey: address_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| address_id | int | yes |  |  |\n| customer_id | int |  | customers.customer_id (R1) |  |\n| city | string |  |  |  |\n\n### orders\n\nKey: order_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| order_id | int | yes |  |  |\n| customer_id | int |  | customers.customer_id (R1) |  |\n| order_date | date |  |  |  |\n| ship_to_id | int |  | addresses.address_id (R5) |  |\n\n### order_items\n\nKey: order_id+line_no (rule K5)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| order_id | int | yes | orders.order_id (R1) |  |\n| line_no | int | yes |  |  |\n| product_id | int |  | products.product_id (R1) |  |\n| quantity | double |  |  |  |\n\n### audit_log\n\nKey: none (rule K3)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| event | string |  |  |  |\n| customer_id | int |  | customers.customer_id (R1) |  |\n| happened_at | timestamp |  |  |  |\n\n## Keys\n\n| Table | Columns | Rule | Meaning |\n| --- | --- | --- | --- |\n| customers | customer_id | K2 | a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`); a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| categories | id | K2 | as above (K2) |\n| products | product_id | K2 | as above (K2) |\n| addresses | address_id | K2 | as above (K2) |\n| orders | order_id | K2 | as above (K2) |\n| order_items | order_id+line_no | K5 | line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…) |\n| audit_log | — | K3 | nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it |\n\n## Relationships\n\n| From | Columns | To | Columns | Rule | Field on from / on to |\n| --- | --- | --- | --- | --- | --- |\n| products | category_id | categories | id | R1 | category / products |\n| addresses | customer_id | customers | customer_id | R1 | customer / addresses |\n| orders | customer_id | customers | customer_id | R1 | customer / orders |\n| order_items | order_id | orders | order_id | R1 | order / order_items |\n| order_items | product_id | products | product_id | R1 | product / order_items |\n| audit_log | customer_id | customers | customer_id | R1 | customer / audit_log |\n| orders | ship_to_id | addresses | address_id | R5 | ship_to / orders_as_ship_to |\n\n## Order amount (quantity × price)\n\n- `Order amount` on order_items: `SUMX('order_items', 'order_items'[quantity] * RELATED('products'[list_price]))` (DAX, as semantic_model_draft writes it). order_items.quantity is a quantity and order_items carries no amount; the price is products.list_price, reached through order_items.product_id (R1). The price comes from products.list_price, one row per products, as it stands at query time: a list price, not necessarily the price paid, and a later change of it changes the history. Check against an invoiced amount if there is one.\n\n## Tables without a key\n\n- audit_log: can be queried and can point at other tables; nothing can point at it. Give `keys` to change that.\n\n## Ambiguous columns\n\nNone.\n\n## Checked against the data\n\nCounts over the whole tables at the moment of the call. They show the data agrees with the plan today; they do not prove the meaning, and new rows can change them.\n\n| Table | Key | Rows | NULLs | Distinct | Verdict |\n| --- | --- | --- | --- | --- | --- |\n| customers | customer_id | 10 | 0 | 10 | unique in all 10 rows |\n| categories | id | 3 | 0 | 3 | unique in all 3 rows |\n| products | product_id | 8 | 0 | 8 | unique in all 8 rows |\n| addresses | address_id | 17 | 0 | 17 | unique in all 17 rows |\n| orders | order_id | 60 | 0 | 60 | unique in all 60 rows |\n| order_items | order_id+line_no | 134 | 0 | 134 | unique in all 134 rows |\n\n| From | Columns | To | Rows with a value | Orphans | Verdict |\n| --- | --- | --- | --- | --- | --- |\n| products | category_id | categories | 8 | 0 | holds for all 8 rows with a value |\n| addresses | customer_id | customers | 17 | 0 | holds for all 17 rows with a value |\n| orders | customer_id | customers | 60 | 0 | holds for all 60 rows with a value |\n| order_items | order_id | orders | 134 | 0 | holds for all 134 rows with a value |\n| order_items | product_id | products | 134 | 0 | holds for all 134 rows with a value |\n| audit_log | customer_id | customers | 40 | 0 | holds for all 40 rows with a value |\n| orders | ship_to_id | addresses | 60 | 0 | holds for all 60 rows with a value |\n\n## Roles, subject areas and ambiguity\n\n7 tables, 7 relationships; roles: 3 fact, 4 dimension; 6 relationships can be active at once, 1 would be inactive; 1 cycle(s)\n\n| Table | Role | Why |\n| --- | --- | --- |\n| customers | dimension | 3 reference(s) in, 0 out, few measures (0.0); out 0, in 3, betweenness 0.3333, measure share 0.0 |\n| categories | dimension | 1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0 |\n| products | dimension | 1 reference(s) in, 1 out, few measures (0.0); out 1, in 1, betweenness 0.3333, measure share 0.0 |\n| addresses | dimension | 1 reference(s) in, 1 out, few measures (0.0); out 1, in 1, betweenness 0.0, measure share 0.0 |\n| orders | fact | pointed at by a fact table, 2 reference(s) out, measures 1.0 (a header table); out 2, in 1, betweenness 0.6, measure share 1.0 |\n| order_items | fact | nothing points at it, 2 reference(s) out, measures 1.0; out 2, in 0, betweenness 0.5333, measure share 1.0 |\n| audit_log | fact | nothing points at it, 1 reference(s) out, measures 0.5; out 1, in 0, betweenness 0.0, measure share 0.5 |\n\nSubject areas (label propagation on the relationship graph, named after the most central table):\n\n- customers area: addresses, audit_log, categories, customers, order_items, orders, products\n\nevery relationship beyond a spanning forest closes a cycle; any two tables on a cycle can be reached two ways, so a semantic model must leave one link on each cycle inactive.\n- cycle through addresses - orders - customers, closed by addresses.customer_id -> customers (R1)\n\nRelationships a semantic model would have to leave inactive (lower certainty on a cycle):\n\n- addresses.customer_id -> customers (R1, certainty 0.9): it would close a cycle with addresses - orders - customers; the active path has certainty 0.9, this link 0.9\n\n## Diagram\n\n```mermaid\nerDiagram\n  customers {\n    customer_id int PK\n    name string\n    country string\n  }\n  categories {\n    id int PK\n    name string\n  }\n  products {\n    product_id int PK\n    name string\n    category_id int\n    list_price double\n  }\n  addresses {\n    address_id int PK\n    customer_id int\n    city string\n  }\n  orders {\n    order_id int PK\n    customer_id int\n    order_date date\n    ship_to_id int\n  }\n  order_items {\n    order_id int PK\n    line_no int PK\n    product_id int\n    quantity double\n  }\n  audit_log {\n    event string\n    customer_id int\n    happened_at timestamp\n  }\n  categories ||--o{ products : \"category_id R1\"\n  customers ||--o{ addresses : \"customer_id R1\"\n  customers ||--o{ orders : \"customer_id R1\"\n  orders ||--o{ order_items : \"order_id R1\"\n  products ||--o{ order_items : \"product_id R1\"\n  customers ||--o{ audit_log : \"customer_id R1\"\n  addresses ||--o{ orders : \"ship_to_id R5\"\n```\n\n## Rules\n\n| Rule | Meaning |\n| --- | --- |\n| K0 | declared primary key |\n| K1 | `keys` override from the caller |\n| K2 | a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`); a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| K3 | nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it |\n| K4 | junction: no column names a key and the table starts with two or more reference columns; together they are the key (not applied to history tables with a start_*/valid_from/effective_* column) |\n| K5 | line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…) |\n| R0 | declared foreign key |\n| R1 | column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key |\n| R2 | column has exactly the same name as B's single key column, and that name is not just `id` |\n| R3 | all of B's composite key columns appear in A |\n| R4 | weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table (`Kunde_ID` → `Kunden`, `cust_id` → `customers`, noted on the relationship), a role before B's name (`manager_staff_id` → staff), or an abbreviation of B of four letters or more (`o_custkey` → customer); never across suffixes (`wwi_order_id` does not point at a table keyed by `order_key`) |\n| R5 | checked against the rows: a code column `<stem>_code` / `<stem>_no` / `<stem>_key` where a table with the same stem (singular/plural, snake/camel) has the key `code`/`no`/`key`, or a role name (`ship_to_id`, `created_by`, `approved_by`) whose role word says what the table holds; planned only when every value is in that table's key, the type family is the same, there are two or more distinct values and one table qualifies, otherwise proposed with the reason |\n| K6 | counted in the rows (with a connection and the row profile on), where no name gives a key: the column that is unique and never NULL in two or more rows and is named like an identifier (the first such column), or the table's first column when it is unique; else the shortest unique combination of the table's first two to four columns, never all of its columns |\n| R6 | counted in the rows (with a connection and the row profile on): a column the names left ambiguous or unlinked whose every value is in one single-column key of the same type; names rank the keys (the key's own name, then a column that carries the table's name), and between keys of one name the one with the fewest rows is the nearest; applied only with support from the name, otherwise proposed with the counts; whole numbers without name support are never linked |\n| confirmed | given by the caller in `confirmed=[...]`, applied as-is, before inference |\n",
    "path": "docs/demo_lh-shop-data-dictionary.md",
-   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\nno key (query only; can reference others, cannot be referenced): audit_log"
+   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\ncounted in this call: 6 key(s), 6 unique\nno key (query only; can reference others, cannot be referenced): audit_log"
   },
   "args": {
    "schema": "shop",
@@ -5239,10 +5648,10 @@
   "answer": {
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -5262,7 +5671,7 @@
     "unlinked_reference_columns": 0
    },
    "path": "models/sources/shop.yml",
-   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\nno key (query only; can reference others, cannot be referenced): audit_log",
+   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\ncounted in this call: 6 key(s), 6 unique\nno key (query only; can reference others, cannot be referenced): audit_log",
    "yaml": "version: 2\n\n# Generated by Krusgraph from the source's metadata; keys and relationships are inferred where the\n# source declares none (the rule is in the comment on each test). Fill in descriptions by hand.\n\nsources:\n  - name: shop\n    database: demo_lh\n    tables:\n      - name: customers\n        columns:\n          - name: customer_id\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: name\n            description: \"\"  # string\n          - name: country\n            description: \"\"  # string\n      - name: categories\n        columns:\n          - name: id\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: name\n            description: \"\"  # string\n      - name: products\n        columns:\n          - name: product_id\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: name\n            description: \"\"  # string\n          - name: category_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('shop', 'categories')\n                    field: id\n          - name: list_price\n            description: \"\"  # double\n      - name: addresses\n        columns:\n          - name: address_id\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: customer_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('shop', 'customers')\n                    field: customer_id\n          - name: city\n            description: \"\"  # string\n      - name: orders\n        columns:\n          - name: order_id\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: customer_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('shop', 'customers')\n                    field: customer_id\n          - name: order_date\n            description: \"\"  # date\n          - name: ship_to_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R5\n                  arguments:\n                    to: source('shop', 'addresses')\n                    field: address_id\n      - name: order_items\n        # composite key order_id+line_no (rule K5): no built-in dbt test for a combination;\n        # with the dbt_utils package: dbt_utils.unique_combination_of_columns, combination_of_columns: [order_id, line_no]\n        columns:\n          - name: order_id\n            description: \"\"  # int\n            data_tests:\n              - not_null  # key, rule K5\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('shop', 'orders')\n                    field: order_id\n          - name: line_no\n            description: \"\"  # int\n            data_tests:\n              - not_null  # key, rule K5\n          - name: product_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('shop', 'products')\n                    field: product_id\n          - name: quantity\n            description: \"\"  # double\n      - name: audit_log\n        # no key inferred (rule K3): no unique/not_null tests\n        columns:\n          - name: event\n            description: \"\"  # string\n          - name: customer_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('shop', 'customers')\n                    field: customer_id\n          - name: happened_at\n            description: \"\"  # timestamp\n"
   },
   "args": {
@@ -5291,10 +5700,10 @@
    "actions_changed": [],
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -5373,10 +5782,10 @@
    ],
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -5608,12 +6017,13 @@
     "If the portal asks for credentials on the SQL analytics endpoint connection, set them under the model's settings (OAuth2 with your account).",
     "Open the model in the portal or Power BI Desktop and check the relationships README.generated.md lists as inactive."
    ],
+   "already_built": [],
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -5633,6 +6043,103 @@
     "unlinked_reference_columns": 0
    },
    "dry_run": false,
+   "more": [
+    {
+     "ask": "Give me the dbt project as a draft, labelled as a draft: run dbt_schema with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", project=true.",
+     "draft": true,
+     "label": "Download a dbt project draft",
+     "step": "dbt",
+     "who": "builder",
+     "why": "A draft only: the dbt drafts are frozen, and the project has not run against your warehouse."
+    }
+   ],
+   "next_steps": [
+    {
+     "args": {
+      "items": {
+       "semantic_model": "shop_model_v2"
+      },
+      "schema": "shop",
+      "source": "demo_lh",
+      "workspace": "demo"
+     },
+     "ask": "Verify what was built: run verify_build with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", items={\"semantic_model\": \"shop_model_v2\"}.",
+     "label": "Verify what was built",
+     "order": 1,
+     "step": "verify",
+     "tool": "verify_build",
+     "who": "thinker",
+     "why": "I read back what Fabric holds and count the figures again from the rows, so you know it is what the dry run showed."
+    },
+    {
+     "ask": "Refresh the semantic model shop_model_v2 once: run create_semantic_model with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", name=\"shop_model_v2\", refresh=true, dry_run=false. It updates the model in place with the same definition and then refreshes it once; ask me to confirm first.",
+     "label": "Refresh the model once",
+     "order": 2,
+     "step": "refresh",
+     "who": "builder",
+     "why": "A new Direct Lake model shows no data until it is refreshed once; one refresh frames its tables."
+    },
+    {
+     "ask": "Show the pipeline as a dry run: run create_pipeline with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", name=\"pipeline_shop\", dry_run=true. Then offer me the two choices for the Create: Run once (run_once=true) and a Schedule (schedule), both off unless I choose them.",
+     "choices": [
+      "Run once",
+      "Schedule"
+     ],
+     "label": "Build the pipeline (silver, gold, check)",
+     "order": 3,
+     "step": "pipeline",
+     "who": "builder",
+     "why": "Nothing keeps the silver tables and the gold views up to date yet; the pipeline does, and its check fails the run when a key or a sum breaks."
+    },
+    {
+     "args": {
+      "dry_run": true,
+      "model": "shop_model_v2",
+      "name": "shop_model_v2_report",
+      "workspace": "demo"
+     },
+     "ask": "Show a report on shop_model_v2 as a dry run: run create_report with workspace=\"demo\", model=\"shop_model_v2\", name=\"shop_model_v2_report\", dry_run=true.",
+     "label": "Create a report on it",
+     "order": 4,
+     "step": "report",
+     "tool": "create_report",
+     "who": "builder",
+     "why": "The model has measures and no page that shows them; I draw one page from its own measures."
+    },
+    {
+     "ask": "Show a data agent as a dry run: run create_data_agent with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", name=\"shop_agent\", dry_run=true. Say that it is experimental.",
+     "label": "Create a data agent (experimental)",
+     "order": 5,
+     "step": "data_agent",
+     "who": "builder",
+     "why": "People can then ask the data in words; it is experimental and judged by its answers, so try its questions first."
+    },
+    {
+     "ask": "What does the Rayfin App (preview) take? Say it plainly: Krusgraph for Fabric makes an empty App item and a package with one command, and the App opens inside Fabric only. From this chat, rayfin_connector gives the connector's entities for workspace=\"demo\", source=\"demo_lh\", schema=\"shop\".",
+     "label": "A Rayfin App (preview)",
+     "order": 6,
+     "step": "app",
+     "who": "builder",
+     "why": "Honest: I make an empty App item and a package with one command; the App opens inside Fabric only."
+    },
+    {
+     "ask": "Show a drift monitor as a dry run: run create_drift_monitor with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", name=\"drift_monitor_shop\", dry_run=true.",
+     "label": "Add a drift monitor",
+     "order": 7,
+     "step": "drift_monitor",
+     "who": "thinker",
+     "why": "Tables and columns change; a nightly monitor tells you when the plan no longer matches the source."
+    },
+    {
+     "ask": "Draft the data product with an owner and a contract: run domain_draft with workspace=\"demo\", source=\"demo_lh\", schema=\"shop\", then ask me who owns it.",
+     "label": "Register it as a data product",
+     "order": 8,
+     "step": "data_product",
+     "who": "onto",
+     "why": "It has items and no owner or contract yet; with those, others know whom to ask and what is promised."
+    }
+   ],
+   "next_steps_note": "By rules, in the order of what the data product still lacks. No step writes: each is a read, a dry run or a question; a Create comes only from its own dry run.",
    "note": "Unit-tested against Microsoft's sample definitions. On 29 October 2026 it created the semantic model shop_model_live live against a Fabric workspace with synthetic data; it was refreshed and reviewed in the Fabric portal the same day, and a model was updated in place on 30 October 2026. The counts in this answer are today's draft's. Without the permission the create answers kind=consent naming it, see docs/SCOPES.md.",
    "read_from_rows": [
     "Dates: 2026-09-01 to 2026-10-31 in orders.order_date; the calendar spans those whole years.",
@@ -5825,6 +6332,10 @@
    [
     "POST",
     "/v1/workspaces/11111111-2222-3333-4444-555555555555/semanticModels"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
    ]
   ],
   "tool": "create_semantic_model"
@@ -5833,10 +6344,10 @@
   "answer": {
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -5866,7 +6377,7 @@
    },
    "schema": "krusgraph",
    "schema_sql": "IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'krusgraph') EXEC('CREATE SCHEMA [krusgraph]')",
-   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\nno key (query only; can reference others, cannot be referenced): audit_log",
+   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\ncounted in this call: 6 key(s), 6 unique\nno key (query only; can reference others, cannot be referenced): audit_log",
    "views": [
     {
      "name": "vw_order_items",
@@ -5949,10 +6460,10 @@
    ],
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -5987,7 +6498,7 @@
    },
    "schema": "krusgraph",
    "schema_sql": "IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'krusgraph') EXEC('CREATE SCHEMA [krusgraph]')",
-   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\nno key (query only; can reference others, cannot be referenced): audit_log",
+   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\ncounted in this call: 6 key(s), 6 unique\nno key (query only; can reference others, cannot be referenced): audit_log",
    "views": [
     {
      "name": "vw_order_items",
@@ -6231,10 +6742,10 @@
    },
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -6272,7 +6783,7 @@
     "POST or PATCH …/staging/datasources/{dsId}/fewshots, one per example",
     "POST /v1/workspaces/11111111-2222-3333-4444-555555555555/dataAgents/{id}/staging/publish"
    ],
-   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\nno key (query only; can reference others, cannot be referenced): audit_log"
+   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\ncounted in this call: 6 key(s), 6 unique\nno key (query only; can reference others, cannot be referenced): audit_log"
   },
   "args": {
    "name": "shop_agent",
@@ -6560,7 +7071,7 @@
     "POST or PATCH …/staging/datasources/{dsId}/fewshots, one per example",
     "POST /v1/workspaces/11111111-2222-3333-4444-555555555555/dataAgents/{id}/staging/publish"
    ],
-   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\nno key (query only; can reference others, cannot be referenced): audit_log"
+   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\ncounted in this call: 6 key(s), 6 unique\nno key (query only; can reference others, cannot be referenced): audit_log"
   },
   "args": {
    "name": "shop_agent",
@@ -6605,10 +7116,10 @@
   "answer": {
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -6869,10 +7380,10 @@
   "answer": {
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -7147,10 +7658,10 @@
   "answer": {
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -7330,10 +7841,10 @@
   "answer": {
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -7527,10 +8038,10 @@
   "answer": {
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -7695,10 +8206,10 @@
   "answer": {
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -7889,10 +8400,10 @@
   "answer": {
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -9756,10 +10267,10 @@
    "assumptions": [],
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1
@@ -9844,10 +10355,10 @@
    ],
    "coverage": {
     "counted_means": "counted over the whole table in this call; a key or link by name only is a candidate until counted",
-    "headline": "7 tables: 0 with a counted key, 6 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
+    "headline": "7 tables: 6 with a counted key, 0 with a key by name only, 1 without a key; 7 links proposed, 1 counted, 1 hold; 0 columns that look like references are unlinked.",
     "keys": {
      "states": {
-      "by name only": 6
+      "counted unique": 6
      },
      "with_key": 6,
      "without_key": 1

@@ -70,7 +70,9 @@ def test_the_files_exist_and_are_small_enough():
     assert vtt.startswith("WEBVTT") and vtt.count(" --> ") >= 10 and "Krusgraph, for Microsoft Fabric." in vtt
     head = (MEDIA / "krusgraph-overview-web.mp4").read_bytes()[:64 * 1024]
     assert 0 <= head.find(b"moov") < head.find(b"mdat") or (head.find(b"moov") >= 0 and head.find(b"mdat") < 0)  # faststart
-    assert sorted(p.name for p in MEDIA.iterdir()) == sorted(FILES)   # only the web version; the masters stay out
+    # n242: the SAP film's web version (tests/test_n242_sap_film.py) is the only other film here
+    sap = {"krusgraph-sap-to-report.mp4", "krusgraph-sap-to-report-poster.webp", "krusgraph-sap-to-report.en.vtt"}
+    assert sorted(p.name for p in MEDIA.iterdir()) == sorted([*FILES, *sap])   # only the web versions; the masters stay out
 
 
 def test_the_files_are_served_with_their_types(client):

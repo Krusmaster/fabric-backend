@@ -29,6 +29,12 @@ EXTRA = {
 DECIMALS = {"KWERT", "KBETR", "RMWWR", "WMWST1", "MENGE", "NETWR", "MWSBK", "KWMENG", "WMENG", "LFIMG", "FKIMG", "WRBTR", "DMBTR", "WSL", "HSL", "RFMNG"}
 
 
+def _raw(t: dict) -> bool:
+    """A table of the source system itself, not a released CDS view over one (round n230: the views have their own
+    sample and tests, fabric_backend/sap_cds_demo.py and tests/test_n230_sap_cds.py; the numbers here are the tables')."""
+    return not t.get("source_name")
+
+
 def columns(name: str) -> list[str]:
     t = sap_pack.table_info(name)
     out: list[str] = []
@@ -42,7 +48,7 @@ def columns(name: str) -> list[str]:
 def schema(tables: list[str] | None = None, style: str = "upper", variant: str = "ecc", drop_client: bool = False) -> Schema:
     """style: upper (VBAK), lower (vbak), prefix (sap_vbak with lower-case columns)."""
     pack = sap_pack.load()
-    names = tables or [n for n, t in pack["tables"].items() if not t.get("variants") or variant in t["variants"]]
+    names = tables or [n for n, t in pack["tables"].items() if _raw(t) and (not t.get("variants") or variant in t["variants"])]
     rows = []
     for name in names:
         tname = {"upper": name, "lower": name.lower(), "prefix": "sap_" + name.lower()}[style]
@@ -59,7 +65,7 @@ def schema(tables: list[str] | None = None, style: str = "upper", variant: str =
 def truth(variant: str = "ecc") -> tuple[dict, set]:
     """The pack's own keys and applied relationships for the variant: what a perfect plan of schema() contains."""
     pack = sap_pack.load()
-    names = {n for n, t in pack["tables"].items() if not t.get("variants") or variant in t["variants"]}
+    names = {n for n, t in pack["tables"].items() if _raw(t) and (not t.get("variants") or variant in t["variants"])}
     keys = {n: tuple(c.lower() for c in pack["tables"][n]["key"]) for n in names}
     rels = {(r["source"], tuple(c.lower() for c in r["source_cols"]), r["target"]) for r in pack["relationships"]
             if r["source"] in names and r["target"] in names and r.get("apply") is not False
@@ -71,7 +77,7 @@ def listed(variant: str = "ecc") -> set:
     """(source, columns, target) of the pack's relationships that are listed but not applied: conditional, many-to-many, or on a
     unique column that is not the key. A name rule that finds one of them is partly right, not simply wrong."""
     pack = sap_pack.load()
-    names = {n for n, t in pack["tables"].items() if not t.get("variants") or variant in t["variants"]}
+    names = {n for n, t in pack["tables"].items() if _raw(t) and (not t.get("variants") or variant in t["variants"])}
     rels = [r for r in pack["relationships"] if r.get("apply") is False
             and r["source"] in names and r["target"] in names and (not r.get("variants") or variant in r["variants"])]
     out = {(r["source"], tuple(c.lower() for c in r["source_cols"]), r["target"]) for r in rels}
@@ -83,7 +89,7 @@ def reversed_one_to_one(variant: str = "ecc") -> set:
     """The pack's applied one-to-one relationships read from the other end (BUT000.PARTNER_GUID -> CVI_CUST_LINK): the
     same join, so a name rule that finds it that way is right."""
     pack = sap_pack.load()
-    names = {n for n, t in pack["tables"].items() if not t.get("variants") or variant in t["variants"]}
+    names = {n for n, t in pack["tables"].items() if _raw(t) and (not t.get("variants") or variant in t["variants"])}
     return {(r["target"], tuple(c.lower() for c in r["target_cols"]), r["source"]) for r in pack["relationships"]
             if r.get("apply") is not False and r["cardinality"] == "one-to-one" and r["source"] in names and r["target"] in names
             and (not r.get("variants") or variant in r["variants"])}
@@ -93,7 +99,7 @@ def filtered(variant: str = "ecc") -> set:
     """The pack's applied relationships that hold only where a filter says (VBFA -> LIPS for delivery rows): a join
     without that filter is not the same relationship."""
     pack = sap_pack.load()
-    names = {n for n, t in pack["tables"].items() if not t.get("variants") or variant in t["variants"]}
+    names = {n for n, t in pack["tables"].items() if _raw(t) and (not t.get("variants") or variant in t["variants"])}
     return {(r["source"], tuple(c.lower() for c in r["source_cols"]), r["target"]) for r in pack["relationships"]
             if r.get("where") and r.get("apply") is not False and r["source"] in names and r["target"] in names
             and (not r.get("variants") or variant in r["variants"])}
