@@ -49,7 +49,7 @@ owner of an area is listed here. Change an area you do not own only when the mai
 | Marketplace | `fabric_backend/marketplace.py`, `fabric_backend/entitlements.py`, the marketplace routes in `server.py`, `docs/MARKETPLACE-SETUP.md`, `tests/test_marketplace.py` | open |
 | Hub readiness | `docs/HUB-ATTESTATION.md`, `docs/HUB-READINESS.md`, `tools/hub_readiness.py`, `.github/workflows/hub-readiness.yml` (new files only; no `workload/` code, no site, no engine) | open |
 | Evolution | `docs/EVOLUTION.md`, `tools/evolution/`, `tests/test_e1_*` (how Krusgraph gets better by rules: the design, the score comparison that fails on a lower score and its baseline, the evolution-log tool, the case-record schema) | open |
-| Social media | `social/` (new; published images for the founder's social accounts, no code) | open |
+| Social media | `social/` (new; published images for the founder's social accounts, no code) | H1 holds two new files in `social/shorts/2026-11-16-fabric-see-this/` only (the -v5 short and cover) |
 | Rayfin | `fabric_backend/rayfin.py`, the `rayfin` command in `cli.py`, `examples/rayfin/`, `tests/test_rayfin_app.py`, `tests/fixtures/rayfin_check/`, the Rayfin tests in `tests/test_fabric_backend.py`, the `rayfin` part of `tests/golden/`, the Rayfin section of `README.md`, the Rayfin row in `tools/third_party_notices.py` || open |
 
 "open" means nobody has claimed it; claim an area by editing this table in its own small commit before you start,
