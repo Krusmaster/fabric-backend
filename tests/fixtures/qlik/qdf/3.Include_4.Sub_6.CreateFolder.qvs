@@ -1,0 +1,56 @@
+// Test fixture of Krusgraph, copied from github.com/QlikDeploymentFramework/Qlik-Deployment-Framework at commit 0e0adaaffc26fa79087b6867e80fa3aa70cf91a7, file 3.Include/4.Sub/6.CreateFolder.qvs. Licence: MIT, see LICENSE-Qlik-Deployment-Framework.txt in this folder. This line was added; other changes are listed in ../SOURCES.md.
+
+  // Create Folder function will create folder (if non existing) or folder structure. 
+  // First include the script: $(Include=$(vG.SubPath)\6.CreateFolder.qvs);
+  //  After execute (call) the Sub CreateFolder inside the script.
+  //  sub CreateFolder (vL.FolderName) vL.FolderName Is the folder name or folder structure to create
+  //  Example: call CreateFolder ('$(vG.QVDPath)\NorthWind'); // Will create NorthWind folder under vG.QVDPath
+
+
+SUB CreateFolder (vL.QDF.FolderName_1);
+$(Include=$(vG.SubPath)\1.FileExist.qvs);
+
+// Remove backslash in end
+do while right( '$(vL.QDF.FolderName_1)' , 1 ) ='\'
+			let vL.QDF.FolderName_1 =left('$(vL.QDF.FolderName_1)',len('$(vL.QDF.FolderName_1)')-1);
+			exit do unless right( '$(vL.QDF.FolderName_1)' , 1 ) ='\';
+loop ;
+
+call vL.FileExist ('$(vL.QDF.FolderName_1)'); // Only execute on non-existing folder
+
+if vL.FileExist = 'false' then // If Folder do not exist it will be created. 
+
+if left(trim('$(vG.BasePath)'),6)='lib://' then //validate if Qlik Senes is executing
+vL.QDF.CreateFolder:
+	REPLACE LOAD * INLINE [//This file is created under QDF CreateFolder() function created folders];
+    store * from [vL.QDF.CreateFolder] into '$(vL.QDF.FolderName_1)\Info.txt' (txt,delimiter is ';' );
+    drop table [vL.QDF.CreateFolder];
+else //QlikView is executing
+	// Handle special characters in folder name for CMD pipeline
+	// Ref: https://ss64.com/nt/syntax-redirection.html
+	[vL.QDF.CreateFolder.EscapeCharsMap]:
+	Mapping LOAD * Inline [
+	Char,EscapedChar
+	&,^&
+	\,^\
+	>,^>
+	<,^<
+	^,^^
+	|,^|
+	];
+	Let vL.QDF.FolderIndex_tmp=index('$(vL.QDF.FolderName_1)','\',-1);
+	let vL.QDF.FolderName_2=MapSubString('vL.QDF.CreateFolder.EscapeCharsMap',left('$(vL.QDF.FolderName_1)',vL.QDF.FolderIndex_tmp-1)); // Identifying folder path
+	let vL.QDF.FolderName_3=MapSubString('vL.QDF.CreateFolder.EscapeCharsMap',mid('$(vL.QDF.FolderName_1)',vL.QDF.FolderIndex_tmp+1,Len('$(vL.QDF.FolderName_1)')));// Identifying folder name
+	execute cmd.exe /Q /C pushd ^"$(vL.QDF.FolderName_2)^" & mkdir ^"$(vL.QDF.FolderName_3)^" & popd; // Mounting folder path and create Folder
+endif
+endif
+
+SET vL.QDF.FolderName_1= ;
+SET vL.QDF.FolderName_2= ;
+SET vL.QDF.FolderName_3= ;
+SET vL.QDF.FolderIndex_tmp= ;
+end sub
+
+// *************************************
+// Functions written by Magnus Berg Qlik
+// *************************************

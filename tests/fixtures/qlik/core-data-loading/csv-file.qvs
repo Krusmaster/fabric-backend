@@ -1,0 +1,13 @@
+// Test fixture of Krusgraph, copied from github.com/qlik-oss/core-data-loading at commit 0b79c835e30af66f06590b93e5dfa4d4d8bc1ff5, file scripts/csv-file.qvs. Licence: MIT, see LICENSE-core-data-loading.txt in this folder. This line was added; other changes are listed in ../SOURCES.md.
+// This script shows a simple example of how to load data from a CSV file.
+// The options on the last line specify how data in the CSV file shall be
+// interpreted, for example, that the first line contains header names
+// ('embedded labels'), and which character endcoding that is used ('uft8').
+// Some of these are equal to the default values, but explicitly given here
+// for clarity.
+
+Airports:
+    LOAD
+        *
+    FROM [lib://data/airports.csv]
+    (txt, utf8, embedded labels, delimiter is ',');

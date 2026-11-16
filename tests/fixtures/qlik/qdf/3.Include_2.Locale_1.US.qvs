@@ -1,0 +1,11 @@
+// Test fixture of Krusgraph, copied from github.com/QlikDeploymentFramework/Qlik-Deployment-Framework at commit 0e0adaaffc26fa79087b6867e80fa3aa70cf91a7, file 3.Include/2.Locale/1.US.qvs. Licence: MIT, see LICENSE-Qlik-Deployment-Framework.txt in this folder. This line was added; other changes are listed in ../SOURCES.md.
+SET ThousandSep=',';
+SET DecimalSep='.';
+SET MoneyThousandSep=',';
+SET MoneyDecimalSep='.';
+SET MoneyFormat='$#,##0.00;($#,##0.00)';
+SET TimeFormat='h:mm:ss TT';
+SET DateFormat='M/D/YYYY';
+SET TimestampFormat='M/D/YYYY h:mm:ss[.fff] TT';
+SET MonthNames='Jan;Feb;Mar;Apr;May;Jun;Jul;Aug;Sep;Oct;Nov;Dec';
+SET DayNames='Mon;Tue;Wed;Thu;Fri;Sat;Sun';

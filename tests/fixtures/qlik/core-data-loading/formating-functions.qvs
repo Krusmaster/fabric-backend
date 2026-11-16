@@ -1,0 +1,21 @@
+// Test fixture of Krusgraph, copied from github.com/qlik-oss/core-data-loading at commit 0b79c835e30af66f06590b93e5dfa4d4d8bc1ff5, file scripts/formating-functions.qvs. Licence: MIT, see LICENSE-core-data-loading.txt in this folder. This line was added; other changes are listed in ../SOURCES.md.
+// This script shows how to use date formating functions to provide values in
+// fields in desired format. It also shows how to provide default date format
+// setting, using built-in variables.
+
+// This will be the default setting used by Date formatting functions.
+// Read more about the default variables at
+// https://core.qlik.com/services/qix-engine/script_reference/number_variables/
+SET DateFormat='DD/MM/YYYY'; 
+
+LET InputDateFormat='YYYY-MM-DD';
+LET CustomDisplayDateFormat='YYYY-MM';
+
+Sales:
+    LOAD
+        // Date#() defines the input format of the date value
+        // Date() defines that the date value is a date and of what format it will use
+        Date(Date#([Date], '$(InputDateFormat)')) AS 'DateUsingDefaultSetting',
+        Date(Date#([Date], '$(InputDateFormat)'), '$(CustomDisplayDateFormat)') AS 'DateUsingCustomDisplayFormat'
+    FROM [lib://data/sales.csv]
+    (txt, utf8, embedded labels, delimiter is ';');

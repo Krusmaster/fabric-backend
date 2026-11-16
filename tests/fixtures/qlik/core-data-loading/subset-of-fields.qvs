@@ -1,0 +1,13 @@
+// Test fixture of Krusgraph, copied from github.com/qlik-oss/core-data-loading at commit 0b79c835e30af66f06590b93e5dfa4d4d8bc1ff5, file scripts/subset-of-fields.qvs. Licence: MIT, see LICENSE-core-data-loading.txt in this folder. This line was added; other changes are listed in ../SOURCES.md.
+// This script enumerats the fields that shall be present in the resulting
+// 'Airports' table. The airports.csv provides more headers, but by enumerating
+// the ones we want to include, a subset of the fields are used in the output.
+
+Airports:
+    LOAD
+        Airport,
+        City,
+        Country,
+        TimeZone
+    FROM [lib://data/airports.csv]
+    (txt, utf8, embedded labels, delimiter is ',');
