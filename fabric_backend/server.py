@@ -15,7 +15,7 @@ Authentication, in order:
      "custom connection" model Lovable's Fabric connector uses: one principal, no per-user identity.
 The server stores nothing: no tokens beyond their lifetime, no data, no query results.
 
-Tools (all annotated for the Claude directory): forty-one, from start to verify_build; docs page
+Tools (all annotated for the Claude directory): forty-four, from start to qlik_reconcile_draft; docs page
 /docs lists them. Around every tool: fair-use limits (limits.py), anonymous usage counts (usage.py) and the dormant paid-plan
 check (entitlements.py).
 """
@@ -3739,6 +3739,61 @@ MAX_RESULT_CHARS = 60000
 def _bounded(body, limit: int, hint: str = "Ask for fewer fields or page with first:/after.", drop: tuple[str, ...] = ()) -> str:
     """JSON of at most `limit` characters, always valid (fabric_backend.compact.bounded)."""
     return _compact.bounded(body, limit, hint, drop)
+
+
+# Q2: Krusgraph Migrate, from Qlik to Power BI (qlik_tools.py): a load script to a plan, measure drafts and a
+# reconciliation draft. Read-only, fixed rules, no connection to Qlik; only qlik_plan may read Fabric, and only when a
+# workspace and a source are named. Registered here because the three answers use _bounded.
+from . import qlik_tools as _q  # noqa: E402
+
+
+@mcp.tool(title=_q.TITLES["qlik_plan"], annotations=RO)
+@safe
+@_q.bad_input
+def qlik_plan(script: _q.Script, workspace: _q.OptionalWorkspace = None, source: _q.OptionalSource = None,
+              schema: _q.LandedSchema = "dbo", tables: _q.TableNames = None, detail: _q.Detail = "summary",
+              ctx: Context = None) -> str:
+    """Reads a Qlik load script: its tables, keys and associations as a plan, each synthetic key in one of five
+    cases, circular references and a proposed star schema. Requires script. With workspace and source it counts keys
+    and links in the landed tables; otherwise it counts nothing and reads nothing in Fabric. Returns JSON: plan.keys
+    and plan.confirmed for the planning tools, statements not read, kg_card. Fixed rules, no AI model, no connection
+    to Qlik. Not tested on a customer's Qlik installation. Errors: {error, kind, hint}."""
+    if bool(workspace) != bool(source):
+        raise ValueError("Give workspace and source together to count in the landed tables, or neither.")
+    if not workspace:
+        return _bounded(_q.plan_answer(script, None, schema, tables, detail), MAX_RESULT_CHARS)
+    landed, execute = _connected(workspace, source, schema, ctx)
+    try:
+        return _bounded(_q.plan_answer(script, execute, landed.schema, tables, detail, dialect=getattr(execute, "dialect", _q.TSQL)),
+                        MAX_RESULT_CHARS)
+    finally:
+        getattr(execute, "close", lambda: None)()
+
+
+@mcp.tool(title=_q.TITLES["qlik_measures_draft"], annotations=RO)
+@safe
+@_q.bad_input
+def qlik_measures_draft(measures: _q.Measures, script: _q.OptionalScript = None, tables: _q.TableNames = None,
+                        tmdl: _q.Tmdl = False) -> str:
+    """Drafts DAX from Qlik master measures or chart expressions by fixed rules, each labelled translated,
+    suggested (with when it may differ from Qlik) or not_translated (with the reason). Requires measures. Covers Sum,
+    Min, Max, Avg, Count, arithmetic, If, literal set modifiers and TOTAL; not Aggr, P(), E(), searches, alternate
+    states or run-time dollar-sign expansion. Returns JSON with counts and kg_card. Runs no Qlik and no DAX; creates
+    nothing; no AI model. Errors: {error, kind, hint}."""
+    return _bounded(_q.measures_answer(measures, script, tables, tmdl), MAX_RESULT_CHARS)
+
+
+@mcp.tool(title=_q.TITLES["qlik_reconcile_draft"], annotations=RO)
+@safe
+@_q.bad_input
+def qlik_reconcile_draft(script: _q.Script, kpis: _q.Kpis, schema: _q.LandedSchema = "dbo", tolerance: _q.Tolerance = 0.005,
+                         results: _q.Results = None, tables: _q.TableNames = None, confirmed: _q.Relationships = None) -> str:
+    """Writes one T-SQL statement per KPI: the values exported from Qlik, the same KPI computed on the migrated
+    tables at the same grain, and the comparison (qlik_value, new_value, difference, status). Requires script and
+    kpis. Runs nothing and reads nothing in Fabric; with results (the rows a statement returned) it fills the
+    comparison in. A KPI no rule covers gets no SQL and the reason; a difference is listed as open, never explained by
+    guess. Returns JSON with kg_card. No AI model. Errors: {error, kind, hint}."""
+    return _bounded(_q.reconcile_answer(script, kpis, schema, tolerance, results, tables, confirmed), MAX_RESULT_CHARS)
 
 
 MAX_BODY_BYTES = 4 * 1024 * 1024      # an MCP message is a few kilobytes; nothing here needs more than this

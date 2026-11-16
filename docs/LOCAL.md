@@ -71,7 +71,7 @@ dbo"*, *"Check the plan against the data"*, *"How do orders connect to products?
 
 ## 4. What works locally, and what answers with an explanation
 
-The local server has 24 tools (`fabric_backend/mcp_server.py`; `tests/test_f1_findings_fixes.py` holds this section to
+The local server has 27 tools (`fabric_backend/mcp_server.py`; `tests/test_f1_findings_fixes.py` holds this section to
 the code). `fabric-backend-mcp --help` lists the settings and returns; without arguments the command waits for an MCP
 client on stdin and prints nothing, which is how a client starts it.
 
@@ -87,6 +87,14 @@ that builds silver tables, without a default lakehouse since the item ids are no
 `create_backend` is here too, as a dry run by default: it is the one local tool that calls Fabric's REST API, so it
 needs a Fabric sign-in (`FABRIC_TOKEN`, or the Azure CLI after `az login`) and answers `kind: sign_in` with that step
 when there is none.
+
+Three tools read text you give them and need no source at all: `qlik_plan` (a Qlik load script as tables, keys,
+associations and a proposed star schema; `count=true` counts the keys and links in the tables of `schema` behind this
+server), `qlik_measures_draft` (Qlik expressions as DAX drafts where a fixed rule carries them over) and
+`qlik_reconcile_draft` (T-SQL that compares KPI values exported from Qlik with the migrated tables; it runs nothing).
+This is the local-only path of [QLIK-MIGRATION-PRODUCT.md](QLIK-MIGRATION-PRODUCT.md): the load script, the
+expressions and the exported values stay on this machine, and the answers are the same as the hosted connector's.
+Experimental: unit-tested on synthetic and public load scripts, not on a customer's Qlik installation.
 
 Seven tools belong to the Databricks adapter (Draft only, `KRUSGRAPH_PLATFORM=databricks`, [DATABRICKS.md](DATABRICKS.md)):
 `databricks_constraints_draft`, `create_databricks_constraints`, `databricks_pipeline_draft`,

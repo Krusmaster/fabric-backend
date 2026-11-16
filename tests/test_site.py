@@ -515,7 +515,7 @@ def test_docs_list_every_tool_the_server_defines_and_home_states_the_verificatio
     assert "Check the plan against the data" in home and "last tried live" not in docs and "docs/LIVE-TEST.md" not in docs   # n234
     llms = client.get("/llms.txt").text
     assert "`validate_plan`" in llms and "`describe_backend`" in llms and "/demo/validation.json" in llms
-    assert "Forty-one tools" in llms and "K0–K5 for keys, R0–R4 for relationships" in llms and "Eleven" not in llms
+    assert "Forty-four tools" in llms and "K0–K5 for keys, R0–R4 for relationships" in llms and "Eleven" not in llms
     assert not re.search(r"\b[KR]0–[KR]\d", home) and "K0–K3" not in docs              # no rule ranges in the marketing text
 
 
@@ -557,7 +557,7 @@ def test_docs_give_every_tool_a_status_in_the_shared_words(client):
     rows = [r for r in md.splitlines() if r.startswith("| `") and r.count("|") >= 6]
     assert "| Tool | Status | What it changes | Does | Arguments |" in md                      # status visible without scrolling
     shown = {r.split("|")[1].strip().strip("`"): r.split("|")[2].strip() for r in rows}
-    assert len(shown) == 41, sorted(shown)        # n219: start; n229: verify_build
+    assert len(shown) == 44, sorted(shown)        # n219: start; n229: verify_build; Q2: the three Qlik tools
     # n234 (the founder, 12 November 2026): the docs page says plain words only; the record below stays in tool_status,
     # docs/LIVE-TEST.md and these tests
     for tool, status in shown.items():

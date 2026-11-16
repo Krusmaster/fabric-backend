@@ -128,7 +128,7 @@ def test_qualify_takes_a_field_out_of_the_associations(read):
 
 
 def test_what_is_not_read_is_listed_with_its_line(read):
-    assert [(n["line"], n["statement"][:18]) for n in read["not_read"]] == [(82, "Targets: CROSSTABL")]
+    assert [(n["line"], n["statement"][:18]) for n in read["not_read"]] == [(82, "Targets: GENERIC L")]
     text = qlik.listing(read)
     assert text.splitlines()[0] == "9 table(s), 8 linking field(s), 3 synthetic key(s), 1 circular reference(s), 1 statement(s) not read"
     assert "not read, line 82" in text
@@ -293,13 +293,15 @@ def test_what_the_name_rules_would_add_is_shown_and_kept_out():
 
 # ------------------------------------------------------------------ what it is not -----------------------------------
 
-def test_it_is_not_a_tool_calls_nothing_and_claims_nothing():
-    for path in sorted((ROOT / "fabric_backend" / "qlik").glob("*.py")):
+def test_it_calls_nothing_and_claims_nothing():
+    """Q2 made it three tools (fabric_backend/qlik_tools.py, tests/test_q2_qlik_tools.py). What still holds: the package
+    and the tool module open no connection and import no AI client, and the workload does not call them yet."""
+    paths = sorted((ROOT / "fabric_backend" / "qlik").glob("*.py")) + [ROOT / "fabric_backend" / "qlik_tools.py"]
+    for path in paths:
         source = path.read_text(encoding="utf-8")
         assert not re.search(r"^\s*(import|from)\s+(requests|httpx|urllib|socket|subprocess|anthropic|openai)\b", source, re.M), path.name
         assert "certified" not in source.lower() and "partner" not in source.lower(), path.name
-    for name in ("server.py", "mcp_server.py", "workload_api.py"):
-        assert not re.search(r"\bqlik\b", (ROOT / "fabric_backend" / name).read_text(encoding="utf-8"), re.I), name
+    assert not re.search(r"\bqlik\b", (ROOT / "fabric_backend" / "workload_api.py").read_text(encoding="utf-8"), re.I)
     assert "Unverified" in qlik.__doc__ and "synthetic" in qlik.__doc__ and "trademark" in qlik.__doc__
     assert "synthetic" in (Q1 / "sales.qvs").read_text(encoding="utf-8").lower()
 

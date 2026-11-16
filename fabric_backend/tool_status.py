@@ -189,6 +189,11 @@ _RAW = {
                         "unit tests; run live on 7 November 2026 (pipeline_shop, run 9de8bc49)"),
     "export_item_definitions": (HOSTED, DRAFT, _NO, "unit tests"),
     "review_plan": (HOSTED, READS, "nothing (counting queries with validate=true)", "unit tests; reading a file back by unit tests only"),
+    # Q2: Krusgraph Migrate, from Qlik to Power BI (qlik_tools.py). No Qlik installation and no customer's script was read.
+    "qlik_plan": (HOSTED, DRAFT, "nothing (counting queries when a workspace and a source are named)",
+                  "unit tests (a synthetic load script with synthetic rows, and public load scripts; no Qlik installation)"),
+    "qlik_measures_draft": (HOSTED, DRAFT, _NO, "unit tests (synthetic expressions; the DAX was not run)"),
+    "qlik_reconcile_draft": (HOSTED, DRAFT, _NO, "unit tests (the statements run on SQLite over synthetic rows)"),
 }
 STATUS: dict[str, ToolStatus] = {name: ToolStatus(*v, name=name) for name, v in _RAW.items()}
 
@@ -586,7 +591,8 @@ def connect_sentence() -> str:
 # the hosted tools the local stdio server (fabric_backend/mcp_server.py) has too; tests/test_capabilities.py locks it
 LOCAL_TOOLS = ("list_tables", "plan_backend", "validate_plan", "sample_rows", "join_path", "data_dictionary", "dbt_schema",
                "analyze_schema", "suggest_relationships", "rayfin_connector", "create_views", "answer_query_draft",
-               "semantic_model_draft", "ontology_draft", "silver_notebook_draft", "review_plan", "create_backend")
+               "semantic_model_draft", "ontology_draft", "silver_notebook_draft", "review_plan", "create_backend",
+               "qlik_plan", "qlik_measures_draft", "qlik_reconcile_draft")       # Q2: the same three, the text stays local
 
 # what is not a hosted tool: (name, status word, where, what it is)
 # n146, Gustav's decision of 7 November 2026: what ran against SQL Server 2022 in a container on 28 October 2026

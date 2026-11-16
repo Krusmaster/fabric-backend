@@ -421,6 +421,10 @@ TOOLS = {
     "databricks_metric_view_draft": ("Draft only", "one metric view per fact table"),
     "export_databricks_bundle": ("Draft only", "a bundle folder: databricks.yml, the pipeline, the SQL files"),
     "databricks_lineage": ("Draft only", "system.access.table_lineage; needs access to the system catalog"),
+    # Q2: the Qlik tools read text they are given; only qlik_plan's count=true touches the source
+    "qlik_plan": ("Draft only", "reads a Qlik load script as text; with count=true the keys and links are counted in Databricks SQL"),
+    "qlik_measures_draft": ("Draft only", "reads Qlik expressions as text and drafts DAX; touches no source"),
+    "qlik_reconcile_draft": ("Draft only", "writes T-SQL for a Fabric SQL analytics endpoint; touches no source"),
 }
 NOT_ON_DATABRICKS = {
     "create_backend": ("an API for GraphQL item is a Fabric object; Databricks has no equivalent item",

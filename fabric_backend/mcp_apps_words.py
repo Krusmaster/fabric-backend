@@ -51,7 +51,8 @@ TOOLS_NAMED = (
     "ontology_draft", "plan_backend", "plan_drift", "query_graphql", "rayfin_connector", "review_plan",
     "sample_rows", "sap_pack_draft", "semantic_model_draft", "silver_notebook_draft", "suggest_relationships",
     "validate_plan",
-    "verify_build")
+    "verify_build",
+    "qlik_plan", "qlik_measures_draft", "qlik_reconcile_draft")
 TOOL_NAME = re.compile(r"\b(?:" + "|".join(sorted(TOOLS_NAMED, key=len, reverse=True)) + r")\b")
 SAP_PACK = "SAP pack: Krusgraph's list of known SAP keys"
 # What each creating tool makes, for the result line.
@@ -108,7 +109,9 @@ _TOOL_WORDS = {"validate_plan": "the check against the rows", "plan_backend": "t
                "semantic_model_draft": "the semantic model draft", "ontology_draft": "the ontology draft",
                "gold_views_draft": "the gold views draft", "sample_rows": "showing rows", "list_workspaces": "the workspace list",
                "list_sources": "the source list", "list_tables": "the table list", "app_readiness": "the app check",
-               "create_pipeline": "Create", "sap_pack_draft": "the SAP pack's list"}
+               "create_pipeline": "Create", "sap_pack_draft": "the SAP pack's list",
+               "qlik_plan": "the plan from the load script", "qlik_measures_draft": "the measure drafts",
+               "qlik_reconcile_draft": "the KPI comparison"}
 
 
 def _plural(n: int, one: str, many: str | None = None) -> str:
@@ -590,6 +593,22 @@ def card(tool: str, answer: dict, stash: dict | None = None, call: dict | None =
         return None
     stash = stash or {}
     out: dict = {}
+    own = answer.get(KEY)
+    if isinstance(own, dict) and isinstance(own.get("result"), str) and own["result"].strip():
+        # Q2: a tool that writes its card's words itself (the Qlik tools): the same form and the same rules as below
+        out = {"result": plain(own["result"])}
+        if isinstance(own.get("title"), str):
+            out["title"] = own["title"]
+        lines = [plain(x) for x in own.get("lines") or [] if isinstance(x, str) and x.strip()][:LINES_MAX]
+        if lines:
+            out["lines"] = lines
+        notes = [_note(plain(n["line"]), n.get("items") or []) for n in own.get("notes") or []
+                 if isinstance(n, dict) and isinstance(n.get("line"), str)]
+        if notes:
+            out["notes"] = notes
+        if not WORDS_WITH_ARGUMENTS.search(out["result"]):
+            out["onto"] = out["result"]
+        return out
     if answer.get("choose_schema"):
         return {"title": "Plan", "thinker": "Which schema shall I plan?"}
     if tool == "start":                              # n227: the step's own sentence, said once by Onto

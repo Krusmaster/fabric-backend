@@ -617,6 +617,53 @@ def silver_notebook_draft(schema: str = "dbo", silver_schema: str = "silver", or
 # ------------------------------------------------------------------ Databricks (KRUSGRAPH_PLATFORM=databricks) ------
 # Draft only: unit-tested with Databricks mocked at its REST API, not yet run against a workspace (docs/DATABRICKS.md).
 
+# Q2: Krusgraph Migrate, from Qlik to Power BI (qlik_tools.py). The same three tools as the hosted server; here the
+# load script, the expressions and the exported values stay on this machine.
+from . import qlik_tools as _q  # noqa: E402
+
+
+@_tool(_q.TITLES["qlik_plan"], RO)
+@safe
+@_q.bad_input
+def qlik_plan(script: _q.Script, schema: _q.LandedSchema = "dbo", count: _q.Count = False, tables: _q.TableNames = None,
+              detail: _q.Detail = "summary") -> str:
+    """Reads a Qlik load script: its tables, keys and associations as a plan, each synthetic key in one of five
+    cases, circular references and a proposed star schema. Requires script. With count=true it counts keys and links
+    in the tables of `schema` behind this local server; by default it counts nothing. The script stays on this
+    machine. Returns JSON: plan.keys and plan.confirmed, statements not read, kg_card. Fixed rules, no AI model, no
+    connection to Qlik. Not tested on a customer's Qlik installation. Errors: {error, kind, hint}."""
+    if not count:
+        return _compact.bounded(_q.plan_answer(script, None, schema, tables, detail), MAX_RESULT_CHARS)
+    with _connection(schema) as execute:
+        return _compact.bounded(_q.plan_answer(script, execute, schema, tables, detail, dialect=_dialect()), MAX_RESULT_CHARS)
+
+
+@_tool(_q.TITLES["qlik_measures_draft"], RO)
+@safe
+@_q.bad_input
+def qlik_measures_draft(measures: _q.Measures, script: _q.OptionalScript = None, tables: _q.TableNames = None,
+                        tmdl: _q.Tmdl = False) -> str:
+    """Drafts DAX from Qlik master measures or chart expressions by fixed rules, each labelled translated,
+    suggested (with when it may differ from Qlik) or not_translated (with the reason). Requires measures. Covers Sum,
+    Min, Max, Avg, Count, arithmetic, If, literal set modifiers and TOTAL; not Aggr, P(), E(), searches, alternate
+    states or run-time dollar-sign expansion. Returns JSON with counts and kg_card. Runs no Qlik and no DAX; creates
+    nothing; no AI model. Errors: {error, kind, hint}."""
+    return _compact.bounded(_q.measures_answer(measures, script, tables, tmdl), MAX_RESULT_CHARS)
+
+
+@_tool(_q.TITLES["qlik_reconcile_draft"], RO)
+@safe
+@_q.bad_input
+def qlik_reconcile_draft(script: _q.Script, kpis: _q.Kpis, schema: _q.LandedSchema = "dbo", tolerance: _q.Tolerance = 0.005,
+                         results: _q.Results = None, tables: _q.TableNames = None, confirmed: _q.Relationships = None) -> str:
+    """Writes one T-SQL statement per KPI: the values exported from Qlik, the same KPI computed on the migrated
+    tables at the same grain, and the comparison (qlik_value, new_value, difference, status). Requires script and
+    kpis. Runs nothing; with results (the rows a statement returned) it fills the comparison in. A KPI no rule covers
+    gets no SQL and the reason; a difference is listed as open, never explained by guess. Returns JSON with kg_card.
+    No AI model. Errors: {error, kind, hint}."""
+    return _compact.bounded(_q.reconcile_answer(script, kpis, schema, tolerance, results, tables, confirmed), MAX_RESULT_CHARS)
+
+
 def _validated(execute, p, max_items: int = 200) -> dict:
     return _evidence.validate(p, execute, max_items=max(1, min(int(max_items), 200)))
 

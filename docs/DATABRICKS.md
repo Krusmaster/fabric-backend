@@ -69,6 +69,9 @@ OAuth token; nothing is stored by Krusgraph. Tools take the schema without the c
 | `databricks_metric_view_draft` | Draft only | one metric view per fact table |
 | `export_databricks_bundle` | Draft only | a bundle folder: `databricks.yml`, the pipeline, two jobs, the SQL files |
 | `databricks_lineage` | Draft only | `system.access.table_lineage` for the schema's tables |
+| `qlik_plan` | Draft only | reads a Qlik load script given as text; with `count=true` the keys and links are counted in Databricks SQL (see [QLIK-MIGRATION-PRODUCT.md](QLIK-MIGRATION-PRODUCT.md)) |
+| `qlik_measures_draft` | Draft only | reads Qlik expressions given as text and drafts DAX; touches no source |
+| `qlik_reconcile_draft` | Draft only | writes T-SQL for a Fabric SQL analytics endpoint from text it is given; touches no source |
 | `create_backend` | Not on Databricks | the API for GraphQL is a Fabric item; mirror the catalog into Fabric (Mirrored Azure Databricks catalog) and use the hosted server |
 | `semantic_model_draft` | Not on Databricks | Direct Lake is Fabric's; `databricks_metric_view_draft` is the Databricks semantic layer |
 | `silver_notebook_draft` | Not on Databricks | a Fabric notebook; `databricks_pipeline_draft` carries the same rules |

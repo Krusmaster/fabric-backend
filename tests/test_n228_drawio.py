@@ -352,7 +352,7 @@ def test_the_listing_keeps_its_tool_count_and_plan_backend_describes_the_paramet
     import asyncio
     from fabric_backend import server
     tools = asyncio.run(server.mcp.list_tools())
-    assert len(tools) == 41 and sum(1 for t in tools if t.annotations.read_only_hint) == 31      # no tool added by n228 (n229 added verify_build)
+    assert len(tools) == 44 and sum(1 for t in tools if t.annotations.read_only_hint) == 34      # no tool added by n228 (n229 added verify_build; Q2 the three Qlik tools)
     prop = next(t for t in tools if t.name == "plan_backend").input_schema["properties"]["drawio"]
     assert prop["default"] == "" and "draw.io file" in prop["description"]
     assert not any("drawio" in t.input_schema.get("properties", {}) for t in tools if t.name != "plan_backend")
