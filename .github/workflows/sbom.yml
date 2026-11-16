@@ -1,7 +1,13 @@
 name: SBOM
-# A CycloneDX SBOM of the image's exact versions (deploy/constraints.txt), kept as a workflow artifact, on every push to
-# main and on every version tag vX.Y.Z. On a tag it also checks that the tag matches pyproject.toml and writes the
-# tag's CHANGELOG.md section to the run summary. It creates no GitHub release and publishes nothing.
+# CycloneDX SBOMs, kept as a workflow artifact for 90 days, on every push to main and on every version tag vX.Y.Z:
+#   sbom.cdx.json         the image's exact Python versions (deploy/constraints.txt)
+#   sbom-editor.cdx.json  the Model editor's npm packages, from workload/Workload/package-lock.json (nothing is installed)
+#   sbom-image.cdx.json   the built container image with its base image's OS packages (Syft); on a tag and on a manual
+#                         run only, since it builds the image
+# On a tag it also checks that the tag matches pyproject.toml and writes the tag's CHANGELOG.md section to the run
+# summary. It creates no GitHub release and publishes nothing by itself: when the maintainer has made a release for the
+# tag, the `release` job attaches the three files to it (the one job with write access, and it runs no build tool);
+# when there is none, it says so and stops. Re-run that job after creating the release.
 on:
   push:
     branches: [main]
@@ -17,6 +23,22 @@ jobs:
         with: { python-version: "3.12" }
       - run: pip install "cyclonedx-bom==7.6.0"
       - run: cyclonedx-py requirements deploy/constraints.txt --of JSON -o sbom.cdx.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version: "22" }
+      - name: The editor's npm packages, from the lock file
+        working-directory: workload/Workload
+        run: npx --yes "@cyclonedx/cyclonedx-npm@6.0.1" --package-lock-only --output-format JSON --output-file "$GITHUB_WORKSPACE/sbom-editor.cdx.json"
+      - if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+        name: Build the image as az acr build would
+        run: docker build -t krusgraph-sbom:${{ github.sha }} .
+      - if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          image: krusgraph-sbom:${{ github.sha }}
+          format: cyclonedx-json
+          output-file: sbom-image.cdx.json
+          upload-artifact: false
+          upload-release-assets: false
       - if: github.ref_type == 'tag'
         name: Tag matches pyproject.toml, and the CHANGELOG section for it
         run: |
@@ -31,6 +53,28 @@ jobs:
           name: sbom-${{ github.ref_name }}-${{ github.sha }}
           path: |
             sbom.cdx.json
+            sbom-editor.cdx.json
+            sbom-image.cdx.json
             release-notes.md
           if-no-files-found: ignore
           retention-days: 90
+  release:
+    # Only on a version tag, and only when a GitHub release for the tag already exists: attach the SBOMs to it.
+    if: github.ref_type == 'tag'
+    needs: sbom
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with: { name: "sbom-${{ github.ref_name }}-${{ github.sha }}" }
+      - name: Attach the SBOMs to the release, if the maintainer has made one
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" sbom.cdx.json sbom-editor.cdx.json sbom-image.cdx.json --clobber
+            echo "Attached three SBOM files to the release $GITHUB_REF_NAME." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::notice::There is no GitHub release for $GITHUB_REF_NAME, so nothing was attached. Create the release, then re-run this job."
+          fi
