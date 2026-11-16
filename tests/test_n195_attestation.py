@@ -105,7 +105,7 @@ def test_build_prints_the_marketplace_gap_and_the_attestation_link(tmp_path, cap
     out = capsys.readouterr().out
     assert ATTESTATION_URL in out
     assert "not a Microsoft Marketplace offer" in out and "1.3.1" in out
-    assert B.main(["--frontend-app-id", APP_ID, "--version", "1.0.2", "--out", str(tmp_path)]) == 0
+    assert B.main(["--name", "Org.Krusgraph", "--frontend-app-id", APP_ID, "--version", "1.0.2", "--out", str(tmp_path)]) == 0
     assert "Marketplace" not in capsys.readouterr().out
 
 

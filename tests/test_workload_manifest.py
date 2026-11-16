@@ -219,7 +219,7 @@ def test_the_package_s_xml_validates_against_the_xsds_and_carries_the_images(tmp
     run = subprocess.run(["bash", str(ROOT / "workload/scripts/build-package"), "--frontend-app-id", WL_ID,
                           "--version", "1.0.9", "--out", str(tmp_path)], capture_output=True, text=True)
     assert run.returncode == 0, run.stderr
-    with zipfile.ZipFile(tmp_path / "Org.Krusgraph.1.0.9.nupkg") as z:
+    with zipfile.ZipFile(tmp_path / "Krusgraph.Modeler.1.0.9.nupkg") as z:      # W12: the default name
         names = set(z.namelist())
         for ref in _referenced():
             assert f"FE/{ref}" in names, ref

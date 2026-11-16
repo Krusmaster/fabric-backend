@@ -10,16 +10,19 @@ nuspec at the root, [Content_Types].xml, _rels/.rels and the core-properties par
 
 It never uploads anything and never contacts Fabric, Entra or Azure. Two names are allowed (n176):
 
-  Org.Krusgraph       the default: the founder's development workload, internal to the company tenant
-  Krusgraph.Modeler   the permanent name chosen on 9 November 2026 (publisher part Krusgraph, workload part Modeler),
-                      published to up to 20 selected tenants (docs/WORKLOAD-PUBLISH.md)
+  Krusgraph.Modeler   the default since W12, WORKLOAD_NAME below, the one constant every other file takes the name
+                      from: the permanent name (the founder's decision of 9 November, confirmed 15 November 2026;
+                      publisher part Krusgraph, workload part Modeler), published to selected tenants and later listed
+                      (docs/WORKLOAD-PUBLISH.md, docs/MODELER-GO-LIVE.md)
+  Org.Krusgraph       DEV_NAME, only with --name Org.Krusgraph: the founder's development workload, internal to the
+                      company tenant, kept until Krusgraph.Modeler works end to end (step N7 retires it)
 
 Every other Krusgraph.* name is refused: a Krusgraph.* name is reserved in the tenant for good at its first upload
 (docs/WORKLOAD-FEASIBILITY.md, section 5, step 3). The item type is <name>.Model; the manifest, the nuspec, Product.json
 and the item files all take the name from here, through the {{WORKLOAD_NAME}} placeholder, never written twice.
 
   workload/scripts/build-package --frontend-app-id <the workload app's Application (client) ID> [--version 1.0.N]
-                                 [--name Krusgraph.Modeler] [--frontend-url https://workload.krusgraph.com]
+                                 [--name Org.Krusgraph] [--frontend-url https://workload.krusgraph.com]
                                  [--out workload/build/package] [--offer-url <the live Marketplace offer's URL>]
 
 W11: --offer-url puts the production Marketplace offer's page in Product.json's license link (requirements 1.3.1 and
@@ -43,9 +46,13 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 WORKLOAD = HERE.parent
 MANIFEST = WORKLOAD / "Workload" / "Manifest"
-WORKLOAD_NAME = "Org.Krusgraph"                 # the default: the founder's development path
-PUBLISHED_NAME = "Krusgraph.Modeler"            # the permanent name (founder's decision, 9 November 2026)
-NAMES = (WORKLOAD_NAME, PUBLISHED_NAME)
+# W12: the one constant for the workload name. Everything else (the manifest, the nuspec, Product.json, the item type,
+# CI's artifact, workload/scripts/validate_package.py, the tests) takes it from here; it locks for good at the first
+# confirmed upload, so it is never written out a second time in code.
+WORKLOAD_NAME = "Krusgraph.Modeler"
+PUBLISHED_NAME = WORKLOAD_NAME                  # the name W11 and earlier code used for the same constant
+DEV_NAME = "Org.Krusgraph"                      # the development workload, built only on request, until step N7
+NAMES = (WORKLOAD_NAME, DEV_NAME)
 FRONTEND_URL = "https://workload.krusgraph.com"
 # n195: the attestation link, Product.json productDetail.supportLink.certification.url. Microsoft's requirement 1.4.1
 # ("Attestation Link in workload page is correct", publishing-requirements-workload on Learn, ms.date 24 February 2026)
@@ -57,7 +64,7 @@ FRONTEND_URL = "https://workload.krusgraph.com"
 # page it opens says "Draft." at the top (fabric_backend/page_templates/WORKLOAD-ATTESTATION.md): a draft attestation,
 # not a certification. Org.Krusgraph pointed at /it until n201.
 ATTESTATION_URL = "https://krusgraph.com/workload/attestation"
-CERTIFICATION_URL = {WORKLOAD_NAME: ATTESTATION_URL, PUBLISHED_NAME: ATTESTATION_URL}
+CERTIFICATION_URL = {WORKLOAD_NAME: ATTESTATION_URL, DEV_NAME: ATTESTATION_URL}
 # n201: the detail page's slides. Learn's frontend-manifests page (ms.date 29 April 2026): mediaType 0 for images and 1 for
 # videos, at most 10 slides; a video is a URL, https://youtube.com/embed/<id> or https://www.youtube.com/embed/<id>, or
 # https://player.vimeo.com/video/<number>. The founder's overview film (YouTube, unlisted) comes first, the image after it.
@@ -125,13 +132,13 @@ def check_frontend_url(url: str) -> str:
 
 
 def check_name(name: str) -> str:
-    """Org.Krusgraph or Krusgraph.Modeler; any other name, a Krusgraph.* one above all, is refused."""
+    """Krusgraph.Modeler or Org.Krusgraph; any other name, a Krusgraph.* one above all, is refused."""
     if name in NAMES:
         return name
     if name.lower().startswith("krusgraph."):
-        raise PackageError(f"{name} is a Krusgraph.* name other than {PUBLISHED_NAME}; its first upload would reserve it in "
-                           f"the tenant for good. Only {PUBLISHED_NAME} (or {WORKLOAD_NAME}) is built")
-    raise PackageError(f"--name must be {WORKLOAD_NAME} or {PUBLISHED_NAME}, not {name!r}")
+        raise PackageError(f"{name} is a Krusgraph.* name other than {WORKLOAD_NAME}; its first upload would reserve it in "
+                           f"the tenant for good. Only {WORKLOAD_NAME} (or {DEV_NAME}) is built")
+    raise PackageError(f"--name must be {WORKLOAD_NAME} or {DEV_NAME}, not {name!r}")
 
 
 def item_type(name: str, item: str = "Model") -> str:
@@ -243,7 +250,7 @@ def check(files: dict[str, bytes], vals: dict) -> None:
         rest = data.replace(name.encode(), b"")
         if any(n.encode() in rest for n in other):
             raise PackageError(f"{path} names {other[0]} in a {name} package; the name comes from the build only")
-        found = re.search(rb"Krusgraph\.(?!com)[A-Za-z][A-Za-z.]*", rest.replace(b"Org.Krusgraph", b""))
+        found = re.search(rb"Krusgraph\.(?!com)[A-Za-z][A-Za-z.]*", rest.replace(DEV_NAME.encode(), b""))
         if found:
             raise PackageError(f"{path} names the workload {found.group().decode()}; only {name} may be used here")
         if b"localhost" in data:
@@ -254,7 +261,7 @@ def check(files: dict[str, bytes], vals: dict) -> None:
         raise PackageError("Product.json is over 50 KB")
     check_slides(parsed, files)
     check_compatible(parsed)
-    if name == PUBLISHED_NAME:
+    if name == WORKLOAD_NAME:
         check_publishing(files)
 
 
@@ -336,7 +343,7 @@ def check_publishing(files: dict[str, bytes]) -> None:
     if not detail.get("slideMedia"):
         problems.append("productDetail.slideMedia is empty (1.4.3 at a glance)")
     if problems:
-        raise PackageError(f"{PUBLISHED_NAME} is not ready for Microsoft's publishing review: " + "; ".join(problems))
+        raise PackageError(f"{WORKLOAD_NAME} is not ready for Microsoft's publishing review: " + "; ".join(problems))
 
 
 def publishing_gaps(files: dict[str, bytes]) -> list[str]:
@@ -408,7 +415,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--frontend-app-id", required=True, help="the workload Entra app's Application (client) ID")
     ap.add_argument("--name", default=WORKLOAD_NAME,
-                    help=f"{WORKLOAD_NAME} (default, the development workload) or {PUBLISHED_NAME} (the published one)")
+                    help=f"{WORKLOAD_NAME} (default, the published one) or {DEV_NAME} (the development workload, until N7)")
     ap.add_argument("--version", help="the package version, 1.0.N; default 1.0.<commits on this checkout>")
     ap.add_argument("--frontend-url", default=FRONTEND_URL, help=f"default {FRONTEND_URL}")
     ap.add_argument("--out", type=Path, help="output folder; default workload/build/package (git-ignored)")
@@ -424,9 +431,9 @@ def main(argv=None) -> int:
           f"frontend {a.frontend_url.rstrip('/')}.")
     print("Nothing was uploaded. Upload it yourself in Fabric: OneLake catalog -> Govern -> Workloads -> Upload workload "
           "(docs/WORKLOAD-DEV.md, \"Hosted (no laptop)\").")
-    if a.name == PUBLISHED_NAME:
-        print(f"{PUBLISHED_NAME}: the first upload asks you to confirm the name, and that cannot be undone. "
-              "Read docs/WORKLOAD-PUBLISH.md first.")
+    if a.name == WORKLOAD_NAME:
+        print(f"{WORKLOAD_NAME}: the first upload asks you to confirm the name, and that cannot be undone. "
+              "Follow docs/MODELER-GO-LIVE.md step by step.")
         print(f"Attestation link in Product.json: {ATTESTATION_URL} (it must answer before Microsoft's review).")
         with zipfile.ZipFile(path) as z:
             files = {n: z.read(n) for n in z.namelist() if n.startswith("FE/")}

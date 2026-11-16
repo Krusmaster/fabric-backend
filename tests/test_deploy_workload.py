@@ -223,8 +223,9 @@ def _builder():
 
 
 def test_the_package_points_at_the_hosted_editor_and_keeps_org_krusgraph(tmp_path):
+    # W12: Krusgraph.Modeler is the default; the development package is built on request until step N7
     run = subprocess.run(["bash", str(ROOT / "workload/scripts/build-package"), "--frontend-app-id", WL_ID,
-                          "--version", "1.0.7", "--out", str(tmp_path)], capture_output=True, text=True)
+                          "--version", "1.0.7", "--out", str(tmp_path), "--name", "Org.Krusgraph"], capture_output=True, text=True)
     assert run.returncode == 0, run.stderr
     assert "Nothing was uploaded" in run.stdout
     pkg = tmp_path / "Org.Krusgraph.1.0.7.nupkg"
@@ -247,7 +248,7 @@ def test_the_package_points_at_the_hosted_editor_and_keeps_org_krusgraph(tmp_pat
                 assert "Krusgraph." not in text.replace("Org.Krusgraph", "").replace("Krusgraph.com", ""), name
     again = tmp_path / "again"
     subprocess.run(["bash", str(ROOT / "workload/scripts/build-package"), "--frontend-app-id", WL_ID, "--version", "1.0.7",
-                    "--out", str(again)], check=True, capture_output=True)
+                    "--out", str(again), "--name", "Org.Krusgraph"], check=True, capture_output=True)
     assert (again / pkg.name).read_bytes() == pkg.read_bytes()                       # same inputs, same bytes
 
 

@@ -1,6 +1,6 @@
 """Round n176: Krusgraph.Modeler, the permanent workload name, for up to 20 selected tenants.
 
-The package builds as Org.Krusgraph (default) or Krusgraph.Modeler and refuses every other Krusgraph.* name; the item type
+The package builds as Krusgraph.Modeler (the default since W12) or Org.Krusgraph and refuses every other Krusgraph.* name; the item type
 follows the name (Krusgraph.Modeler.Model) and is written once, by the build. The server accepts tokens for every URI in
 KRUSGRAPH_WORKLOAD_APP_ID_URI (a comma list while both names run) and gives a tenant outside the allowed list a plain
 refusal, not a sign-in loop. The pilot page renders and lists the administrator's steps in order. Docs and site only
@@ -35,7 +35,7 @@ def _read(pkg: Path) -> dict[str, str]:
 
 
 @pytest.mark.parametrize("args, name", [
-    ([], "Org.Krusgraph"),
+    ([], "Krusgraph.Modeler"),                         # W12: the default is the permanent name
     (["--name", "Org.Krusgraph"], "Org.Krusgraph"),
     (["--name", "Krusgraph.Modeler"], "Krusgraph.Modeler"),
 ])
@@ -73,8 +73,8 @@ def test_the_name_is_written_once_in_the_sources():
     ("Krusgraph.Modeller", "reserve it in the tenant for good"),
     ("krusgraph.modeler", "reserve it in the tenant for good"),                     # the exact spelling only
     ("Krusgraph.Modeler.Model", "reserve it in the tenant for good"),
-    ("Org.Other", "must be Org.Krusgraph or Krusgraph.Modeler"),
-    ("", "must be Org.Krusgraph or Krusgraph.Modeler"),
+    ("Org.Other", "must be Krusgraph.Modeler or Org.Krusgraph"),
+    ("", "must be Krusgraph.Modeler or Org.Krusgraph"),
 ])
 def test_every_other_name_is_refused_before_anything_is_written(tmp_path, name, word):
     b = _builder()
