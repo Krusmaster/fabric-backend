@@ -234,7 +234,9 @@ what differs.
 Folder: `docs/directory/screenshots/`, each image with its caption and prompt in `docs/directory/screenshots/README.md`.
 They are taken from main after round n227 releases the chat cards, at 1280 px and 375 px wide, on the synthetic shop
 and the SAP-shaped samples. The Claude carousel takes the 1280 px images (at least 1000 px wide). The 375 px images show
-the same cards at phone width, for review only. See the README in that folder for what was taken and when.
+the same cards at phone width, for review only.
+
+**Not taken yet.** Round n227 held the chat cards from 22:30 UTC on 15 November 2026 and had not released them by 05:24 UTC on 16 November (main polled every 10 minutes for two hours), so no screenshot is in the repository. The script is ready: `python docs/directory/shoot.py` (with `docs/directory/shoot_host.js`) renders five cards (start and plan on the shop, the check on the shop, the plan and the check on `sap_sd`) at 1280 and 375 px. Run it after n227 releases, add `README.md` with a caption and the prompt per image (the prompts are in `SHOTS` in the script), and `tests/test_d2_directory_submission.py` then checks the images against the carousel's specification.
 
 ## 7. Public pages that explain the problems
 
