@@ -1,7 +1,7 @@
-2026-11-16, rounds n236 and n240. Post texts for the SAP film in this folder, approved by the founder for publishing on 16 November 2026.
-Files to post (-v3, the hook on three lines): krusgraph-sap-to-report-9x16-reels-captioned-v3.mp4 (Reels, TikTok, Shorts),
-krusgraph-sap-to-report-4x5-voice-captioned-v3.mp4 (feed), krusgraph-sap-to-report-16x9-voice-v3.mp4 (LinkedIn, YouTube),
-krusgraph-sap-to-report-cover-9x16-v3.jpg (the Reel's cover). The -v2 files are the same film with the hook on two lines.
+2026-11-16, rounds n236 to n243. Post texts for the SAP film in this folder, approved by the founder for publishing on 16 November 2026.
+Files to post (-v4): krusgraph-sap-to-report-9x16-reels-captioned-v4.mp4 (Reels, TikTok, Shorts), krusgraph-sap-to-report-4x5-voice-captioned-v4.mp4
+(feed), krusgraph-sap-to-report-16x9-voice-v4.mp4 (LinkedIn, YouTube), krusgraph-sap-to-report-cover-9x16-v3.jpg (the Reel's cover; the hook is unchanged).
+-v4 is -v3 with the agent window's prompt typing from the left, as in a chat input. The -v2 and -v3 files are earlier versions.
 Voice: AI-generated. Music and sounds: original, synthesized in code for this film (no samples). Synthetic, SAP-shaped example data.
 
 === (a) Instagram / TikTok / YouTube Shorts ===
