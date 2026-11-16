@@ -1551,7 +1551,9 @@ def lovable_html() -> str:
 
 BLOG_AUTHOR = "Gustav Kruse"
 BLOG_PUBLISHER = "Kruse Consulting AB"
-BLOG_POSTS = [{"slug": "fabric-totals-double-after-join", "date": "2026-11-07"}]
+BLOG_POSTS = [{"slug": "fabric-totals-double-after-join", "date": "2026-11-07"},
+              {"slug": "sap-sales-tables-in-fabric", "date": "2026-11-16"},           # D2: explainers on the SAP-shaped sample,
+              {"slug": "sap-tables-to-power-bi-report", "date": "2026-11-16"}]        # numbers asserted in tests/test_d2_explainers.py
 BLOG_DESC = "Articles on keys, grain and relationships between Microsoft Fabric tables, by Gustav Kruse, Kruse Consulting AB."
 BLOG_OWN_HOSTS = ("krusgraph.com",)
 

@@ -116,8 +116,9 @@ def test_footer_sitemap_and_llms_list_the_blog(client):
         footer = client.get(path).text.split('<footer class="site-footer">')[1]
         assert '<a href="/blog">Blog</a>' in footer, path
     sm = client.get("/sitemap.xml").text
-    for p in ("/blog", POST):
-        assert f"<url><loc>https://krusgraph.test{p}</loc><lastmod>2026-11-07</lastmod></url>" in sm
+    newest = max(x["date"] for x in pages.BLOG_POSTS)                                # D2: the blog's lastmod is its newest post's
+    for p, d in (("/blog", newest), (POST, "2026-11-07")):
+        assert f"<url><loc>https://krusgraph.test{p}</loc><lastmod>{d}</lastmod></url>" in sm
     llms = [ln for ln in client.get("/llms.txt").text.splitlines() if "/blog" in ln]
     assert len(llms) == 1 and "](https://krusgraph.test/blog)" in llms[0] and f"https://krusgraph.test{POST}" in llms[0]
 
