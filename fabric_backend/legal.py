@@ -134,8 +134,9 @@ SUMMARY = ("This site sets no cookies on its pages, uses no analytics or adverti
 
 def cookie_panel_html() -> str:
     """The footer's cookie icon: a <details> (works without JavaScript, opens with Enter or Space) listing exactly what
-    is stored, with a link to /cookies. No banner: nothing here needs consent (see the module docstring)."""
-    return (f'<details class="cookie-panel"><summary class="cookie-btn">{_COOKIE_ICON}<span>Cookies and storage</span></summary>'
+    is stored, with a link to /cookies. No banner: nothing here needs consent (see the module docstring). n241: the
+    summary is the same pill as "Mascots: on" (btn ghost small), with no card around it, and sits under that button."""
+    return (f'<details class="cookie-panel"><summary class="btn ghost small">{_COOKIE_ICON}<span>Cookies and storage</span></summary>'
             f'<div class="cookie-panel-body"><p class="tiny">{html.escape(SUMMARY)} Nothing needs your consent, so there is '
             f'no banner.</p>{storage_list_html()}<p class="tiny"><a href="/cookies">Cookie policy</a> · '
             f'<a href="/privacy">Privacy</a></p></div></details>')

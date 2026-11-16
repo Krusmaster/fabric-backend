@@ -708,9 +708,12 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
     # the mascot toggle only on a page that has mascots: a placeholder in the HTML, or the ones /demo's graph draws (n36:
     # the toggle said "Mascots: on" on pages with none, such as /docs); n93: the chat's button shows Onto, so every page
     # with it has the toggle too
-    toggle = ('<button type="button" class="btn ghost small" data-mascot-toggle aria-pressed="true">Mascots: on</button>\n'
-              '      <span class="muted tiny" id="mascot-toggle-note">Your choice applies across the site and is saved in this browser.</span>'
-              if has_mascots(body, page) or chat else "")
+    # n241: the button, then the footer's cookie pill under it, then the note (the founder's order)
+    mascots = has_mascots(body, page) or chat
+    toggle = ('<button type="button" class="btn ghost small" data-mascot-toggle aria-pressed="true">Mascots: on</button>'
+              if mascots else "")
+    toggle_note = ('<span class="muted tiny" id="mascot-toggle-note">Your choice applies across the site and is saved in this browser.</span>'
+                   if mascots else "")
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -782,8 +785,9 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
       <a href="{GITHUB}" rel="noopener">GitHub</a><a href="mailto:{html.escape(v['CONTACT'])}">{html.escape(v['CONTACT'])}</a>
     </nav>
     <div class="footer-controls">
-      {_legal().cookie_panel_html()}
       {toggle}
+      {_legal().cookie_panel_html()}
+      {toggle_note}
     </div>
   </div>
 </footer>{chr(10) + chat_launch_html() if chat else ""}{_tips_json() if chat or page == "check" else ""}
