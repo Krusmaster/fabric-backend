@@ -18,14 +18,14 @@ CI installs the same pins. Versions are exact.
 | Package | Version | Licence (from metadata) | Licence files in the package | Home |
 | --- | --- | --- | --- | --- |
 | [annotated-types](https://pypi.org/project/annotated-types/0.8.0/) | 0.8.0 | MIT | `LICENSE` | [github.com/annotated-types/annotated-types](https://github.com/annotated-types/annotated-types) |
-| [anyio](https://pypi.org/project/anyio/4.15.1/) | 4.15.1 | MIT | `LICENSE` | [anyio.readthedocs.io/en/latest](https://anyio.readthedocs.io/en/latest/) |
+| [anyio](https://pypi.org/project/anyio/4.16.0/) | 4.16.0 | MIT | `LICENSE` | [anyio.readthedocs.io/en/latest](https://anyio.readthedocs.io/en/latest/) |
 | [attrs](https://pypi.org/project/attrs/26.1.0/) | 26.1.0 | MIT | `LICENSE` | [www.attrs.org](https://www.attrs.org/) |
 | [certifi](https://pypi.org/project/certifi/2026.10.23/) | 2026.10.23 | MPL-2.0 | `LICENSE` | [github.com/certifi/python-certifi](https://github.com/certifi/python-certifi) |
 | [cffi](https://pypi.org/project/cffi/2.1.1/) | 2.1.1 | MIT-0 | `LICENSE` | [github.com/python-cffi/cffi](https://github.com/python-cffi/cffi) |
 | [charset-normalizer](https://pypi.org/project/charset-normalizer/3.5.2/) | 3.5.2 | MIT | `LICENSE` | [charset-normalizer.readthedocs.io](https://charset-normalizer.readthedocs.io/) |
-| [click](https://pypi.org/project/click/8.5.0/) | 8.5.0 | BSD-3-Clause | `LICENSE.txt` | [github.com/pallets/click](https://github.com/pallets/click/) |
+| [click](https://pypi.org/project/click/8.5.1/) | 8.5.1 | BSD-3-Clause | `LICENSE.txt` | [github.com/pallets/click](https://github.com/pallets/click/) |
 | [cryptography](https://pypi.org/project/cryptography/50.0.2/) | 50.0.2 | Apache-2.0 OR BSD-3-Clause | `LICENSE`, `LICENSE.APACHE`, `LICENSE.BSD` | [github.com/pyca/cryptography](https://github.com/pyca/cryptography) |
-| [graphql-core](https://pypi.org/project/graphql-core/3.3.1/) | 3.3.1 | MIT | `LICENSE` | [github.com/graphql-python/graphql-core](https://github.com/graphql-python/graphql-core) |
+| [graphql-core](https://pypi.org/project/graphql-core/3.3.2/) | 3.3.2 | MIT | `LICENSE` | [github.com/graphql-python/graphql-core](https://github.com/graphql-python/graphql-core) |
 | [h11](https://pypi.org/project/h11/0.16.0/) | 0.16.0 | MIT | `LICENSE.txt` | [github.com/python-hyper/h11](https://github.com/python-hyper/h11) |
 | [httpcore2](https://pypi.org/project/httpcore2/2.16.0/) | 2.16.0 | BSD-3-Clause | `LICENSE.md` | [github.com/pydantic/httpx2](https://github.com/pydantic/httpx2) |
 | [httpx2](https://pypi.org/project/httpx2/2.16.0/) | 2.16.0 | BSD-3-Clause | `LICENSE.md` | [github.com/pydantic/httpx2](https://github.com/pydantic/httpx2) |
@@ -36,18 +36,18 @@ CI installs the same pins. Versions are exact.
 | [mcp](https://pypi.org/project/mcp/2.3.0/) | 2.3.0 | MIT | `LICENSE` | [modelcontextprotocol.io](https://modelcontextprotocol.io) |
 | [opentelemetry-api](https://pypi.org/project/opentelemetry-api/1.45.2/) | 1.45.2 | Apache-2.0 | `LICENSE` | [github.com/open-telemetry/opentelemetry-python/tree/main/opentelemetry-api](https://github.com/open-telemetry/opentelemetry-python/tree/main/opentelemetry-api) |
 | [pycparser](https://pypi.org/project/pycparser/3.12/) | 3.12 | BSD-3-Clause | `LICENSE` | [github.com/eliben/pycparser](https://github.com/eliben/pycparser) |
-| [pydantic](https://pypi.org/project/pydantic/2.14.2/) | 2.14.2 | MIT | `LICENSE` | [github.com/pydantic/pydantic](https://github.com/pydantic/pydantic) |
-| [pydantic-core](https://pypi.org/project/pydantic-core/2.50.2/) | 2.50.2 | MIT | `LICENSE` | [github.com/pydantic](https://github.com/pydantic) |
+| [pydantic](https://pypi.org/project/pydantic/2.14.3/) | 2.14.3 | MIT | `LICENSE` | [github.com/pydantic/pydantic](https://github.com/pydantic/pydantic) |
+| [pydantic-core](https://pypi.org/project/pydantic-core/2.50.4/) | 2.50.4 | MIT | `LICENSE` | [github.com/pydantic](https://github.com/pydantic) |
 | [pyjwt](https://pypi.org/project/pyjwt/2.15.1/) | 2.15.1 | MIT | `LICENSE`, `AUTHORS.rst` | [github.com/jpadilla/pyjwt](https://github.com/jpadilla/pyjwt) |
-| [pyodbc](https://pypi.org/project/pyodbc/5.3.0/) | 5.3.0 | MIT | `LICENSE.txt` | [github.com/mkleehammer/pyodbc](https://github.com/mkleehammer/pyodbc) |
-| [python-multipart](https://pypi.org/project/python-multipart/0.0.32/) | 0.0.32 | Apache-2.0 | `LICENSE.txt` | [github.com/Kludex/python-multipart](https://github.com/Kludex/python-multipart) |
+| [pyodbc](https://pypi.org/project/pyodbc/5.5.0/) | 5.5.0 | MIT-0 | `LICENSE.txt` | [github.com/mkleehammer/pyodbc](https://github.com/mkleehammer/pyodbc) |
+| [python-multipart](https://pypi.org/project/python-multipart/0.0.33/) | 0.0.33 | Apache-2.0 | `LICENSE.txt` | [github.com/Kludex/python-multipart](https://github.com/Kludex/python-multipart) |
 | [referencing](https://pypi.org/project/referencing/0.37.0/) | 0.37.0 | MIT | `COPYING` | [github.com/python-jsonschema/referencing](https://github.com/python-jsonschema/referencing) |
 | [requests](https://pypi.org/project/requests/2.34.2/) | 2.34.2 | Apache-2.0 | `LICENSE`, `NOTICE` | [github.com/psf/requests](https://github.com/psf/requests) |
 | [rpds-py](https://pypi.org/project/rpds-py/2026.9.1/) | 2026.9.1 | MIT | `LICENSE` | [github.com/crate-py/rpds](https://github.com/crate-py/rpds) |
-| [sse-starlette](https://pypi.org/project/sse-starlette/3.6.0/) | 3.6.0 | BSD-3-Clause | `LICENSE`, `AUTHORS` | [github.com/sysid/sse-starlette](https://github.com/sysid/sse-starlette) |
+| [sse-starlette](https://pypi.org/project/sse-starlette/3.7.0/) | 3.7.0 | BSD-3-Clause | `LICENSE`, `AUTHORS` | [github.com/sysid/sse-starlette](https://github.com/sysid/sse-starlette) |
 | [starlette](https://pypi.org/project/starlette/1.10.0/) | 1.10.0 | BSD-3-Clause | `LICENSE.md` | [github.com/Kludex/starlette](https://github.com/Kludex/starlette) |
 | [truststore](https://pypi.org/project/truststore/0.10.5/) | 0.10.5 | MIT | `LICENSE` | [github.com/sethmlarson/truststore](https://github.com/sethmlarson/truststore) |
-| [typing-inspection](https://pypi.org/project/typing-inspection/0.4.4/) | 0.4.4 | MIT | `LICENSE` | [github.com/pydantic/typing-inspection](https://github.com/pydantic/typing-inspection) |
+| [typing-inspection](https://pypi.org/project/typing-inspection/0.4.5/) | 0.4.5 | MIT | `LICENSE` | [github.com/pydantic/typing-inspection](https://github.com/pydantic/typing-inspection) |
 | [typing-extensions](https://pypi.org/project/typing-extensions/4.16.0/) | 4.16.0 | PSF-2.0 | `LICENSE` | [github.com/python/typing_extensions](https://github.com/python/typing_extensions) |
 | [urllib3](https://pypi.org/project/urllib3/2.8.0/) | 2.8.0 | MIT | `LICENSE.txt` | [urllib3.readthedocs.io](https://urllib3.readthedocs.io) |
 | [uvicorn](https://pypi.org/project/uvicorn/0.54.0/) | 0.54.0 | BSD-3-Clause | `LICENSE.md` | [uvicorn.dev](https://uvicorn.dev/) |
