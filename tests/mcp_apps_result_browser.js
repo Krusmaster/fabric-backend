@@ -82,8 +82,19 @@ view.srcdoc = ${JSON.stringify(card).replace(/<\//g, "<\\/")};
   const first = frame.locator("#steps button, button[data-item]").first();
   if (await first.count()) {
     await first.click();
-    if (await first.getAttribute("data-item")) await frame.locator("#replan").click();   // n218: Accept, then Re-plan
+    const decision = !!(await first.getAttribute("data-item"));
+    if (decision) await frame.locator("#replan").click();   // n218: Accept, then Re-plan
     await frame.locator("#steps .out, #call").filter({ hasNotText: "Asked the host" }).filter({ hasText: /./ }).first().waitFor({ timeout: 10000 });
+    // n241: a step's text can be there before the host's reply is drawn (run 1078 read the review card's old verdict);
+    // after a decision a real reply changes the verdict: wait for that too (up to 10 s; the test then says what it read)
+    const was = (before.verdict || "").trim();
+    const real = !/^\s*\{\s*"content"\s*:\s*\[\s*\{\s*"type"\s*:\s*"text"\s*,\s*"text"\s*:\s*"\{\}"\s*\}\s*\]\s*\}\s*$/.test(reply);   // not _browse's "{}" default
+    if (decision && real) await frame.locator("#verdict").evaluate((el, was) => new Promise((done) => {
+      if (el.textContent.trim() !== was) return done();
+      const t = setTimeout(() => { o.disconnect(); done(); }, 10000);
+      const o = new MutationObserver(() => { if (el.textContent.trim() !== was) { clearTimeout(t); o.disconnect(); done(); } });
+      o.observe(el, { childList: true, subtree: true, characterData: true });
+    }), was).catch(() => {});
     after = await read();
   }
   const log = await page.evaluate(() => window.log);
