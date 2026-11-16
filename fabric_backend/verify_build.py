@@ -559,7 +559,7 @@ def figures(model: dict, report: dict | None, execute, dax=None, default_schema:
                 before(f"reading {k['kpi']} from the model")
                 model_value, why = _number(_first_value(dax(row["dax"]))), None
             except Exception as e:                                       # noqa: BLE001
-                why = _why(e)
+                why = _why_dataset(e)
         if why is None:
             row["model"] = model_value
             if _same(model_value, row["source_rows"]):
@@ -588,6 +588,17 @@ def _why(e: BaseException) -> str:
     status = getattr(getattr(e, "response", None), "status_code", None)
     text = (str(e) or type(e).__name__).strip().splitlines()[0][:200]
     return f"HTTP {status}" if status else text
+
+
+# n241: the two Power BI reads (the model's refresh history, a DAX query) need a delegated Power BI permission that an
+# app registration may not have yet; a 401/403 there says which one, so the person knows what to add in Entra.
+DATASET_SCOPES_HINT = ("the sign-in may lack the Power BI permission Dataset.Read.All or Dataset.ReadWrite.All; an "
+                       "administrator adds it to the app registration in Microsoft Entra and grants consent")
+
+
+def _why_dataset(e: BaseException) -> str:
+    why = _why(e)
+    return f"{why}: {DATASET_SCOPES_HINT}" if why.startswith(("HTTP 401", "HTTP 403")) else why
 
 
 # ------------------------------------------------------------------ 3. doubled totals ---------------------------------
@@ -675,7 +686,7 @@ def model_state(refreshes) -> dict:
     """`refreshes`: the model's refresh history (Power BI: value of GET .../refreshes), newest first; or an exception."""
     if isinstance(refreshes, BaseException):
         return {"check": "refreshed", "state": NOT_CHECKED, "fix": REFRESH_FIX,
-                "said": f"Whether the model was ever refreshed was not read ({_why(refreshes)}). A new Direct Lake model shows no data "
+                "said": f"Whether the model was ever refreshed was not read ({_why_dataset(refreshes)}). A new Direct Lake model shows no data "
                         "(\"Data refreshed: Invalid Date\", warning triangles) until it is refreshed once."}
     done = [r for r in refreshes or [] if str(r.get("status")) == "Completed"]
     if done:

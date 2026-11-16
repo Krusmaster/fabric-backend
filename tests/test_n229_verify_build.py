@@ -181,7 +181,8 @@ def test_without_a_power_bi_answer_the_figure_is_shown_and_never_called_verified
     assert "from the rows: " in rep["said"] and "Orders = 60" in rep["said"] and "Units = 324" in rep["said"]
     model = line(out, "shop_model")
     assert model["state"] == "not checked" and model["state_check"]["state"] == "not checked"
-    assert "Definition as the dry run" in model["said"] and "was not read (HTTP 403)" in model["said"]
+    assert "Definition as the dry run" in model["said"] and "was not read (HTTP 403: " in model["said"]
+    assert "Dataset.Read.All or Dataset.ReadWrite.All" in model["said"] and "Entra" in model["said"]
     assert out["counts"]["verified"] == 0
 
 
