@@ -3285,8 +3285,8 @@
  },
  {
   "answer": {
-   "error": "FABRIC_ODBC is not set: the stdio server needs an ODBC connection string for the SQL analytics endpoint",
-   "hint": "This is a configuration problem on the connector itself, not with your account. Contact the operator.",
+   "error": "FABRIC_ODBC is not set: this local server needs an ODBC connection string for the database it reads.",
+   "hint": "Add FABRIC_ODBC under \"env\" for this server in your MCP client's configuration and restart the client (docs/LOCAL.md, section 3, has the full example), for instance Driver={ODBC Driver 18 for SQL Server};Server=<server>;Database=<database>;Trusted_Connection=yes.",
    "kind": "server_config"
   },
   "no_odbc": true,
