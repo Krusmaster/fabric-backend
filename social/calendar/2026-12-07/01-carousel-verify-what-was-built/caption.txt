@@ -1,0 +1,17 @@
+You built it. Now check what was built.
+
+After Krusgraph creates a semantic model, a report or a pipeline in Fabric, you can ask it to verify what was built. It reads each item back and compares it with the dry run you confirmed:
+
+1. The definition: tables, relationships, measures, visuals, steps, for 7 kinds of items (semantic model, report, ontology, API for GraphQL, pipeline, notebook, App).
+2. The figures: each number of the report computed again from the rows, with the SQL shown.
+3. Doubled totals: a sum that counts a header's amount once per line is flagged, with both sums.
+
+Every line ends in one of three states: verified, differs or not checked, with the reason. Never a guess.
+
+In Krusgraph's own words: "A check by rules, not a review by AI: Krusgraph read back what is in Fabric and compared it with the dry run, and counted the figures again from the rows. No AI model was used."
+
+Krusgraph is independent and is not affiliated with, tested or endorsed by Microsoft.
+
+#MicrosoftFabric #PowerBI #SemanticModel #DataQuality #DataEngineering #Krusgraph #OpenSource
+
+Try it in your browser: krusgraph.com/check (link in bio)

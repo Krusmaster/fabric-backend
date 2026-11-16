@@ -1,0 +1,30 @@
+# From SAP-shaped tables to data products
+# Upload: krusgraph-short-data-products-9x16.mp4 (1080x1920); cover: cover-1080x1920.jpg. 'Voice: AI-generated' is on the last frame.
+# Turn on each platform's AI-generated content label when it asks.
+
+== Instagram Reels (caption) ==
+From SAP-shaped tables to data products.
+
+From SAP-shaped tables to data products. Krusgraph checks the links first (32 of 34 hold in our example), then suggests two data products: Order to cash and Customer master. Order to cash uses customers from Customer master. Each gets an owner you choose.
+
+Everything on screen is the engine's own output on our example. Voice: AI-generated.
+
+#MicrosoftFabric #PowerBI #DataQuality #Krusgraph
+
+Try it in your browser: krusgraph.com/check (link in bio)
+
+== TikTok (caption) ==
+From SAP-shaped tables to data products. From SAP-shaped tables to data products. Krusgraph checks the links first (32 of 34 hold in our example), then suggests two data products: Order to cash and Customer master. Order to cash uses customers from Customer master. Each gets an owner you choose. Voice: AI-generated. #MicrosoftFabric #SAP #PowerBI
+
+Try it in your browser: krusgraph.com/check (link in bio)
+
+== YouTube Shorts ==
+Title: From SAP-shaped tables to data products #Shorts
+Description:
+From SAP-shaped tables to data products. Krusgraph checks the links first (32 of 34 hold in our example), then suggests two data products: Order to cash and Customer master. Order to cash uses customers from Customer master. Each gets an owner you choose.
+
+Voice: AI-generated. Krusgraph is independent and is not affiliated with, tested or endorsed by SAP or Microsoft.
+
+#MicrosoftFabric #PowerBI #Shorts
+
+Try it in your browser: krusgraph.com/check (link in bio)

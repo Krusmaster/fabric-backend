@@ -1,0 +1,17 @@
+Three counts before you point an AI agent at a lakehouse.
+
+An agent that writes SQL or DAX over your tables inherits every join problem in them. So count first:
+
+1. Are the keys unique? In our SAP-shaped example, 17 of 17.
+2. Do the links hold? 32 of 34. One order line points at an order that is not there (1 of 6 rows (16.7%) point at nothing).
+3. Where does the amount live? NETWR sits on the order header. Summed over the joined lines it comes out 1 950; once per header it is 750. That is 2.6 times.
+
+Krusgraph counts all three against the rows, by rules, and shows you the numbers. Then let the agent answer.
+
+Krusgraph is independent and is not affiliated with, tested or endorsed by SAP or Microsoft.
+
+Which of the three do you check first?
+
+#MicrosoftFabric #PowerBI #AIAgents #MCP #DataQuality #DataEngineering #SAP #Krusgraph
+
+Try it in your browser: krusgraph.com/check (link in bio)

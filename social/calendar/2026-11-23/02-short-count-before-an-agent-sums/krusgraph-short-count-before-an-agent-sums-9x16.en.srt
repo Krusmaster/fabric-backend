@@ -1,0 +1,23 @@
+1
+00:00:00,350 --> 00:00:04,192
+Before an AI agent sums anything, count three things.
+
+2
+00:00:04,292 --> 00:00:08,928
+1. Are the keys unique? In our SAP example, 17 of 17.
+
+3
+00:00:09,028 --> 00:00:13,640
+2. Do the links hold? 32 of 34. One points at nothing.
+
+4
+00:00:13,740 --> 00:00:20,543
+3. Where does the amount live? Over the joined lines, 1 950. Once per order, 750.
+
+5
+00:00:20,643 --> 00:00:23,288
+Krusgraph counts all three against your rows.
+
+6
+00:00:23,638 --> 00:00:27,508
+Try it in your browser: krusgraph.com/check

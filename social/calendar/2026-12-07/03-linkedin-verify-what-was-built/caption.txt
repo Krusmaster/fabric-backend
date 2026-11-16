@@ -1,0 +1,15 @@
+After the build, read it back.
+
+A dry run tells you what will be built. Krusgraph's verifier tells you what was built: it reads each item back from Fabric and compares it with the dry run, counts each figure of the report again from the rows, and flags any total that counts a header's amount once per line.
+
+It covers 7 kinds of items (semantic model, report, ontology, API for GraphQL, pipeline, notebook, App). Every line ends in one of three states: verified, differs, or not checked with the reason.
+
+"A check by rules, not a review by AI: Krusgraph read back what is in Fabric and compared it with the dry run, and counted the figures again from the rows. No AI model was used."
+
+If you build in Fabric with an agent's help, this is the step that closes the loop: a check by rules, after the build, in the same chat.
+
+Krusgraph is independent and is not affiliated with, tested or endorsed by Microsoft.
+
+#MicrosoftFabric #PowerBI #DataQuality #Krusgraph
+
+Try it in your browser: krusgraph.com/check (link in bio)

@@ -1,0 +1,15 @@
+Use it in Claude: type one line.
+
+"start Krusgraph"
+
+Then Krusgraph walks you through 9 steps in the chat. 8 of them only read: the workspace, the source, the schema, the map of keys and links, the check against the rows, the decisions that need a person, the doubled totals, and the dry run of what would be built.
+
+The last step is "Create, only on your confirmation". Nothing is created before your yes.
+
+Krusgraph is an MCP server for Microsoft Fabric, open source (MIT). The checks are rules and counts; the chat's own model reads the answers.
+
+Krusgraph is independent and is not affiliated with, tested or endorsed by Microsoft.
+
+#MicrosoftFabric #MCP #AIAgents #PowerBI #Krusgraph #OpenSource
+
+Try it in your browser: krusgraph.com/check (link in bio)

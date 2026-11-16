@@ -1,0 +1,18 @@
+Four Microsoft MCP servers you can use beside Krusgraph, each described in its own words.
+
+An MCP server gives an AI agent tools. In one chat client you can run several side by side. These four are Microsoft's own:
+
+1. Fabric MCP Server: local, open source (MIT); documentation tools plus operational tools that call Fabric's APIs.
+2. Fabric IQ MCP: remote, hosted by Microsoft; a read-only toolset over Power BI reports and semantic models.
+3. Power BI Modeling MCP Server: local; creates and changes semantic models.
+4. Fabric Data Warehouse MCP server: remote, in preview; one tool, executeSQL.
+
+Where Krusgraph sits: before an agent builds or answers, it maps the keys and links with the rule behind each, counts them against the rows, flags totals a join would count twice, and shows a dry run before anything is created.
+
+Nothing here is integrated: each runs beside Krusgraph in the same client. Descriptions as read for our watchlist in November 2026; check each server's own page for what it does today.
+
+Krusgraph is independent and is not affiliated with, tested or endorsed by Microsoft.
+
+#MicrosoftFabric #PowerBI #MCP #AIAgents #DataEngineering #Krusgraph #OpenSource
+
+Try it in your browser: krusgraph.com/check (link in bio)

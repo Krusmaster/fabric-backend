@@ -1,0 +1,19 @@
+Five words in a data model, explained by Krusgraph's three figures.
+
+Key (Onto): the columns that name one row, and only one. Our SAP-shaped example: 17 of 17 keys unique.
+
+Link (Onto): a column that points at another table's key, with the rule that says why. 24 links on the map, each naming its rule.
+
+Orphan (Thinker): a row that points at something that is not there. sap_vbap to sap_vbak: 1 of 6 rows (16.7%) point at nothing.
+
+Grain (Thinker): what one row stands for, one order or one order line. Sum an amount at its own grain: over the lines 1 950, once per order 750.
+
+Dry run (Builder): what would be built, shown before anything is created. 8 of 9 steps of "start Krusgraph" only read.
+
+Save it for the next time someone asks why the total is wrong.
+
+Krusgraph is independent and is not affiliated with, tested or endorsed by SAP or Microsoft.
+
+#MicrosoftFabric #PowerBI #DataModeling #DataQuality #SemanticModel #Krusgraph
+
+Try it in your browser: krusgraph.com/check (link in bio)

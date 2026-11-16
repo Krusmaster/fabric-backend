@@ -1,0 +1,30 @@
+# Onto: what is a key?
+# Upload: krusgraph-short-onto-what-is-a-key-9x16.mp4 (1080x1920); cover: cover-1080x1920.jpg. 'Voice: AI-generated' is on the last frame.
+# Turn on each platform's AI-generated content label when it asks.
+
+== Instagram Reels (caption) ==
+Onto: what is a key?.
+
+Onto explains one idea: the key. The columns that name one row, and only one. For SAP order lines: client, order and item (MANDT + VBELN + POSNR). If a key repeats, every join on it repeats rows. In our SAP-shaped example, 17 of 17 keys are unique.
+
+Everything on screen is the engine's own output on our example. Voice: AI-generated.
+
+#MicrosoftFabric #PowerBI #DataQuality #Krusgraph
+
+Try it in your browser: krusgraph.com/check (link in bio)
+
+== TikTok (caption) ==
+Onto: what is a key?. Onto explains one idea: the key. The columns that name one row, and only one. For SAP order lines: client, order and item (MANDT + VBELN + POSNR). If a key repeats, every join on it repeats rows. In our SAP-shaped example, 17 of 17 keys are unique. Voice: AI-generated. #MicrosoftFabric #DataModeling #SAP
+
+Try it in your browser: krusgraph.com/check (link in bio)
+
+== YouTube Shorts ==
+Title: Onto: what is a key? #Shorts
+Description:
+Onto explains one idea: the key. The columns that name one row, and only one. For SAP order lines: client, order and item (MANDT + VBELN + POSNR). If a key repeats, every join on it repeats rows. In our SAP-shaped example, 17 of 17 keys are unique.
+
+Voice: AI-generated. Krusgraph is independent and is not affiliated with, tested or endorsed by SAP or Microsoft.
+
+#MicrosoftFabric #PowerBI #Shorts
+
+Try it in your browser: krusgraph.com/check (link in bio)

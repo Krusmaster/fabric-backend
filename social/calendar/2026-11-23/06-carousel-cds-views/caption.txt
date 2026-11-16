@@ -1,0 +1,16 @@
+SAP CDS views in Fabric? The same checks.
+
+If your SAP data lands in Fabric shaped like released CDS views (I_SalesDocument, I_SalesDocumentItem, I_Customer and so on), the names are business names in camelCase and there is no client column. Krusgraph's SAP pack knows the keys and links of these views too.
+
+On our example of 14 CDS-shaped tables:
+• 14 of 14 keys unique
+• 29 of 30 links hold; one item points at an order that is not there
+• TotalNetAmount sits on the order. Over the join with its items it comes out 1 900; once per order, 700
+
+What the pack says about the views is written from public documentation and checked against the rows; the count is the test.
+
+Krusgraph is independent and is not affiliated with, tested or endorsed by SAP or Microsoft.
+
+#MicrosoftFabric #SAP #ERP #PowerBI #DataModeling #DataQuality #Krusgraph
+
+Try it in your browser: krusgraph.com/check (link in bio)

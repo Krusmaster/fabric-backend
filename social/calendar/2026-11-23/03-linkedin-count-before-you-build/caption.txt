@@ -1,0 +1,19 @@
+Before an AI agent answers with a number from your lakehouse, count three things.
+
+We ran Krusgraph's checks on our SAP-shaped example:
+
+• Keys: 17 of 17 unique.
+• Links: 32 of 34 hold. One order line points at an order that is not there.
+• Amounts: the order value (NETWR) sits on the order header. Joined to the order lines it is counted once per line: 1 950 instead of 750, 2.6 times.
+
+An agent cannot see any of this from the column names. The rows can. That is why Krusgraph counts before anything is built, and shows the count, the rule behind each link and both sums side by side.
+
+It is open source (MIT), for Microsoft Fabric, and you can use it in Claude.
+
+Krusgraph is independent and is not affiliated with, tested or endorsed by SAP or Microsoft.
+
+What do you count before you let an agent near your data?
+
+#MicrosoftFabric #PowerBI #AIAgents #DataQuality #Krusgraph
+
+Try it in your browser: krusgraph.com/check (link in bio)

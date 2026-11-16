@@ -1,0 +1,23 @@
+1
+00:00:00,350 --> 00:00:03,924
+Ask your agent for total sales. Which number do you get?
+
+2
+00:00:04,024 --> 00:00:10,002
+In our example shaped like SAP CDS views, the order total sits on the sales document header.
+
+3
+00:00:10,102 --> 00:00:14,925
+Join it to its items, and an order counts up to 3 times: 1 900.
+
+4
+00:00:15,025 --> 00:00:17,486
+Summed once per order: 700.
+
+5
+00:00:17,586 --> 00:00:22,144
+Krusgraph flags this against your rows, so the agent can sum at the right level.
+
+6
+00:00:22,494 --> 00:00:26,399
+Try it in your browser: krusgraph.com/check
