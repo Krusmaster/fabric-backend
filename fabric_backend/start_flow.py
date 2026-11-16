@@ -78,7 +78,7 @@ FLOW = (
 )
 HONEST = ("Steps 1-8 only read: they list, count and draft, and the dry runs create nothing. Only step 9 writes, and only "
           "after the dry run and a second confirmation from you that names each item. The answers are counts and names, "
-          "no row values, unless you ask for rows (sample_rows).")
+          "no row values, unless you ask to see rows.")
 
 
 def base_name(source: str | None, schema: str | None) -> str:
@@ -105,8 +105,12 @@ def _call(label: str, tool: str, arguments: dict, kind: str = "call") -> dict:
         say = f"{label}: run {tool} as a dry run with {_shown(arguments)}."
     elif kind == "create":
         say = f"{label}: run {tool} with {_shown(arguments)}."
+    # n227: `ask` is the step in plain words: what the card shows and sends to the chat; `say` names the tool and its
+    # arguments for a text client.
+    name = arguments.get("name") if isinstance(arguments, dict) else None
     return {"kind": kind, "label": label, "who": "builder" if kind in ("dry_run", "create") else "onto", "tool": tool,
-            "arguments": arguments, "say": say}
+            "arguments": arguments, "say": say, "ask": f"{label}." if kind != "create" else f"{label} in Fabric, as confirmed.",
+            **({"name": name} if name else {})}
 
 
 def _plan_args(c: dict) -> dict:
@@ -174,41 +178,43 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
     nxt = _next_key(now)
 
     if now == "workspace":
-        out["say"] = "Which workspace? list_workspaces lists the ones your account can open."
+        out["say"] = "Which workspace shall we start in? I can list the ones your account can open."
         actions.append(_call("List my workspaces", "list_workspaces", {}))
         out["then"] = "When the user names one, call start with workspace set to it."
         actions.append({"kind": "sample", "label": "Show me on the synthetic shop sample", "who": "thinker", "tool": TOOL,
-                        "arguments": {"sample": True}, "say": "Show me on the synthetic shop sample: run start with sample=true."})
+                        "arguments": {"sample": True}, "say": "Show me on the synthetic shop sample: run start with sample=true.",
+                        "ask": "Show me on the synthetic shop sample."})
     elif now == "source":
-        out["say"] = f"Which source in {c['workspace']}? list_sources lists its lakehouses, warehouses and mirrored databases."
+        out["say"] = f"Which source in {c['workspace']}? I can list its lakehouses, warehouses and mirrored databases."
         actions.append(_call("List the sources", "list_sources", {"workspace": c["workspace"]}))
         out["then"] = "When the user names one, call start with workspace and source set."
     elif now == "schema":
         args = {"workspace": c["workspace"], "source": c["source"]}
-        out["say"] = (f"Which schema in {c['source']}? plan_backend without a schema lists every schema that holds tables, "
-                      "with its table count, and plans nothing until one is chosen; a source with one schema is planned at once.")
+        out["say"] = (f"Which schema in {c['source']}? I can list every schema that holds tables, with its table count. "
+                      "Nothing is planned until you choose one; a source with one schema is planned at once.")
         actions.append(_call("List the schemas", "plan_backend", args))
         out["then"] = ("When the user picks a schema, call start with schema set (and step=\"check\" if plan_backend already "
                        "planned it because the source has one schema).")
     elif now == "map":
-        out["say"] = ("How are the tables connected? plan_backend proposes each key and link with the rule that found it "
-                      "(K0-K5, R0-R5), and lists the tables without a key and the columns it would not guess.")
+        out["say"] = ("How are the tables connected? The map proposes each key and link with the rule that found it, and "
+                      "lists the tables without a key and the columns it would not guess.")
         actions.append(_call("Show the map", "plan_backend", _plan_args(c)))
     elif now == "check":
-        out["say"] = ("Check the map against the rows: validate_plan counts whether each key is unique and how many "
-                      "references find no row. Counts only, no row values.")
+        out["say"] = ("Check the map against the rows: is each key unique, and how many references find no row? "
+                      "Counts only, no row values.")
         actions.append(_call("Check against the rows", "validate_plan", _plan_args(c)))
     elif now == "decide":
-        out["say"] = ("Decide what needs a person: for each proposed link or key the user says accept or reject. "
-                      "review_plan records the decisions (item ids are in its file) and lists what needs attention first. "
-                      "An accepted link goes into confirmed for the next steps.")
+        out["say"] = ("Decide what needs a person: for each proposed link or key you say accept or reject. Your "
+                      "decisions are kept, what needs attention comes first, and an accepted link is used in the next steps.")
+        out["then"] = ("review_plan records the decisions (item ids are in its file); an accepted link goes into confirmed "
+                       "for the next steps.")
         args = _plan_args(c)
         if c.get("decisions"):
             args["decisions"] = c["decisions"]
         actions.append(_call("Record my decisions", "review_plan", args))
     elif now == "totals":
-        out["say"] = ("Where does a total double? validate_plan with fixes=true sums each amount over the joined rows and "
-                      "once per row of its own table, and asks at which level it belongs. It proposes; it applies nothing.")
+        out["say"] = ("Where does a total double? Each amount is summed over the joined rows and once per row of its own "
+                      "table, and you are asked at which level it belongs. This proposes; it changes nothing.")
         actions.append(_call("Find doubled totals", "validate_plan", {**_plan_args(c), "fixes": True}))
     elif now == "dry_run":
         names = build_names(c["source"], c["schema"])
@@ -230,7 +236,7 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
     out["actions"] = actions
     if nxt and now != "create":
         out["after"] = {"tool": TOOL, "arguments": _start_args(c, nxt), "label": f"Next: {BY_KEY[nxt][1]}",
-                        "say": f"Next step: run start with {_shown(_start_args(c, nxt))}."}
+                        "say": f"Next step: run start with {_shown(_start_args(c, nxt))}.", "ask": f"Next: {BY_KEY[nxt][1]}."}
     out["honest"] = HONEST
     out["summary"] = (f"Step {n} of {len(STEPS)}: {title} ({does}). "
                       + ("Run the button's tool, show its answer, then continue with `after`." if actions else ""))
@@ -247,10 +253,10 @@ def _create(c: dict, create: list | None, confirm: bool) -> dict:
         why = ("No item named yet." if not asked else
                f"Not in the dry run: {', '.join(unknown)}." if unknown else "Not confirmed yet.")
         return {"needs_confirmation": True, "would_create": [{"tool": by_name[x], "name": x} for x in asked if x in by_name],
-                "say": (f"{why} Nothing is created until the user has seen the dry run (step 8) and confirms by name. "
-                        "Ask: \"Create " + ", ".join(asked or sorted(names.values())) + " in " + str(c["workspace"]) +
-                        "? Say yes to create exactly these.\" Then call start with step=\"create\", create=[the names] "
-                        "and confirm=true."),
+                "say": (f"{why} Nothing is created until you have seen the dry run (step 8) and confirm each item by name."),
+                "then": ("Ask the user: \"Create " + ", ".join(asked or sorted(names.values())) + " in " + str(c["workspace"]) +
+                         "? Say yes to create exactly these.\" Then call start with step=\"create\", create=[the names] "
+                         "and confirm=true."),
                 "actions": [_call("Back to the dry run", TOOL, _start_args(c, "dry_run"))]}
     ordered = [t for t, _, _ in BUILDS if names[t] in asked]
     actions = []
@@ -263,9 +269,10 @@ def _create(c: dict, create: list | None, confirm: bool) -> dict:
         args = {**_plan_args(c), "name": names[t], "dry_run": False}
         actions.append(_call(f"Create {names[t]}", t, args, kind="create"))
     return {"confirmed_by_user": [names[t] for t in ordered],
-            "say": ("The user confirmed these names after the dry run. Each call below writes to Fabric: run them in this "
-                    "order; the host may ask the user again. The report gets its own dry run once the model exists, and is "
-                    "created only after the user confirms that dry run too. Nothing is deleted."),
+            "say": ("You confirmed these names after the dry run. Each step below writes to Fabric, in this order; the "
+                    "host may ask you again. The report gets its own dry run once the model exists, and is created only "
+                    "after you confirm that dry run too. Nothing is deleted."),
+            "then": "Run the calls in this order.",
             "actions": actions}
 
 
@@ -314,9 +321,9 @@ def _sample(step: str | None) -> dict:
     if nxt:
         args = {"sample": True, "step": nxt}
         out["after"] = {"tool": TOOL, "arguments": args, "label": f"Next: {BY_KEY[nxt][1]}",
-                        "say": f"Next step: run start with {_shown(args)}."}
+                        "say": f"Next step: run start with {_shown(args)}.", "ask": f"Next: {BY_KEY[nxt][1]}."}
         out["actions"].append({"kind": "call", "label": f"Next: {BY_KEY[nxt][1]}", "who": "onto", "tool": TOOL,
-                               "arguments": args, "say": out["after"]["say"]})
+                               "arguments": args, "say": out["after"]["say"], "ask": out["after"]["ask"]})
     out["summary"] = f"Step {n} of {len(STEPS)} on the synthetic shop: {title}."
     return out
 

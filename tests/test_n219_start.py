@@ -230,7 +230,9 @@ def test_a_host_without_server_tools_gets_the_steps_sentence(tmp_path):
     out = _browse(tmp_path, {"args": {"workspace": "ws"}, "result": _res(a), "caps": {}, "clicks": [{"text": "List the sources"}]})
     assert not _calls(out)
     sent = json.dumps(_calls(out, "ui/message"))
-    assert a["actions"][0]["say"] in json.loads(sent)[0]["content"][0]["text"] if isinstance(json.loads(sent)[0]["content"], list) else a["actions"][0]["say"] in sent
+    # n227: the chat gets the step in plain words (`ask`); `say` names the tool, for text clients
+    assert a["actions"][0]["ask"] == "List the sources." and "list_sources" in a["actions"][0]["say"]
+    assert a["actions"][0]["ask"] in json.loads(sent)[0]["content"][0]["text"] if isinstance(json.loads(sent)[0]["content"], list) else a["actions"][0]["ask"] in sent
 
 
 @needs_browser

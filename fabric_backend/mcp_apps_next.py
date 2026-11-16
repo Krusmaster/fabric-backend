@@ -36,6 +36,19 @@ from __future__ import annotations
 from . import mcp_apps_words as words
 
 MAX_STEPS = 4
+# n227: what the client model is asked to do after a card, in the result's lead and in the server's instructions. A
+# request with its reason, never a threat: the model decides; the sentence says what helps the user.
+AFTER_CARD = ("Where the client drew a card, the user has already read these lines and can press the steps, so repeating "
+              "them is not needed; where it drew none, show the numbered list as it is. Please say only what the answer "
+              "says: add no reason, source or name (for example where a key comes from, or what another vendor calls a "
+              "link) that is not in it.")
+# The same request for the server's instructions (server.py and mcp_server.py), where no card is in sight yet.
+AFTER_RESULT = ("After a tool result: a client that draws the result as a card has already shown its lines and its next "
+                "steps as buttons, so there is no need to repeat them in the reply; a client that draws no card gets the "
+                "next steps as a numbered list to show as it is, and the user answers with a number. Say what the answer "
+                "says and no more: please add no reason, source or name that is not in it (for example where a key comes "
+                "from, or what another vendor calls a link); when the user asks for more than the answer holds, say that "
+                "the answer does not tell.")
 # Next steps may name only these tools: they read or draft; none creates anything in Fabric.
 STEP_TOOLS = ("validate_plan", "plan_backend", "review_plan", "semantic_model_draft", "list_tables", "join_path",
               "data_dictionary", "ontology_draft")
@@ -56,9 +69,12 @@ def _carried(args: dict, *keys) -> dict:
 
 
 def _step(label: str, tool: str, arguments: dict, about: str = "") -> dict:
+    """`say` is what a text client reads (it names the tool and its arguments); `ask` is the same step in plain words,
+    which the card shows and sends to the chat (n227: no tool name in what the user reads)."""
     shown = ", ".join(f"{k}={v!r}" for k, v in arguments.items() if k in ("source", "schema", "detail", "fixes", "validate", "name"))
     say = f"{label}{(' ' + about) if about else ''}: run {tool}" + (f" with {shown}" if shown else "") + "."
-    return {"label": label, "tool": tool, "arguments": dict(arguments), "say": say}
+    return {"label": label, "tool": tool, "arguments": dict(arguments), "say": say,
+            "ask": f"{label}{(' ' + about) if about else ''}."}
 
 
 def _source_args(args: dict, answer: dict) -> dict:
@@ -106,7 +122,7 @@ def _from_answer(s: dict, call: dict) -> dict | None:
         if t in DRY_RUN_TOOLS:
             arguments["dry_run"] = True                              # a step never writes
         return {"label": label, "tool": t, "arguments": arguments,
-                "say": str(s.get("ask") or f"{label}: run {t} as a dry run.")}
+                "say": str(s.get("ask") or f"{label}: run {t} as a dry run."), "ask": words.plain(str(s.get("ask") or label + "."))}
     if isinstance(s.get("ask"), str) and s["ask"].strip():
         return _say_step(label, s["ask"])
     return None
@@ -127,7 +143,8 @@ def error_steps(tool: str, args: dict, answer: dict) -> list[dict]:
         if tool in DRY_RUN_TOOLS:
             again["dry_run"] = True
         out.append({"label": "Try again", "tool": tool, "arguments": again,
-                    "say": f"Try again: run {tool}" + (" as a dry run." if tool in DRY_RUN_TOOLS else ".")})
+                    "say": f"Try again: run {tool}" + (" as a dry run." if tool in DRY_RUN_TOOLS else "."),
+                    "ask": "Try that again" + (" as a dry run." if tool in DRY_RUN_TOOLS else ".")})
     if len(out) < ERROR_MAX:
         out.append(_say_step("Explain this and what to do", f"Explain Krusgraph's answer from {tool} and what I can do "
                                                             f"next: {err}"))
@@ -137,6 +154,8 @@ def error_steps(tool: str, args: dict, answer: dict) -> list[dict]:
 def steps(tool: str, args: dict, answer: dict) -> list[dict]:
     """The card's next steps for one answer (2 to 4; 1 to 3 for an error or a refusal, n220; none for a question back
     to the user)."""
+    if isinstance(answer, dict) and isinstance(answer.get("started"), dict):
+        return []                                    # n227: Fabric is still working: the one step is Check status (an action)
     if isinstance(answer, dict) and answer.get("error"):
         return error_steps(tool, args, answer)
     if not isinstance(answer, dict) or answer.get("choose_schema") or answer.get("ask"):
@@ -148,9 +167,9 @@ def steps(tool: str, args: dict, answer: dict) -> list[dict]:
     where = f"for {base.get('schema') or base['source']}"
     out: list[dict] = []
     if tool == "plan_backend":
-        out = [_step(LABEL["check"], "validate_plan", base, where),
-               _step(LABEL["doubled"], "validate_plan", {**base, "detail": "full"}, where),
-               _step(LABEL["model"], "semantic_model_draft", {**base, "validate": True}, where),
+        # n227 (5): before the check, the card leads with one primary step, Check against the rows (an action,
+        # mcp_apps_build.actions_for); nothing here repeats it or suggests a build. These two only read.
+        out = [_step(LABEL["doubled"], "validate_plan", {**base, "detail": "full"}, where),
                _step(LABEL["review"], "review_plan", base, where)]
     elif tool == "validate_plan":
         out = []
@@ -159,7 +178,9 @@ def steps(tool: str, args: dict, answer: dict) -> list[dict]:
         out.append(_step(LABEL["review"], "review_plan", {**base, "validate": True}, where))
         if _has_amounts(answer) and not args.get("detail") == "full":
             out.append(_step(LABEL["doubled"], "validate_plan", {**base, "detail": "full"}, where))
-        out.append(_step(LABEL["model"], "semantic_model_draft", {**base, "validate": True}, where))
+        t = answer.get("totals") if isinstance(answer.get("totals"), dict) else {}
+        if not int(((t.get("keys") or {}) if isinstance(t.get("keys"), dict) else {}).get("failed") or 0):
+            out.append(_step(LABEL["model"], "semantic_model_draft", {**base, "validate": True}, where))   # n227: after the keys hold
     elif tool == "review_plan":
         out = [_step(LABEL["check"], "review_plan", {**_carried(args, "workspace", "source", "schema", "keys", "confirmed"),
                                                     "validate": True}, where),
@@ -176,6 +197,9 @@ def steps(tool: str, args: dict, answer: dict) -> list[dict]:
 
 
 def _first_lines(tool: str, answer: dict) -> list[str]:
+    card0 = answer.get("kg_card") if isinstance(answer.get("kg_card"), dict) else {}
+    if isinstance(answer.get("started"), dict) and card0.get("result"):
+        return [str(card0["result"])]
     if answer.get("error"):
         return [str(answer["error"])] + ([str(answer["hint"])] if answer.get("hint") else [])
     if answer.get("choose_schema") or answer.get("ask"):
@@ -184,6 +208,8 @@ def _first_lines(tool: str, answer: dict) -> list[str]:
         return words.check_lines(answer)
     card = answer.get("kg_card") if isinstance(answer.get("kg_card"), dict) else {}
     lines = [x for x in card.get("lines") or [] if isinstance(x, str) and x.strip()]
+    if isinstance(card.get("result"), str) and card["result"].strip():     # n227: the one-line result, then the lines
+        return [card["result"].strip()] + lines
     if lines:
         return lines
     s = answer.get("summary")
@@ -194,27 +220,67 @@ def _first_lines(tool: str, answer: dict) -> list[str]:
     return []
 
 
-def lead(tool: str, answer: dict, next_steps: list[dict], actions: list | None = None) -> str:
-    """The result first, in a few short lines, then the next steps as a list naming the tool each runs."""
-    lines = _first_lines(tool, answer) if isinstance(answer, dict) else []
-    out = [" ".join(lines)[:600]] if lines else []
-    todo = [f"- {s['label']} ({s['tool']}{', dry run' if s['tool'] in DRY_RUN_TOOLS else ''})" if s.get("tool") else
-            f"- {s['label']}: {s['url']}" if s.get("url") else f"- {s['label']}: ask \u201c{s['say']}\u201d"
-            for s in next_steps]
+def _for_assistant(tool: str, arguments: dict | None, dry_run: bool = False, create: bool = False) -> str:
+    """Which call a numbered step is, for the client model only: the tool and what sets this call apart."""
+    keep = {k: v for k, v in (arguments or {}).items() if k in ("detail", "fixes", "validate", "name", "model", "check")}
+    told = ", ".join(f"{k}={v!r}" for k, v in keep.items())
+    how = ", as a dry run" if dry_run else ", dry_run=false, only after the user confirms" if create else ""
+    return f"{tool}" + (f" ({told})" if told else "") + how
+
+
+def numbered(next_steps: list[dict], actions: list | None = None) -> list[tuple[str, str]]:
+    """The steps a card would show as buttons, in the card's order: the actions (the one primary step first), then the
+    next steps; each (plain label, the call for the assistant). At most seven (three builds and four next steps), none twice."""
+    out: list[tuple[str, str]] = []
+    seen = set()
+    # n229: a created item's list (its next steps and what is already built) may be longer
+    cap = 12 if any(isinstance(a, dict) and a.get("kind") in ("say", "done") for a in actions or []) else 7
+
+    def add(label: str, call: str) -> None:
+        if label not in seen and len(out) < cap:
+            seen.add(label)
+            out.append((label, call))
     for a in actions or []:
-        if isinstance(a, dict) and a.get("kind") in ("say", "done") and a.get("label"):       # n229: a question, or already built
-            text = (f"- {a['label']}: already built" + (f" ({a['name']})" if a.get("name") else "") if a["kind"] == "done" else
-                    f"- {a['label']}" + (f" ({a['why']})" if a.get("why") else "") + f": ask \u201c{a.get('say')}\u201d")
-            if text not in todo:
-                todo.append(text)
+        if not isinstance(a, dict) or not a.get("label"):
             continue
-        if isinstance(a, dict) and a.get("kind") in ("dry_run", "create", "call") and a.get("tool"):
-            text = f"- {a['label']}{(' ' + a['name']) if a.get('name') and a['kind'] != 'call' else ''} ({a['tool']}"
-            text += ", dry run)" if a["kind"] == "dry_run" else ", creates it; only after you confirm)" if a["kind"] == "create" else ")"
-            if text not in todo:
-                todo.append(text)
+        if a.get("kind") == "done":                                   # n229: already built: listed, nothing to run
+            add(f"{a['label']}: already built" + (f" ({a['name']})" if a.get("name") else ""), "already built, nothing to run")
+            continue
+        if a.get("kind") == "say":                                    # n229: a question for the chat
+            add(a["label"] + (f" ({a['why']})" if a.get("why") else ""), f"the user asks \u201c{a.get('say')}\u201d")
+            continue
+        label = a["label"] + (f" ({a['name']})" if a.get("name") and a.get("kind") == "dry_run" else
+                              f" {a['name']}" if a.get("name") and a.get("kind") == "create" else "")
+        if a.get("kind") == "link" and a.get("url"):                  # the address itself: a client without cards shows it
+            add(f"{label}: {a['url']}", "the user opens that address")
+        elif a.get("kind") in ("dry_run", "create", "call", "status") and a.get("tool"):
+            add(label, _for_assistant(a["tool"], a.get("arguments"), a["kind"] == "dry_run", a["kind"] == "create"))
+    for s in next_steps:
+        if s.get("tool"):
+            add(s["label"], _for_assistant(s["tool"], s.get("arguments"), s["tool"] in DRY_RUN_TOOLS))
+        elif s.get("url"):
+            add(f"{s['label']}: {s['url']}", "the user opens that address")
+        else:
+            add(s["label"], "answer it in the chat")
+    return out
+
+
+def lead(tool: str, answer: dict, next_steps: list[dict], actions: list | None = None) -> str:
+    """The result first, in a few short lines, then the next steps as a numbered list in plain words (n227: a client
+    that draws no card shows the list and the user replies with a number). The last paragraph is for the client model:
+    which call each number is, and what not to add to the card."""
+    lines = _first_lines(tool, answer) if isinstance(answer, dict) else []
+    out = [" ".join(words.plain(x) for x in lines)[:600]] if lines else []
+    todo = numbered(next_steps, actions)
     if todo:
-        out.append("Next steps:\n" + "\n".join(todo[:12 if any(isinstance(a, dict) and a.get("kind") in ("say", "done") for a in actions or []) else 6]))
+        ns = [str(i) for i in range(1, len(todo) + 1)]
+        reply = ns[0] if len(ns) == 1 else ", ".join(ns[:-1]) + " or " + ns[-1]
+        out.append("Next steps:\n" + "\n".join(f"{i}. {label}" for i, (label, _) in enumerate(todo, 1))
+                   + f"\nReply {reply}.")
+        out.append("For the assistant, not for the user: " + "; ".join(f"{i} = {call}" for i, (_, call) in enumerate(todo, 1))
+                   + ". The other arguments are in the JSON (actions, or the arguments of this call). " + AFTER_CARD)
+    else:
+        out.append("For the assistant, not for the user: " + AFTER_CARD)
     out.append("The full answer follows as JSON.")
     return "\n\n".join(out)
 
@@ -237,7 +303,7 @@ def check_rows(plan, full: dict) -> dict:
         dup = max(0, int(k.get("rows") or 0) - int(k.get("nulls") or 0) - int(k.get("distinct") or 0))
         row = {"kind": "key", "id": f"key:{k['table']}", "label": f"{k['table']} ({' + '.join(k['columns'])})",
                "rule": k.get("rule"), "state": state,
-               "counts": f"{k.get('rows', 0)} rows, {k.get('nulls', 0)} empty, {dup} repeated"}
+               "counts": f"{words._plural(int(k.get('rows') or 0), 'row')}, {k.get('nulls', 0)} empty, {dup} repeated"}
         if state == "failed":
             row["sql"] = key_sql(schema, k["table"], list(k["columns"]))
         rows.append(row)
@@ -248,7 +314,7 @@ def check_rows(plan, full: dict) -> dict:
         n, o = int(r.get("rows_with_value") or 0), int(r.get("orphans") or 0)
         row = {"kind": "link", "id": f"rel:{r['source']}.{'+'.join(r['columns'])}>{r['target']}",
                "label": _rel_label(r["source"], r["columns"], r["target"]), "rule": r.get("rule"), "state": state,
-               "counts": f"{o} of {n} point at nothing"}
+               "counts": f"{o} of {words._plural(n, 'row points', 'rows point')} at nothing"}
         if state == "failed":
             row["sql"] = relationship_sql(schema, r["source"], list(r["columns"]), r["target"], list(r["target_columns"]))
         rows.append(row)
@@ -288,7 +354,7 @@ NEXT_CSS = """
 .nx-h { margin: 0; font-size: 13.5px; font-weight: 650; color: var(--kg-muted) }
 .nx-row { display: flex; flex-wrap: wrap; gap: 6px }
 .nx-b { display: inline-flex; gap: 6px; align-items: baseline }
-.nx-tool { font: 500 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--kg-muted) }
+.nx-primary { background: var(--kg-ink); color: var(--kg-bg) }
 .nx-out:empty { display: none }
 button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--kg-ink); outline-offset: 2px }
 .ck { display: grid; gap: 6px }
@@ -314,28 +380,44 @@ NEXT_JS = r"""
       throw e;
     });
   }
+  // n227: the chat gets the step in plain words (`ask`), which is also what the card shows; `say` (with the tool's
+  // name and arguments) stays in the answer for text clients.
   function sayInChat(say, out, button) {
     out.textContent = "Sent to the chat: “" + say + "”";
     return sendChat(say).then(function () { if (button) button.disabled = false; }, function () {
-      out.textContent = "This host runs neither tools nor messages from the card. Ask in the chat: “" + say + "”";
+      out.textContent = "This host runs no steps from the card. Type this in the chat: “" + say + "”";
       if (button) button.disabled = false;
     });
   }
-  function runOrSay(tool, args, say, out, button, done) {
+  // act (n227): {kind, label, name} of the step, for the progress state ("Builder: Creating shop_api_3 in Fabric…").
+  function runOrSay(tool, args, say, out, button, done, act) {
     out.hidden = false;
     if (button) button.disabled = true;
     if (!canCallTools()) { sayInChat(say, out, button); return; }
-    out.textContent = "Asked the host to run " + tool + "; it may ask you first.";
-    callTool(tool, args, function () { out.textContent = stillWaiting(say); }).then(function (r) {
-      out.textContent = "";
+    out.textContent = "";
+    var wait = waitView(act || { label: button ? button.getAttribute("data-label") || button.textContent : "" });
+    out.appendChild(wait.el);
+    callTool(tool, args, function () { wait.note(stillWaiting(say)); }).then(function (r) {
+      wait.stop(); out.textContent = "";
       if (done) done(r); else out.appendChild(answerView(tool, r));
       if (button) button.disabled = false;
     }, function (e) {
+      wait.stop();
       if (e && e.kind === "unsupported") { sayInChat(say, out, button); return; }
+      if (isObj(act) && act.kind === "create" && !(e && e.kind === "tool")) {
+        // n227: the host stopped waiting, so the request may have reached Fabric: Create stays off, and the card
+        // offers only to look (act.unknown draws Check status), so nothing is created or updated twice from here.
+        var why = e && typeof e.message === "string" && e.message.trim() ? " (" + e.message.trim().slice(0, 120).replace(/[.\s]+$/, "") + ")" : "";
+        out.textContent = "";
+        out.appendChild(el("p", "The host stopped waiting" + why + ". Fabric may still be creating " + (act.name || "it") + ", so Create is not offered again here. Check its status instead; that only reads.", "warn"));
+        if (typeof act.unknown === "function") act.unknown(out);
+        return;
+      }
       out.textContent = callProblem(e, tool, say);
       if (button) button.disabled = false;
     });
   }
+  function askOf(s) { return readable(s.ask) || s.say; }             // plain words first
   var NEXT_TOOLS = __NEXT_TOOLS__, DRY_TOOLS = __DRY_TOOLS__, LINKS = __LINKS__;
   function okStep(s) {
     if (!isObj(s) || typeof s.label !== "string" || typeof s.say !== "string") return false;
@@ -362,11 +444,13 @@ __OPEN_JS__
       } else if (!s.tool) {                                                    // n220: a sentence for the chat
         b.setAttribute("aria-label", s.label + " (asks in the chat)");
         b.addEventListener("click", function () { out.hidden = false; sayInChat(s.say, out, null); });
-      } else {
-        b.appendChild(el("span", s.tool, "nx-tool"));
-        b.setAttribute("aria-label", s.label + " (runs " + s.tool + (s.arguments.dry_run === true ? ", dry run)" : ")"));
-        b.setAttribute("data-tool", s.tool);
-        b.addEventListener("click", function () { runOrSay(s.tool, JSON.parse(JSON.stringify(s.arguments)), s.say, out, b); });
+      } else {                                                                 // n227: the label alone, no tool's name
+        b.setAttribute("aria-label", s.label + (s.arguments.dry_run === true ? " (a dry run: nothing is created)" : ""));
+        b.setAttribute("data-tool", s.tool); b.setAttribute("data-label", s.label);
+        b.addEventListener("click", function () {
+          runOrSay(s.tool, JSON.parse(JSON.stringify(s.arguments)), askOf(s), out, b, null,
+                   { kind: s.arguments.dry_run === true ? "dry_run" : "call", label: s.label, name: s.arguments.name });
+        });
       }
       row.appendChild(b);
     });
@@ -379,7 +463,7 @@ __OPEN_JS__
     if (isObj(d) && isObj(d.checks)) {
       var lines = isObj(d.kg_card) && Array.isArray(d.kg_card.lines) ? d.kg_card.lines.filter(readable) : [];
       var res = el("div", null, "res-box");
-      res.appendChild(el("p", lines.length ? lines.join(" ") : (readable(d.summary) || tool + " answered.")));
+      res.appendChild(el("p", lines.length ? lines.join(" ") : (readable(d.summary) || "The check answered.")));
       box.appendChild(res);
       renderChecks(d, box);
     } else {
@@ -397,6 +481,7 @@ __OPEN_JS__
     Object.keys(STATE_WORDS).forEach(function (k) { STATE_WORD[k] = isObj(c.words) && readable(c.words[k]) ? String(c.words[k]) : STATE_WORDS[k]; });
     var wrap = el("section", null, "ck"); wrap.setAttribute("aria-label", readable(c.title) ? c.title : "Every key and link");
     if (readable(c.label)) wrap.appendChild(el("p", c.label, "muted ck-label"));
+    if (rows.some(function (x) { return x.rule === "SAP pack"; })) sapNote(wrap, "SAP pack");   // n227: said once
     var sum = el("ul", null, "ck-sum"), n = isObj(c.counts) ? c.counts : {};
     ["passed", "failed", "not_checked"].forEach(function (s) {
       var li = el("li"); li.appendChild(el("span", (Number(n[s]) || 0) + " " + STATE_WORD[s], "pill pill-" + s)); sum.appendChild(li);

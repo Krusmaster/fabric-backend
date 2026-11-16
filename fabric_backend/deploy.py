@@ -327,9 +327,33 @@ def source_for(workspace_id: str, item: dict, headers: dict) -> tuple[str, str]:
     raise ValueError(f"cannot expose item type {t} through GraphQL")
 
 
+# n227: a caller that must answer by a certain moment (the hosted server's creating tools, whose answer has to reach the
+# chat before the host stops waiting) sets it here for the duration of its call. Every wait for a long-running
+# operation inside that call (write_and_wait, wait_operation) then ends at that moment with status Timeout and the
+# operation's id; the operation itself goes on in Fabric. Unset (the default), nothing changes.
+_ANSWER_BY: contextvars.ContextVar[float | None] = contextvars.ContextVar("krusgraph_answer_by", default=None)
+MIN_WAIT_SECONDS = 3.0                 # a create is always given this long to finish on its own
+
+
+@contextlib.contextmanager
+def answer_by(deadline: float | None):
+    """Inside the block, a wait for a Fabric operation ends at `deadline` (time.monotonic()), at the earliest
+    MIN_WAIT_SECONDS after it began."""
+    token = _ANSWER_BY.set(deadline)
+    try:
+        yield
+    finally:
+        _ANSWER_BY.reset(token)
+
+
 def _budget_seconds(poll_seconds: float, max_polls: int, max_wait_seconds: float | None) -> float:
-    """The default budget is what the polls alone used to take (3 s x 60 = 3 minutes)."""
-    return float(max_wait_seconds) if max_wait_seconds is not None else float(poll_seconds) * max_polls
+    """The default budget is what the polls alone used to take (3 s x 60 = 3 minutes); inside answer_by() it is at
+    most the time left until that deadline."""
+    seconds = float(max_wait_seconds) if max_wait_seconds is not None else float(poll_seconds) * max_polls
+    by = _ANSWER_BY.get()
+    if by is not None:
+        seconds = min(seconds, max(MIN_WAIT_SECONDS, by - time.monotonic()))
+    return seconds
 
 
 def write_and_wait(url: str, body: dict, headers: dict, *, mode: str, item_id: str | None = None, find=None,

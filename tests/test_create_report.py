@@ -182,7 +182,7 @@ def test_the_listing_marks_it_as_a_creating_tool_with_short_descriptions():
     assert a.read_only_hint is False and a.destructive_hint is True and a.idempotent_hint is True
     assert a.title == "Create a Power BI report on a semantic model (dry run by default)"
     props = tool.input_schema["properties"]
-    assert set(props) == {"workspace", "model", "name", "empty_page", "dry_run"} and set(tool.input_schema["required"]) == {"workspace", "model", "name"}
+    assert set(props) == {"workspace", "model", "name", "empty_page", "dry_run", "check"} and set(tool.input_schema["required"]) == {"workspace", "model", "name"}
     assert all(props[p]["description"] for p in props) and props["dry_run"]["default"] is True and props["empty_page"]["default"] is False
     text = " ".join(tool.description.split())
     assert "empty_page=true" in text and "{error, kind, hint}" in text and "already_exists" in text and len(text) < 700

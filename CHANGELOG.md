@@ -9,6 +9,30 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n227: **The chat cards after the founder's test in claude.ai.** The founder tried the MCP Apps cards on
+  12 November 2026 (deploy `src-37ff21adce4ff691`): the Start stepper and its buttons worked and real items were
+  created, but the cards drew the raw `summary` where the answer already held plain words in `kg_card`. Now every card
+  reads `kg_card` first and every tool has one (with `KRUSGRAPH_MCP_APPS=1` every tool's answer is also
+  `structuredContent`; the text answer is unchanged): one result line, at most five lines, repeated notes collapsed
+  ("24 links need a combined key column; Krusgraph can add them in a gold view", the list behind Show), details as
+  readable lines with the raw JSON behind a second toggle, and never "no summary in it". No tool's name in a button or
+  a sentence a person reads; "SAP pack: Krusgraph's list of known SAP keys" the first time it appears; numbers agree
+  with their nouns ("1 table", "1 row") and no label is doubled. A sentence the mascot says is on the card only with
+  the mascots off. Before the check a plan leads with one primary button, Check against the rows; the builds come
+  after a check whose keys hold, and a name ending in `_3` says why. The schema choice never offers
+  `krusgraph_quarantine`, and the card no `silver` or `gold` layer while a source schema is there. While a tool runs
+  the card says who works on what and for how long (no CSS animation; still under reduced motion), and a create's
+  result names the item ("Created shop_api_3, an API for GraphQL, in Fabric."), not the plan again. **A create answers
+  in time:** `create_backend`, `create_semantic_model`, `create_ontology` and `create_report` end their wait for
+  Fabric 40 seconds after the call began and answer `started` (kind `timeout`, as before) with the operation's id; the
+  new parameter `check` on these four reads how it went and creates nothing; Create is never offered or sent a second
+  time while the first one's outcome is unknown. "Open in Fabric" is the item's own address for each kind
+  (`ontologies/{id}` from Microsoft Learn; `graphql/{id}` is Unverified and the card also offers the workspace's
+  list). A created ontology is drawn as a static SVG with its keys marked, readable at 375 px. The text lead is a
+  numbered list ("Reply 1, 2 or 3") for clients that draw no card, and the servers' instructions ask the model, with
+  the reason, not to repeat a card nor add what the answer does not hold. `docs/MCP-APPS-N227.md` has each point with
+  its before and after. Verified by unit tests and Chromium at 375 px under a fake host
+  (`tests/test_n227_cards.py`); not tried in claude.ai, and not deployed.
 - Round n229: **a verifier of what was built, next steps after every Create, and a gate before a build of little
   use.** The founder, 12 November 2026, in claude.ai with the hosted connector: "an agent that double-checks Krusgraph's
   deployed proposals", "no more suggestions after we built what was proposed", and a Create he pressed although the dry

@@ -158,9 +158,11 @@ print(json.dumps({t.name: t.model_dump(by_alias=True, exclude_none=True, mode="j
             assert "outputSchema" not in on[name] and on[name]["inputSchema"] == off[name]["inputSchema"]
             assert {k: v for k, v in on[name].items() if k not in ("_meta",)} == \
                    {k: v for k, v in off[name].items() if k != "outputSchema"}
-        else:
-            assert on[name] == off[name], name                               # every other tool as it was
-    assert mcp_apps.registration("validate_plan", on=False) == {} and mcp_apps.registration("list_tables", on=True) == {}
+        else:                                                                # n227: every other tool answers with its kg_card too,
+            assert "outputSchema" not in on[name], name                      # so none keeps the derived {"result": string} schema
+            assert on[name] == {k: v for k, v in off[name].items() if k != "outputSchema"}, name
+    assert mcp_apps.registration("validate_plan", on=False) == {} and mcp_apps.registration("list_tables", on=False) == {}
+    assert mcp_apps.registration("list_tables", on=True) == {"structured_output": False}
 
 
 # ------------------------------------------------------------------ the validate_plan card ----------------------------
@@ -171,7 +173,7 @@ def _check_validate(view: dict, data: dict, words: dict | None = None):
         said = {f["kind"]: f for f in view["figures"] if f["shown"]}
         assert said["onto"]["text"] == words["onto"] and said["onto"]["glad"]
         assert said["builder"]["text"] == data["next_steps"][0]["why"]     # no builds offered here: the draft step, open
-        assert "Run semantic_model_draft" in view["buttons"]
+        assert "Draft a semantic model" in view["buttons"]                 # n227: a button says what it does, not the tool's name
         _no_json(view)
         return
     assert view["verdict"] == data["summary"]
@@ -179,7 +181,7 @@ def _check_validate(view: dict, data: dict, words: dict | None = None):
     assert view["attention"] == [] and view["attentionShown"]              # n138: "Nothing needs attention."
     assert view["resultShown"] and view["result"] == ". " + data["result"]  # n138: in the summary line
     assert view["steps"] == [s["why"] for s in data["next_steps"]]
-    assert "Run semantic_model_draft" in view["buttons"] and "Run ontology_draft" in view["buttons"]
+    assert "Draft a semantic model" in view["buttons"] and "Draft an ontology" in view["buttons"]
     said = {f["kind"]: f for f in view["figures"] if f["shown"]}
     assert view["mascotsShown"] and set(said) == {"onto", "builder"}         # nothing needs attention: no Thinker
     assert said["onto"]["text"] == data["summary"] and said["onto"]["pose"] == "celebrate" and said["onto"]["glad"]
@@ -228,7 +230,8 @@ def test_an_unreadable_result_gives_a_short_sentence(tmp_path, tool):
                    {"content": [], "structuredContent": {"result": "a sentence, not an answer"}},
                    {"content": [{"type": "text", "text": json.dumps({"result": "[1, 2"})}]}):
         view = _browse(tmp_path, tool, SRC, result)["before"]
-        assert view["verdict"] == f"The card could not read {tool}'s answer; it is in the text of the tool result."
+        what = {"validate_plan": "the check", "review_plan": "the review"}[tool]     # n227: no tool's name on the card
+        assert view["verdict"] == f"The card could not read {what}'s answer; it is in the text of the tool result."
         assert view["attention"] == [] and not view["mascotsShown"] and not view["decisions"]
         assert view["buttons"] == ["Mascots: on"] and view["diagram"] is None
         _no_json(view)
@@ -278,5 +281,5 @@ def test_review_card_reads_every_shape(tmp_path, live_shop):
         after = out["after"]
         assert after["verdict"] == json.loads(decided)["summary"] and "1 accepted" in after["verdict"], name
         assert len(set(after["decisions"])) == 13                             # n218: every item keeps Accept / Reject
-        assert after["call"][0].startswith("review_plan answered with 1 decision.")
+        assert after["call"][0].startswith("Planned again with 1 decision.")
         _no_json(after)

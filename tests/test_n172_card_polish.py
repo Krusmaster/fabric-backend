@@ -228,7 +228,8 @@ def test_the_plan_cards_words_are_short_sentences_from_the_plan(fabric):
                           "audit_log has no key, so nothing can point to it."]
     assert c["onto"] == " ".join(c["lines"])
     assert c["thinker"] == "Shall I check these links against the rows?"
-    assert c["builder"] == "I can build a semantic model, an ontology or an API from this plan. Each shows a dry run first."
+    # n227: before the check the Builder offers nothing to press; the builds come with the check's answer
+    assert c["builder"] == "After the check I can build a semantic model, an ontology or an API from this plan. Each shows a dry run first."
     assert words.KEY not in json.loads(r.content[-1].text)                   # structuredContent only: the text is unchanged
     text_actions = json.loads(r.content[-1].text)["actions"]                 # text clients keep the full next step
     assert any('run validate_plan with workspace="demo"' in a["say"] for a in text_actions)
@@ -331,7 +332,8 @@ def test_the_plan_card_at_claudes_width(fabric, tmp_path, width, theme):
     # 3: no argument syntax in what the card shows outside "Show details"
     for said in out["bubbles"].values():
         assert not words.WORDS_WITH_ARGUMENTS.search(said)
-    assert "Check against the rows" in out["buttons"] and any(b.startswith("Build a semantic model") for b in out["buttons"])
+    assert "Check against the rows" in out["buttons"]
+    assert not any(b.startswith(("Build a semantic model", "Create an")) for b in out["buttons"])   # n227: after the check
     # 4: the old summary line is gone from the card
     assert "counting query(ies)" not in out["text"] and "see plan.proposed" not in out["text"]
     # 8: readable in both themes
@@ -396,7 +398,7 @@ def test_the_plan_check_card(fabric, tmp_path, theme):
     assert len(builds) == 3
     assert not any(b.startswith("Run ") for b in out["buttons"])               # the drafts are under "More", folded
     assert out["more"]["tag"] == "DETAILS" and not out["more"]["open"] and not out["more"]["hidden"]
-    assert "Run semantic_model_draft" in out["more"]["text"] or "Run answer_query_draft" in out["more"]["text"]
+    assert "Draft a semantic model" in out["more"]["text"] or "Draft a query" in out["more"]["text"]   # n227: plain labels
     assert out["bubbles"]["builder"] == words.BUILDER_PLAN
     assert all(out["bubbles"]["builder"] not in (s.get("text", "") + s.get("why", "")) for s in d["next_steps"])
     assert out["bubbles"]["onto"] == c["onto"] and not out["verdictShown"] and not out["countsShown"]
@@ -415,7 +417,10 @@ def test_the_dry_run_card_has_no_maintainer_notes_and_no_certainty(fabric, tmp_p
     shown = out["text"]
     for gone in ("Unit-tested", "tested end to end", "certainty", "synthetic data"):
         assert gone not in shown, gone
-    assert re.search(r"ship_to_id → addresses \(R5\)", shown)
+    # n227: the inactive link is one collapsed note, its list behind Show; the rule is named, not a certainty
+    notes = d[words.KEY]["notes"]
+    assert any(n["line"].startswith("1 link is inactive") and n["items"] == ["orders.ship_to_id → addresses (rule R5)"] for n in notes)
+    assert "1 link is inactive, because another path between the same tables is the active one." in shown
     assert not words.WORDS_WITH_ARGUMENTS.search(out["bubbles"].get("builder", ""))
 
 
@@ -426,7 +431,7 @@ def test_the_dry_run_card_has_no_maintainer_notes_and_no_certainty(fabric, tmp_p
 # the card had not sent, and the card, which shows Create only for exactly the dry run's arguments, dropped it. The
 # n169 tests called the tools directly and never saw the defaults. These tests go through the SDK.
 
-BUILD_TOOLS = ("plan_backend", "create_semantic_model", "create_ontology", "create_backend", "create_report")
+BUILD_TOOLS = ("plan_backend", "validate_plan", "create_semantic_model", "create_ontology", "create_backend", "create_report")
 
 
 def _sdk_server():
@@ -455,7 +460,7 @@ def _creates(answer: dict) -> list[dict]:
 
 @pytest.mark.parametrize("tool", ["create_semantic_model", "create_ontology", "create_backend"])
 def test_through_the_sdk_a_dry_runs_create_carries_the_cards_arguments(fabric, tool):
-    plan = _sdk_call("plan_backend", SRC)["structuredContent"]
+    plan = _sdk_call("validate_plan", SRC)["structuredContent"]       # n227: the builds come after the check
     button = next(a for a in plan["actions"] if a["kind"] == "dry_run" and a["tool"] == tool)
     dry = _sdk_call(tool, button["arguments"])["structuredContent"]
     (create,) = _creates(dry)
@@ -467,6 +472,8 @@ def test_through_the_sdk_a_dry_runs_create_carries_the_cards_arguments(fabric, t
 @needs_browser
 def test_build_then_create_on_the_plan_card_for_all_four_builds(fabric, monkeypatch, tmp_path):
     plan = _sdk_call("plan_backend", SRC)
+    # n227: a plan leads with the check; its builds come with the check's answer. The card holds them after the check.
+    plan["structuredContent"]["actions"] += _sdk_call("validate_plan", SRC)["structuredContent"]["actions"]
     acts = {a["tool"]: a for a in plan["structuredContent"]["actions"] if a["kind"] == "dry_run"}
     answers, sent = {}, {}
     for tool in ("create_semantic_model", "create_ontology", "create_backend"):

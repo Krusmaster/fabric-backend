@@ -170,16 +170,42 @@ __READ_JS__
         return;
       }
       var args = JSON.parse(JSON.stringify(a.arguments));
-      if (a.tool === "start") runOrSay("start", args, a.say, out, b, function (r) { render(r); });
-      else runOrSay(a.tool, args, a.say, out, b);
+      var act = { kind: a.kind, label: a.label, name: a.arguments.name };        // n227: the progress state
+      if (a.tool === "start") runOrSay("start", args, askOf(a), out, b, function (r) { render(r); }, act);
+      else if (create) {                                      // n227: a Create is never sent twice from the card
+        act.unknown = function (box) { statusRow(a, "name", box); };
+        runOrSay(a.tool, args, askOf(a), out, b, function (r) {
+          out.appendChild(answerView(a.tool, r));
+          var d = answerOf(r), working = isObj(d) && isObj(d.started);
+          if (working) statusRow(a, d.started.check, out);
+          b.disabled = working || !(isObj(d) && readable(d.error));   // off for good unless the tool said nothing was created
+        }, act);
+      }
+      else runOrSay(a.tool, args, askOf(a), out, b, null, act);
     });
     row.insertBefore(b, row.firstChild); row.appendChild(out); box.appendChild(row);
+  }
+  // n227 (9): Check status: the same tool with `check` set, which reads how the create went and creates nothing.
+  function statusRow(a, check, box) {
+    var sa = JSON.parse(JSON.stringify(a.arguments)); delete sa.dry_run; sa.check = typeof check === "string" && check ? check : "name";
+    var row = el("div", null, "st-act"), b = el("button", "Check status", "nx-b"), out = el("div", null, "out"); b.type = "button"; out.hidden = true;
+    b.setAttribute("data-kind", "status");
+    row.appendChild(b); row.appendChild(el("span", "Only reads: looks whether " + a.arguments.name + " is in Fabric now. Nothing is created again.", "muted")); row.appendChild(out);
+    b.addEventListener("click", function () {
+      runOrSay(a.tool, sa, "Check whether " + a.arguments.name + " is in Fabric now, without creating anything.", out, b, function (r) {
+        out.appendChild(answerView(a.tool, r));
+        var d = answerOf(r);
+        if (isObj(d) && isObj(d.started)) { b.disabled = false; } else { b.disabled = true; }
+      }, { kind: "status", label: "Check status", name: a.arguments.name });
+    });
+    box.appendChild(row);
   }
   function listOf(items) { var ul = el("ul"); items.forEach(function (x) { if (readable(x)) ul.appendChild(el("li", x)); }); return ul; }
   function render(result) {
     var d = answerOf(result), verdict = document.getElementById("verdict"), path = document.getElementById("path");
     var answer = document.getElementById("answer"), next = document.getElementById("next");
     answer.textContent = ""; next.textContent = ""; path.textContent = ""; mascotsQuiet();
+    verdict.removeAttribute("data-echo"); verdict.removeAttribute("data-said"); verdict.hidden = false;
     if (!d) { verdict.textContent = "The card could not read the answer; it is in the text of the tool result."; return; }
     if (readable(d.error)) { verdict.textContent = d.error + (readable(d.hint) ? " " + d.hint : ""); return; }
     var st = isObj(d.step) ? d.step : {};
@@ -191,6 +217,8 @@ __READ_JS__
       path.appendChild(li);
     });
     verdict.textContent = readable(d.say) || readable(d.summary) || "";
+    // n227 (1): the sentence is shown once: in Onto's bubble while the mascots are on, here while they are off
+    verdict.setAttribute("data-echo", "onto"); verdict.setAttribute("data-said", verdict.textContent);
     if (isObj(d.chosen)) {
       var shown = ["workspace", "source", "schema"].filter(function (k) { return readable(d.chosen[k]); })
         .map(function (k) { return k + ": " + d.chosen[k]; });
@@ -198,7 +226,6 @@ __READ_JS__
     }
     if (isObj(d.found)) {
       var f = d.found, box = el("div", null, "res-box");
-      if (readable(f.tool)) box.appendChild(el("p", f.tool, "muted"));
       ["summary", "question", "note"].forEach(function (k) { if (readable(f[k])) box.appendChild(el("p", f[k])); });
       if (Array.isArray(f.links)) box.appendChild(listOf(f.links));
       if (Array.isArray(f.doubled)) box.appendChild(listOf(f.doubled));
@@ -211,7 +238,7 @@ __READ_JS__
     var acts = el("section", null, "st-acts"); acts.setAttribute("aria-label", "This step");
     (Array.isArray(d.actions) ? d.actions : []).forEach(function (a) { if (okButton(a, d)) button(a, d, acts); });
     if (isObj(d.after) && !d.sample && okButton({ kind: "call", label: d.after.label, say: d.after.say, tool: d.after.tool, arguments: d.after.arguments }, d))
-      button({ kind: "call", label: d.after.label, say: d.after.say, tool: "start", arguments: d.after.arguments }, d, acts);
+      button({ kind: "call", label: d.after.label, say: d.after.say, ask: d.after.ask, tool: "start", arguments: d.after.arguments }, d, acts);
     if (acts.childNodes.length) next.appendChild(acts);
     document.getElementById("honest").textContent = readable(d.honest) || "";
     mascots({ onto: [verdict.textContent, "point"] }, false);

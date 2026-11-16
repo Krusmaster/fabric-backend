@@ -68,6 +68,8 @@ INSTRUCTIONS = (
     "databricks_* tools draft informational constraints, a Lakeflow pipeline, metric views and a bundle from the same "
     "plan; create_databricks_constraints and create_databricks_pipeline are dry runs by default. A tool that does not "
     "apply to the source answers kind unsupported with the tool that does. Failures answer error, kind and hint. "
+    "Say what an answer says and no more: please add no reason, source or name that is not in it (for example where a key "
+    "comes from); when the user asks for more than the answer holds, say that the answer does not tell. "
     + _switches.SENTENCE)
 try:
     mcp = _Server("fabric-backend", instructions=INSTRUCTIONS)

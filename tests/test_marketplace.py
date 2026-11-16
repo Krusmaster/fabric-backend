@@ -505,11 +505,11 @@ def test_deploy_dry_run_carries_the_marketplace_variables_and_lists_what_to_set(
 def test_in_a_browser_create_without_a_subscription_shows_the_upgrade_and_opens_the_offer(tmp_path, fabric):  # noqa: F811
     import subprocess
     from pathlib import Path
-    from test_n169_clickable_cards import _call, _playwright
+    from test_n169_clickable_cards import _after_check, _call, _playwright
     if not _playwright():
         pytest.skip("node + playwright not available")
     from fabric_backend import mcp_apps_build as build
-    plan = _call("plan_backend", **SRC)
+    plan = _after_check(**SRC)                     # n227: the builds come with the check's answer, after the plan
     button = next(a for a in plan["actions"] if a["tool"] == "create_semantic_model")
     dry = _call("create_semantic_model", **button["arguments"])
     url = "https://marketplace.microsoft.com/product/krusecons.krusgraph-dev"

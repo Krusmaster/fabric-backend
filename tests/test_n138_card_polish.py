@@ -297,21 +297,21 @@ def test_a_host_without_server_tools_gets_a_note_and_no_request(tmp_path, live_s
     assert msg["params"]["role"] == "user" and msg["params"]["content"][0]["type"] == "text"
     note = (out["after"]["outputs"] + out["after"]["call"])[0]
     assert note.startswith("Sent to the chat: “") and msg["params"]["content"][0]["text"] in note
-    assert called in note and not note.lstrip().startswith(("{", "["))
+    assert called not in note and not note.lstrip().startswith(("{", "["))        # n227: plain words, no tool's name
 
 
 @needs_browser
 @pytest.mark.parametrize("tool", sorted(CASES))
 @pytest.mark.parametrize("mode,start", [("error", "Sent to the chat: “"),           # n218: -32601, then the chat
-                                        ("iserror", "{tool} answered with an error: workspace not found."),
-                                        ("silent", "No answer from the host yet; it may be asking you first.")])
+                                        ("iserror", "It answered with an error: workspace not found."),   # n227: no tool's name
+                                        ("silent", "Still working. If the host asks you to allow it, answer there.")])
 def test_a_refusal_an_error_or_silence_reads_as_a_sentence(tmp_path, live_shop, tool, mode, start):
     card, args, result, called = CASES[tool](live_shop)
     out = _browse(tmp_path, card, args, result, mode=mode)
     [call] = [m for m in out["log"] if m.get("method") == "tools/call"]
     _spec_call(call, called)
     note = (out["after"]["outputs"] + out["after"]["call"])[0]
-    assert note.startswith(start.format(tool=called)), note
+    assert start in note and called not in note, note                 # n227: the progress state stays; the note is under it
 
 
 def test_the_call_helper_is_in_both_cards():
@@ -360,14 +360,21 @@ def test_draft_answers_as_short_summaries_with_details_closed(tmp_path, live_sho
         "Relationships: 6 active, 1 inactive",
         f"Measures: {len(measures)}: " + ", ".join(measures),                     # one line per measure, no repeats
     ]
-    notes = [ln for ln in first["lines"] if ln.startswith("Note: ")]
+    # n227: one line first, at most five lines, and the notes collapsed by kind with the list behind Show
+    assert first["line"] == "A semantic model: 7 tables, 7 relationships." and len(first["lines"]) <= 5
+    assert not [ln for ln in first["lines"] if ln.startswith("Note: ")]
+    assert [n[0] for n in first["notes"]][:3] == ["1 note: No key", "1 note: Composite key", "1 note: Inactive"]
+    notes = ["Note: " + item for n in first["notes"] for item in n[1]]
     assert "Note: No key: audit_log." in notes and "Note: Composite key: order_items." in notes
     # n172: the rule instead of a certainty number, and no note on how the tool was tested (both in the text answer)
     assert any(n.startswith("Note: Inactive: orders.ship_to_id → addresses (R5): it would close a cycle") for n in notes)
     assert not any("certainty" in n or "Unit-tested" in n or "tested end to end" in n for n in notes)
     assert f"Note: {smd['note']}" not in notes and first["questions"] == []
+    assert first["details"]["lines"][:2] == first["lines"][:2] and first["details"]["raw"] == "Show the raw answer (JSON)"
 
+    assert second["line"] == "An ontology: 7 entity types, 5 with a key." and len(second["lines"]) <= 5
     assert second["lines"][0] == "Entity types: 7, 5 with a key"
+    second["lines"] = second["details"]["lines"]                    # every line is under Show details, readable, before the JSON
     entities = [ln for ln in second["lines"] if ln.startswith("Entity: ")]
     assert len(entities) == 7 and "Entity: Customers: key customer_id" in entities
     assert "Entity: OrderItems: no single key (order_id + line_no)" in entities and "Entity: AuditLog: no key" in entities
@@ -394,7 +401,8 @@ def test_any_other_tool_shows_its_summary_field(tmp_path, live_shop):
     out = _browse(tmp_path, "validate_plan", SRC, _text(v), mode="bytool",
                   reply={"suggest_relationships": _text(answer)})
     [res] = out["after"]["results"]
-    assert res["lines"] == ["Summary: 2 candidate columns, 1 checked against the data"] and res["questions"] == []
+    assert res["line"] == "2 candidate columns, 1 checked against the data" and res["lines"] == [] and res["questions"] == []
+    assert res["details"]["lines"] == ["Summary: 2 candidate columns, 1 checked against the data", "Candidates: 1"]   # n227: readable first
     assert json.loads(res["details"]["text"]) == answer and not res["details"]["open"]
 
 
@@ -404,7 +412,7 @@ def test_review_card_shows_an_answer_without_a_review_as_a_summary(tmp_path, liv
     answer = server.review_plan(**args)
     refusal = {"error": "previous does not belong to this source.", "hint": "Call review_plan without previous."}
     out = _browse(tmp_path, "review_plan", args, _text(answer), reply=_text(refusal))
-    assert out["after"]["call"] == ["review_plan answered without a review file."]
+    assert out["after"]["call"] == ["The answer came without a review file."]
     [res] = out["after"]["results"]
     assert res["lines"] == ["Error: previous does not belong to this source. Call review_plan without previous."]
     assert json.loads(res["details"]["text"]) == refusal and not res["details"]["open"]

@@ -47,6 +47,7 @@ import json
 import os
 
 from . import mcp_apps_mascots as mascots
+from . import mcp_apps_result as _result
 from .evidence import NEXT_STEP_TOOLS
 
 FLAG = "KRUSGRAPH_MCP_APPS"
@@ -63,6 +64,11 @@ STRUCTURED = ("validate_plan", "review_plan", "plan_backend", "create_semantic_m
 # The arguments a next step carries over from the validate_plan call, per tool: workspace, source and schema always;
 # keys and confirmed only where the tool takes them. tests/test_n119_mcp_apps.py checks each against the tool's
 # inputSchema in the hosted listing.
+# n227: a next step's button says what it does, never the tool's name.
+STEP_LABEL = {"sample_rows": "Show a few rows", "review_plan": "Review keys and links", "answer_query_draft": "Draft a query",
+              "validate_plan": "Check against the rows", "suggest_relationships": "Suggest missing links",
+              "semantic_model_draft": "Draft a semantic model", "ontology_draft": "Draft an ontology",
+              "plan_backend": "Plan again", "list_tables": "List the tables"}
 SHARED = ("workspace", "source", "schema")
 WITH_PLAN = ("keys", "confirmed")
 CARRIED = {t: SHARED + (() if t in ("sample_rows", "list_tables") else WITH_PLAN) for t in NEXT_STEP_TOOLS}
@@ -133,11 +139,19 @@ def structured(fn, name: str | None = None):
                     extra["dbt_flow"] = f
             except Exception:                                        # noqa: BLE001 - the answer stands without it
                 pass
+        call = {}
+        try:                                                         # n227: the call's own arguments, for the card's words
+            import inspect as _inspect
+            call = {k: v for k, v in _inspect.signature(fn).bind_partial(*args, **kwargs).arguments.items() if k != "ctx"}
+        except (TypeError, ValueError):
+            call = {}
         try:
-            extra.update(words.extras(name, answer, stash))
+            extra.update(words.extras(name, answer, stash, call))
         except Exception:                                            # noqa: BLE001 - the card falls back to the answer's text
             pass
         lead = None
+        if isinstance(answer, dict) and name not in STRUCTURED:      # n227: every other tool gets its kg_card, nothing else
+            return call_result(out, extra or None)
         if isinstance(answer, dict):                                 # n218: next steps as buttons, the result first
             from . import mcp_apps_next as nxt
             try:
@@ -159,8 +173,10 @@ def structured(fn, name: str | None = None):
 def registration(name: str, on: bool | None = None) -> dict:
     """The extra arguments of the tool decorator for `name`: none with the flag off or for any other tool, else
     structured_output=False (no derived {"result": string} output schema, which would not describe the answer)."""
-    if name not in STRUCTURED or not (enabled() if on is None else on):
+    if not (enabled() if on is None else on):
         return {}
+    if name not in STRUCTURED:                               # n227: every tool's answer carries kg_card for a card that ran it
+        return {"structured_output": False}
     if name == "start":                                      # n219: its own card, mcp_apps_start
         from . import mcp_apps_start
         return {"structured_output": False, "meta": mcp_apps_start.tool_meta(on=True)}
@@ -199,7 +215,8 @@ def card_html() -> str:
     from . import mcp_apps_pictures as pictures              # n170: the map, drawn the way the chat demo draws it
     pic = pictures.html_parts()
     from . import mcp_apps_next as nxt                       # n218: next steps as buttons, every key and link's state
-    return (_HTML.replace("__ALLOWED__", allowed).replace("__PROTOCOL__", PROTOCOL_VERSION).replace("__PICTURES__", pic["section"])
+    return (_HTML.replace("__ALLOWED__", allowed).replace("__PROTOCOL__", PROTOCOL_VERSION)
+            .replace("__STEP_LABEL__", json.dumps({t: STEP_LABEL[t] for t in NEXT_STEP_TOOLS}, separators=(",", ":"))).replace("__PICTURES__", pic["section"])
             .replace("__READ_JS__", READ_JS + CALL_JS + RESULT_JS + nxt.js() + mcp_apps_build.actions_js() + pic["js"])
             .replace("__MASCOT_CSS__", mascots.CSS).replace("__RESULT_CSS__", RESULT_CSS + nxt.NEXT_CSS + mcp_apps_build.ACTIONS_CSS + pic["css"]).replace("__MASCOT_TOGGLE__", mascots.TOGGLE)
             .replace("__MASCOTS__", mascots.section()).replace("__MASCOT_JS__", mascots.JS))
@@ -269,18 +286,19 @@ CALL_JS = r"""
       throw { kind: isObj(e) && e.code === -32601 ? "unsupported" : "host", message: isObj(e) ? e.message : "" };
     });
   }
+  // n227: what the user reads names no tool: `ask` is the step in plain words (the action's or the step's `ask`).
   function callProblem(e, tool, ask) {
     var then = " Ask in the chat instead: “" + ask + "”";
-    if (e && e.kind === "unsupported") return "This host does not run tools from the card." + then;
+    if (e && e.kind === "unsupported") return "This host does not run steps from the card." + then;
     if (e && e.kind === "tool") {
       var t = readable(e.text) ? e.text.slice(0, 300) : "no reason given";
-      return tool + " answered with an error: " + t.replace(/[.\s]+$/, "") + ".";
+      return "It answered with an error: " + t.replace(/[.\s]+$/, "") + ".";
     }
     var why = e && typeof e.message === "string" && e.message.trim() ? e.message.trim().slice(0, 200) : "no reason given";
-    return "The host did not run " + tool + ": " + why.replace(/[.\s]+$/, "") + "." + then;
+    return "The host did not run this step: " + why.replace(/[.\s]+$/, "") + "." + then;
   }
   function stillWaiting(ask) {
-    return "No answer from the host yet; it may be asking you first. If nothing happens, ask in the chat instead: “" + ask + "”";
+    return "Still working. If the host asks you to allow it, answer there.";
   }
   function hostStarted(r) { hostCaps = isObj(r) && isObj(r.hostCapabilities) ? r.hostCapabilities : {}; }
 """
@@ -340,7 +358,7 @@ RESULT_JS = r"""
       var ms = [], seenM = {};
       arr(s.measures).concat(arr(isObj(s.order_amount) ? s.order_amount.measures : [])).forEach(function (m) {
         var k = isObj(m) ? m.table + "|" + m.name : ""; if (k && !seenM[k]) { seenM[k] = 1; ms.push(m); } });
-      lines.push(["Measures", ms.length ? ms.length + ": " + some(ms, function (m) { return isObj(m) && name(m.name) ? m.name + (name(m.table) ? " (" + m.table + ")" : "") : ""; }) : "none"]);
+      lines.push(["Measures", ms.length ? ms.length + ": " + some(ms, function (m) { return isObj(m) && name(m.name) ? m.name + (name(m.table) && m.name.indexOf("(" + m.table + ")") < 0 ? " (" + m.table + ")" : "") : ""; }) : "none"]);
       var notes = [];
       if (arr(s.keyless).length) notes.push("No key: " + some(arr(s.keyless), name) + ".");
       if (arr(s.composite_keys).length) notes.push("Composite key: " + some(arr(s.composite_keys), name) + ".");
@@ -374,6 +392,7 @@ RESULT_JS = r"""
       if (customer(d.note)) lines.push(["Note", customer(d.note)]);
     } else if (readable(d.summary)) {
       lines.push(["Summary", d.summary]);
+      plainLines(d).forEach(function (ln) { if (ln[0] !== "Summary") lines.push(ln); });
     } else if (s) {
       Object.keys(s).forEach(function (k) {
         var v = s[k];
@@ -381,15 +400,24 @@ RESULT_JS = r"""
         else if (Array.isArray(v)) lines.push([k.replace(/_/g, " "), String(v.length)]);
       });
     }
-    if (!lines.length && !questions.length) lines.push(["Answer", "no summary in it; the whole answer is under Show details."]);
-    return { lines: lines, questions: questions };
+    return { lines: lines, questions: questions };                // n227: an answer without these gets plainLines/oneLine
   }
-  function resultView(tool, r) {
-    var box = el("div", null, "res-box"), d = answerOf(r), text = resultText(r);
-    if (d) {
-      var sm = summaryOf(tool, d), ul = el("ul", null, "res");
-      sm.lines.forEach(function (ln) { var li = el("li"); li.appendChild(el("span", ln[0] + ": ", "res-k")); li.appendChild(document.createTextNode(ln[1])); ul.appendChild(li); });
-      box.appendChild(ul);
+  // n227: the card's words first (kg_card: result, lines, notes); summaryOf only for an answer without them. The
+  // details hold readable lines first and the raw JSON last, behind a second toggle (mcp_apps_result.py).
+  function resultView(tool, r, skipResult) {
+    var box = el("div", null, "res-box"), d = answerOf(r), text = resultText(r), w = cardWords(d);
+    var done = isObj(d) && d.dry_run === false && isObj(d.result) && d.result.status === "Succeeded";
+    if (w) {
+      box.appendChild(wordsView(w, skipResult, done));
+    } else if (d) {
+      var sm = summaryOf(tool, d), shown = sm.lines.filter(function (ln) { return ln[0] !== "Note"; });
+      if (!skipResult && !readable(d.error)) box.appendChild(el("p", oneLine(d), "res-line"));
+      if (readable(d.error) || !readable(d.summary)) {
+        var ul = el("ul", null, "res");
+        shown.slice(0, CARD_LINES).forEach(function (ln) { var li = el("li"); li.appendChild(el("span", ln[0] + ": ", "res-k")); li.appendChild(document.createTextNode(ln[1])); ul.appendChild(li); });
+        if (ul.children.length) box.appendChild(ul);
+      }
+      groupedNotes(sm.lines).forEach(function (n) { box.appendChild(noteView(n)); });
       if (sm.questions.length) {
         box.appendChild(el("p", "Questions for you", "res-h"));
         var qs = el("ul", null, "res res-q");
@@ -397,17 +425,16 @@ RESULT_JS = r"""
         box.appendChild(qs);
       }
     } else {
-      box.appendChild(el("p", readable(text) ? (text.length > 400 ? text.slice(0, 400) + "…" : text) : tool + " answered; the answer is under Show details."));
+      box.appendChild(el("p", readable(text) ? (text.length > 400 ? text.slice(0, 400) + "…" : text) : "It answered; the answer is under Show details."));
     }
-    if (text) {
-      var det = el("details"), full = d ? JSON.stringify(d, null, 2) : text;
-      det.appendChild(el("summary", "Show details"));
-      det.appendChild(el("pre", full.length > 60000 ? full.slice(0, 60000) + "\n… (the rest is in the tool's own answer)" : full));
-      box.appendChild(det);
-    }
+    if (isObj(d) && isObj(d.ontology)) { var fig = ontoSvg(d.ontology); if (fig) box.appendChild(fig); }
+    if (text || d) box.appendChild(detailsView(tool, d, text));
     return box;
   }
 """
+
+RESULT_JS += _result.js()                                  # n227: kg_card first, the progress state, the ontology picture
+RESULT_CSS += _result.CSS
 
 _HTML = """<!DOCTYPE html>
 <html lang="en">
@@ -460,7 +487,7 @@ __RESULT_CSS__
 <body>
 <main>
   <div class="kg-head"><h1>Plan check</h1>__MASCOT_TOGGLE__</div>
-  <p class="muted" role="status"><span id="verdict">Waiting for validate_plan's answer.</span><span id="result" hidden></span></p>
+  <p class="muted" role="status"><span id="verdict">Checking the plan against the rows…</span><span id="result" hidden></span></p>
   __MASCOTS__
   <dl id="counts" class="counts" hidden></dl>
   <section id="nextsteps" hidden></section>
@@ -469,12 +496,13 @@ __RESULT_CSS__
   <section id="attention" hidden><h2 class="muted">Needs attention</h2><ul id="attention-list"></ul><p id="attention-none" hidden>Nothing needs attention.</p></section>
   <section id="build" hidden></section>
   <details id="next" class="more" hidden><summary>More</summary><p class="muted">Drafts that only read; nothing is created.</p><div id="steps" class="steps"></div></details>
-  <p class="muted">The same answer is in the text of the tool result. A button asks the host to run that tool; the host may ask you first.</p>
+  <p class="muted">The same answer is in the text of the tool result. A button asks the host to run that step; the host may ask you first.</p>
 </main>
 <script>
 (function () {
   "use strict";
   var ALLOWED = __ALLOWED__;            // next-step tool -> the arguments carried over from this call
+  var STEP_LABEL = __STEP_LABEL__;      // n227: what each of those steps is called on a button
   var input = {};                       // validate_plan's arguments, from ui/notifications/tool-input
   var nextId = 1, pending = {};
   function send(msg) { window.parent.postMessage(msg, "*"); }
@@ -493,7 +521,7 @@ __READ_JS__
     var verdict = document.getElementById("verdict");
     mascotsQuiet();
     ["counts", "result", "attention", "next", "build", "nextsteps", "checks"].forEach(function (id) { document.getElementById(id).hidden = true; });
-    if (!data || (!data.error && !data.summary && !data.totals)) { verdict.textContent = "The card could not read validate_plan's answer; it is in the text of the tool result."; return; }
+    if (!data || (!data.error && !data.summary && !data.totals)) { verdict.textContent = "The card could not read the check's answer; it is in the text of the tool result."; return; }
     if (data.error) { verdict.textContent = readable(data.error) + (readable(data.hint) ? " " + data.hint : "");
       var errBox = document.getElementById("nextsteps"); errBox.textContent = ""; errBox.hidden = !renderNext(data, errBox); return; }   // n220
     // n172: the card's words (mcp_apps_words.py): the summary as short sentences that Onto says once
@@ -556,7 +584,8 @@ __READ_JS__
       var why = readable(s.why) || readable(s.text);
       if (!firstStep) firstStep = why;
       row.appendChild(el("p", why));
-      var b = el("button", "Run " + s.tool); b.type = "button";
+      var b = el("button", STEP_LABEL[s.tool] || "Run this step"); b.type = "button";   // n227: plain words, no tool's name
+      b.setAttribute("data-tool", s.tool);
       var out = el("div", null, "out"); out.hidden = true;
       b.addEventListener("click", function () { run(s, b, out); });
       row.appendChild(b); row.appendChild(out); steps.appendChild(row);
@@ -588,8 +617,9 @@ __READ_JS__
     (ALLOWED[step.tool] || []).forEach(function (k) { if (input[k] != null) args[k] = input[k]; });
     var own = step.arguments || {};
     Object.keys(own).forEach(function (k) { args[k] = own[k]; });
-    var ask = "Run " + step.tool + " with the same workspace, source and schema.";
-    runOrSay(step.tool, args, ask, out, button);                    // n218: else the message goes into the chat
+    var label = STEP_LABEL[step.tool] || "Run this step";
+    var ask = label + ", with the same workspace, source and schema.";
+    runOrSay(step.tool, args, ask, out, button, null, { kind: "call", label: label });   // n218: else the message goes into the chat
   }
 
   window.addEventListener("message", function (event) {

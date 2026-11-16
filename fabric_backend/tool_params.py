@@ -47,6 +47,7 @@ DryRun = Annotated[bool, _d(
 RefreshOnce = Annotated[bool, _d('true: refresh the model once (dry_run=false). Default false.')]
 VerifyItems = Annotated[dict[str, str], _d(
     'Built items by kind (semantic_model, report, ontology, api, pipeline, app). Example: {"report": "shop_report"}.')]
+CreateCheck = Annotated[str, _d('After a create answered started: its operation id, or "name". Reads how it went; creates nothing.')]
 ShowPersonalData = Annotated[bool, _d(
     'true includes columns named like personal data; false (default) masks or omits them.')]
 Api = Annotated[str, _d('API for GraphQL item, name or id (list_sources: graphql_apis).')]

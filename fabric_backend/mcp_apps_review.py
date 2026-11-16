@@ -425,7 +425,7 @@ __PICTURE_CSS__
 <body>
 <main>
   <div class="kg-head"><h1>Plan review</h1>__MASCOT_TOGGLE__</div>
-  <p id="verdict" class="muted" role="status">Waiting for review_plan's answer.</p>
+  <p id="verdict" class="muted" role="status">Reading the review…</p>
   __MASCOTS__
   <section id="attention" hidden><h2>Needs attention</h2><ul id="attention-list"></ul></section>
   __PICTURES__
@@ -438,7 +438,7 @@ __PICTURE_CSS__
   <section id="next" hidden><h2>Next steps</h2><p id="note"></p></section>
   <p id="call" class="muted" role="status" hidden></p>
   <div id="call-result" hidden></div>
-  <p class="muted">The same answer is in the text of the tool result. Accept and Reject only mark your decision on the card; Re-plan with my decisions asks the host to call review_plan with all of them (or sends that request to the chat). review_plan writes the review file in its answer and creates nothing in Fabric.</p>
+  <p class="muted">The same answer is in the text of the tool result. Accept and Reject only mark your decision on the card; Re-plan with my decisions asks the host to plan again with all of them (or sends that request to the chat). The review file is in the answer; nothing is created in Fabric.</p>
 </main>
 <script>
 (function () {
@@ -597,7 +597,7 @@ __LAYOUT_JS__
   function render(data) {
     var verdict = document.getElementById("verdict");
     mascotsQuiet();
-    if (!isObj(data)) { verdict.textContent = "The card could not read review_plan's answer; it is in the text of the tool result."; return; }
+    if (!isObj(data)) { verdict.textContent = "The card could not read the review's answer; it is in the text of the tool result."; return; }
     if (data.error) { verdict.textContent = readable(data.error) + (readable(data.hint) ? " " + data.hint : "");
       var errBox = document.getElementById("nextsteps"); errBox.textContent = ""; errBox.hidden = !renderNext(data, errBox); return; }   // n220
     var rv = data.review;
@@ -682,9 +682,10 @@ __LAYOUT_JS__
     return wrap;
   }
   function replanSay(list) {
-    return "Re-plan " + (input.schema || input.source || "the source") + " with my decisions using review_plan: " +
+    // n227: plain words, no tool's name; the model has the review file of the last answer in the conversation
+    return "Re-plan " + (input.schema || input.source || "the source") + " with my decisions: " +
       list.map(function (d) { return (d.review === "accepted" ? "accept " : "reject ") + d.item; }).join(", ") +
-      ". Use the review file of the last review_plan answer as previous.";
+      ". Use the review file of the last review as previous.";
   }
   function replan() {
     var list = Object.keys(staged).map(function (k) { return { item: k, review: staged[k] }; });
@@ -694,15 +695,15 @@ __LAYOUT_JS__
     args.previous = answer.review;
     args.decisions = list;
     var note = document.getElementById("call"), button = document.getElementById("replan");
-    runOrSay(TOOL, args, replanSay(list), note, button, function (r) {
+    runOrSay(TOOL, args, replanSay(list), note, button, function (r) {   // n227: the progress state names the step, see below
       var parsed = answerOf(r);
       if (parsed && isObj(parsed.review)) {
         document.getElementById("call-result").hidden = true;
         render(parsed);
         note.hidden = false;
-        note.textContent = "review_plan answered with " + list.length + (list.length === 1 ? " decision" : " decisions") + ". " + (readable(parsed.note) || "");
+        note.textContent = "Planned again with " + list.length + (list.length === 1 ? " decision" : " decisions") + ". " + (readable(parsed.note) || "");
       } else {
-        note.textContent = "review_plan answered without a review file.";
+        note.textContent = "The answer came without a review file.";
         var shown = document.getElementById("call-result"); shown.textContent = ""; shown.appendChild(resultView(TOOL, r)); shown.hidden = false;
       }
     });
