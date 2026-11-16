@@ -250,6 +250,20 @@ class Auth:
         return t.strip() if t else self._client_credentials(SQL_SCOPE)
 
 
+    def onelake(self, ctx: Context | None) -> str | None:
+        """CSN2: a token for OneLake's DFS API (Azure Storage audience), to read CSN files in the lakehouse's Files as
+        the signed-in user: the workload's own exchange inside a workload request; in Entra mode the on-behalf-of
+        exchange (the app needs Azure Storage user_impersonation); else only an X-OneLake-Token header, never the
+        server's own credentials. None when there is none."""
+        from .csn_onelake import STORAGE_SCOPE
+        if (w := _WORKLOAD_TOKENS.get()) is not None:
+            return w.onelake() if hasattr(w, "onelake") else None
+        if self.entra:
+            return self._user_token(ctx, STORAGE_SCOPE)
+        h = (ctx.headers if ctx is not None else {}) or {}
+        t = h.get("x-onelake-token") or h.get("X-OneLake-Token")
+        return t.strip() if t else None
+
     def powerbi(self, ctx: Context | None) -> str:
         """n229: a token for the Power BI REST API (a model's refresh history and its DAX queries, verify_build; one
         refresh, create_semantic_model refresh=true). The workload's own exchange inside a workload request; in Entra
@@ -322,6 +336,53 @@ def _execute_factory(item: dict, sql_token: str):
 R5_SAMPLE, R5_MAX_QUERIES = 200, 20        # R5: the first 200 distinct values of a candidate column, at most 20 counting queries
 
 
+def _lakehouse_csn(workspace_id: str, item: dict, ctx, csn_path: str | None = None):
+    """CSN2: the CSN files in the lakehouse's Files (csn_onelake.find): Files/krusgraph/csn/ by default, or csn_path.
+    Read-only, as the signed-in user, in this call only; nothing is kept or logged but counts. None when there is
+    nothing to say (no lakehouse, the default folder switched off or absent, no OneLake sign-in for the default folder).
+    A failure here never fails the plan: the plan is then made without the CSN, and an asked-for path says why."""
+    from . import csn_onelake as _co
+    given = bool((csn_path or "").strip())
+    try:
+        target = _co.clean_path(csn_path)
+    except ValueError as e:
+        raise _p_error(str(e)) from None
+    if not given and not _co.enabled():
+        return None
+    if item.get("type") not in _co.LAKEHOUSE_TYPES:
+        return _co.Found(target, given, not_read={"kind": "not_a_lakehouse", "why": f"a {item.get('type')} has no Files area",
+                                                  "hint": "Upload the CSN file to a lakehouse's Files and plan that lakehouse."}) if given else None
+    try:
+        token = auth.onelake(ctx)
+    except Exception as e:  # noqa: BLE001 — no OneLake sign-in: the plan goes on without the CSN
+        token, why = None, type(e).__name__
+    else:
+        why = "no OneLake sign-in on this call"
+    if not token:
+        return _co.Found(target, given, not_read={"kind": "no_sign_in", "why": why, "hint": _co._hint("denied")}) if given else None
+    try:
+        found = _co.find(_co.OneLake(workspace_id, item["id"], token), csn_path)
+    except Exception as e:  # noqa: BLE001 — a network failure reading Files never fails the plan
+        found = _co.Found(target, given, not_read={"kind": "error", "why": f"OneLake could not be read ({type(e).__name__})",
+                                                   "hint": _co._hint("error")})
+    import logging
+    logging.getLogger("krusgraph.csn").info("csn_onelake files_used=%d skipped=%d not_read=%s given=%s", len(found.used), len(found.skipped),
+             (found.not_read or {}).get("kind"), given)
+    return found
+
+
+def _p_error(msg: str):
+    from .infer import PlanInputError
+    return PlanInputError(msg)
+
+
+def _attach_csn(execute, found) -> None:
+    try:
+        execute.csn_found = found
+    except AttributeError:
+        pass
+
+
 def _hosted_plan(s, keys, confirmed, execute):
     """The one way the hosted tools make a plan (n87): the names rules and R5, which counts the code and role columns
     the names left unlinked over the call's open connection, bounded by R5_SAMPLE and R5_MAX_QUERIES. Every tool that
@@ -329,8 +390,9 @@ def _hosted_plan(s, keys, confirmed, execute):
     again on every call, over the connection the call opened and closes."""
     from . import propose                                      # F2: keys counted in this call, K6 and R6 from the rows
     n = propose.max_queries()
-    p = make_plan(s, keys, confirmed, execute=execute, sample=R5_SAMPLE, max_queries=R5_MAX_QUERIES,
-                  profile=n > 0, profile_queries=n)
+    from . import csn_onelake                                 # CSN2: a CSN in the lakehouse's Files comes first
+    p = csn_onelake.plan_with(s, getattr(execute, "csn_found", None), make_plan, keys, confirmed, execute=execute,
+                              sample=R5_SAMPLE, max_queries=R5_MAX_QUERIES, profile=n > 0, profile_queries=n)
     scope = _PLAN_SCOPE.get()                                  # n174: the workload's review applied (plan_scope)
     return scope["adjust"](p) if scope else p
 
@@ -346,7 +408,7 @@ def _within_call(execute):
         if sql not in seen:
             seen[sql] = list(execute(sql))
         return seen[sql]
-    for name in ("close", "source_item", "dialect"):
+    for name in ("close", "source_item", "dialect", "csn_found"):
         if hasattr(execute, name):
             try:
                 setattr(run, name, getattr(execute, name))
@@ -355,28 +417,30 @@ def _within_call(execute):
     return run
 
 
-def _plan(workspace: str, source: str, schema: str, keys, confirmed, ctx, rows: bool = True):
+def _plan(workspace: str, source: str, schema: str, keys, confirmed, ctx, rows: bool = True, csn_path: str | None = None):
     """The plan of a source, R5 included (_hosted_plan), over a connection that does not outlive the call. `rows` is
     kept for callers that still pass it; every plan counts R5."""
     scope = _PLAN_SCOPE.get()
     if scope is not None:                                      # n174: one read per distinct question within a workload build
-        memo_key = json.dumps([workspace, source, schema, keys, confirmed], sort_keys=True, default=str)
+        memo_key = json.dumps([workspace, source, schema, keys, confirmed] + ([csn_path] if csn_path else []), sort_keys=True, default=str)
         if memo_key not in scope["memo"]:
-            scope["memo"][memo_key] = _plan_read(workspace, source, schema, keys, confirmed, ctx)
+            scope["memo"][memo_key] = _plan_read(workspace, source, schema, keys, confirmed, ctx, **({"csn_path": csn_path} if csn_path else {}))
             exact = scope["memo"][memo_key][0].schema.schema                # n175: the build's later calls use the exact name
             scope["memo"].setdefault(json.dumps([workspace, source, exact, keys, confirmed], sort_keys=True, default=str),
                                      scope["memo"][memo_key])
         else:
             _note_schema(schema, scope["memo"][memo_key][0].schema.schema)
         return scope["memo"][memo_key]
-    return _plan_read(workspace, source, schema, keys, confirmed, ctx)
+    return _plan_read(workspace, source, schema, keys, confirmed, ctx, **({"csn_path": csn_path} if csn_path else {}))
 
 
-def _plan_read(workspace: str, source: str, schema: str, keys, confirmed, ctx):
+def _plan_read(workspace: str, source: str, schema: str, keys, confirmed, ctx, csn_path: str | None = None):
     headers = _headers(ctx)
     workspace = _workspace_id(workspace, headers)
     item = _resolve_source(workspace, source, headers)
+    found = _lakehouse_csn(workspace, item, ctx, csn_path)                 # CSN2: before the SQL connection opens
     execute = _execute_factory(item, auth.sql(ctx))
+    _attach_csn(execute, found)
     try:
         s = _fabric.PLATFORM.read_schema(execute, schema)
         if len(s) == 0:
@@ -597,7 +661,7 @@ def _with_schemas(text: str, schemas: list[dict] | None) -> str:
 @safe
 def plan_backend(workspace: _p.Workspace, source: _p.Source, schema: _p.PlanSchema = None, keys: _p.Keys = None,
                  confirmed: _p.Confirmed = None, tables: _p.TablesShown = None, detail: _p.Detail = "auto",
-                 mermaid: _p.Mermaid = True, drawio: _p.Drawio = "", ctx: Context = None) -> str:
+                 mermaid: _p.Mermaid = True, drawio: _p.Drawio = "", csn_path: _p.CsnPath = None, ctx: Context = None) -> str:
     """Infers primary keys and relationships for a schema's tables and proposes them as a plan. Requires workspace and
     source. Returns JSON: summary, keys and relationships each with the rule behind it (K0–K5, R0–R5), ambiguous
     columns, keyless tables, suggested composite keys and a Mermaid ER diagram. Rule R5 counts code and role columns
@@ -614,8 +678,10 @@ def plan_backend(workspace: _p.Workspace, source: _p.Source, schema: _p.PlanSche
         schema = chosen = schemas[0]["schema"] if schemas else "dbo"
     if (drawio or "").strip():                                        # n228: the map, the model draft or the data flow as a file
         return _with_schema_chosen(_drawio_file(drawio, workspace, source, schema, keys, confirmed, tables, ctx), chosen)
-    p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx, rows=True)
+    p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx, rows=True, **({"csn_path": csn_path} if csn_path else {}))
     schema = p.schema.schema                                   # n175: the name the metadata returns
+    from . import csn_onelake as _csn_onelake
+    csn_digest = _csn_onelake.digest(p)                        # CSN2: which file each CSN key and link came from
     keep = _compact.match_tables(p.schema, tables)
     shown = _compact.sub_plan(p, keep)
     _pictures.keep("map", lambda: _pictures.map_from_plan(shown))                # n170: the map on the card
@@ -624,10 +690,14 @@ def plan_backend(workspace: _p.Workspace, source: _p.Source, schema: _p.PlanSche
     if _compact.pick_detail(detail, len(shown.schema)) == "summary":
         body = _coverage.attach(_compact.plan_summary(shown, suggested, f"{len(shown.schema)} of {len(p.schema)} tables shown" if keep else ""),
                                 p, first=_coverage.EVIDENCE_FIRST, keep=keep)          # n226: evidence state and coverage
+        if csn_digest:
+            body["csn"] = csn_digest
         text = _bounded(body, MAX_RESULT_CHARS, _compact.NARROW_HINT)
     else:
         body = _coverage.attach(_compact.plan_full(shown, suggested, mermaid=bool(mermaid), states=_coverage.entry_states(p)),
                                 p, per_item=False)
+        if csn_digest:
+            body["csn"] = csn_digest
         text = _bounded(body, MAX_RESULT_CHARS, _compact.NARROW_HINT, drop=("mermaid",))
     return _with_schema_chosen(text, chosen)
 
@@ -703,12 +773,15 @@ def _with_schema_chosen(text: str, chosen: str | None) -> str:
     return json.dumps({"schema_chosen": chosen, **data}, indent=2)
 
 
-def _connected(workspace: str, source: str, schema: str, ctx):
-    """(plan inputs) the source's schema plus an open SQL connection; the caller closes it."""
+def _connected(workspace: str, source: str, schema: str, ctx, csn_path: str | None = None):
+    """(plan inputs) the source's schema plus an open SQL connection; the caller closes it. CSN2: the connection carries
+    the CSN files found in the lakehouse's Files (csn_found), which _hosted_plan plans with."""
     headers = _headers(ctx)
     workspace = _workspace_id(workspace, headers)
     item = _resolve_source(workspace, source, headers)
+    found = _lakehouse_csn(workspace, item, ctx, csn_path)
     execute = _execute_factory(item, auth.sql(ctx))
+    _attach_csn(execute, found)
     try:
         execute.source_item = item                                         # the sensitivity label, for the answers that show values
     except AttributeError:
@@ -730,7 +803,8 @@ def _connected(workspace: str, source: str, schema: str, ctx):
 def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", keys: _p.Keys = None,
                   confirmed: _p.Confirmed = None, max_items: _p.MaxItems = 60, detail: _p.ValidateDetail = "summary",
                   profile: _p.Profile = False, sql_sums: _p.SqlSums = False, fixes: _p.Fixes = False, review: _p.Review = None,
-                  tables: _p.CheckTables = None, resume_from: _p.ResumeFrom = 0, ctx: Context = None) -> str:
+                  tables: _p.CheckTables = None, resume_from: _p.ResumeFrom = 0, csn_path: _p.CsnPath = None,
+                  ctx: Context = None) -> str:
     """Checks the plan against the rows: is each key unique, non-null, how many references find no target (orphans).
     For "check shop", "run a check". Requires workspace and source; keys, confirmed as in plan_backend. Returns counts
     and each item's evidence state, never row values; past the call's time budget, "not checked (time)" and a
@@ -742,7 +816,7 @@ def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema 
         from . import review as _review
         rv = _review.read(review)
         keys, confirmed = _review.merge_arguments(_review.carried_arguments(rv), keys, confirmed)
-    s, execute = _connected(workspace, source, schema, ctx)
+    s, execute = _connected(workspace, source, schema, ctx, **({"csn_path": csn_path} if csn_path else {}))
     schema = s.schema                                   # n175: the name the metadata returns
     try:
         p = _hosted_plan(s, keys, confirmed, execute)
@@ -775,6 +849,9 @@ def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema 
                            keep=keep)                                  # n226: evidence state and coverage
     if prof is not None:
         out["column_profile"] = prof
+    from . import csn_onelake as _csn_onelake
+    if (csn_digest := _csn_onelake.digest(p)):                         # CSN2: the CSN's keys and links, and their files
+        out["csn"] = csn_digest
     if sql_sums:
         out["sql_sums"] = sums
     if fixes:
