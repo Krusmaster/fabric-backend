@@ -170,6 +170,9 @@ class Plan:
     # F2: what the row profile counted in this call (propose.Profile.summary): the keys counted, K6 and R6, what was not
     # reached. None: no profile ran (no connection, or profile off).
     profile: dict | None = None
+    # CDS2: what a CSN file declared for this schema (csn.plan's report: keys, links, amounts with their level, what was
+    # not applied and why). None: no CSN given. Its keys and links carry the rule "CSN metadata"; validate_plan counts them.
+    csn: dict | None = None
 
     def summary(self) -> str:
         lines = [f"{len(self.schema)} tables, {len(self.keys)} with keys, {len(self.relationships)} relationships"]
@@ -213,6 +216,11 @@ class Plan:
             if r6:
                 lines.append(f"{r6} link(s) proposed by R6 from the rows, not applied (the name gives no support, the rows fit several "
                              "tables, or only after a conversion) — see plan.proposed")
+        if self.csn:
+            c = self.csn
+            lines.append(f"{len(c['matched'])} table(s) described by CSN metadata ({', '.join(c['files'])}): {len(c['keys'])} key(s) and "
+                         f"{len(c['links'])} link(s) declared, {len(c['not_applied'])} association(s) not applied (rule \"CSN metadata\"; "
+                         "declared, not proven: validate_plan counts them) — see plan.csn")
         if self.pack:
             lines.append(f"{len(self.pack['tables'])} table(s) recognised by the {self.pack['pack']} pack: keys and relationships from its "
                          f"public sources (rule \"{self.label(self.pack['rule'])}\"), to be checked with validate_plan — see plan.pack")

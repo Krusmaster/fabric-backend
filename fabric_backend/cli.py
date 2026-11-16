@@ -11,6 +11,7 @@
   fabric-backend dbt columns.csv [--source-name X] [--database X] [--out schema.yml]
   fabric-backend analyze columns.csv [--json analysis.json]
   fabric-backend views columns.csv [--views-schema krusgraph]
+  fabric-backend csn model.json|folder [--columns columns.csv] [--schema dbo] [--prefix dsp_] [--json out.json]
   fabric-backend demo [--sample | --folder DIR | --odbc "<connection string>" | --columns columns.csv] [--schema dbo] [--port 8765] [--no-browser]
 
 `plan` and `definition` work offline from an INFORMATION_SCHEMA.COLUMNS export (csv with
@@ -176,6 +177,39 @@ def cmd_sap_verify(a) -> int:
     return 0
 
 
+def cmd_csn(a) -> int:
+    """CDS2: what a CSN file (or a folder of them) declares; with --columns, the plan with the CSN's keys and links
+    first (rule "CSN metadata"), and what did not match the tables. Reads local files only."""
+    from . import csn
+    model = csn.read(a.csn)
+    if not a.columns:
+        out = csn.summary(model)
+        for n, e in out["entities"].items():
+            print(f"{n} ({e['kind']}{', ' + e['data_category'] if e.get('data_category') else ''}): key {', '.join(e['keys']) or '-'}")
+            for x in e["associations"]:
+                print(f"  {x['name']} -> {x['target']} {x['cardinality']}: " + ("; ".join(x["on"]) if x["on"] else "not read: " + x.get("why", "")))
+            for x in e.get("amounts", []):
+                print(f"  amount {x['column']} in {x['currency']} ({x['from']})")
+        for x in out["ignored"]:
+            print(f"  ignored: {x['what']}: {x['why']}")
+    else:
+        p, out = csn.plan(_source(a), model, prefix=a.prefix)
+        print(p.summary())
+        for t, (k, r) in p.keys.items():
+            print(f"  key {t}({', '.join(k)})  [{r}]")
+        for r in p.relationships:
+            print(f"  {r.source}.{'+'.join(r.source_cols)} -> {r.target}.{'+'.join(r.target_cols)}  [{r.rule}]")
+        for x in out["amounts"]:
+            print(f"  {x['kind']} {x['table']}.{x['column']}: {x['level']} level")
+        for x in out["not_applied"]:
+            print(f"  not applied: {x['association']}: {x['why']}")
+        for x in out["unmatched"]:
+            print(f"  no table: {x['entity']}: {x['why']}")
+    if a.json:
+        Path(a.json).write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
+    return 0
+
+
 def cmd_sap_demo(a) -> int:
     """Synthetic SAP-shaped tables as CSV files and the notebook that loads them into a lakehouse (run it yourself)."""
     from . import sap_demo
@@ -293,6 +327,12 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--when", required=True, help="the date of the run, YYYY-MM-DD")
     s.add_argument("--write", action="store_true", help="record the verified relationships in fabric_backend/packs/sap/*.json")
     s.set_defaults(fn=cmd_sap_verify)
+    s = sub.add_parser("csn", help="read SAP CSN metadata (a .json/.csn file or folder); with --columns, plan with it")
+    s.add_argument("csn", help="a CSN file exported from SAP Datasphere or compiled by CAP, or a folder of them")
+    s.add_argument("--columns", help="an INFORMATION_SCHEMA.COLUMNS export of the tables the CSN describes")
+    s.add_argument("--schema", default="dbo"); s.add_argument("--prefix", help="a prefix the landing put before every table name")
+    s.add_argument("--json", help="write the summary or the plan's CSN report to this file"); s.set_defaults(fn=cmd_csn)
+
     s = sub.add_parser("sap-demo", help="write synthetic SAP-shaped tables as CSV files and a notebook to load them into Fabric")
     s.add_argument("--out", default="sap_demo", help="the folder to write to")
     s.add_argument("--prefix", default="sap_", help="table name prefix in the lakehouse (sap_vbak)")

@@ -18,7 +18,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-TECH_COLS = {"__SEQUENCE_NUMBER", "__TIMESTAMP", "__ROWMARKER__"}
+# change columns a landing adds: open mirroring's __rowMarker__; a Datasphere replication flow's __operation_type,
+# __sequence_number and __timestamp (docs/SAP-CDS.md; CDS2 added __OPERATION_TYPE)
+TECH_COLS = {"__SEQUENCE_NUMBER", "__TIMESTAMP", "__ROWMARKER__", "__OPERATION_TYPE"}
 
 # INFORMATION_SCHEMA is the same on the Fabric SQL endpoint, SQL Server, Snowflake and Databricks (Unity Catalog);
 # the schema comparison is case-insensitive because Snowflake upper-cases unquoted names.

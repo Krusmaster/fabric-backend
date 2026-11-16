@@ -21,6 +21,10 @@ SQLServer for an on-prem or Azure SQL Server reached with Windows or SQL sign-in
 lakehouse created with schemas when semantic_model_draft should write schemaName. With SQLServer the Fabric-only drafts
 (semantic model in Direct Lake, Fabric IQ ontology) answer with an explanation; everything else works. docs/LOCAL.md.
 
+CSN (round CDS2): KRUSGRAPH_CSN=<a CSN file or folder on this machine> (optionally KRUSGRAPH_CSN_PREFIX=dsp_) makes
+every tool plan with the keys and associations the file declares, rule "CSN metadata"; validate_plan counts them.
+docs/SAP-CSN.md.
+
 Databricks (round n13, Draft only): KRUSGRAPH_PLATFORM=databricks with DATABRICKS_HOST (or a profile),
 DATABRICKS_WAREHOUSE_ID and DATABRICKS_CATALOG reads a Unity Catalog schema through platforms/databricks.py; the
 databricks_* tools draft constraints, a Lakeflow pipeline, metric views and a bundle. docs/DATABRICKS.md.
@@ -155,6 +159,12 @@ def _plan_on(execute, schema: str, keys=None, confirmed=None):
     if _is_databricks():
         from .infer import plan as _make_plan
         return _make_plan(_platform().read_schema(execute, schema), keys, confirmed)
+    if os.environ.get("KRUSGRAPH_CSN"):         # CDS2: a CSN file or folder on this machine; its keys and links come first
+        from . import csn
+        from .schema import Schema
+        p, _ = csn.plan(Schema.from_sql(execute, schema), csn.read(os.environ["KRUSGRAPH_CSN"]),
+                        prefix=os.environ.get("KRUSGRAPH_CSN_PREFIX") or None, keys=keys, confirmed=confirmed)
+        return p
     return plan_from(execute=execute, schema=schema, keys=keys, confirmed=confirmed)
 
 
