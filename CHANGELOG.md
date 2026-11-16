@@ -29,8 +29,9 @@ next deploy.
   AI client to add its own review under its own heading, apart from Krusgraph's states. 41 tools, 31 read-only; the
   read-only listing's guard goes from 66 700 to 69 000 characters for it. `answer_query_draft`: a sum or average of a
   header's column now starts at the header ("total NETWR per sales order" over sap_vbak and sap_vbap sums on sap_vbak
-  alone; the join it replaces dropped orders without lines), and a column that is on both the lines and the table the
-  question groups by is read as the group's own. **B, after a Create** (`after_create.py`): the answer of every creating
+  alone; the join it replaces dropped orders without lines), a column that is on both the lines and the table the
+  question groups by is read as the group's own, and when two of the tables carry the summed column the answer says
+  which one was used and how to get the other (F1's B1 and the first half of B2). **B, after a Create** (`after_create.py`): the answer of every creating
   tool ends with `next_steps` in the order of what the data product still lacks (verify what was built; refresh the model
   once; the pipeline with Run once or Schedule; the report; the data agent; the Rayfin App, said as an empty App item and
   one package command that opens inside Fabric only; a drift monitor; register as a data product), each with one sentence

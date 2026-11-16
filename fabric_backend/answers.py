@@ -404,7 +404,7 @@ def _own_column(plan: Plan, u: dict) -> tuple[str, str] | None:
     if u.get("aggregate") not in ("sum", "average", "avg") or not u.get("measure") or not u.get("group_table"):
         return None
     (mt, mc), g = u["measure"], u["group_table"]
-    if mt == g or [mt, mc] not in [list(c) for c in u.get("columns_named") or []]:
+    if mt == g:
         return None
     col = next((c for c in plan.schema[g].column_names if c.lower() == mc.lower()), None)
     path = safest_path(plan, mt, g)
@@ -485,6 +485,12 @@ def tsql(plan: Plan, question: str, tables: list[str], show_personal_data: bool 
             u["columns_named"] = [list(own) if list(c) == list(was) else c for c in u.get("columns_named") or []]
             own_note = (f"{was[1]} is a column of both {was[0]} and {own[0]}; the question asks per {own[0]} row, so {own[0]}.{own[1]}, "
                         f"the {own[0]} row's own value, is used. Name {was[0]}.{was[1]} to sum that one instead")
+        elif u.get("measure") and u.get("aggregate") in ("sum", "average", "avg"):
+            mt0, mc0 = u["measure"]                               # F1 B1: the same column name on another of the tables: say which
+            twins = [t for t in tables if t != mt0 and any(c.lower() == mc0.lower() for c in plan.schema[t].column_names)]
+            if twins:
+                own_note = (f"{mc0} is a column of {mt0} and of {', '.join(twins)}; {mt0}.{mc0} is used. Name "
+                            f"{twins[0]}.{mc0} in the question to use that one instead")
     header_only = _header_level(plan, u, involved) if not (negation or computed or u["counted"]) else []
     involved = [t for t in involved if t not in header_only]
     root = (computed["table"] if computed and not u["counted"] else None) or u["counted"] or (u["subject"] if negation else None) \

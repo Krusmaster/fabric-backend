@@ -436,7 +436,9 @@ def test_total_netwr_per_sales_order_sums_on_the_header_alone(sap):
     assert any("summed on sap_vbak alone" in a and "would drop every sap_vbak row without a row there" in a for a in out["assumptions"])
     assert any(a.startswith("NETWR is a column of both sap_vbap and sap_vbak") for a in out["assumptions"])     # named first, so said
     same = answers.draft(p, "total NETWR per sales order", ["sap_vbak", "sap_vbap"])                       # the founder's order
-    assert same["tsql"] == out["tsql"] and len(same["assumptions"]) == 1
+    assert same["tsql"] == out["tsql"] and same["assumptions"][0].startswith("NETWR is a column of sap_vbak and of sap_vbap; sap_vbak.NETWR is used")
+    words = answers.draft(p, "total net value per sales order", ["sap_vbak", "sap_vbap"])                 # F1 B1: the same choice in other words
+    assert words["tsql"] == out["tsql"] and words["assumptions"][0].startswith("NETWR is a column of both sap_vbap and sap_vbak")
     got = execute(out["tsql"])
     assert len(got) == execute("SELECT COUNT(*) AS n FROM sap.[sap_vbak]")[0]["n"]                     # every order, also one without lines
 
