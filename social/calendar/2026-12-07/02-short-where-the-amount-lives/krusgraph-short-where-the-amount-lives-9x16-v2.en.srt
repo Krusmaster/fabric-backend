@@ -1,0 +1,63 @@
+1
+00:00:00,100 --> 00:00:01,331
+If you use Microsoft Fabric,
+
+2
+00:00:01,351 --> 00:00:02,918
+you need to see this.
+
+3
+00:00:02,968 --> 00:00:04,418
+Ask your agent for total sales.
+
+4
+00:00:04,438 --> 00:00:06,048
+Which number do you get?
+
+5
+00:00:06,068 --> 00:00:08,366
+In our example shaped like SAP CDS views,
+
+6
+00:00:08,386 --> 00:00:10,510
+the order total sits on the sales document
+
+7
+00:00:10,530 --> 00:00:11,331
+header.
+
+8
+00:00:11,532 --> 00:00:12,820
+Join it to its items,
+
+9
+00:00:12,840 --> 00:00:15,217
+and an order counts up to 3 times:
+
+10
+00:00:15,237 --> 00:00:16,644
+1 900.
+
+11
+00:00:16,728 --> 00:00:17,960
+Summed once per order:
+
+12
+00:00:17,980 --> 00:00:18,891
+700.
+
+13
+00:00:18,911 --> 00:00:20,490
+Krusgraph flags this against your rows,
+
+14
+00:00:20,510 --> 00:00:23,241
+so the agent can sum at the right level.
+
+15
+00:00:23,261 --> 00:00:25,452
+Try it in your browser:
+
+16
+00:00:25,472 --> 00:00:26,916
+krusgraph.com/check

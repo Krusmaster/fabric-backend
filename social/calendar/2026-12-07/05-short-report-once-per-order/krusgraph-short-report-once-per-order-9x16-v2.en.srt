@@ -1,0 +1,59 @@
+1
+00:00:00,100 --> 00:00:01,926
+If you use Microsoft Fabric,
+
+2
+00:00:01,946 --> 00:00:03,021
+you need to see this.
+
+3
+00:00:03,041 --> 00:00:04,305
+A report on SAP-shaped tables.
+
+4
+00:00:04,325 --> 00:00:05,997
+Is the total right?
+
+5
+00:00:06,562 --> 00:00:08,576
+The semantic model keeps the order amount on the
+
+6
+00:00:08,596 --> 00:00:09,523
+order header.
+
+7
+00:00:09,543 --> 00:00:10,752
+Net order value:
+
+8
+00:00:10,772 --> 00:00:13,421
+EUR 750, counted once per order.
+
+9
+00:00:13,441 --> 00:00:14,720
+Summed over the order lines,
+
+10
+00:00:14,740 --> 00:00:16,338
+it would be 1 950.
+
+11
+00:00:16,582 --> 00:00:17,727
+After the build,
+
+12
+00:00:17,747 --> 00:00:19,686
+Krusgraph reads the model back and counts the
+
+13
+00:00:19,706 --> 00:00:21,310
+figures again from the rows.
+
+14
+00:00:21,330 --> 00:00:23,123
+Try it in your browser:
+
+15
+00:00:23,143 --> 00:00:24,674
+krusgraph.com/check
