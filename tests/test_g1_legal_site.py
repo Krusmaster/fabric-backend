@@ -69,7 +69,7 @@ def test_the_cookie_button_is_the_mascot_pill_under_it_with_the_note_below(clien
     assert f.index("data-mascot-toggle") < f.index('class="cookie-panel"') < f.index('id="mascot-toggle-note"')
     css = (STATIC / "site.css").read_text(encoding="utf-8")
     assert ".footer-controls .cookie-panel{background:none;border:0;border-radius:0;padding:0;margin:0}" in css
-    assert ".cookie-btn" not in css
+    assert "cookie-btn" not in f                                       # no class of its own: n240's mobile .btn.small rule sizes both
     f = _footer(client.get("/cookies").text)
     if "data-mascot-toggle" not in f:
         assert '<summary class="btn ghost small">' in f and "mascot-toggle-note" not in f
