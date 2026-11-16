@@ -6,6 +6,29 @@
   <p class="muted">{{SAP_STATUS}}</p>
 </section>
 
+<!-- n242: the approved SAP film (v4), self-hosted like the home page's film: native controls, no autoplay, nothing
+     downloads before play (preload="none"), a poster and English captions on by default. No third-party embed. -->
+<style>
+.sap-film{padding-top:0;padding-bottom:8px}
+.sap-film h2{margin-bottom:10px}
+.sap-film-frame{margin:0;max-width:880px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.sap-film-frame video{display:block;width:100%;height:auto;aspect-ratio:16/9;background:var(--card-2)}
+.sap-film-frame video:fullscreen{aspect-ratio:auto;object-fit:contain;background:#000}
+.sap-film-note{max-width:880px;margin:10px 0 0}
+</style>
+<section class="wrap sap-film" id="sap-film" aria-labelledby="sap-film-h">
+  <h2 id="sap-film-h">The SAP joining problem. {{PRODUCT}} does the trick!</h2>
+  <figure class="sap-film-frame">
+    <video controls playsinline preload="none" width="1920" height="1080" poster="/static/media/krusgraph-sap-to-report-poster.webp"
+      aria-label="The SAP joining problem: a film on a synthetic, SAP-shaped example, AI-generated voice">
+      <source src="/static/media/krusgraph-sap-to-report.mp4" type="video/mp4">
+      <track kind="captions" srclang="en" label="English" src="/static/media/krusgraph-sap-to-report.en.vtt" default>
+      <p>Your browser cannot play this film. <a href="/static/media/krusgraph-sap-to-report.mp4">Download it as MP4</a>.</p>
+    </video>
+  </figure>
+  <p class="muted tiny sap-film-note">Shown on our SAP-shaped example, not data from an SAP system. Voice: AI-generated. {{PRODUCT}} is independent and is not affiliated with SAP or Microsoft.</p>
+</section>
+
 <section class="wrap" aria-labelledby="sap-keys-h" style="padding-top:0">
   <h2 id="sap-keys-h">Keys, with the client MANDT first</h2>
   <p class="intro">One database can hold several clients, so a join on <code>VBELN</code> alone pairs documents across clients. Every key in the pack starts with <code>MANDT</code>.</p>
