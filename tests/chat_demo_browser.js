@@ -186,7 +186,8 @@ async function flowByMouse(page, f, v) {
 
 async function flowByKeyboard(page, f, v) {
   // Tab to the button from the last link or button of the page before it (the footer's), then only Tab, Enter and Escape
-  await page.evaluate(() => { const ls = [...document.querySelectorAll('footer a[href], footer button')].filter((x) => x.offsetParent); ls[ls.length - 1].focus(); });
+  // (n241: the footer's cookie summary counts, the links inside its closed panel do not)
+  await page.evaluate(() => { const ls = [...document.querySelectorAll('footer a[href], footer button, footer summary')].filter((x) => x.offsetParent && (x.tagName === 'SUMMARY' || !x.closest('details:not([open])'))); ls[ls.length - 1].focus(); });
   await page.keyboard.press('Tab');
   f.tabbedToLaunch = await page.evaluate(() => document.activeElement.id);
   f.launchFocus = (await focusInfo(page)).outline;
