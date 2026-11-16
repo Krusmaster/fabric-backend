@@ -1,5 +1,5 @@
 # Ask your agent where the amount lives
-# Upload: krusgraph-short-where-the-amount-lives-9x16.mp4 (1080x1920); cover: cover-1080x1920.jpg. 'Voice: AI-generated' is on the last frame.
+# Upload: krusgraph-short-where-the-amount-lives-9x16-v2.mp4 (1080x1920, 28.3 s, H1 v5's pipeline; QA in QA-v2.md); cover: cover-v2.jpg. 'Voice: AI-generated' is on the end card. The first version (krusgraph-short-where-the-amount-lives-9x16.mp4) is kept and not to be used.
 # Turn on each platform's AI-generated content label when it asks.
 
 == Instagram Reels (caption) ==

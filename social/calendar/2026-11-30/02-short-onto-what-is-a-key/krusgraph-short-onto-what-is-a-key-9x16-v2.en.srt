@@ -1,0 +1,63 @@
+1
+00:00:00,100 --> 00:00:01,814
+If you use Microsoft Fabric,
+
+2
+00:00:01,834 --> 00:00:02,923
+you need to see this.
+
+3
+00:00:02,943 --> 00:00:03,402
+Meet Onto.
+
+4
+00:00:03,422 --> 00:00:04,951
+One idea today:
+
+5
+00:00:04,971 --> 00:00:06,320
+the key.
+
+6
+00:00:06,340 --> 00:00:08,449
+A key is the columns that name one row,
+
+7
+00:00:08,469 --> 00:00:09,642
+and only one.
+
+8
+00:00:09,662 --> 00:00:10,407
+For SAP order lines:
+
+9
+00:00:10,427 --> 00:00:11,272
+client, order and item.
+
+10
+00:00:11,292 --> 00:00:13,056
+MANDT + VBELN + POSNR.
+
+11
+00:00:13,076 --> 00:00:14,284
+If a key repeats,
+
+12
+00:00:14,304 --> 00:00:16,334
+every join on it repeats rows.
+
+13
+00:00:16,354 --> 00:00:17,852
+In our SAP example,
+
+14
+00:00:17,872 --> 00:00:20,359
+17 of 17 keys are unique.
+
+15
+00:00:20,649 --> 00:00:22,754
+Try it in your browser:
+
+16
+00:00:22,774 --> 00:00:24,220
+krusgraph.com/check
