@@ -12,7 +12,7 @@ If you use Microsoft Fabric, you need to see this. 👀
 3. Sign in with your work account
 4. Ask about your tables
 
-Krusgraph finds the keys and relationships, checks them against your rows, suggests data products, then builds the semantic model, the pipeline and the Power BI report in Fabric.
+Krusgraph finds the keys and relationships, checks them against your rows, suggests data products, then builds the semantic model, the pipeline and the Power BI report in Fabric. You just open the report. That's it.
 
 Demo on synthetic SAP-shaped sample data. Voice: AI-generated.
 
@@ -29,7 +29,7 @@ If you use Microsoft Fabric, you need to see this #shorts
 
 Description:
 
-Add Krusgraph to Claude as a custom connector (krusgraph.com/mcp), sign in with your work account and ask about your tables. It finds the keys and relationships, checks them against your rows, suggests data products, and builds the semantic model, the pipeline and the Power BI report in Fabric.
+Add Krusgraph to Claude as a custom connector (krusgraph.com/mcp), sign in with your work account and ask about your tables. It finds the keys and relationships, checks them against your rows, suggests data products, and builds the semantic model, the pipeline and the Power BI report in Fabric. You just open the report. That's it.
 
 Demo on synthetic SAP-shaped sample data. Voice: AI-generated.
 
