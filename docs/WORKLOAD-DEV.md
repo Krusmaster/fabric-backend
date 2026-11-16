@@ -13,7 +13,7 @@ not by a live run. The items marked **Check on the first run** are what the stud
 This page is the development workload, `Org.Krusgraph`. Publishing the permanent name `Krusgraph.Modeler` to selected
 pilot tenants (n176) is `docs/WORKLOAD-PUBLISH.md`; the pilot's administrator's steps are `docs/PILOT-ONBOARDING.md`.
 
-The workload name for development is **`Org.Krusgraph`**. The `Org.` form needs no registration. **Never use or upload a
+The workload name for development is **`Org.Krusgraph`**. Since W12 the package build makes `Krusgraph.Modeler` by default, so every build command for the development workload on this page passes `--name Org.Krusgraph`. The `Org.` form needs no registration. **Never use or upload a
 `Krusgraph.*` name**: the first upload reserves that name in the tenant for good, and choosing it is checklist step 9.
 Developer mode (DevGateway) uploads nothing to the tenant's workload catalogue.
 
@@ -348,7 +348,7 @@ In Cloud Shell (or from CI; it needs `python3` and `git` only, no nuget, mono or
 
 ```bash
 cd ~/fabric-backend
-bash workload/scripts/build-package --frontend-app-id <Application (client) ID>
+bash workload/scripts/build-package --name Org.Krusgraph --frontend-app-id <Application (client) ID>
 ```
 
 It writes `workload/build/package/Org.Krusgraph.1.0.<N>.nupkg` (N = the number of commits, so every new checkout gives a
@@ -401,7 +401,7 @@ a deploy, do all four steps, in this order:
 2. **Build the package again** (same shell, after the pull, so the commit count and the version have grown):
 
    ```bash
-   bash workload/scripts/build-package --frontend-app-id <Application (client) ID>
+   bash workload/scripts/build-package --name Org.Krusgraph --frontend-app-id <Application (client) ID>
    ls workload/build/package/                       # Org.Krusgraph.1.0.<N>.nupkg, N higher than the version in Fabric
    ```
 
@@ -499,7 +499,7 @@ redeploy. The steps are those of section 6, all four, in this order:
 
 1. **Redeploy** in Cloud Shell: `git pull --rebase origin main`, `bash deploy/krusgraph.sh --update --dry-run`, then
    `bash deploy/krusgraph.sh --update` (the engine's schema fix and the editor's notification are in the image).
-2. **Build the package**: `bash workload/scripts/build-package --frontend-app-id <Application (client) ID>`; the version
+2. **Build the package**: `bash workload/scripts/build-package --name Org.Krusgraph --frontend-app-id <Application (client) ID>`; the version
    is `1.0.<N>` with N above 883 (the version in Fabric on 9 November). Download it from **Manage files → Download**.
 3. **Add the version in Fabric**: **OneLake catalog → Govern → Workloads → Org.Krusgraph → Upload**, the new `.nupkg`;
    check that the dialog names Org.Krusgraph and the new version.
@@ -680,7 +680,7 @@ in unit tests only (`tests/test_n181_rayfin_app.py`, the `tsc` checks in `tests/
    --dry-run`, then `bash deploy/krusgraph.sh --update`.
 2. **Permissions**: nothing new if `Item.ReadWrite.All` is already granted (step 7). Optional `Tenant.Read.All` for the
    preflight; the `az ad app permission add` and `admin-consent` lines are in `docs/RAYFIN-APP.md`, section 6.
-3. **Upload a new package version**: `bash workload/scripts/build-package --frontend-app-id
+3. **Upload a new package version**: `bash workload/scripts/build-package --name Org.Krusgraph --frontend-app-id
    853a0cf0-7d35-42b7-b384-26178755a72a`, Govern → Workloads → Upload → Activate (step 6.2 to 6.4). The manifest did
    not change.
 4. **Try it** on **shop_krusgraph**: tick App (Rayfin, preview) only → Preview → read the card → Create is your call
@@ -713,7 +713,7 @@ in Fabric.
 1. **Redeploy** (Cloud Shell, `~/fabric-backend`): `git pull --rebase origin main`, `bash deploy/krusgraph.sh --update
    --dry-run`, then `bash deploy/krusgraph.sh --update` (the site's diagram, the home page and the editor's logo).
 2. **Upload a new package version**, because the manifest's images changed (new item icons and banner):
-   `bash workload/scripts/build-package --frontend-app-id 853a0cf0-7d35-42b7-b384-26178755a72a`, then Govern →
+   `bash workload/scripts/build-package --name Org.Krusgraph --frontend-app-id 853a0cf0-7d35-42b7-b384-26178755a72a`, then Govern →
    Workloads → Upload → Activate (step 6.2 to 6.4).
 3. **Check**: + New item, the workspace list and the editor tab show the new icon; the editor shows it at the top left;
    the workload page's own text no longer runs into the banner's text.
@@ -796,7 +796,7 @@ the model refreshed by Create). Checked by `app/items/ModelItem/createWords.test
 
 1. **Redeploy** (Cloud Shell, `~/fabric-backend`): `git pull --rebase origin main`, `bash deploy/krusgraph.sh --update
    --dry-run`, then `bash deploy/krusgraph.sh --update` (the editor at workload.krusgraph.com).
-2. **Upload a new package version**: `bash workload/scripts/build-package --frontend-app-id
+2. **Upload a new package version**: `bash workload/scripts/build-package --name Org.Krusgraph --frontend-app-id
    853a0cf0-7d35-42b7-b384-26178755a72a`, then Govern → Workloads → Upload → Activate (step 6.2 to 6.4).
 3. **Check**: open a Krusgraph Model, *Choose what to build* shows an icon left of each output; Preview and Create
    cards show the same; *About and notices* opens with the trademark line; a new Model on `demo_lh` proposes
@@ -867,7 +867,7 @@ round ran against Fabric. It is checked by `tests/test_n185_pipeline_jobs.py`, `
    **Grant admin consent for <your organisation>** → Yes. `az ad app permission admin-consent` fails in Cloud Shell.
    Reload the Fabric tab afterwards. Publishing the agent needs nothing new: it uses `Item.ReadWrite.All` or
    `DataAgent.ReadWrite.All`, the same scopes creating the agent already needs.
-3. **Upload a new package version**: `bash workload/scripts/build-package --frontend-app-id
+3. **Upload a new package version**: `bash workload/scripts/build-package --name Org.Krusgraph --frontend-app-id
    853a0cf0-7d35-42b7-b384-26178755a72a`, then Govern → Workloads → Upload → Activate (step 6.2 to 6.4).
 4. **Try it** on demo_lh:
    - Tick *Run once after Create* and *Schedule* (daily 06:00) on the pipeline, and *Publish the agent in Fabric* on the

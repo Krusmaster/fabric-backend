@@ -1,5 +1,8 @@
 # Publishing Krusgraph.Modeler: the founder's runbook
 
+W12: the short steps for the day Microsoft registers the name, each with what success looks like and a rollback, are
+`docs/MODELER-GO-LIVE.md`. CI keeps the validated package as an artifact (`Krusgraph.Modeler.1.0.<N>`).
+
 Round n195, 10 November 2026 (first written in n176, 9 November 2026). The permanent workload name is
 **`Krusgraph.Modeler`** (publisher part `Krusgraph`, workload part `Modeler`; the founder's decision of 9 November 2026).
 This page is the founder's steps, in order, from today's blocker to Microsoft's publishing review. What each pilot's own
@@ -284,9 +287,9 @@ steps 3 and 4 above, with n176's notes.
 
 ## What the build does now
 
-| | `Org.Krusgraph` (default) | `Krusgraph.Modeler` |
+| | `Org.Krusgraph` | `Krusgraph.Modeler` (default since W12) |
 | --- | --- | --- |
-| Build | `workload/scripts/build-package --frontend-app-id <app id>` | the same, plus `--name Krusgraph.Modeler` |
+| Build | `workload/scripts/build-package --name Org.Krusgraph --frontend-app-id <app id>` | `workload/scripts/build-package --frontend-app-id <app id>` (`--name Krusgraph.Modeler` still works) |
 | Item type | `Org.Krusgraph.Model` | `Krusgraph.Modeler.Model` |
 | Who sees it | the company tenant only | the company tenant, plus the tenants on the Publish tab |
 | Application ID URI the editor asks for | `https://krusgraph.com/workload/workload/Org.Krusgraph` | `https://krusgraph.com/workload/workload/Krusgraph.Modeler` |

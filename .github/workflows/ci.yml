@@ -90,6 +90,26 @@ jobs:
           done
           test -f "$RUNNER_TEMP/package/Krusgraph.Modeler.1.0.0.nupkg"
           unzip -p "$RUNNER_TEMP/package/Krusgraph.Modeler.1.0.0.nupkg" FE/Product.json | grep -q '"https://krusgraph.com/workload/attestation"'
+      # W12: the upload-ready Krusgraph.Modeler package, built with the default name (the one constant WORKLOAD_NAME in
+      # build_package.py) and the version 1.0.<commits on main>, so it is higher than any package Fabric has; then the dry,
+      # offline validation (workload/scripts/validate_package.py: parts, name, version, the kit's XSDs, the publishing
+      # fields) and the package kept as an artifact for docs/MODELER-GO-LIVE.md. Nothing is registered or uploaded.
+      - name: Fetch the whole history (the package version counts the commits)
+        working-directory: .
+        run: git fetch --unshallow --quiet || true
+      - name: Build and validate the upload-ready Krusgraph.Modeler package
+        id: modeler
+        working-directory: .
+        run: |
+          name=$(python3 -c "import importlib.util as u; s=u.spec_from_file_location('b','workload/scripts/build_package.py'); m=u.module_from_spec(s); s.loader.exec_module(m); print(m.WORKLOAD_NAME)")
+          out="$RUNNER_TEMP/modeler"
+          python3 workload/scripts/build_package.py --frontend-app-id 853a0cf0-7d35-42b7-b384-26178755a72a --out "$out" | tee -a "$GITHUB_STEP_SUMMARY"
+          pkg=$(ls "$out"/"$name".*.nupkg)
+          python3 workload/scripts/validate_package.py "$pkg" --require-xsd --report "$out/VALIDATION.md" >> "$GITHUB_STEP_SUMMARY"
+          (cd "$out" && sha256sum "$(basename "$pkg")" > SHA256SUMS.txt)
+          echo "artifact=$(basename "$pkg" .nupkg)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with: { name: "${{ steps.modeler.outputs.artifact }}", path: "${{ runner.temp }}/modeler", if-no-files-found: error, retention-days: 90 }
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with: { node-version: "22", cache: npm, cache-dependency-path: workload/Workload/package-lock.json }
       # npm ci of the kit's 712 packages runs out of the default 4 GB heap (runs 738 and 739; reproduced locally), and

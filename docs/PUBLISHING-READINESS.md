@@ -179,10 +179,10 @@ Every place the name lives, and what it needs. Nothing has been registered or up
 
 | Place | Today | Change | When | Who |
 | --- | --- | --- | --- | --- |
-| Package build `workload/scripts/build_package.py` | builds both; `Org.Krusgraph` is the default, `--name Krusgraph.Modeler` the listed one; every other `Krusgraph.*` name is refused | none needed now. The default stays `Org.Krusgraph` until the name is registered, so a routine rebuild of the running development workload never makes a package whose upload fails or reserves a name by accident; flip the default in the round after step N3 | after N3 | round (Workload) |
+| Package build `workload/scripts/build_package.py` | W12: `Krusgraph.Modeler` is the default, from the one constant `WORKLOAD_NAME`; `Org.Krusgraph` only with `--name Org.Krusgraph`; every other `Krusgraph.*` name is refused. Flipped before N3 at the founder's request, so the upload day is one step (`docs/MODELER-GO-LIVE.md`); an upload before Microsoft registers the name still fails with the same error and reserves nothing, and the name dialog still asks before anything is reserved | done | W12 | round (Workload) |
 | Manifest templates `workload/Workload/Manifest/` | the name only through `{{WORKLOAD_NAME}}`; item type `<name>.Model` | none | — | — |
 | Product.json publisher, links | Kruse Consulting AB; attestation link for both names | none; license link via `--offer-url` (1.3.1) | after the offer | founder, one build |
-| CI `.github/workflows/ci.yml` | builds and checks both packages | none | — | — |
+| CI `.github/workflows/ci.yml` | builds and checks both packages; W12: builds the upload-ready `Krusgraph.Modeler.1.0.<N>` package, validates it offline (`workload/scripts/validate_package.py`, the kit's XSDs included) and keeps it as an artifact with `VALIDATION.md` and `SHA256SUMS.txt` | done | W12 | round (Deployment) |
 | Frontend `workload/Workload/app/` | one editor for both names: the workload is read from the item type (`index.worker.ts:45`, `ModelItemEditor.tsx:295`, `engineClient.ts:587`) | none | — | — |
 | Editor fallback name `Dockerfile:19` (`WORKLOAD_NAME=Org.Krusgraph`) | used only before an item is open | set to `Krusgraph.Modeler` when `Org.Krusgraph` is retired | after N7 | round (Deployment) |
 | Server `KRUSGRAPH_WORKLOAD_APP_ID_URI` (`fabric_backend/entra.py:224`) | a comma list; accepts tokens for either URI | add `https://krusgraph.com/workload/workload/Krusgraph.Modeler` (runbook A2); drop the `Org.Krusgraph` URI at N7 | N2, N7 | founder (`deploy/krusgraph.json`) |
@@ -190,9 +190,9 @@ Every place the name lives, and what it needs. Nothing has been registered or up
 | Hosted attestation `fabric_backend/page_templates/WORKLOAD-ATTESTATION.md` | already names `Krusgraph.Modeler`; the Section III contact row and the security contact say `hello@krusgraph.com` (G1, 15 November 2026) | done | G1 | round (Website) |
 | Pilot page `page_templates/pilot_fabric.html:31` | says the item runs as `Org.Krusgraph` until Microsoft registers the name | reword once registered | after N3 | round (Website) |
 | Docs `docs/WORKLOAD-DEV.md`, `docs/WORKLOAD-PUBLISH.md`, this page | `Krusgraph.Modeler` is the listed name throughout | `docs/WORKLOAD-DEV.md` keeps `Org.Krusgraph` as the development path until N7 | after N7 | round (Docs) |
-| Tests | pin both names and the refusal of other `Krusgraph.*` names (`tests/test_workload_publish.py`, `tests/test_deploy_workload.py`) | change with the default flip | after N3 | round (Tests) |
+| Tests | pin both names and the refusal of other `Krusgraph.*` names (`tests/test_workload_publish.py`, `tests/test_deploy_workload.py`); W12: the default and the validator (`tests/test_w12_modeler.py`) | done | W12 | round (Tests) |
 
-**Registering `Krusgraph.Modeler`, the founder's steps:**
+**Registering `Krusgraph.Modeler`, the founder's steps** (the short version for the day, with what success looks like and a rollback: `docs/MODELER-GO-LIVE.md`):
 
 - N1. Entra: add the `Krusgraph.Modeler` redirect URIs and Application ID URI to the app (runbook A1); rename it "Krusgraph".
 - N2. Server: add the `Krusgraph.Modeler` URI to `workload_app_id_uri`, `bash deploy/krusgraph.sh --update` (runbook A2).
