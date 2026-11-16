@@ -61,6 +61,20 @@ def test_every_public_page_links_the_legal_pages_and_has_the_cookie_panel(client
         assert '<details class="cookie-panel">' in f and 'class="storage-list' in f and "<summary" in f and "Cookies and storage" in f, path
 
 
+def test_the_cookie_button_is_the_mascot_pill_under_it_with_the_note_below(client):
+    """n241 (the founder's design): 'Cookies and storage' has the 'Mascots: on' pill's classes and no card of its own,
+    and the order is Mascots, Cookies, the note; on a page without mascots only the cookie pill is there."""
+    f = _footer(client.get("/").text)
+    assert '<summary class="btn ghost small">' in f and 'class="btn ghost small" data-mascot-toggle' in f
+    assert f.index("data-mascot-toggle") < f.index('class="cookie-panel"') < f.index('id="mascot-toggle-note"')
+    css = (STATIC / "site.css").read_text(encoding="utf-8")
+    assert ".footer-controls .cookie-panel{background:none;border:0;border-radius:0;padding:0;margin:0}" in css
+    assert ".cookie-btn" not in css
+    f = _footer(client.get("/cookies").text)
+    if "data-mascot-toggle" not in f:
+        assert '<summary class="btn ghost small">' in f and "mascot-toggle-note" not in f
+
+
 def test_footer_company_details_from_the_registry_overridable_and_marked_when_empty(client, monkeypatch):
     f = _footer(client.get("/").text)
     assert "Kruse Consulting AB · Org. no. 559174-8719 · Svartmangatan 4 D, 753 12 Uppsala" in f
