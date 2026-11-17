@@ -58,6 +58,7 @@ let host: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
+  localStorage.clear();   // W14: an earlier test's unsaved draft (autosave.ts) is not this test's item
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
