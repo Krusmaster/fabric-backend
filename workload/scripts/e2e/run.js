@@ -262,6 +262,71 @@ async function main() {
     return `17-dark.png; body background ${bg} (the editor uses Fabric's light theme; see the doc)`;
   });
 
+  // W14: autosave (decisions persist without Save; a tab closed before the save recovers them on the next opening)
+  if (!BEFORE) {
+    const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 });
+    const firstPage = async (query) => {
+      const a = await phone.newPage();
+      a.on("pageerror", (e) => errors.push(e.message));
+      await a.goto(`${BASE}/index.html${query}`);
+      await a.waitForTimeout(1200);
+      return a;
+    };
+    const decisions = (a) => a.evaluate(() => {
+      const parts = JSON.parse(localStorage.getItem("w13-e2e-parts") || "[]");
+      const r = parts.find((x) => x.path === "review.json");
+      if (!r) return {};
+      const bin = atob(r.payload);
+      const review = JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))));
+      const out = {};
+      for (const it of review.items) out[it.review] = (out[it.review] || 0) + 1;
+      return out;
+    });
+    const a = await firstPage("?fresh=1");
+    await step("18 Autosave: a decision is saved without Save (phone width)", async () => {
+      await button(a, "Choose a source").click(); await settle(a);
+      await button(a, "Find keys and relationships").click();
+      await button(a, /Check against the rows/).waitFor({ timeout: 30000 });
+      await settle(a, 2500);                                     // the review itself is autosaved first
+      const before = await a.evaluate(() => window.__host.saves);
+      await a.getByRole("tab", { name: "List" }).click(); await settle(a, 300);
+      await a.getByRole("button", { name: "Accept", exact: true }).first().click();
+      const pending = await a.locator(".kg-autosave-line").innerText();
+      await settle(a, 2500);
+      const after = await a.evaluate(() => window.__host.saves);
+      const line = await a.locator(".kg-autosave-line").innerText();
+      const role = await a.locator(".kg-autosave-line").getAttribute("role");
+      const overflow = await a.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      const d = await decisions(a);
+      expectTrue(after === before + 1, `saves ${before} -> ${after}, expected one more`);
+      expectTrue(/Saved \d\d:\d\d UTC/.test(line) && role === "status", `line: ${line} (role ${role})`);
+      expectTrue((d.accepted || 0) >= 1, `no accepted item in Fabric's copy: ${JSON.stringify(d)}`);
+      expectTrue(overflow <= 0, `horizontal overflow ${overflow} px`);
+      return `${await shot(a, "18-autosave-phone")}; "${pending.trim()}" then "${line.trim()}"; saves ${before} -> ${after}; Fabric's copy: ${JSON.stringify(d)}; overflow ${overflow} px`;
+    });
+    await step("19 Closed before the save: the decision comes back on reopening", async () => {
+      await a.close();
+      const b = await firstPage("?slowsave=60000");              // this tab's save never finishes before it is closed
+      await b.getByRole("button", { name: /Check against the rows/ }).first().waitFor({ timeout: 30000 });
+      await settle(b, 2500);
+      const was = await decisions(b);
+      await b.getByRole("tab", { name: "List" }).click(); await settle(b, 300);
+      await b.getByRole("button", { name: "Reject", exact: true }).first().click();
+      await b.waitForTimeout(150);
+      await b.close();                                           // closed at once: Fabric never got the decision
+      const c = await firstPage("");
+      await c.getByText(/Recovered changes from/).waitFor({ timeout: 10000 });
+      await settle(c, 3000);
+      const now = await decisions(c);
+      const note = await c.locator(".kg-autosave-note").innerText();
+      expectTrue((now.rejected || 0) === (was.rejected || 0) + 1, `rejected ${was.rejected || 0} -> ${now.rejected || 0}`);
+      const r = `${await shot(c, "19-recovered")}; Fabric's copy ${JSON.stringify(was)} -> after reopening ${JSON.stringify(now)}; note: ${note.trim()}`;
+      await c.close();
+      return r;
+    });
+    await phone.close();
+  }
+
   await browser.close();
   engine.kill();
   record("No uncaught errors in the page", errors.length === 0, errors.slice(0, 3).join(" | ") || "none");

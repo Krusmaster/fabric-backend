@@ -85,6 +85,12 @@ import {
   withPlan, withRemoved,
 } from "./productWords";
 import { SaveStatus, saveWithRetry } from "./saveState";
+// W14: autosave (autosave.ts, SaveIndicator.tsx)
+import {
+  AUTOSAVE_DELAY_MS, AutosaveState, Decisions, Recovery, browserStore, clearDraft, conflictWords, decisionsOf, newSession,
+  readDraft, recover, recoveredWords, resolve, revisionOf, stamp, writeDraft,
+} from "./autosave";
+import { SaveIndicator } from "./SaveIndicator";
 import { CreatedItem, ItemCache, RemovedItem, ReviewFile } from "./ModelItemDefinition";
 
 const VIEWS: ModelView[] = ["empty", "review", "outputs", "preview", "result", "product"];
@@ -300,7 +306,17 @@ export function ModelItemEditor(props: PageProps) {
         // n223: the item and its definition are read at the same time (one waited for the other before)
         const [got, parts] = await Promise.all([callGetItem(workloadClient, itemObjectId), callGetItemDefinition(workloadClient, itemObjectId)]);
         rememberWorkloadOf(got.item.type);   // n176: Org.Krusgraph or Krusgraph.Modeler, for the engine scope
-        const loaded = fromParts(parts?.definition?.parts);
+        const inFabric = fromParts(parts?.definition?.parts);
+        // W14: the revision and decisions Fabric has are the base of the next autosave; changes this browser kept and
+        // Fabric does not have (a reload or a closed tab before the save) are recovered and saved again
+        base.current = { rev: revisionOf(inFabric), decisions: decisionsOf(inFabric.review) };
+        const rec = recover(readDraft(browserStore(), got.item.id), inFabric);
+        recovered.current = rec;
+        if (rec) {
+          base.current = { ...base.current, rev: rec.baseRev };
+          setNote(rec.conflict ? `${recoveredWords(rec)} ${conflictWords(rec.conflict)}` : recoveredWords(rec));
+        }
+        const loaded = rec ? rec.def : inFabric;
         setItemMeta({ id: got.item.id, workspaceId: got.item.workspaceId, displayName: got.item.displayName });
         // n221: the item's workspace is where the outputs go by default, so every request from now on needs it
         metaRef.current = { id: got.item.id, workspaceId: got.item.workspaceId, displayName: got.item.displayName };
@@ -336,6 +352,7 @@ export function ModelItemEditor(props: PageProps) {
         } else if (reviewFirst) {
           await replanOnOpen({ ...loaded, item: { ...loaded.item, view: "review" } }); // re-plan with the saved decisions
         }
+        if (recovered.current) setDirty(true);   // W14: the recovered changes are saved by the autosave
       } catch (e) {
         // n197: Fabric throttled or failed the read of the item's saved state: one line, not a page without its flow
         const busy = isBusy(e) || /429|throttl|busy|capacity/i.test(String(e?.message ?? e));
@@ -352,10 +369,11 @@ export function ModelItemEditor(props: PageProps) {
 
   // ---------------------------------------------------------------- actions
   async function save(d: ModelDefinition = def) {
-    const ok = await callUpdateItemDefinition(workloadClient, itemMeta.id, toParts(d) as never, false);
-    setSaveStatus(ok ? { state: "saved", at: new Date().toISOString() } : { state: "failed", at: new Date().toISOString(), tries: 1 });   // n225
+    // W14: through persist, so the save carries the next revision, waits for any save on its way and is tried again
+    setDirty(false);
+    const outcome = await persist(d);
+    const ok = outcome === "saved" || outcome === "superseded";
     if (ok) {
-      setDirty(false);
       callNotificationOpen(workloadClient, "Saved", `${itemMeta.displayName} was saved.`);
     } else {
       callNotificationOpen(workloadClient, "Not saved", `${itemMeta.displayName} could not be saved.`, NotificationType.Error);
@@ -533,24 +551,102 @@ export function ModelItemEditor(props: PageProps) {
    * n225: callUpdateItemDefinition answers undefined when Fabric refuses a save, which used to pass for saved; now a save
    * Fabric did not confirm is tried again (saveState.saveWithRetry), a copy a newer one supersedes is not sent, and the
    * outcome is shown (Saved, Saving, Not saved with Save again). */
-  function persist(next: ModelDefinition): Promise<unknown> {
+  function persist(next: ModelDefinition, baseRev?: number): Promise<"saved" | "superseded" | "failed" | undefined> {
     defRef.current = next;
     setDef(next);
     const meta = metaRef.current;
-    if (!meta) return saving.current;
+    if (!meta) return saving.current.then((): undefined => undefined);
     const seq = ++saveSeq.current;
     const newest = () => saveSeq.current === seq;
     setSaveStatus({ state: "saving", since: new Date().toISOString() });
-    saving.current = saving.current
+    const mine = saving.current
       .then(async () => {
-        if (!newest()) return;                                   // a newer copy is queued behind this one and carries it
-        const got = await saveWithRetry(() => callUpdateItemDefinition(workloadClient, meta.id, toParts(next) as never, false), newest);
+        if (!newest()) return "superseded" as const;             // a newer copy is queued behind this one and carries it
+        // W14: the next revision, stamped when this copy is sent (after any save before it has moved the base)
+        const sent = stamp(next, Math.max(baseRev ?? 0, base.current.rev), session.current);
+        const got = await saveWithRetry(() => callUpdateItemDefinition(workloadClient, meta.id, toParts(sent) as never, false), newest);
+        if (got.outcome === "saved") {
+          base.current = { rev: revisionOf(sent), decisions: decisionsOf(sent.review) };
+          if (defRef.current === next) clearDraft(browserStore(), meta.id);   // nothing changed since: the draft is in Fabric
+        }
         if (got.outcome === "saved" && newest()) setSaveStatus({ state: "saved", at: new Date().toISOString() });
         if (got.outcome === "failed") setSaveStatus({ state: "failed", at: new Date().toISOString(), tries: got.tries });
+        return got.outcome;
       })
-      .catch((): undefined => undefined);
-    return saving.current;
+      .catch((): "failed" => "failed");
+    saving.current = mine;
+    return mine;
   }
+
+  // ---------------------------------------------------------------- W14: autosave
+  /** what Fabric had at the last read or save: its revision and its review decisions (the merge base) */
+  const base = useRef<{ rev: number; decisions: Decisions }>({ rev: 0, decisions: {} });
+  const session = useRef(newSession());
+  const recovered = useRef<Recovery>();
+  const autosaving = useRef(false);
+  const [note, setNote] = useState<string>();
+
+  /** Reads Fabric's revision; when another session saved meanwhile, merges its decisions in (autosave.resolve), then
+   * saves through persist. A change made while this runs is saved by the next autosave. */
+  async function autosave(): Promise<void> {
+    const meta = metaRef.current;
+    if (!meta || autosaving.current) return;
+    autosaving.current = true;
+    setDirty(false);
+    try {
+      const local = defRef.current;
+      let remote: ModelDefinition | undefined;
+      try {
+        remote = fromParts((await callGetItemDefinition(workloadClient, meta.id))?.definition?.parts);
+      } catch {
+        remote = undefined;   // the read failed: save on the base this session has (last write wins)
+      }
+      const r = resolve(local, base.current.decisions, base.current.rev, remote);
+      if (r.conflict) setNote(conflictWords(r.conflict));
+      if (defRef.current !== local) {
+        // the person changed something during the read: merge again on the next autosave
+        setDirty(true);
+        return;
+      }
+      await persist(r.def, r.baseRev);
+    } finally {
+      autosaving.current = false;
+    }
+  }
+
+  // the draft in this browser, written at each unsaved change, so a reload or a closed tab loses nothing
+  useEffect(() => {
+    if (!dirty || isLoading || !itemMeta) return;
+    writeDraft(browserStore(), itemMeta.id, def, base.current.rev, base.current.decisions);
+  }, [def, dirty, isLoading, itemMeta]);
+
+  // the save itself, a moment after the last change (one Create at a time saves its own steps)
+  useEffect(() => {
+    if (!dirty || isLoading || !itemMeta || creating) return undefined;
+    const t = setTimeout(() => void autosave(), AUTOSAVE_DELAY_MS);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [def, dirty, isLoading, itemMeta, creating]);
+
+  // hidden or closed: save at once (the draft covers the case where the browser does not wait for it)
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
+  useEffect(() => {
+    const flush = () => {
+      if (dirtyRef.current && document.visibilityState !== "visible") void autosave();
+    };
+    const leave = () => { if (dirtyRef.current) void autosave(); };
+    document.addEventListener("visibilitychange", flush);
+    window.addEventListener("pagehide", leave);
+    return () => {
+      document.removeEventListener("visibilitychange", flush);
+      window.removeEventListener("pagehide", leave);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const autosaveState: AutosaveState = saveStatus.state === "failed" ? "failed"
+    : saveStatus.state === "saving" ? "saving" : dirty ? "pending" : "saved";
 
   function update(fn: (d: ModelDefinition) => ModelDefinition): Promise<unknown> {
     return persist(fn(defRef.current));
@@ -1088,6 +1184,9 @@ export function ModelItemEditor(props: PageProps) {
   const wrap = (node: React.ReactNode) => (
     <div className="kg-wrap">
       <FlowSteps steps={steps} onGo={goStep} />
+      <SaveIndicator state={autosaveState} at={saveStatus.state === "saved" ? saveStatus.at : undefined}
+        tries={saveStatus.state === "failed" ? saveStatus.tries : undefined} note={note}
+        onSaveAgain={() => void persist({ ...defRef.current })} onDismissNote={() => setNote(undefined)} />
       <ErrorBar error={error} />
       {trialLine ? <div style={{ fontSize: 12, opacity: 0.75, margin: "4px 0" }} role="status">{trialLine}</div> : null}
       {quiet && !wait ? <Busy wait={quiet} mascotsOn={mascotsOn} skeleton={false} /> : null}
