@@ -320,6 +320,59 @@ Workspace `demo` (id `6c07e0a5-cea9-4749-846b-69dc30201a17`), synthetic data, af
   that the month chart and both slicers are on the page, and that Fabric accepts the theme (the first definition with a
   `StaticResources` part sent to Fabric).
 
+## 17-18 Nov 2026 LT1: SAP sample + CSN
+
+The first run after the automatic deploy, through the hosted Krusgraph connector in Claude, against the workspace `demo`
+and its lakehouse `demo_lh` (synthetic data only). The round was started for build `src-23bfb353c764af68` (as its brief
+says); the run did not read `/healthz` itself. Times are UTC from the session clock, between calls, so they include the client.
+Facts observed, nothing else.
+
+**What was there.** `demo_lh` has the schemas `dbo` (18 tables), `gold` (3), `krusgraph` (1), `shop` (7) and `silver` (8).
+The 17 synthetic SAP demo tables of round n32 (`sap_t001` … `sap_vbrp`, a few rows each) were already in `dbo` and were
+reused; nothing was loaded. The n202 sample (`sap_sd`, `sap_mm`) is not in this lakehouse. `Files/krusgraph/csn/` does not
+exist: the connector has no tool that writes to *Files*, so no CSN file was uploaded (see "For the maintainer"). Issue #55 also covers `verify_build` comparing a pipeline with the default schemas and the unrelated model in `next_steps`.
+
+| # | Tool and inputs | What a user sees | Result |
+| --- | --- | --- | --- |
+| 1 | `list_workspaces`, `list_sources demo` | 4 workspaces; one source, `demo_lh`, and 8 GraphQL APIs | as expected |
+| 2 | `list_tables demo_lh dbo` | 18 tables with types (17 `sap_*` and `sys_dq_metrics`) | as expected |
+| 3 | `plan_backend demo_lh dbo` | 17 keys by the SAP pack, all 17 counted unique in the same call; 24 relationships plus 10 extended (VBFA, ADRC); `sys_dq_metrics` keyless; no `csn` block (no file, silent as documented) | as expected |
+| 4 | `validate_plan` with `csn_path=Files/krusgraph/csn`, `max_items=200` (22:31:39, 45 s budget not used up) | "17 of 17 keys unique, 32 of 34 relationships hold without orphans"; `sap_vbap` → `sap_vbak` 1 of 6 rows point at nothing (the planted orphan); `sap_vbfa` → `sap_vbak` no rows with a value; three header amounts (VBAK.NETWR over VBAP, VBAP.NETWR over VBEP, VBRK.NETWR/MWSBK over VBRP "2 times too large"); `csn.lakehouse.not_read`: kind `missing`, "not found in the lakehouse" | as the n32 checklist (0.2, 0.3) expects. The OneLake read answered "missing", not a permission error, so the storage sign-in reached the lakehouse; whether a file is read and applied is not shown |
+| 5 | `sample_rows sap_vbak`, `sap_kna1` (n=5) | 3 and 4 rows (all there are); `NAME1`, `STRAS`, `PSTLZ`, `ORT01`, `TELF1` of `sap_kna1` shown as `***`, each naming the SAP pack | as expected |
+| 6 | `suggest_relationships demo_lh dbo` | 0 candidates; coverage names `sap_knvk.LIFNR` as an unlinked reference (no `LFA1` in the schema) | no CSN candidate to check, since no CSN was read |
+| 7 | `sap_pack_draft demo_lh dbo` | 17 tables recognised, 34 pack relationships apply, 6 listed not applied (VBPA conditional), 27 pack tables missing | as expected |
+| 8 | `create_silver_notebook sap_lt1_silver`, 17 tables, `silver_schema=sap_silver`: dry run, then create (22:34:18) | `result: Succeeded, mode created`; the notebook (53 290 characters) is too long for the answer and is left out | created. **Bug:** the text said the 17 keys "were not declared, given or counted in the rows" while the same answer's coverage said "17 with a counted key" (fixed in the LT1 pull request) |
+| 9 | `create_gold_views sap_lt1_gold`, all 17 tables, dry run | error `bad_input`: only fact tables get a gold view; the hint says to check keys and confirmed, which is not the cause | refused; with the 4 fact tables (`sap_lips`, `sap_vbap`, `sap_vbpa`, `sap_vbrp`) the dry run and the create succeeded. Issue #55 |
+| 10 | `create_semantic_model sap_lt1_model`, dry run | the model reads `silver.<table>` (41 combined key columns exist only in silver), whatever schema the silver notebook was given; the tool has no `silver_schema` | a model on `sap_silver` was not possible. Issue #54. The silver and gold notebooks were moved to `silver` by the next row |
+| 11 | `create_pipeline sap_lt1_pipeline`, `silver_schema=silver`, `gold_schema=sap_gold`, dry run then create | silver and gold notebooks updated in place, `sap_lt1_pipeline_check` and the pipeline created; gold now has 5 views (`sap_vbrk` too); nothing run or scheduled | `status: Succeeded` for all four items |
+| 12 | `create_semantic_model sap_lt1_model`, 17 tables, create | 17 tables, 24 relationships (13 active, 11 inactive), 18 measures; the four header amounts with `summarizeBy: none` and TREATAS measures | `Succeeded, mode created`; not refreshed (the silver tables it reads do not exist until the pipeline runs) |
+| 13 | `create_report sap_lt1_report` on `sap_lt1_model`, dry run then create (22:36:34) | one page: 4 cards, a bar chart and a table by `sap_kna1[ADRNR]` (the customer name is personal data, so the address number was chosen as the category), a slicer; the column chart by month left out (no date table); `sap_vbap[Total NETWR]` left out as a header amount | `Succeeded, mode created` |
+| 14 | `verify_build` for the model, the report and the pipeline | model: definition as the dry run; whether it was refreshed not read, HTTP 401 (the app lacks the Power BI permission Dataset.Read.All); report: 7 visuals as the dry run, 4 figures not checked (`Invalid object name 'silver.sap_lips'`, the pipeline has not run); pipeline: "never ran"; the three notebooks "differ" on 913, 399 and 970 lines | **Bug:** the first difference is in the first markdown cell (Fabric `# # Generated by Krusgraph …`, the dry run `#`), and the comparison was by position, so one line added or gone made every later line count as different. Fixed in the LT1 pull request (markdown cells skipped, lines counted by a diff); not re-run live |
+
+**Not done in this run.** No CSN file in `Files/krusgraph/csn/`, so `declared by metadata (CSN)` was not seen live and the
+CSN links were not counted against the rows in Fabric. The pipeline was not run (a run needs `run_once` with the person's
+`confirm_jobs` after the dry run, and DataPipeline.Execute.All), so no silver table, gold view or refreshed figure exists;
+nothing here shows the notebooks run in Fabric. No speed is claimed.
+
+**Smaller observations, no change made.** The `next_steps` after `create_pipeline` proposed to verify `demo_lh_model_3`, an
+older model in the workspace that this plan did not build. In `sap_lt1_model` the link `sap_vbap` → `sap_vbak` is inactive
+(it would close a cycle through `sap_vbrp`, `sap_vbrk` and `sap_kna1`). `validate_plan`'s check card gave three amount
+checks the same id `amount:sap_vbap` (fixed in the LT1 pull request).
+
+**Left in the workspace `demo`** (not deleted): the notebooks `sap_lt1_silver`, `sap_lt1_gold` and `sap_lt1_pipeline_check`,
+the data pipeline `sap_lt1_pipeline`, the semantic model `sap_lt1_model` and the report `sap_lt1_report`.
+
+**For the maintainer, about 10 minutes.**
+1. In `demo_lh`, *Files*: create `krusgraph/csn` and upload `examples/sap_demo/csn/sap_demo_o2c.json`.
+2. In Claude: *"Check the plan of demo_lh, schema dbo, against the data."* Expected: a `csn` block with 4 keys and 3 links
+   (rule "CSN metadata", `provenance: "declared by metadata (CSN)"`), `sap_vbap` → `sap_vbak` still 1 orphan of 6.
+3. *"Which columns look like references but are in no relationship?"* (`suggest_relationships`): note whether CSN links
+   appear and are counted.
+4. In Fabric: open `sap_lt1_pipeline` and Run. Then refresh `sap_lt1_model` once, open `sap_lt1_report`.
+5. In Claude: *"Verify sap_lt1_model, sap_lt1_report and sap_lt1_pipeline."* With the LT1 fix deployed the notebooks
+   should no longer differ on every line; the gold notebook still differs because `verify_build` compares with the
+   default gold schema `gold` and it was built with `sap_gold`.
+
 ## Databricks
 
 For a trial workspace of your own (Databricks Free Edition or a trial account), from the **local** stdio server with
