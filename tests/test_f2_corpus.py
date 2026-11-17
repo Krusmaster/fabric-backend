@@ -33,6 +33,9 @@ SCORES = {
     # filtered on Type, a column this corpus lacks
     "bc_like":        {"true": (10, 12), "names": (10, 0, 0, 0, 10, 0),   "before": (10, 0, 0, 0, 10, 0),   "after": (10, 0, 0, 0, 10, 0)},
     "dynamics365":    {"true": (33, 57), "names": (33, 0, 0, 0, 57, 0),   "before": (33, 0, 0, 0, 57, 0),   "after": (33, 0, 0, 0, 57, 0)},
+    # PK1: rows written from the salesforce pack, so the pack's own links are the truth; 2 of 53 links hold with orphans
+    # (the archived price book), as planted
+    "salesforce":     {"true": (21, 53), "names": (21, 0, 0, 0, 53, 0),   "before": (21, 0, 0, 0, 53, 0),   "after": (21, 0, 0, 0, 53, 0)},
 }
 
 

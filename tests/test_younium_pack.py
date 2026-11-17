@@ -18,7 +18,7 @@ from fabric_backend.infer import plan
 from fabric_backend.schema import Schema
 
 ROOT = Path(__file__).resolve().parents[1]
-PACK_FILES = sorted((sap_pack.PACKS / "younium_salesforce").glob("*.json"))
+PACK_FILES = sorted(list((sap_pack.PACKS / "younium_salesforce").glob("*.json")) + list((sap_pack.PACKS / "younium_salesforce").glob("*.include")))
 
 
 @pytest.fixture(scope="module")
@@ -35,13 +35,17 @@ def _pack(name: str) -> str:
 # ---------------------------------------------------------------- the pack's files
 
 def test_two_modules_and_a_consistent_merge():
-    assert [f.stem for f in PACK_FILES] == ["salesforce", "younium"]
+    assert [f.name for f in PACK_FILES] == ["salesforce.include", "younium.json"]       # PK1: Salesforce read from packs/salesforce
     p = sap_pack.load("younium_salesforce")
+    assert [m["file"] for m in p["modules"]] == ["packs/salesforce/salesforce.json", "packs/younium_salesforce/younium.json"]
     assert sap_pack.problems(p) == []
     assert set(p["tables"]) == {"ACCOUNTS", "PRODUCTS", "CHARGE_PLANS", "CHARGES", "SUBSCRIPTIONS", "SUBSCRIPTION_VERSIONS", "SUBSCRIPTION_CHARGES",
                                 "SALES_ORDERS", "INVOICES", "INVOICE_LINES", "PAYMENTS",
                                 "ACCOUNT", "CONTACT", "OPPORTUNITY", "OPPORTUNITYLINEITEM", "PRODUCT2", "PRICEBOOKENTRY", "ORDER", "ORDERITEM", "CONTRACT"}
-    assert {"sap", "younium_salesforce"} <= set(sap_pack.available())    # PK2 adds dynamics365 beside them
+    assert {"salesforce", "sap", "younium_salesforce"} <= set(sap_pack.available())     # PK2 adds dynamics365 beside them
+    sf = sap_pack.load("salesforce")                                      # PK1: one truth: the included tables are the pack's own
+    assert all(p["tables"][n] == {**sf["tables"][n]} for n in sf["tables"] if n in p["tables"])
+    assert p["rule"] == "Younium + Salesforce pack"
 
 
 def test_the_relationships_the_round_asked_for_are_there():
@@ -62,10 +66,15 @@ def test_the_relationships_the_round_asked_for_are_there():
 
 def test_every_source_is_marked_unverified_with_the_date_it_was_not_reached():
     p = sap_pack.load("younium_salesforce")
-    assert p["sources"] and all(not s["fetched"] for s in p["sources"].values())
-    for s in p["sources"].values():
+    younium = {k: s for k, s in p["sources"].items() if s["publisher"] == "Younium"}
+    assert younium and all(not s["fetched"] for s in younium.values())
+    for s in younium.values():
         assert s["note"].startswith("Unverified") and "1 November 2026" in s["note"], s["title"]
-        assert s["url"].startswith(("https://developer.younium.com", "https://support.younium.com", "https://developer.salesforce.com"))
+        assert s["url"].startswith(("https://developer.younium.com", "https://support.younium.com"))
+    # PK1: the Salesforce pages were read on 17 November 2026 (the salesforce pack); the rest are Younium's, still unread
+    salesforce = {k: s for k, s in p["sources"].items() if s["publisher"] != "Younium"}
+    assert salesforce and all(s["fetched"] and "17 November 2026" in s["note"] and s["url"].startswith("https://developer.salesforce.com")
+                              for s in salesforce.values())
     for t in p["tables"].values():
         assert t["sources"] and t.get("area") in {"customers", "subscriptions", "billing", "product catalog", "sales"}, t["name"]
     for m in p["modules"]:
@@ -131,9 +140,12 @@ def test_match_any_takes_the_pack_that_recognises_most(run):
 def test_the_demo_is_recognised_whole_and_the_listed_links_are_named(run):
     schema, _, p, m, validation = run
     assert len(schema) == yd.EXPECTED["tables"] and sum(len(r) for _, _, r in yd.tables().values()) == yd.EXPECTED["rows"]
-    assert len(m.tables) == 14 and m.missing_columns == [] and m.client_dropped == []
+    # PK1: three links the salesforce pack lists (never applies) need columns the demo's four Salesforce tables do not have
+    assert len(m.tables) == 14 and m.client_dropped == []
+    assert sorted(c["relationship"] for c in m.missing_columns) == ["CONTACT.REPORTS_TO_ID -> CONTACT", "OPPORTUNITY.CONTACT_ID -> CONTACT",
+                                                                    "OPPORTUNITY.PARTNER_ACCOUNT_ID -> ACCOUNT"]
     assert m.missing_tables == ["CONTRACT", "ORDER", "PRICEBOOKENTRY", "PRODUCT2", "SALES_ORDERS"]
-    assert {_pack(r["target"]) for r in m.not_applied} == yd.EXPECTED["not_applied_targets"]
+    assert {_pack(r["target"]) for r in m.not_applied} == yd.EXPECTED["not_applied_targets"] | {"CONTACT"}
     assert len(p.relationships) == 15 and all(r.rule == "confirmed" for r in p.relationships)
     assert all(k["verdict"].startswith("unique") for k in validation["keys"])
 

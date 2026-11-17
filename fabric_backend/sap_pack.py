@@ -49,15 +49,43 @@ def available() -> list[str]:
     return sorted(p.name for p in PACKS.iterdir() if p.is_dir())
 
 
+INCLUDE = ".include"      # PK1: packs/<pack>/<module>.include names a module of another pack to read, not copy
+
+
+def _included(spec_file: Path) -> tuple[dict, str]:
+    """A module of another pack, cut to the tables an `.include` file names (round PK1). The file is JSON:
+    {"pack": "salesforce", "module": "salesforce", "tables": [...], "traps": [...]}. The module keeps its own text and
+    sources; relationships are taken where both tables are named, traps by id, sources where a kept claim cites them.
+    The including pack's own modules set the rule, so the engine's label of the including pack does not change."""
+    spec = json.loads(spec_file.read_text(encoding="utf-8"))
+    src = PACKS / spec["pack"] / f"{spec['module']}.json"
+    m = json.loads(src.read_text(encoding="utf-8"))
+    keep = set(spec["tables"])
+    unknown = keep - {t["name"] for t in m["tables"]}
+    if unknown:
+        raise KeyError(f"{spec_file.name}: the {spec['pack']} pack does not describe {', '.join(sorted(unknown))}")
+    m["tables"] = [t for t in m["tables"] if t["name"] in keep]
+    m["relationships"] = [r for r in m["relationships"] if r["source"] in keep and r["target"] in keep]
+    m["traps"] = [t for t in m.get("traps", []) if t["id"] in set(spec.get("traps", []))]
+    cited = {s for x in m["tables"] + m["relationships"] + m["traps"] for s in x["sources"]}
+    m["sources"] = {k: v for k, v in m["sources"].items() if k in cited}
+    return m, f"packs/{spec['pack']}/{src.name}"
+
+
 @lru_cache(maxsize=None)
 def _load(pack: str) -> str:
-    files = sorted((PACKS / pack).glob("*.json"))
+    files = sorted(list((PACKS / pack).glob("*.json")) + list((PACKS / pack).glob("*" + INCLUDE)), key=lambda f: f.stem)
     if not files:
         raise KeyError(f"no pack named {pack!r}; available: {', '.join(available())}")
     merged: dict = {"pack": pack, "modules": [], "variants": {}, "sources": {}, "tables": {}, "relationships": [], "traps": []}
+    rule = None
     for f in files:
-        m = json.loads(f.read_text(encoding="utf-8"))
-        merged["modules"].append({"module": m["module"], "title": m["title"], "status": m["status"], "file": f"packs/{pack}/{f.name}"})
+        if f.suffix == INCLUDE:
+            m, file = _included(f)
+        else:
+            m, file = json.loads(f.read_text(encoding="utf-8")), f"packs/{pack}/{f.name}"
+            rule = rule or m["rule"]
+        merged["modules"].append({"module": m["module"], "title": m["title"], "status": m["status"], "file": file})
         merged["rule"] = m["rule"]
         merged["variants"].update(m["variants"])
         for sid, s in m["sources"].items():
@@ -66,6 +94,7 @@ def _load(pack: str) -> str:
             merged["tables"][t["name"]] = {**t, "module": m["module"]}
         merged["relationships"] += [{**r, "module": m["module"]} for r in m["relationships"]]
         merged["traps"] += [{**t, "module": m["module"]} for t in m.get("traps", [])]
+    merged["rule"] = rule or merged["rule"]
     return json.dumps(merged)
 
 
@@ -611,7 +640,7 @@ def write_verified(report: dict, pack: str = "sap") -> list[str]:
         if x["proposal"] == "verified":
             by_module.setdefault(x["module"], []).append(x)
     for module, items in by_module.items():
-        path = PACKS / pack / f"{module}.json"
+        path = PACKS.parent / next(x["file"] for x in p["modules"] if x["module"] == module)   # PK1: an included module's own file
         lines = path.read_text(encoding="utf-8").split("\n")
         for x in items:
             r = {k: v for k, v in p["relationships"][x["index"]].items() if k != "module"}

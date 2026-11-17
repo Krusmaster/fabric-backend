@@ -1,13 +1,17 @@
 # Knowledge packs: the manifest, how a pack is added, and what a pack is not
 
-Round n77, 2 November 2026. A knowledge pack is what Krusgraph knows about a named source system before it has seen
-a row: the tables, their keys, the relationships between them, the amounts and their levels, and the traps a person
-falls into when joining them. Two packs exist: `sap` ([SAP.md](SAP.md), six modules for tables and, since round n230,
-three for released CDS views, [SAP-CDS.md](SAP-CDS.md)) and `younium_salesforce`
-([YOUNIUM-SALESFORCE.md](YOUNIUM-SALESFORCE.md), two modules); since round PK2 also `dynamics365` ([DYNAMICS365.md](DYNAMICS365.md), Dataverse
-and Business Central). Each lives in `fabric_backend/packs/<pack>/`, one JSON
-file per module (`pack.schema.json` is their schema, `sap_pack.py` their loader), and since this round one
-**manifest** per pack, `fabric_backend/packs/<pack>/manifest.yaml`, in one shape for every pack.
+Round n77, 2 November 2026. A knowledge pack is what Krusgraph knows about a named source system before it has seen a
+row: the tables, their keys, the relationships between them, the amounts and their levels, and the traps a person
+falls into when joining them. Four packs exist: `sap` ([SAP.md](SAP.md), six modules for tables and, since round
+n230, three for released CDS views, [SAP-CDS.md](SAP-CDS.md)), `younium_salesforce`
+([YOUNIUM-SALESFORCE.md](YOUNIUM-SALESFORCE.md), two modules), since round PK1, `salesforce`
+([SALESFORCE.md](SALESFORCE.md), one module, 21 standard objects) and, since round PK2, `dynamics365`
+([DYNAMICS365.md](DYNAMICS365.md), Dataverse and Business Central). A pack can read a module of another pack instead of
+copying it: `packs/<pack>/<module>.include` is JSON naming the pack, the module, the tables and the traps to take
+(`younium_salesforce/salesforce.include` takes nine objects of the `salesforce` pack), so one claim lives in one file.
+Each lives in `fabric_backend/packs/<pack>/`, one JSON file per module (`pack.schema.json` is their schema,
+`sap_pack.py` their loader), and since this round one **manifest** per pack,
+`fabric_backend/packs/<pack>/manifest.yaml`, in one shape for every pack.
 
 The module files are what the engine runs on. The manifest is the same knowledge laid out for a person to review:
 what the pack claims, where each claim comes from and whether that source was actually read, which check on the rows

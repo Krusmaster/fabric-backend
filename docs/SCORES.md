@@ -32,6 +32,7 @@ in Fabric: the corpus runs on SQLite with the SQL the engine writes.
 | Nordic-ERP-like shape (`nordic_erp`) | 8 | 8 | 0 / 0 / 8 / 0 | 0 / 0 / 8 / 0 | 8 / 0 / 0 / 0 |
 | Business-Central-like shape (`bc_like`) | 10 | 10 | 10 / 0 / 0 / 0 | 10 / 0 / 0 / 0 | 10 / 0 / 0 / 0 |
 | Dynamics 365 demo (Dataverse and Business Central) (`dynamics365`) | 33 | 33 | 33 / 0 / 0 / 0 | 33 / 0 / 0 / 0 | 33 / 0 / 0 / 0 |
+| Salesforce-shaped sample, lead to cash and service (`salesforce`) | 21 | 21 | 21 / 0 / 0 / 0 | 21 / 0 / 0 / 0 | 21 / 0 / 0 / 0 |
 
 ## Links
 
@@ -45,6 +46,7 @@ in Fabric: the corpus runs on SQLite with the SQL the engine writes.
 | Nordic-ERP-like shape (`nordic_erp`) | 9 | 0 / 0 | 0 / 0 | 5 / 0 |
 | Business-Central-like shape (`bc_like`) | 12 | 10 / 0 | 10 / 0 | 10 / 0 |
 | Dynamics 365 demo (Dataverse and Business Central) (`dynamics365`) | 57 | 57 / 0 | 57 / 0 | 57 / 0 |
+| Salesforce-shaped sample, lead to cash and service (`salesforce`) | 53 | 53 / 0 | 53 / 0 | 53 / 0 |
 
 ## The corpora
 
@@ -145,6 +147,14 @@ Source: fabric_backend/dynamics_demo.py, SYNTHETIC DEMO DATA written from the dy
 Planted on purpose: one salesorderdetail row soft-deleted (IsDelete 1, empty body); activity Demo call 2 regarding an account purged from the lake (a filtered link, in plan.extended); Business Central customer C10000, item 1000 and invoice 103001 in two companies ($Company in the key).
 
 Row results of the plan after: 33 of 33 keys unique, 81 of 89 relationships hold without orphans.
+
+### Salesforce-shaped sample, lead to cash and service (`salesforce`)
+
+Source: fabric_backend/salesforce_demo.py, synthetic rows written from the salesforce pack, object and field API names as a Copy job lands them; not Salesforce data. 81 rows in 21 tables.
+
+Planted on purpose: PricebookEntry.Pricebook2Id -> Pricebook2 has an orphan: a price book deleted while lines used it is archived and not returned; Opportunity.Pricebook2Id -> Pricebook2 has an orphan: a price book deleted while lines used it is archived and not returned.
+
+Row results of the plan after: 21 of 21 keys unique, 51 of 53 relationships hold without orphans.
 
 ## Not in the corpus
 

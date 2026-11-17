@@ -319,6 +319,45 @@
     "links_found": 57,
     "links_wrong": 0
    }
+  },
+  {
+   "name": "salesforce",
+   "title": "Salesforce-shaped sample, lead to cash and service",
+   "source": "fabric_backend/salesforce_demo.py, synthetic rows written from the salesforce pack, object and field API names as a Copy job lands them; not Salesforce data",
+   "row_count": 81,
+   "names": {
+    "tables": 21,
+    "keys_true": 21,
+    "keys_right": 21,
+    "keys_wrong": 0,
+    "keys_missed": 0,
+    "keys_extra": 0,
+    "links_true": 53,
+    "links_found": 53,
+    "links_wrong": 0
+   },
+   "before": {
+    "tables": 21,
+    "keys_true": 21,
+    "keys_right": 21,
+    "keys_wrong": 0,
+    "keys_missed": 0,
+    "keys_extra": 0,
+    "links_true": 53,
+    "links_found": 53,
+    "links_wrong": 0
+   },
+   "after": {
+    "tables": 21,
+    "keys_true": 21,
+    "keys_right": 21,
+    "keys_wrong": 0,
+    "keys_missed": 0,
+    "keys_extra": 0,
+    "links_true": 53,
+    "links_found": 53,
+    "links_wrong": 0
+   }
   }
  ],
  "not_present": {
