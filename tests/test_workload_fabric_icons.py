@@ -55,7 +55,8 @@ def test_icons_come_only_from_the_cited_package_at_the_pinned_version():
     assert "`${ICONS.servedAt}/${k.file}`" in ts
     views = (MODEL / "ModelItemViews.tsx").read_text(encoding="utf-8")
     assert "fabric-icons" not in views and "svg-icons" not in views
-    assert re.search(r'<img className="krusgraph-item-icon" src=\{icon\.src\} alt=\{icon\.alt\} width=\{ICON_SIZE\} height=\{ICON_SIZE\}', views)
+    assert re.search(r'<img className="krusgraph-item-icon" src=\{icon\.src\} alt=\{altBeside\(icon\.alt, label\)\} width=\{ICON_SIZE\} height=\{ICON_SIZE\}', views)
+    # W13: the alt is empty where the label already names the item type (fabricIcons.altBeside), else the type
 
 
 def test_no_icon_file_is_stored_or_modified_in_the_repository():

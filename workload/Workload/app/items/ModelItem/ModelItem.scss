@@ -566,3 +566,73 @@
   background: var(--colorNeutralBackground2);
   padding: 6px 8px;
 }
+
+// ------------------------------------------------------------------ W13: where you are, the evidence, next steps -----
+// Fluent tokens only (light and dark follow the theme); the layout follows the canvas's own width (container query), as
+// docs/WORKLOAD-UX-DESIGN.md section 7 says: inside Fabric the iframe's width is Fabric's, not the device's.
+.kg-wrap { container-type: inline-size; }
+.kg-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.kg-steps { margin: 0 0 12px; }
+.kg-steps-row {
+  display: flex; flex-wrap: wrap; gap: 4px 16px; list-style: none; margin: 0; padding: 0;
+  font-size: var(--fontSizeBase300); color: var(--colorNeutralForeground2);
+}
+.kg-step { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; }
+.kg-step-mark {
+  display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%;
+  font-size: var(--fontSizeBase200); border: 1px solid var(--colorNeutralStroke1); color: var(--colorNeutralForeground2);
+}
+.kg-step-done .kg-step-mark { background: var(--colorBrandBackground); border-color: var(--colorBrandBackground); color: var(--colorNeutralForegroundOnBrand); }
+.kg-step-now { color: var(--colorNeutralForeground1); font-weight: var(--fontWeightSemibold); }
+.kg-step-now .kg-step-mark { border: 2px solid var(--colorBrandStroke1); color: var(--colorBrandForeground1); }
+.kg-step-go {
+  background: none; border: none; padding: 4px 2px; font: inherit; color: var(--colorBrandForegroundLink); cursor: pointer;
+  text-decoration: underline; text-underline-offset: 2px;
+  &:focus-visible { outline: 2px solid var(--colorStrokeFocus2); outline-offset: 2px; border-radius: var(--borderRadiusSmall); }
+}
+.kg-steps .kg-steps-line { display: none; }
+@container (max-width: 640px) {
+  .kg-steps .kg-steps-row { display: none; }
+  .kg-steps .kg-steps-line { display: block; }
+}
+
+.kg-proof {
+  display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; padding: 0; list-style: none;
+  li {
+    display: flex; flex-direction: column; min-width: 120px; padding: 8px 12px; border-radius: var(--borderRadiusMedium);
+    background: var(--colorNeutralBackground1); border: 1px solid var(--colorNeutralStroke2);
+  }
+  strong { font-size: var(--fontSizeBase500); line-height: var(--lineHeightBase500); color: var(--colorNeutralForeground1); }
+}
+.kg-primary-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 12px 0; }
+
+.kg-next { margin: 24px 0 8px; display: flex; flex-direction: column; gap: 8px; }
+.kg-next-list {
+  list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+.kg-next-card {
+  display: flex; flex-direction: column; gap: 6px; padding: 12px 16px; border-radius: var(--borderRadiusLarge);
+  background: var(--colorNeutralBackground1); border: 1px solid var(--colorNeutralStroke2); box-shadow: var(--shadow2);
+  h3 { margin: 0; }
+}
+.kg-next-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.kg-next-workload { color: var(--colorNeutralForeground2); font-weight: var(--fontWeightSemibold); }
+.kg-next-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 4px; }
+.kg-next-code pre {
+  max-height: 240px; overflow: auto; padding: 8px; font-size: var(--fontSizeBase200); white-space: pre;
+  background: var(--colorNeutralBackground3); border-radius: var(--borderRadiusMedium);
+}
+.kg-next-ask { font-family: var(--fontFamilyMonospace); color: var(--colorNeutralForeground2); }
+@container (max-width: 640px) {
+  .kg-next-list { grid-template-columns: 1fr; }
+  .kg-next-actions .fui-Button, .kg-primary-row .fui-Button { min-height: 44px; flex: 1 1 100%; }
+}
+
+// W13: the ribbon's labels stay on one line, and give way to icon-only buttons (with their tooltips and aria-labels) when
+// the editor's frame is narrow: a labelled ribbon wrapped and cut off Next and Back at 390 px (the kit has no overflow).
+.ribbon-action-label { white-space: nowrap; }
+@media (max-width: 640px) {
+  .ribbon-action-label { display: none; }
+}
