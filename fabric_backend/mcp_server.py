@@ -932,6 +932,50 @@ def databricks_lineage(schema: str = "default", table: str | None = None, days: 
                                      "where it can). Draft only: unit-tested; not yet run against a workspace."}, MAX_RESULT_CHARS)
 
 
+# ------------------------------------------------------------------ MG1: Snowflake or Databricks -> Fabric (dry run) ----
+# Reads the source's metadata from files the customer exported on this machine; opens no Snowflake or Databricks
+# connection. With fabric_schema it reads that schema over FABRIC_ODBC (read-only) for the after-landing checks.
+
+@_tool("Plan a Snowflake or Databricks migration to Fabric (dry run)", RO)
+@safe
+def plan_migration(export: str, source: str, schema: str | None = None, target: str = "lakehouse",
+                   fabric_schema: str | None = None, before: str | None = None, after: str | None = None,
+                   detail: str = "summary", dry_run: bool = True) -> str:
+    """A migration plan from Snowflake or Azure Databricks to Fabric, from metadata files the customer exported (the
+    queries are in docs/MIGRATE-DATABRICKS-SNOWFLAKE.md): per table and view the Fabric target (Lakehouse or Warehouse),
+    how it can land (mirroring, Copy job, rebuild, with the Microsoft page and its date), the column types that do not
+    carry, and each view's SQL against Fabric T-SQL by fixed rules ("translated by rule", "no change needed" or
+    "manual" with the construct and line). The declared PRIMARY/UNIQUE/FOREIGN KEY constraints become candidates with
+    the rule "Snowflake metadata" or "Databricks metadata": declared, not enforced by the source, counted in the rows.
+    export: a folder (or JSON file) on this machine; source: snowflake or databricks; fabric_schema: the landed schema
+    in the FABRIC_ODBC source, to run validate_plan's checks and the after-landing counts there (read-only); before /
+    after: saved results (metric,value CSV) of the counting queries. detail="full" adds the T-SQL drafts and the
+    counting SQL. Creates nothing; dry_run=false is refused."""
+    from . import migrate
+    from .migrate import compare as _cmp
+    from .schema import Schema
+    if not dry_run:
+        return json.dumps({"error": "plan_migration only plans: it creates nothing in Fabric, Snowflake or Databricks",
+                           "kind": "unsupported", "hint": "call it with dry_run=true (the default)"})
+    kw = dict(before=_cmp.read_results(before) if before else None, after=_cmp.read_results(after) if after else None)
+    if fabric_schema and _is_databricks():
+        return json.dumps(_platform().unsupported("plan_migration").answer(), indent=2)
+    if fabric_schema:
+        with _connection(fabric_schema) as execute:
+            out = migrate.plan_migration(export, source, schema, target, fabric_schema=Schema.from_sql(execute, fabric_schema),
+                                         fabric_execute=execute, fabric_schema_name=fabric_schema, **kw)
+    else:
+        out = migrate.plan_migration(export, source, schema, target, **kw)
+    r = dict(out["report"])
+    if _evidence.pick_detail(detail) == "summary":
+        r["views"] = [{k: v[k] for k in ("view", "status", "why")} | {"constructs": [f"{c['construct']} (line {c['line']}): {c['status']}"
+                                                                                  for c in v["constructs"]]} for v in r["views"]]
+        r["after_landing"] = {k: v for k, v in r["after_landing"].items() if not k.endswith("_sql")} | {
+            "sql": "detail=\"full\" returns the two counting queries"}
+        r.pop("report_markdown", None)
+    return json.dumps(r, indent=2, default=str)
+
+
 def main(argv: list[str] | None = None) -> None:
     """F1: --help and --version answer and return (docs/LOCAL.md's install step runs --help); they used to start the
     stdio server, which waits on stdin and prints nothing. Anything else starts the server as before."""

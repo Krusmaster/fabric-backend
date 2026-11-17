@@ -1,0 +1,11 @@
+table_catalog,table_schema,table_name,table_type,data_source_format,comment
+shop,sales,customers,MANAGED,DELTA,Synthetic test table: customers
+shop,sales,orders,MANAGED,DELTA,Synthetic test table: one row per order
+shop,sales,order_lines,MANAGED,DELTA,
+shop,sales,products_ext,EXTERNAL,PARQUET,Synthetic: product master as Parquet files
+shop,sales,payments,MANAGED,DELTA,Synthetic: has a row filter
+shop,sales,crm_contacts,FOREIGN,,
+shop,sales,mv_daily_sales,MATERIALIZED_VIEW,DELTA,
+shop,sales,v_open_orders,VIEW,,
+shop,sales,v_order_items,VIEW,,
+shop,sales,v_orders_yesterday,VIEW,,
