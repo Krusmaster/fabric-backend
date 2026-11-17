@@ -1,0 +1,122 @@
+# CD1 (16 November 2026): deploy main to krusgraph.com after CI is green, the way `bash deploy/krusgraph.sh --update`
+# does by hand, and roll back when the checks fail. Dormant until the repository variables exist and
+# KRUSGRAPH_AUTO_DEPLOY is "on" (docs/AUTO-DEPLOY.md); without them every run ends in the gate job with one line in
+# the summary and no Azure call. Azure login is GitHub's OIDC token against a federated credential for this
+# repository's main branch: no client secret is stored anywhere. The Fabric workload package is not uploaded here.
+name: Deploy
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch: {}
+permissions: { contents: read }
+# One deployment at a time. A run that is waiting is replaced by a newer one, so intermediate commits are skipped;
+# a running deployment is never cancelled halfway.
+concurrency: { group: deploy-krusgraph, cancel-in-progress: false }
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    permissions: { contents: read, actions: read }
+    outputs:
+      go: ${{ steps.decide.outputs.go }}
+      sha: ${{ steps.commit.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+      - id: switch
+        env:
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          KRUSGRAPH_RESOURCE_GROUP: ${{ vars.KRUSGRAPH_RESOURCE_GROUP }}
+          KRUSGRAPH_APP: ${{ vars.KRUSGRAPH_APP }}
+          KRUSGRAPH_AUTO_DEPLOY: ${{ vars.KRUSGRAPH_AUTO_DEPLOY }}
+        run: python3 deploy/auto_deploy.py gate | tee -a "$GITHUB_STEP_SUMMARY"
+      # The commit to deploy: the one whose CI run just succeeded (workflow_run, pushes to main only), or main's tip
+      # when started by hand, which must have a successful CI run of its own. Deployed only while it is still main's
+      # tip; when main has moved on, the newer commit's own run deploys it.
+      - id: commit
+        if: steps.switch.outputs.go == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          RUN_EVENT: ${{ github.event.workflow_run.event }}
+          RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          tip=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
+          if [ "$EVENT" = workflow_run ]; then
+            if [ "$RUN_EVENT" != push ] || [ "$RUN_CONCLUSION" != success ]; then
+              echo "CI was $RUN_CONCLUSION on a $RUN_EVENT; nothing to deploy." | tee -a "$GITHUB_STEP_SUMMARY"; exit 0
+            fi
+            sha=$RUN_SHA
+          else
+            sha=$tip
+            ok=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$sha&event=push&status=success" --jq .total_count)
+            if [ "$ok" = 0 ]; then
+              echo "main ($sha) has no successful CI run; nothing deployed." | tee -a "$GITHUB_STEP_SUMMARY"; exit 0
+            fi
+          fi
+          if [ "$sha" != "$tip" ]; then
+            echo "$sha is no longer main's tip ($tip); skipped, the newer commit deploys." | tee -a "$GITHUB_STEP_SUMMARY"; exit 0
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+      - id: decide
+        run: echo "go=${{ steps.commit.outputs.sha != '' }}" >> "$GITHUB_OUTPUT"
+  deploy:
+    needs: gate
+    if: needs.gate.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions: { contents: read, id-token: write, issues: write }
+    env:
+      APP: ${{ vars.KRUSGRAPH_APP }}
+      RG: ${{ vars.KRUSGRAPH_RESOURCE_GROUP }}
+      SHA: ${{ needs.gate.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: "${{ needs.gate.outputs.sha }}", persist-credentials: false }
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with: { python-version: "3.12" }
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - run: az extension add --name containerapp --upgrade --yes --only-show-errors
+      - id: before
+        run: python deploy/auto_deploy.py snapshot --app "$APP" --resource-group "$RG"
+      # The same code path as the maintainer's `bash deploy/krusgraph.sh --from-azure --update`: az acr build of this
+      # checkout, the app pointed at the new image with KRUSGRAPH_BUILD set, then the home page, docs, privacy page,
+      # the MCP login requirement and the build id at /healthz. Only the image and KRUSGRAPH_BUILD change.
+      - id: update
+        run: bash deploy/krusgraph.sh --from-azure --update --app "$APP" --resource-group "$RG"
+      - id: rollback
+        if: failure() && steps.before.outcome == 'success'
+        env:
+          IMAGE: ${{ steps.before.outputs.image }}
+          BUILD: ${{ steps.before.outputs.build }}
+        run: python deploy/auto_deploy.py rollback --app "$APP" --resource-group "$RG" --image "$IMAGE" --build "$BUILD"
+      - if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEFORE: ${{ steps.before.outcome }}
+          UPDATE: ${{ steps.update.outcome }}
+          ROLLBACK: ${{ steps.rollback.outcome }}
+          PREVIOUS: ${{ steps.before.outputs.build }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "Automatic deployment of ${SHA:0:7} failed" --body "$(cat <<BODY
+          The automatic deployment of $SHA did not pass (.github/workflows/deploy.yml).
+
+          - snapshot of the running app: $BEFORE
+          - build, update and health checks: $UPDATE
+          - rollback to the previous build (${PREVIOUS:-none}): ${ROLLBACK:-not run}
+
+          A rollback of "success" means the previous build answers the checks of --update again. Anything else: check the
+          revisions in Azure Container Apps and run \`bash deploy/krusgraph.sh --doctor\` in Cloud Shell.
+
+          Run: $RUN_URL
+          BODY
+          )"
