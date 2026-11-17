@@ -2896,6 +2896,19 @@
       "description": "Relationships the user confirmed, added to the plan. Default none. Example: [{\"source\": \"orders\", \"source_cols\": [\"ship_to_id\"], \"target\": \"addresses\", \"target_cols\": [\"address_id\"]}].",
       "title": "Confirmed"
      },
+     "csn_path": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "SAP CSN file or folder in Files. Default Files/krusgraph/csn/.",
+      "title": "Csn Path"
+     },
      "detail": {
       "default": "auto",
       "description": "\"auto\" (default: full up to 60 tables, else summary), \"full\" or \"summary\".",
@@ -4222,6 +4235,19 @@
       "default": null,
       "description": "Relationships the user confirmed, added to the plan. Default none. Example: [{\"source\": \"orders\", \"source_cols\": [\"ship_to_id\"], \"target\": \"addresses\", \"target_cols\": [\"address_id\"]}].",
       "title": "Confirmed"
+     },
+     "csn_path": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "SAP CSN file or folder in Files. Default Files/krusgraph/csn/.",
+      "title": "Csn Path"
      },
      "detail": {
       "default": "summary",

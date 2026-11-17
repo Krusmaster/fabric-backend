@@ -1,0 +1,9 @@
+table_schema,table_name,constraint_name,constraint_type,column_name,ordinal_position,ref_schema,ref_table,ref_column
+sales,customers,customers_pk,PRIMARY KEY,customer_id,1,,,
+sales,orders,orders_pk,PRIMARY KEY,order_id,1,,,
+sales,order_lines,order_lines_pk,PRIMARY KEY,order_id,1,,,
+sales,order_lines,order_lines_pk,PRIMARY KEY,line_no,2,,,
+sales,orders,orders_customers_fk,FOREIGN KEY,customer_id,1,sales,customers,customer_id
+sales,order_lines,order_lines_orders_fk,FOREIGN KEY,order_id,1,sales,orders,order_id
+sales,payments,payments_orders_fk,FOREIGN KEY,order_id,1,sales,orders,order_id
+sales,order_lines,order_lines_products_fk,FOREIGN KEY,product_id,1,reference,products,product_id
