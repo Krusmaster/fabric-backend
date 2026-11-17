@@ -78,6 +78,8 @@ import { Wait, WaitSignal, checkLabel, newWait, reviewLabel, withSignal } from "
 import { accessLine } from "./accessWords";
 import { DrawioContext, DrawioFile, DrawioSource } from "./drawioDownload";
 import { VerifyAnswer, VerifyContext, VerifySource } from "./verifyBuilt";
+import { CatalogContext, CatalogPanel, CatalogSource } from "./CatalogPanel";
+import type { CatalogAnswer } from "./catalogWords";
 import {
   LeftoversAnswer, OutOfDate, ProductRow, RetireAnswer, StatusAnswer, createdAtOf, healthFor, outOfDate, planOf, withAdopted, withOwner,
   withPlan, withRemoved,
@@ -1211,7 +1213,7 @@ export function ModelItemEditor(props: PageProps) {
         onAdopt={(id) => void adoptLeftover(id)}
       />
   );
-  views.push({ name: "product", component: wrap(<>{productPage}{nextPanel}</>) });
+  views.push({ name: "product", component: wrap(<>{productPage}<CatalogPanel />{nextPanel}</>) });   // CA1
 
 
   // n228: "Download as draw.io" under the map and the data flow (drawioDownload.tsx); the engine makes the file from what is shown
@@ -1233,9 +1235,25 @@ export function ModelItemEditor(props: PageProps) {
     [workloadClient]
   );
 
+  // CA1: "Publish to OneLake catalog" on the Data product page (CatalogPanel.tsx): a dry run first, the write with its confirm
+  const catalogOwner = def.outputs.product?.owner ?? null;
+  const catalogSource = useMemo<CatalogSource>(
+    () => ({
+      owner: catalogOwner,
+      run: ({ dryRun, confirm, owner }) => {
+        const d = defRef.current;
+        return engine.catalog<CatalogAnswer>(workloadClient, { ...sourceRequest(d), review: d.review, outputs: { created: d.outputs.created },
+          owner: owner ?? null, dry_run: dryRun, confirm: confirm ?? null });
+      },
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [workloadClient, catalogOwner]
+  );
+
   return (
     <DrawioContext.Provider value={drawioSource}>
     <VerifyContext.Provider value={verifySource}>
+    <CatalogContext.Provider value={catalogSource}>
     <ItemEditor
       isLoading={isLoading}
       loadingMessage="Opening the model…"
@@ -1247,6 +1265,7 @@ export function ModelItemEditor(props: PageProps) {
         if (!setView) setSetView(() => setter);
       }}
     />
+    </CatalogContext.Provider>
     </VerifyContext.Provider>
     </DrawioContext.Provider>
   );
