@@ -4,7 +4,8 @@ Round n77, 2 November 2026. A knowledge pack is what Krusgraph knows about a nam
 a row: the tables, their keys, the relationships between them, the amounts and their levels, and the traps a person
 falls into when joining them. Two packs exist: `sap` ([SAP.md](SAP.md), six modules for tables and, since round n230,
 three for released CDS views, [SAP-CDS.md](SAP-CDS.md)) and `younium_salesforce`
-([YOUNIUM-SALESFORCE.md](YOUNIUM-SALESFORCE.md), two modules). Each lives in `fabric_backend/packs/<pack>/`, one JSON
+([YOUNIUM-SALESFORCE.md](YOUNIUM-SALESFORCE.md), two modules); since round PK2 also `dynamics365` ([DYNAMICS365.md](DYNAMICS365.md), Dataverse
+and Business Central). Each lives in `fabric_backend/packs/<pack>/`, one JSON
 file per module (`pack.schema.json` is their schema, `sap_pack.py` their loader), and since this round one
 **manifest** per pack, `fabric_backend/packs/<pack>/manifest.yaml`, in one shape for every pack.
 

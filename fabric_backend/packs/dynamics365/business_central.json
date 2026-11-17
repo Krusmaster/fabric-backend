@@ -1,0 +1,263 @@
+{
+  "pack": "dynamics365",
+  "module": "business_central",
+  "format_version": 1,
+  "title": "Business Central base application tables: customers, vendors, items, open and posted sales documents, purchase documents, the general, customer and item ledgers and dimension sets",
+  "rule": "Dynamics 365 pack",
+  "status": "documented",
+  "status_note": "Written on 17 November 2026 in our own words. Table numbers and field names were checked against Microsoft Learn's base application table reference (ms.date 2024-10-01); those pages show neither keys nor FlowFields nor table relations, which were read in Microsoft's AL source of the base application (microsoft/BCApps at a pinned commit; first-party, not Learn). Table names are the AL names in upper case with underscores (SALES_HEADER for Sales Header, G_L_ENTRY for G/L Entry); columns likewise, compared without case or punctuation, so the SQL spelling (Document No_) and the bc2adls one (DocumentNo-6) are read alike. Not verified against any company's rows. Krusgraph is independent and not affiliated with Microsoft.",
+  "client_column": "COMPANY",
+  "variants": {
+    "bc_sql": "The per-company SQL tables <company>$<table>$<app id> (a database copy, Business Central on premises), dots as underscores.",
+    "bc2adls": "An export with bc2adls: <Table>-<id> tables and <Field>-<id> columns, letters and digits only, with $Company."
+  },
+  "sources": {
+    "bc_customer": {
+      "title": "Business Central base application table reference: Customer (18)",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/business-central/application/base-application/table/microsoft.sales.customer.customer",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2024-10-01. The page gives the table number and each field's name, type and description; it does not show the primary key, which fields are FlowFields, or table relations (those are from bcapps_source)."
+    },
+    "bc_vendor": {
+      "title": "Business Central base application table reference: Vendor (23)",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/business-central/application/base-application/table/microsoft.purchases.vendor.vendor",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2024-10-01. The page gives the table number and each field's name, type and description; it does not show the primary key, which fields are FlowFields, or table relations (those are from bcapps_source)."
+    },
+    "bc_item": {
+      "title": "Business Central base application table reference: Item (27)",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/business-central/application/base-application/table/microsoft.inventory.item.item",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2024-10-01. The page gives the table number and each field's name, type and description; it does not show the primary key, which fields are FlowFields, or table relations (those are from bcapps_source)."
+    },
+    "bc_salesperson_purchaser": {
+      "title": "Business Central base application table reference: Salesperson/Purchaser (13)",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/business-central/application/base-application/table/microsoft.crm.team.salesperson-purchaser",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2024-10-01. The page gives the table number and each field's name, type and description; it does not show the primary key, which fields are FlowFields, or table relations (those are from bcapps_source)."
+    },
+    "bc_country_region": {
+      "title": "Business Central base application table reference: Country/Region (9)",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/business-central/application/base-application/table/microsoft.foundation.address.country-region",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2024-10-01. The page gives the table number and each field's name, type and description; it does not show the primary key, which fields are FlowFields, or table relations (those are from bcapps_source)."
+    },
+    "bc_sales_header": {
+      "title": "Business Central base application table reference: Sales Header (36)",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/business-central/application/base-application/table/microsoft.sales.document.sales-header",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2024-10-01. The page gives the table number and each field's name, type and description; it does not show the primary key, which fields are FlowFields, or table relations (those are from bcapps_source)."
+    },
+    "bc_sales_line": {
+      "title": "Business Central base application table reference: Sales Line (37)",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/business-central/application/base-application/table/microsoft.sales.document.sales-line",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2024-10-01. The page gives the table number and each field's name, type and description; it does not show the primary key, which fields are FlowFields, or table relations (those are from bcapps_source)."
+    },
+    "bc_sales_invoice_header": {
+      "title": "Business Central base application table reference: Sales Invoice Header (112)",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/business-central/application/base-application/table/microsoft.sales.history.sales-invoice-header",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2024-10-01. The page gives the table number and each field's name, type and description; it does not show the primary key, which fields are FlowFields, or table relations (those are from bcapps_source)."
+    },
+    "bc_sales_invoice_line": {
+      "title": "Business Central base application table reference: Sales Invoice Line (113)",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/business-central/application/base-application/table/microsoft.sales.history.sales-invoice-line",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2024-10-01. The page gives the table number and each field's name, type and description; it does not show the primary key, which fields are FlowFields, or table relations (those are from bcapps_source)."
+    },
+    "bc_purchase_header": {
+      "title": "Business Central base application table reference: Purchase Header (38)",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/business-central/application/base-application/table/microsoft.purchases.document.purchase-header",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2024-10-01. The page gives the table number and each field's name, type and description; it does not show the primary key, which fields are FlowFields, or table relations (those are from bcapps_source)."
+    },
+    "bc_purchase_line": {
+      "title": "Business Central base application table reference: Purchase Line (39)",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/business-central/application/base-application/table/microsoft.purchases.document.purchase-line",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2024-10-01. The page gives the table number and each field's name, type and description; it does not show the primary key, which fields are FlowFields, or table relations (those are from bcapps_source)."
+    },
+    "bc_g_l_entry": {
+      "title": "Business Central base application table reference: G/L Entry (17)",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/business-central/application/base-application/table/microsoft.finance.generalledger.ledger.g-l-entry",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2024-10-01. The page gives the table number and each field's name, type and description; it does not show the primary key, which fields are FlowFields, or table relations (those are from bcapps_source)."
+    },
+    "bc_cust_ledger_entry": {
+      "title": "Business Central base application table reference: Cust. Ledger Entry (21)",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/business-central/application/base-application/table/microsoft.sales.receivables.cust.-ledger-entry",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2024-10-01. The page gives the table number and each field's name, type and description; it does not show the primary key, which fields are FlowFields, or table relations (those are from bcapps_source)."
+    },
+    "bc_detailed_cust_ledg_entry": {
+      "title": "Business Central base application table reference: Detailed Cust. Ledg. Entry (379)",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/business-central/application/base-application/table/microsoft.sales.receivables.detailed-cust.-ledg.-entry",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2024-10-01. The page gives the table number and each field's name, type and description; it does not show the primary key, which fields are FlowFields, or table relations (those are from bcapps_source)."
+    },
+    "bc_item_ledger_entry": {
+      "title": "Business Central base application table reference: Item Ledger Entry (32)",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/business-central/application/base-application/table/microsoft.inventory.ledger.item-ledger-entry",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2024-10-01. The page gives the table number and each field's name, type and description; it does not show the primary key, which fields are FlowFields, or table relations (those are from bcapps_source)."
+    },
+    "bc_value_entry": {
+      "title": "Business Central base application table reference: Value Entry (5802)",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/business-central/application/base-application/table/microsoft.inventory.ledger.value-entry",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2024-10-01. The page gives the table number and each field's name, type and description; it does not show the primary key, which fields are FlowFields, or table relations (those are from bcapps_source)."
+    },
+    "bc_dimension_set_entry": {
+      "title": "Business Central base application table reference: Dimension Set Entry (480)",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/business-central/application/base-application/table/microsoft.finance.dimension.dimension-set-entry",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2024-10-01. The page gives the table number and each field's name, type and description; it does not show the primary key, which fields are FlowFields, or table relations (those are from bcapps_source)."
+    },
+    "bcapps_source": {
+      "title": "Business Central base application AL source (microsoft/BCApps, src/Layers/W1/BaseApp): table keys, FieldClass and TableRelation of the tables above, and the enums Sales/Purchase Document Type and Line Type",
+      "url": "https://github.com/microsoft/BCApps/tree/f9d965b879e7f9cdfc1a186cb92b67dc51c25f89/src/Layers/W1/BaseApp",
+      "publisher": "Microsoft (GitHub)",
+      "fetched": true,
+      "note": "Read 17 November 2026 at commit f9d965b879e7f9cdfc1a186cb92b67dc51c25f89 (16 November 2026), Base Application 30.0.0.0, app id 437dbf0e-84ff-417a-965d-ed2bb9650972. First-party, but not Learn. Facts read (keys, which fields are FlowFields, which table a field relates to, enum values), no code copied."
+    },
+    "bc_fabric_mirroring": {
+      "title": "Business Central: Microsoft Fabric mirroring (preview) and managing the Fabric export",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/business-central/admin-fabric",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-10-29 (also admin-set-up-fabric-mirroring and admin-manage-fabric-export, same date). An extension writes selected tables to an open mirrored database in OneLake as Delta Parquet, Business Central online only, several companies; per-company tables sync per company. The pages do not say how entities and columns are named in the mirror or how the company is represented."
+    },
+    "bc_extract_data": {
+      "title": "Business Central: extract data (mirroring, APIs, OData, BACPAC, bc2adls)",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/devenv-extract-data",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-10-28. Every table has SystemRowVersion and SystemModifiedAt; an API delta load misses deletions; bc2adls is listed as unsupported."
+    },
+    "bc_flowfields": {
+      "title": "Business Central: FlowFields",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/devenv-flowfields",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-07-02. FlowFields are not physical fields stored in the database."
+    },
+    "bc_datapercompany": {
+      "title": "Business Central: DataPerCompany property",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/properties/devenv-datapercompany-property",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-10-01. Data per company by default."
+    },
+    "bc_sql_names": {
+      "title": "Business Central telemetry: long-running SQL queries (an example statement on CURRENTCOMPANY$Cash Flow Forecast Entry$437dbf0e-...)",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/administration/telemetry-long-running-sql-query-trace",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-03-30. The example shows the SQL table name <company>$<table>$<app id> and a column named with _ for the dot (Cash Flow Forecast No_)."
+    },
+    "bc_system_fields": {
+      "title": "Business Central: system fields (SystemId, SystemCreatedAt, SystemModifiedAt, SystemRowVersion)",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/devenv-table-system-fields",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-08-25. SystemId is a GUID with a unique key and can be an API's key."
+    },
+    "bc_api_v2": {
+      "title": "Business Central API v2.0 resources (customer, salesOrder, salesOrderLine, salesInvoice, generalLedgerEntry, dimensionSetLine)",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/api-reference/v2.0/",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-08-10 (resource pages 2026-08-21). Every resource is keyed by id, the record's SystemId GUID, under companies(id)."
+    },
+    "bc_powerquery": {
+      "title": "Power Query connector: Dynamics 365 Business Central",
+      "url": "https://learn.microsoft.com/en-us/power-query/connectors/dynamics-365-business-central",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-10-07. Reads the APIs (environment, company, API route), not the tables; in Fabric a Dataflow Gen2 source (Fabric connector overview, ms.date 2026-10-30)."
+    },
+    "bc2adls": {
+      "title": "bc2adls (microsoft/bc2adls): export of Business Central tables to a data lake",
+      "url": "https://github.com/microsoft/bc2adls",
+      "publisher": "Microsoft (GitHub)",
+      "fetched": true,
+      "note": "Read 17 November 2026 at commit b90a69ea182ef2692df23ebaad79af7e0d342e43 (6 September 2023); the README calls it an experiment that will receive no updates. Its source names a table <TableName>-<TableId> and a field <FieldName>-<FieldId> with only letters and digits (SalesHeader-36, No-3), adds a $Company column to per-company tables and refuses FlowFields."
+    }
+  },
+  "tables": [
+    {"name": "CUSTOMER", "common_name": true, "level": "master", "area": "customer 360", "en": "Customer (18)", "key": ["COMPANY", "NO"], "key_note": "COMPANY is the $Company column an export adds to a per-company table; a per-company SQL table (<company>$<table>$<app id>) has none, and the key is the rest.", "note": "Key No.; SALESPERSON_CODE, COUNTRY_REGION_CODE and CURRENCY_CODE relate to their tables. Balance, Balance (LCY) and Sales (LCY) are FlowFields: not in the database, not in an export.", "personal": [{"column": "NAME", "rule": "P1"}, {"column": "PHONE_NO", "rule": "P3"}, {"column": "ADDRESS", "rule": "P5"}], "sources": ["bc_customer", "bcapps_source"], "variants": ["bc_sql", "bc2adls"]},
+    {"name": "VENDOR", "common_name": true, "level": "master", "area": "procure to pay", "en": "Vendor (23)", "key": ["COMPANY", "NO"], "key_note": "COMPANY is the $Company column an export adds to a per-company table; a per-company SQL table (<company>$<table>$<app id>) has none, and the key is the rest.", "note": "Key No.; PURCHASER_CODE (not Salesperson Code) relates to Salesperson/Purchaser. Balance is a FlowField.", "personal": [{"column": "NAME", "rule": "P1"}, {"column": "PHONE_NO", "rule": "P3"}], "sources": ["bc_vendor", "bcapps_source"], "variants": ["bc_sql", "bc2adls"]},
+    {"name": "ITEM", "common_name": true, "level": "master", "area": "product catalog", "en": "Item (27)", "key": ["COMPANY", "NO"], "key_note": "COMPANY is the $Company column an export adds to a per-company table; a per-company SQL table (<company>$<table>$<app id>) has none, and the key is the rest.", "note": "Key No.; UNIT_PRICE is a price. Inventory and Sales (LCY) are FlowFields (sums of Item Ledger Entry and Value Entry).", "sources": ["bc_item", "bcapps_source"], "variants": ["bc_sql", "bc2adls"]},
+    {"name": "SALESPERSON_PURCHASER", "level": "organization", "area": "organisation", "en": "Salesperson/Purchaser (13)", "key": ["COMPANY", "CODE"], "key_note": "COMPANY is the $Company column an export adds to a per-company table; a per-company SQL table (<company>$<table>$<app id>) has none, and the key is the rest.", "note": "Key Code. One table for salespeople and purchasers.", "personal": [{"column": "NAME", "rule": "P1"}], "sources": ["bc_salesperson_purchaser", "bcapps_source"], "variants": ["bc_sql", "bc2adls"]},
+    {"name": "COUNTRY_REGION", "level": "master", "area": "organisation", "en": "Country/Region (9)", "key": ["COMPANY", "CODE"], "key_note": "COMPANY is the $Company column an export adds to a per-company table; a per-company SQL table (<company>$<table>$<app id>) has none, and the key is the rest.", "note": "Key Code.", "sources": ["bc_country_region", "bcapps_source"], "variants": ["bc_sql", "bc2adls"]},
+    {"name": "SALES_HEADER", "level": "header", "area": "order to cash", "en": "Sales Header (36): open quotes, orders, invoices, credit memos, blanket and return orders", "key": ["COMPANY", "DOCUMENT_TYPE", "NO"], "key_note": "COMPANY is the $Company column an export adds to a per-company table; a per-company SQL table (<company>$<table>$<app id>) has none, and the key is the rest.", "note": "Key Document Type + No.: one table for every kind of open sales document (DOCUMENT_TYPE 0 Quote, 1 Order, 2 Invoice, 3 Credit Memo, 4 Blanket Order, 5 Return Order); the same No. can exist under two types. Amount and Amount Including VAT are FlowFields over the lines: not stored, not exported. A posted document leaves this table (Sales Invoice Header).", "sources": ["bc_sales_header", "bcapps_source", "bc_flowfields"], "variants": ["bc_sql", "bc2adls"]},
+    {"name": "SALES_LINE", "level": "item", "area": "order to cash", "en": "Sales Line (37)", "key": ["COMPANY", "DOCUMENT_TYPE", "DOCUMENT_NO", "LINE_NO"], "key_note": "COMPANY is the $Company column an export adds to a per-company table; a per-company SQL table (<company>$<table>$<app id>) has none, and the key is the rest.", "amounts": [{"column": "AMOUNT", "level": "item", "currency": "CURRENCY_CODE (blank: the company's local currency, LCY)"}, {"column": "AMOUNT_INCLUDING_VAT", "level": "item", "currency": "CURRENCY_CODE (blank: the company's local currency, LCY)"}, {"column": "LINE_AMOUNT", "level": "item", "currency": "CURRENCY_CODE (blank: the company's local currency, LCY)"}], "note": "Key Document Type + Document No. + Line No. TYPE says what No. is (0 blank/text, 1 G/L Account, 2 Item, 3 Resource, 4 Fixed Asset, 5 Charge (Item), 10 Allocation Account): No. is an item only when TYPE is Item. AMOUNT (excluding VAT, after invoice discount), AMOUNT_INCLUDING_VAT and LINE_AMOUNT (before invoice discount) are stored.", "sources": ["bc_sales_line", "bcapps_source"], "variants": ["bc_sql", "bc2adls"]},
+    {"name": "SALES_INVOICE_HEADER", "level": "header", "area": "order to cash", "en": "Sales Invoice Header (112): posted sales invoices", "key": ["COMPANY", "NO"], "key_note": "COMPANY is the $Company column an export adds to a per-company table; a per-company SQL table (<company>$<table>$<app id>) has none, and the key is the rest.", "note": "Key No. ORDER_NO is the order it was posted from (no table relation; the order is usually deleted once fully invoiced). Amount and Amount Including VAT are FlowFields over the lines.", "sources": ["bc_sales_invoice_header", "bcapps_source", "bc_flowfields"], "variants": ["bc_sql", "bc2adls"]},
+    {"name": "SALES_INVOICE_LINE", "level": "item", "area": "order to cash", "en": "Sales Invoice Line (113)", "key": ["COMPANY", "DOCUMENT_NO", "LINE_NO"], "key_note": "COMPANY is the $Company column an export adds to a per-company table; a per-company SQL table (<company>$<table>$<app id>) has none, and the key is the rest.", "amounts": [{"column": "AMOUNT", "level": "item", "currency": "CURRENCY_CODE (blank: the company's local currency, LCY)"}, {"column": "AMOUNT_INCLUDING_VAT", "level": "item", "currency": "CURRENCY_CODE (blank: the company's local currency, LCY)"}, {"column": "LINE_AMOUNT", "level": "item", "currency": "CURRENCY_CODE (blank: the company's local currency, LCY)"}], "note": "Key Document No. + Line No.; TYPE and No. as on Sales Line. AMOUNT, AMOUNT_INCLUDING_VAT and LINE_AMOUNT are stored.", "sources": ["bc_sales_invoice_line", "bcapps_source"], "variants": ["bc_sql", "bc2adls"]},
+    {"name": "PURCHASE_HEADER", "level": "header", "area": "procure to pay", "en": "Purchase Header (38)", "key": ["COMPANY", "DOCUMENT_TYPE", "NO"], "key_note": "COMPANY is the $Company column an export adds to a per-company table; a per-company SQL table (<company>$<table>$<app id>) has none, and the key is the rest.", "note": "Key Document Type + No. (as Sales Header). Amount and Amount Including VAT are FlowFields over the lines.", "sources": ["bc_purchase_header", "bcapps_source", "bc_flowfields"], "variants": ["bc_sql", "bc2adls"]},
+    {"name": "PURCHASE_LINE", "level": "item", "area": "procure to pay", "en": "Purchase Line (39)", "key": ["COMPANY", "DOCUMENT_TYPE", "DOCUMENT_NO", "LINE_NO"], "key_note": "COMPANY is the $Company column an export adds to a per-company table; a per-company SQL table (<company>$<table>$<app id>) has none, and the key is the rest.", "amounts": [{"column": "AMOUNT", "level": "item", "currency": "CURRENCY_CODE (blank: the company's local currency, LCY)"}, {"column": "AMOUNT_INCLUDING_VAT", "level": "item", "currency": "CURRENCY_CODE (blank: the company's local currency, LCY)"}, {"column": "LINE_AMOUNT", "level": "item", "currency": "CURRENCY_CODE (blank: the company's local currency, LCY)"}], "note": "Key Document Type + Document No. + Line No.; TYPE and No. as on Sales Line.", "sources": ["bc_purchase_line", "bcapps_source"], "variants": ["bc_sql", "bc2adls"]},
+    {"name": "G_L_ENTRY", "level": "item", "area": "finance", "en": "G/L Entry (17)", "key": ["COMPANY", "ENTRY_NO"], "key_note": "COMPANY is the $Company column an export adds to a per-company table; a per-company SQL table (<company>$<table>$<app id>) has none, and the key is the rest.", "amounts": [{"column": "AMOUNT", "level": "item", "currency": "local currency (LCY); the entry has no currency column for it"}], "note": "Key Entry No. AMOUNT is in local currency (LCY), debit positive and credit negative; DEBIT_AMOUNT and CREDIT_AMOUNT split it. SOURCE_TYPE and SOURCE_NO name a customer, vendor, bank account or fixed asset. DIMENSION_SET_ID points at a set of dimension values.", "sources": ["bc_g_l_entry", "bcapps_source"], "variants": ["bc_sql", "bc2adls"]},
+    {"name": "CUST_LEDGER_ENTRY", "level": "header", "area": "order to cash", "en": "Cust. Ledger Entry (21)", "key": ["COMPANY", "ENTRY_NO"], "key_note": "COMPANY is the $Company column an export adds to a per-company table; a per-company SQL table (<company>$<table>$<app id>) has none, and the key is the rest.", "amounts": [{"column": "SALES_LCY", "level": "header", "currency": "local currency (LCY)"}], "note": "Key Entry No. Amount, Remaining Amount, Original Amount and their LCY forms are FlowFields summed from Detailed Cust. Ledg. Entry: an export has none of them. SALES_LCY is stored.", "sources": ["bc_cust_ledger_entry", "bcapps_source", "bc_flowfields"], "variants": ["bc_sql", "bc2adls"]},
+    {"name": "DETAILED_CUST_LEDG_ENTRY", "level": "item", "area": "order to cash", "en": "Detailed Cust. Ledg. Entry (379)", "key": ["COMPANY", "ENTRY_NO"], "key_note": "COMPANY is the $Company column an export adds to a per-company table; a per-company SQL table (<company>$<table>$<app id>) has none, and the key is the rest.", "amounts": [{"column": "AMOUNT", "level": "item", "currency": "CURRENCY_CODE (blank: LCY)"}, {"column": "AMOUNT_LCY", "level": "item", "currency": "local currency (LCY)"}], "note": "Key Entry No.; CUST_LEDGER_ENTRY_NO is the customer ledger entry it details; ENTRY_TYPE the kind (initial entry, application, ...). AMOUNT and AMOUNT_LCY are stored: the customer ledger's amounts are sums of these rows (initial entries for the original amount, all rows for the remaining).", "sources": ["bc_detailed_cust_ledg_entry", "bcapps_source"], "variants": ["bc_sql", "bc2adls"]},
+    {"name": "ITEM_LEDGER_ENTRY", "level": "header", "area": "inventory", "en": "Item Ledger Entry (32)", "key": ["COMPANY", "ENTRY_NO"], "key_note": "COMPANY is the $Company column an export adds to a per-company table; a per-company SQL table (<company>$<table>$<app id>) has none, and the key is the rest.", "note": "Key Entry No.; ITEM_NO the item; QUANTITY stored. The cost and sales amounts on it are FlowFields over Value Entry.", "sources": ["bc_item_ledger_entry", "bcapps_source", "bc_flowfields"], "variants": ["bc_sql", "bc2adls"]},
+    {"name": "VALUE_ENTRY", "level": "item", "area": "inventory", "en": "Value Entry (5802)", "key": ["COMPANY", "ENTRY_NO"], "key_note": "COMPANY is the $Company column an export adds to a per-company table; a per-company SQL table (<company>$<table>$<app id>) has none, and the key is the rest.", "amounts": [{"column": "SALES_AMOUNT_ACTUAL", "level": "item", "currency": "local currency (LCY)"}, {"column": "COST_AMOUNT_ACTUAL", "level": "item", "currency": "local currency (LCY)"}], "note": "Key Entry No.; ITEM_LEDGER_ENTRY_NO the item ledger entry it values. SALES_AMOUNT_ACTUAL and COST_AMOUNT_ACTUAL are stored, in LCY.", "sources": ["bc_value_entry", "bcapps_source"], "variants": ["bc_sql", "bc2adls"]},
+    {"name": "DIMENSION_SET_ENTRY", "level": "master", "area": "finance", "en": "Dimension Set Entry (480)", "key": ["COMPANY", "DIMENSION_SET_ID", "DIMENSION_CODE"], "key_note": "COMPANY is the $Company column an export adds to a per-company table; a per-company SQL table (<company>$<table>$<app id>) has none, and the key is the rest.", "note": "Key Dimension Set ID + Dimension Code: one row per dimension in a set. A ledger entry's DIMENSION_SET_ID matches several rows, one per dimension.", "sources": ["bc_dimension_set_entry", "bcapps_source"], "variants": ["bc_sql", "bc2adls"]}
+  ],
+  "relationships": [
+    {"source": "CUSTOMER", "source_cols": ["COMPANY", "SALESPERSON_CODE"], "target": "SALESPERSON_PURCHASER", "target_cols": ["COMPANY", "CODE"], "cardinality": "many-to-one", "role": "salesperson", "sources": ["bc_customer", "bcapps_source"]},
+    {"source": "CUSTOMER", "source_cols": ["COMPANY", "COUNTRY_REGION_CODE"], "target": "COUNTRY_REGION", "target_cols": ["COMPANY", "CODE"], "cardinality": "many-to-one", "sources": ["bc_customer", "bcapps_source"]},
+    {"source": "VENDOR", "source_cols": ["COMPANY", "PURCHASER_CODE"], "target": "SALESPERSON_PURCHASER", "target_cols": ["COMPANY", "CODE"], "cardinality": "many-to-one", "role": "purchaser", "sources": ["bc_vendor", "bcapps_source"]},
+    {"source": "VENDOR", "source_cols": ["COMPANY", "COUNTRY_REGION_CODE"], "target": "COUNTRY_REGION", "target_cols": ["COMPANY", "CODE"], "cardinality": "many-to-one", "sources": ["bc_vendor", "bcapps_source"]},
+    {"source": "SALES_HEADER", "source_cols": ["COMPANY", "SELL_TO_CUSTOMER_NO"], "target": "CUSTOMER", "target_cols": ["COMPANY", "NO"], "cardinality": "many-to-one", "role": "sell_to", "sources": ["bc_sales_header", "bcapps_source"]},
+    {"source": "SALES_HEADER", "source_cols": ["COMPANY", "BILL_TO_CUSTOMER_NO"], "target": "CUSTOMER", "target_cols": ["COMPANY", "NO"], "cardinality": "many-to-one", "role": "bill_to", "sources": ["bc_sales_header", "bcapps_source"]},
+    {"source": "SALES_HEADER", "source_cols": ["COMPANY", "SALESPERSON_CODE"], "target": "SALESPERSON_PURCHASER", "target_cols": ["COMPANY", "CODE"], "cardinality": "many-to-one", "role": "salesperson", "sources": ["bc_sales_header", "bcapps_source"]},
+    {"source": "SALES_LINE", "source_cols": ["COMPANY", "DOCUMENT_TYPE", "DOCUMENT_NO"], "target": "SALES_HEADER", "target_cols": ["COMPANY", "DOCUMENT_TYPE", "NO"], "cardinality": "many-to-one", "sources": ["bc_sales_line", "bcapps_source"]},
+    {"source": "SALES_LINE", "source_cols": ["COMPANY", "NO"], "target": "ITEM", "target_cols": ["COMPANY", "NO"], "cardinality": "many-to-one", "role": "item", "condition": "Only lines whose TYPE is Item (2 in the database, Item as text in an export that writes enum names); for other types No. is a G/L account, resource, fixed asset or charge.", "where": [{"side": "source", "column": "TYPE", "in": ["2", "Item"]}], "sources": ["bc_sales_line", "bcapps_source"]},
+    {"source": "SALES_INVOICE_HEADER", "source_cols": ["COMPANY", "SELL_TO_CUSTOMER_NO"], "target": "CUSTOMER", "target_cols": ["COMPANY", "NO"], "cardinality": "many-to-one", "role": "sell_to", "sources": ["bc_sales_invoice_header", "bcapps_source"]},
+    {"source": "SALES_INVOICE_HEADER", "source_cols": ["COMPANY", "BILL_TO_CUSTOMER_NO"], "target": "CUSTOMER", "target_cols": ["COMPANY", "NO"], "cardinality": "many-to-one", "role": "bill_to", "sources": ["bc_sales_invoice_header", "bcapps_source"]},
+    {"source": "SALES_INVOICE_HEADER", "source_cols": ["COMPANY", "SALESPERSON_CODE"], "target": "SALESPERSON_PURCHASER", "target_cols": ["COMPANY", "CODE"], "cardinality": "many-to-one", "role": "salesperson", "sources": ["bc_sales_invoice_header", "bcapps_source"]},
+    {"source": "SALES_INVOICE_HEADER", "source_cols": ["COMPANY", "ORDER_NO"], "target": "SALES_HEADER", "target_cols": ["COMPANY", "NO"], "cardinality": "many-to-one", "role": "order", "apply": false, "condition": "The order a posted invoice came from. Business Central declares no table relation, the order is usually deleted once fully shipped and invoiced, and Sales Header's key also needs Document Type = 1 (Order): listed so the column is read for what it is, not applied.", "sources": ["bc_sales_invoice_header", "bcapps_source"]},
+    {"source": "SALES_INVOICE_LINE", "source_cols": ["COMPANY", "DOCUMENT_NO"], "target": "SALES_INVOICE_HEADER", "target_cols": ["COMPANY", "NO"], "cardinality": "many-to-one", "sources": ["bc_sales_invoice_line", "bcapps_source"]},
+    {"source": "SALES_INVOICE_LINE", "source_cols": ["COMPANY", "NO"], "target": "ITEM", "target_cols": ["COMPANY", "NO"], "cardinality": "many-to-one", "role": "item", "condition": "Only lines whose TYPE is Item (2, or Item as text).", "where": [{"side": "source", "column": "TYPE", "in": ["2", "Item"]}], "sources": ["bc_sales_invoice_line", "bcapps_source"]},
+    {"source": "PURCHASE_HEADER", "source_cols": ["COMPANY", "BUY_FROM_VENDOR_NO"], "target": "VENDOR", "target_cols": ["COMPANY", "NO"], "cardinality": "many-to-one", "role": "buy_from", "sources": ["bc_purchase_header", "bcapps_source"]},
+    {"source": "PURCHASE_HEADER", "source_cols": ["COMPANY", "PAY_TO_VENDOR_NO"], "target": "VENDOR", "target_cols": ["COMPANY", "NO"], "cardinality": "many-to-one", "role": "pay_to", "sources": ["bc_purchase_header", "bcapps_source"]},
+    {"source": "PURCHASE_HEADER", "source_cols": ["COMPANY", "PURCHASER_CODE"], "target": "SALESPERSON_PURCHASER", "target_cols": ["COMPANY", "CODE"], "cardinality": "many-to-one", "role": "purchaser", "sources": ["bc_purchase_header", "bcapps_source"]},
+    {"source": "PURCHASE_LINE", "source_cols": ["COMPANY", "DOCUMENT_TYPE", "DOCUMENT_NO"], "target": "PURCHASE_HEADER", "target_cols": ["COMPANY", "DOCUMENT_TYPE", "NO"], "cardinality": "many-to-one", "sources": ["bc_purchase_line", "bcapps_source"]},
+    {"source": "PURCHASE_LINE", "source_cols": ["COMPANY", "NO"], "target": "ITEM", "target_cols": ["COMPANY", "NO"], "cardinality": "many-to-one", "role": "item", "condition": "Only lines whose TYPE is Item (2, or Item as text).", "where": [{"side": "source", "column": "TYPE", "in": ["2", "Item"]}], "sources": ["bc_purchase_line", "bcapps_source"]},
+    {"source": "CUST_LEDGER_ENTRY", "source_cols": ["COMPANY", "CUSTOMER_NO"], "target": "CUSTOMER", "target_cols": ["COMPANY", "NO"], "cardinality": "many-to-one", "sources": ["bc_cust_ledger_entry", "bcapps_source"]},
+    {"source": "DETAILED_CUST_LEDG_ENTRY", "source_cols": ["COMPANY", "CUST_LEDGER_ENTRY_NO"], "target": "CUST_LEDGER_ENTRY", "target_cols": ["COMPANY", "ENTRY_NO"], "cardinality": "many-to-one", "sources": ["bc_detailed_cust_ledg_entry", "bcapps_source"]},
+    {"source": "DETAILED_CUST_LEDG_ENTRY", "source_cols": ["COMPANY", "CUSTOMER_NO"], "target": "CUSTOMER", "target_cols": ["COMPANY", "NO"], "cardinality": "many-to-one", "sources": ["bc_detailed_cust_ledg_entry", "bcapps_source"]},
+    {"source": "ITEM_LEDGER_ENTRY", "source_cols": ["COMPANY", "ITEM_NO"], "target": "ITEM", "target_cols": ["COMPANY", "NO"], "cardinality": "many-to-one", "sources": ["bc_item_ledger_entry", "bcapps_source"]},
+    {"source": "VALUE_ENTRY", "source_cols": ["COMPANY", "ITEM_LEDGER_ENTRY_NO"], "target": "ITEM_LEDGER_ENTRY", "target_cols": ["COMPANY", "ENTRY_NO"], "cardinality": "many-to-one", "sources": ["bc_value_entry", "bcapps_source"]},
+    {"source": "VALUE_ENTRY", "source_cols": ["COMPANY", "ITEM_NO"], "target": "ITEM", "target_cols": ["COMPANY", "NO"], "cardinality": "many-to-one", "sources": ["bc_value_entry", "bcapps_source"]},
+    {"source": "G_L_ENTRY", "source_cols": ["COMPANY", "DIMENSION_SET_ID"], "target": "DIMENSION_SET_ENTRY", "target_cols": ["COMPANY", "DIMENSION_SET_ID"], "cardinality": "many-to-many", "role": "dimensions", "apply": false, "condition": "A set has one row per dimension: the join repeats each ledger entry once per dimension in its set. Filter DIMENSION_CODE to one dimension (the codes are the company's own) before joining; listed, not applied.", "sources": ["bc_g_l_entry", "bcapps_source"]},
+    {"source": "CUST_LEDGER_ENTRY", "source_cols": ["COMPANY", "DIMENSION_SET_ID"], "target": "DIMENSION_SET_ENTRY", "target_cols": ["COMPANY", "DIMENSION_SET_ID"], "cardinality": "many-to-many", "role": "dimensions", "apply": false, "condition": "As for G/L Entry: one row per dimension in the set; filter DIMENSION_CODE first. Listed, not applied.", "sources": ["bc_cust_ledger_entry", "bcapps_source"]}
+  ],
+  "traps": [
+    {"id": "bc_flowfield_totals", "title": "Header amounts are FlowFields: they are not in the export", "text": "Sales Header, Sales Invoice Header and Purchase Header show Amount and Amount Including VAT, and Cust. Ledger Entry shows Amount and Remaining Amount, but these are FlowFields computed from other tables when read; they are not stored, and an export of the tables (bc2adls refuses them) has no such column. Sum the lines (Sales Line, Sales Invoice Line) or Detailed Cust. Ledg. Entry. A header amount column in a landing was computed by whoever landed it: check what it sums before adding it to the lines.", "sources": ["bcapps_source", "bc_flowfields", "bc2adls"]},
+    {"id": "bc_company_scope", "title": "Every table is per company", "text": "Business Central keeps data per company by default: in SQL each company has its own table (<company>$Customer$<app id>), in an export or mirror the companies' rows sit side by side with the company in a column ($Company in bc2adls). Customer C10000 can exist in every company: a key, a join or a sum without the company mixes companies. When the company is a column, keep it in every key and join; when it is in the table name, union the companies' tables with the company as a column first (the pack recognises one table per name).", "sources": ["bc_datapercompany", "bc_sql_names", "bc2adls", "bc_fabric_mirroring"]},
+    {"id": "bc_document_type", "title": "Open documents of every kind share one table", "text": "Sales Header and Sales Line hold quotes, orders, invoices, credit memos, blanket and return orders, told apart by DOCUMENT_TYPE; No. is unique only within a type. A sum over Sales Line without a filter on DOCUMENT_TYPE adds quotes to orders; a credit memo's amounts are positive although they reduce revenue. Posted invoices are in Sales Invoice Header/Line, not here.", "sources": ["bcapps_source", "bc_sales_header"]},
+    {"id": "bc_line_type", "title": "No. on a line is an item only when TYPE says so", "text": "Sales Line, Sales Invoice Line and Purchase Line carry TYPE and No.: the number is a G/L account, an item, a resource, a fixed asset, an item charge or an allocation account according to TYPE. Join No. to Item only for TYPE Item (2).", "sources": ["bcapps_source"]},
+    {"id": "bc_ledger_double_count", "title": "One posted invoice appears in several ledgers", "text": "Posting a sales invoice writes Sales Invoice Header/Line, a Cust. Ledger Entry with its Detailed Cust. Ledg. Entries, G/L Entries for revenue, VAT and receivables, and Item and Value Entries for the items. Each is a view of the same money: revenue comes from one of them, never from their union. G/L amounts are in LCY with debit positive, so revenue is negative there.", "sources": ["bcapps_source", "bc_g_l_entry"]},
+    {"id": "bc_dimension_fanout", "title": "Joining a dimension set repeats the entry", "text": "DIMENSION_SET_ID on an entry matches one Dimension Set Entry row per dimension. Join with a filter on one DIMENSION_CODE, or pivot the dimensions first.", "sources": ["bc_dimension_set_entry", "bcapps_source"]},
+    {"id": "bc_landing_names", "title": "How the names arrive depends on the route", "text": "In SQL: <company>$<table>$<app id> with dots as underscores (Cust_ Ledger Entry, Document No_). In bc2adls: <Table>-<id> and <Field>-<id> with letters and digits only (CustLedgerEntry-21, DocumentNo-6) and a $Company column. Through the APIs (the Power Query connector, Dataflow Gen2): API entities such as salesOrders keyed by the SystemId GUID, not by No. The Fabric mirroring pages do not say how the mirror names tables and columns. The pack reads the SQL and bc2adls spellings; the API entities are not described here.", "sources": ["bc_sql_names", "bc2adls", "bc_api_v2", "bc_powerquery", "bc_fabric_mirroring"]}
+  ]
+}

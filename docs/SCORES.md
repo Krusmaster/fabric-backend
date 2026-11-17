@@ -30,7 +30,8 @@ in Fabric: the corpus runs on SQLite with the SQL the engine writes.
 | SAP-shaped sample, purchase to pay (`sap_mm`) | 8 | 8 | 7 / 0 / 1 / 0 | 7 / 0 / 1 / 0 | 8 / 0 / 0 / 0 |
 | SAP-shaped sample, tables renamed (`sap_renamed`) | 12 | 12 | 0 / 0 / 12 / 0 | 0 / 0 / 12 / 0 | 11 / 0 / 1 / 0 |
 | Nordic-ERP-like shape (`nordic_erp`) | 8 | 8 | 0 / 0 / 8 / 0 | 0 / 0 / 8 / 0 | 8 / 0 / 0 / 0 |
-| Business-Central-like shape (`bc_like`) | 10 | 10 | 3 / 4 / 3 / 0 | 3 / 4 / 3 / 0 | 8 / 2 / 0 / 0 |
+| Business-Central-like shape (`bc_like`) | 10 | 10 | 10 / 0 / 0 / 0 | 10 / 0 / 0 / 0 | 10 / 0 / 0 / 0 |
+| Dynamics 365 demo (Dataverse and Business Central) (`dynamics365`) | 33 | 33 | 33 / 0 / 0 / 0 | 33 / 0 / 0 / 0 | 33 / 0 / 0 / 0 |
 
 ## Links
 
@@ -42,7 +43,8 @@ in Fabric: the corpus runs on SQLite with the SQL the engine writes.
 | SAP-shaped sample, purchase to pay (`sap_mm`) | 7 | 7 / 1 | 7 / 1 | 7 / 1 |
 | SAP-shaped sample, tables renamed (`sap_renamed`) | 18 | 0 / 0 | 0 / 0 | 13 / 2 |
 | Nordic-ERP-like shape (`nordic_erp`) | 9 | 0 / 0 | 0 / 0 | 5 / 0 |
-| Business-Central-like shape (`bc_like`) | 12 | 0 / 0 | 0 / 0 | 10 / 1 |
+| Business-Central-like shape (`bc_like`) | 12 | 10 / 0 | 10 / 0 | 10 / 0 |
+| Dynamics 365 demo (Dataverse and Business Central) (`dynamics365`) | 57 | 57 / 0 | 57 / 0 | 57 / 0 |
 
 ## The corpora
 
@@ -132,18 +134,17 @@ Row results of the plan after: 8 of 8 keys unique, 5 of 5 relationships hold wit
 
 Source: `<company>$<table>$<app id>` table names, `No_` keys; synthetic, written for this corpus, not Microsoft's schema. 1181 rows in 10 tables.
 
-Keys still wrong after (2): `Example AB$Purchase Header$437dbf0e-84ff-417a-965d-ed2bb9650972`, `Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972`.
+Links still missed after (2): `Example AB$Purchase Line$437dbf0e-84ff-417a-965d-ed2bb9650972.no_ -> Example AB$Item$437dbf0e-84ff-417a-965d-ed2bb9650972`, `Example AB$Sales Line$437dbf0e-84ff-417a-965d-ed2bb9650972.no_ -> Example AB$Item$437dbf0e-84ff-417a-965d-ed2bb9650972`.
 
-Links still missed after (2): `Example AB$Purchase Line$437dbf0e-84ff-417a-965d-ed2bb9650972.document no_+document type -> Example AB$Purchase Header$437dbf0e-84ff-417a-965d-ed2bb9650972`, `Example AB$Sales Line$437dbf0e-84ff-417a-965d-ed2bb9650972.document no_+document type -> Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972`.
+Row results of the plan after: 10 of 10 keys unique, 10 of 10 relationships hold without orphans.
 
-Links still wrong after (1): `Example AB$Cust_ Ledger Entry$437dbf0e-84ff-417a-965d-ed2bb9650972.document no_ -> Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972`.
+### Dynamics 365 demo (Dataverse and Business Central) (`dynamics365`)
 
-Proposed, not applied (2):
+Source: fabric_backend/dynamics_demo.py, SYNTHETIC DEMO DATA written from the dynamics365 pack; Dataverse as Link to Microsoft Fabric lands it, Business Central as bc2adls names it. 109 rows in 33 tables.
 
-- Example AB$Purchase Line$437dbf0e-84ff-417a-965d-ed2bb9650972.Document No_ -> Example AB$Purchase Header$437dbf0e-84ff-417a-965d-ed2bb9650972 [R6]: 134 of 134 value(s) of Example AB$Purchase Line$437dbf0e-84ff-417a-965d-ed2bb9650972.Document No_ are in Example AB$Purchase Header$437dbf0e-84ff-417a-965d-ed2bb9650972.No_, but the name gives no support: confirm it to apply it
-- Example AB$Sales Line$437dbf0e-84ff-417a-965d-ed2bb9650972.Document No_ -> Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972 [R6]: 420 of 420 value(s) of Example AB$Sales Line$437dbf0e-84ff-417a-965d-ed2bb9650972.Document No_ are in Example AB$Sales Header$437dbf0e-84ff-417a-965d-ed2bb9650972.No_, but the name gives no support: confirm it to apply it
+Planted on purpose: one salesorderdetail row soft-deleted (IsDelete 1, empty body); activity Demo call 2 regarding an account purged from the lake (a filtered link, in plan.extended); Business Central customer C10000, item 1000 and invoice 103001 in two companies ($Company in the key).
 
-Row results of the plan after: 10 of 10 keys unique, 11 of 11 relationships hold without orphans.
+Row results of the plan after: 33 of 33 keys unique, 81 of 89 relationships hold without orphans.
 
 ## Not in the corpus
 
