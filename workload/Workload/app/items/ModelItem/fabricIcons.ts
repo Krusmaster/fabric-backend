@@ -25,6 +25,13 @@ export function itemIcon(kind: string | undefined): ItemIcon | undefined {
   return k ? { src: `${ICONS.servedAt}/${k.file}`, alt: k.alt } : undefined;
 }
 
+/** W13: the icon's alt text next to a label: empty (decorative) when the label already names the item type, so a screen
+ * reader says "Semantic model" once, not "Semantic model Semantic model"; the type otherwise ("Notebook" beside "Silver
+ * notebook" is kept: it says which Fabric item the output is). */
+export function altBeside(alt: string, label: string | undefined): string {
+  return label && label.toLowerCase().includes(alt.toLowerCase()) ? "" : alt;
+}
+
 export const TRADEMARK = "Microsoft, Microsoft Fabric and Power BI are trademarks of the Microsoft group of companies.";
 
 /** What the editor's "About and notices" shows. */

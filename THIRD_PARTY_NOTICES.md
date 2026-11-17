@@ -62,6 +62,7 @@ PyPI release when this file was generated, and no version is written.
 | --- | --- | --- | --- | --- |
 | [databricks-sdk](https://pypi.org/project/databricks-sdk/) | databricks | Apache-2.0 | `LICENSE`, `NOTICE` | [databricks-sdk-py.readthedocs.io](https://databricks-sdk-py.readthedocs.io) |
 | [pytest](https://pypi.org/project/pytest/) | test | MIT | `LICENSE` | [docs.pytest.org/en/latest](https://docs.pytest.org/en/latest/) |
+| [pytest-xdist](https://pypi.org/project/pytest-xdist/) | test | MIT | `LICENSE` | [github.com/pytest-dev/pytest-xdist](https://github.com/pytest-dev/pytest-xdist) |
 | [pyyaml](https://pypi.org/project/pyyaml/) | test | MIT | `LICENSE` | [pyyaml.org](https://pyyaml.org/) |
 | [sqlglot](https://pypi.org/project/sqlglot/) | test | MIT | `LICENSE` | [sqlglot.com](https://sqlglot.com/) |
 

@@ -1,0 +1,7 @@
+table_catalog,table_schema,table_name,view_definition
+shop,sales,v_open_orders,"SELECT o.`order_id`, nvl(o.total_amount, 0) AS amount
+FROM sales.orders o
+WHERE date_add(o.order_date, 30) >= '2026-11-01'
+LIMIT 100"
+shop,sales,v_order_items,"SELECT order_id, tag FROM sales.order_lines LATERAL VIEW explode(tags) t AS tag"
+shop,sales,v_orders_yesterday,"SELECT order_id FROM sales.orders TIMESTAMP AS OF date_sub(current_date(), 1)"

@@ -174,9 +174,30 @@ def _text(body: dict, key: str, default: str | None = None, limit: int = 200) ->
 
 
 def _source(body: dict) -> dict:
-    """workspace and source as ids (what the editor's lakehouse picker gives), source_name for the review file."""
-    return {"workspace": _text(body, "workspace"), "source": _text(body, "source"),
-            "source_name": _text(body, "source_name", body.get("source")), "schema": _text(body, "schema", "dbo", 128)}
+    """workspace and source as ids (what the editor's lakehouse picker gives), source_name for the review file. CSN2:
+    csn_path, a CSN file or folder under the lakehouse's Files (default Files/krusgraph/csn/ when it is there)."""
+    out = {"workspace": _text(body, "workspace"), "source": _text(body, "source"),
+           "source_name": _text(body, "source_name", body.get("source")), "schema": _text(body, "schema", "dbo", 128)}
+    if body.get("csn_path") not in (None, ""):
+        from .csn_onelake import clean_path
+        try:
+            out["csn_path"] = clean_path(_text(body, "csn_path", None, 400))
+        except ValueError as e:
+            raise BadRequest(str(e)) from None
+    return out
+
+
+def _csn_kw(req: dict) -> dict:
+    return {"csn_path": req["csn_path"]} if req.get("csn_path") else {}
+
+
+def _with_csn(out: dict, p) -> dict:
+    """CSN2: the CSN's keys and links with the file each came from, and what was looked at in the lakehouse's Files."""
+    from .csn_onelake import digest
+    d = digest(p)
+    if d:
+        out["csn"] = d
+    return out
 
 
 def schemas_request(body) -> dict:
@@ -796,7 +817,7 @@ def run_review(req: dict) -> dict:
     prev = R.read(req["previous"]) if req["previous"] else None
     keys, confirmed = req.get("keys"), req.get("confirmed")
     k, c = R.merge_arguments(R.carried_arguments(prev), keys, confirmed) if prev else (keys, confirmed)
-    s, execute = S._connected(req["workspace"], req["source"], req["schema"], None)
+    s, execute = S._connected(req["workspace"], req["source"], req["schema"], None, **_csn_kw(req))
     req = _exact(req, s.schema)
     try:
         counted = S._within_call(execute)
@@ -807,7 +828,7 @@ def run_review(req: dict) -> dict:
                  decisions=req["decisions"], previous=prev)
     out = _with_source(_answer(rv), p, execute)
     out["suggested_products"] = _suggested(p, rv)                  # n222
-    return _with_schema(out, req)
+    return _with_schema(_with_csn(out, p), req)
 
 
 def _suggested(p, rv: dict, validation: dict | None = None) -> dict | None:
@@ -861,7 +882,7 @@ def run_check(req: dict) -> dict:
     prev = R.read(req["review"])
     carried = R.carried_arguments(prev)
     k, c = carried["keys"] or None, carried["confirmed"] or None
-    s, execute = S._connected(req["workspace"], req["source"], req["schema"], None)
+    s, execute = S._connected(req["workspace"], req["source"], req["schema"], None, **_csn_kw(req))
     req = _exact(req, s.schema)
     try:
         counted = S._within_call(execute)
@@ -875,7 +896,7 @@ def run_check(req: dict) -> dict:
     out["check"] = check_totals(rv)
     out["questions"] = rv.get("open_questions", [])
     out["suggested_products"] = _suggested(p, rv, checks)        # n222: weighted by what the rows hold
-    return _with_schema(out, req)
+    return _with_schema(_with_csn(out, p), req)
 
 
 # n179: every schema of the source with its number of tables, empty ones included (shown greyed in the editor). The
@@ -2441,6 +2462,11 @@ class Tokens:
     def powerbi(self) -> str:
         """n180: for the Power BI REST API (a new semantic model's one refresh)."""
         return self.obo.token(self.user_token, self.tenant, POWERBI_SCOPE)
+
+    def onelake(self) -> str:
+        """CSN2: for OneLake's DFS API (Azure Storage audience): read CSN files in the lakehouse's Files, nothing else."""
+        from .csn_onelake import STORAGE_SCOPE
+        return self.obo.token(self.user_token, self.tenant, STORAGE_SCOPE)
 
 
 def cors_headers(origin: str | None) -> dict:

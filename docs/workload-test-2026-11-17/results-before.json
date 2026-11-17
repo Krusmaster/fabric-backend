@@ -1,0 +1,86 @@
+{
+ "before": true,
+ "at": "2026-11-17T01:01:36.529Z",
+ "results": [
+  {
+   "flow": "1 First run: empty state",
+   "result": "pass",
+   "evidence": "01-empty.png"
+  },
+  {
+   "flow": "2 Choose a lakehouse (Fabric's picker) and its schema",
+   "result": "pass",
+   "evidence": "02-source.png; schemas: dbo (no tables, disabled), shop (7 tables, preselected)"
+  },
+  {
+   "flow": "3 Find keys and relationships (review)",
+   "result": "pass",
+   "evidence": "03-review.png; 7 tables, 6 keys, 7 links in 868 ms"
+  },
+  {
+   "flow": "4 Check against the rows (evidence)",
+   "result": "pass",
+   "evidence": "04-check.png; 13 passed, 0 failed"
+  },
+  {
+   "flow": "5 Accept what passed, go on to Choose what to build",
+   "result": "pass",
+   "evidence": "05-outputs.png; checkbox names read by a screen reader: - checkbox \"Notebook Silver notebook\" | - checkbox \"Notebook Gold views\" | - checkbox \"Pipeline Pipeline\" | - checkbox \"Semantic model Semantic model\" [checked]"
+  },
+  {
+   "flow": "6 Preview (dry run of each output)",
+   "result": "pass",
+   "evidence": "06-preview.png; three outputs previewed, nothing written"
+  },
+  {
+   "flow": "7 Create (semantic model, API for GraphQL, data agent)",
+   "result": "pass",
+   "evidence": "07-result.png; items the doubles received: graphQLApis, semanticModels; the data agent has no route in the double, so it shows its retry card"
+  },
+  {
+   "flow": "10 Reopen the item (saved definition)",
+   "result": "pass",
+   "evidence": "10-reopen.png; reopened on: the Data product page"
+  },
+  {
+   "flow": "11 Data product page and health",
+   "result": "pass",
+   "evidence": "11-product.png; Read Fabric again: no new line; Check against the rows again: Saved in this item in Fabric (2026-11-17 01:00 UTC). / 0 up to date, 0 out of date, 3 not in the workspace.; Look for leftovers: each of outputs.created has the Fabric id and workspace (GUIDs) Create recorded"
+  },
+  {
+   "flow": "12 No permission on the source (Fabric answers 403)",
+   "result": "pass",
+   "evidence": "12-no-access.png; shown: The schemas could not be listed: The signed-in account has no access to schemas: workspace '11111111-2222-3333-4444-555555555555', source 'demo_lh' (HTTP 403: The caller does not have permission to perform the operation.). Type the schema as the lakehouse spells it."
+  },
+  {
+   "flow": "13 Network failure on the review",
+   "result": "pass",
+   "evidence": "13-network.png; shown: The connection to the Krusgraph engine closed after 0 s without an answer (\"Failed to fetch\"). Check the connection and try again. If Krusgraph Model keeps loading, ask IT to allow workload.krusgraph.com and krusgraph.com (krusgraph.com/it#network)."
+  },
+  {
+   "flow": "14 A big schema (247 tables, 493 suggestions)",
+   "result": "pass",
+   "evidence": "14-big.png; review 1714 ms, check 1933 ms; 60 passed, 433 not checked"
+  },
+  {
+   "flow": "15 Phone width (390 px): review and next steps",
+   "result": "pass",
+   "evidence": "15-phone-review.png; horizontal overflow 0 px"
+  },
+  {
+   "flow": "16 Keyboard: the first-run path without a mouse",
+   "result": "pass",
+   "evidence": "Tab order to the first action: Home > Choose source > Choose a source; Enter on Choose a source, then Find keys and relationships: review reached"
+  },
+  {
+   "flow": "17 Dark colour scheme of the browser",
+   "result": "pass",
+   "evidence": "17-dark.png; body background rgba(0, 0, 0, 0) (the editor uses Fabric's light theme; see the doc)"
+  },
+  {
+   "flow": "No uncaught errors in the page",
+   "result": "pass",
+   "evidence": "none"
+  }
+ ]
+}

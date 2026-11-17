@@ -1,0 +1,25 @@
+# CD1 (16 November 2026): CONTRIBUTING.md, "Merging and deploying". A pull request that touches a protected area
+# (tools/path_guard.py, RULES: social and marketing copy, pricing, legal pages, the workload name and manifest,
+# secrets, permissions and deployment, user data, dependency major bumps, the policy itself) fails here unless it has
+# the label needs-gustav, so a round cannot merge it on its own. The rules are read from the base branch, so a pull
+# request cannot loosen the check that judges it.
+name: Path guard
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled, ready_for_review]
+permissions: { contents: read }
+jobs:
+  path-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0, persist-credentials: false }
+      - env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          guard="$RUNNER_TEMP/path_guard.py"
+          git show "$BASE:tools/path_guard.py" > "$guard" 2>/dev/null || cp tools/path_guard.py "$guard"   # first PR: none on main yet
+          python3 "$guard" --base "$BASE" --head "$HEAD" --labels "$LABELS" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit "${PIPESTATUS[0]}"

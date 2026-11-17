@@ -1,0 +1,525 @@
+{
+ "about": "W13: the engine's /workload/v1/review then /check on the Fabric and SQL doubles (tests/golden_support.py, seed.py's synthetic shop schema), written by workload/scripts/e2e/engine.py's routes; checked_at fixed.",
+ "review": {
+  "format": "krusgraph-review",
+  "version": 1,
+  "plan_id": "plan-dc47808ed933",
+  "source": {
+   "platform": "fabric",
+   "source": "demo_lh",
+   "schema": "shop"
+  },
+  "schema_fingerprint": "sha256:f9488893c117d8c7",
+  "table_fingerprints": {
+   "addresses": "75d2f3da2b7dec7f",
+   "audit_log": "7a73d0297b5ea8bc",
+   "categories": "bebf9f4e1e9685fb",
+   "customers": "b842b40bb81d49c2",
+   "order_items": "9cb815bf5842c8eb",
+   "orders": "6e21ea3a11192f39",
+   "products": "e9f1b8e367df7de7"
+  },
+  "scope": "all tables",
+  "snapshot": {
+   "version": 1,
+   "schema": "shop",
+   "tables": {
+    "addresses": {
+     "columns": {
+      "address_id": "int",
+      "customer_id": "int",
+      "city": "string"
+     },
+     "key": [
+      "address_id"
+     ],
+     "key_rule": "K2"
+    },
+    "audit_log": {
+     "columns": {
+      "event": "string",
+      "customer_id": "int",
+      "happened_at": "timestamp"
+     },
+     "key": [],
+     "key_rule": "K3"
+    },
+    "categories": {
+     "columns": {
+      "id": "int",
+      "name": "string"
+     },
+     "key": [
+      "id"
+     ],
+     "key_rule": "K2"
+    },
+    "customers": {
+     "columns": {
+      "customer_id": "int",
+      "name": "string",
+      "country": "string"
+     },
+     "key": [
+      "customer_id"
+     ],
+     "key_rule": "K2"
+    },
+    "order_items": {
+     "columns": {
+      "order_id": "int",
+      "line_no": "int",
+      "product_id": "int",
+      "quantity": "double"
+     },
+     "key": [
+      "order_id",
+      "line_no"
+     ],
+     "key_rule": "K5"
+    },
+    "orders": {
+     "columns": {
+      "order_id": "int",
+      "customer_id": "int",
+      "order_date": "date",
+      "ship_to_id": "int"
+     },
+     "key": [
+      "order_id"
+     ],
+     "key_rule": "K2"
+    },
+    "products": {
+     "columns": {
+      "product_id": "int",
+      "name": "string",
+      "category_id": "int",
+      "list_price": "double"
+     },
+     "key": [
+      "product_id"
+     ],
+     "key_rule": "K2"
+    }
+   },
+   "relationships": [
+    {
+     "source": "addresses",
+     "columns": [
+      "customer_id"
+     ],
+     "target": "customers",
+     "target_columns": [
+      "customer_id"
+     ],
+     "rule": "R1"
+    },
+    {
+     "source": "audit_log",
+     "columns": [
+      "customer_id"
+     ],
+     "target": "customers",
+     "target_columns": [
+      "customer_id"
+     ],
+     "rule": "R1"
+    },
+    {
+     "source": "order_items",
+     "columns": [
+      "order_id"
+     ],
+     "target": "orders",
+     "target_columns": [
+      "order_id"
+     ],
+     "rule": "R1"
+    },
+    {
+     "source": "order_items",
+     "columns": [
+      "product_id"
+     ],
+     "target": "products",
+     "target_columns": [
+      "product_id"
+     ],
+     "rule": "R1"
+    },
+    {
+     "source": "orders",
+     "columns": [
+      "customer_id"
+     ],
+     "target": "customers",
+     "target_columns": [
+      "customer_id"
+     ],
+     "rule": "R1"
+    },
+    {
+     "source": "orders",
+     "columns": [
+      "ship_to_id"
+     ],
+     "target": "addresses",
+     "target_columns": [
+      "address_id"
+     ],
+     "rule": "R5"
+    },
+    {
+     "source": "products",
+     "columns": [
+      "category_id"
+     ],
+     "target": "categories",
+     "target_columns": [
+      "id"
+     ],
+     "rule": "R1"
+    }
+   ]
+  },
+  "items": [
+   {
+    "id": "key:addresses",
+    "type": "key",
+    "table": "addresses",
+    "columns": [
+     "address_id"
+    ],
+    "rule": "K2",
+    "review": "proposed",
+    "reason": "",
+    "check": {
+     "status": "passed",
+     "checked_at": "2026-11-17T00:40Z",
+     "result": {
+      "rows": 17,
+      "nulls": 0,
+      "distinct": 17
+     },
+     "verdict": "unique in all 17 rows",
+     "scope": "one counting query over the whole table (validate_plan); counts only, no values"
+    }
+   },
+   {
+    "id": "key:categories",
+    "type": "key",
+    "table": "categories",
+    "columns": [
+     "id"
+    ],
+    "rule": "K2",
+    "review": "proposed",
+    "reason": "",
+    "check": {
+     "status": "passed",
+     "checked_at": "2026-11-17T00:40Z",
+     "result": {
+      "rows": 3,
+      "nulls": 0,
+      "distinct": 3
+     },
+     "verdict": "unique in all 3 rows",
+     "scope": "one counting query over the whole table (validate_plan); counts only, no values"
+    }
+   },
+   {
+    "id": "key:customers",
+    "type": "key",
+    "table": "customers",
+    "columns": [
+     "customer_id"
+    ],
+    "rule": "K2",
+    "review": "proposed",
+    "reason": "",
+    "check": {
+     "status": "passed",
+     "checked_at": "2026-11-17T00:40Z",
+     "result": {
+      "rows": 10,
+      "nulls": 0,
+      "distinct": 10
+     },
+     "verdict": "unique in all 10 rows",
+     "scope": "one counting query over the whole table (validate_plan); counts only, no values"
+    }
+   },
+   {
+    "id": "key:order_items",
+    "type": "key",
+    "table": "order_items",
+    "columns": [
+     "order_id",
+     "line_no"
+    ],
+    "rule": "K5",
+    "review": "proposed",
+    "reason": "",
+    "check": {
+     "status": "passed",
+     "checked_at": "2026-11-17T00:40Z",
+     "result": {
+      "rows": 134,
+      "nulls": 0,
+      "distinct": 134
+     },
+     "verdict": "unique in all 134 rows",
+     "scope": "one counting query over the whole table (validate_plan); counts only, no values"
+    }
+   },
+   {
+    "id": "key:orders",
+    "type": "key",
+    "table": "orders",
+    "columns": [
+     "order_id"
+    ],
+    "rule": "K2",
+    "review": "proposed",
+    "reason": "",
+    "check": {
+     "status": "passed",
+     "checked_at": "2026-11-17T00:40Z",
+     "result": {
+      "rows": 60,
+      "nulls": 0,
+      "distinct": 60
+     },
+     "verdict": "unique in all 60 rows",
+     "scope": "one counting query over the whole table (validate_plan); counts only, no values"
+    }
+   },
+   {
+    "id": "key:products",
+    "type": "key",
+    "table": "products",
+    "columns": [
+     "product_id"
+    ],
+    "rule": "K2",
+    "review": "proposed",
+    "reason": "",
+    "check": {
+     "status": "passed",
+     "checked_at": "2026-11-17T00:40Z",
+     "result": {
+      "rows": 8,
+      "nulls": 0,
+      "distinct": 8
+     },
+     "verdict": "unique in all 8 rows",
+     "scope": "one counting query over the whole table (validate_plan); counts only, no values"
+    }
+   },
+   {
+    "id": "rel:addresses.customer_id>customers",
+    "type": "relationship",
+    "source": "addresses",
+    "columns": [
+     "customer_id"
+    ],
+    "target": "customers",
+    "target_columns": [
+     "customer_id"
+    ],
+    "rule": "R1",
+    "review": "proposed",
+    "reason": "",
+    "check": {
+     "status": "passed",
+     "checked_at": "2026-11-17T00:40Z",
+     "result": {
+      "rows_with_value": 17,
+      "orphans": 0
+     },
+     "verdict": "holds for all 17 rows with a value",
+     "scope": "one counting query over the whole table (validate_plan); counts only, no values"
+    }
+   },
+   {
+    "id": "rel:audit_log.customer_id>customers",
+    "type": "relationship",
+    "source": "audit_log",
+    "columns": [
+     "customer_id"
+    ],
+    "target": "customers",
+    "target_columns": [
+     "customer_id"
+    ],
+    "rule": "R1",
+    "review": "proposed",
+    "reason": "",
+    "check": {
+     "status": "passed",
+     "checked_at": "2026-11-17T00:40Z",
+     "result": {
+      "rows_with_value": 40,
+      "orphans": 0
+     },
+     "verdict": "holds for all 40 rows with a value",
+     "scope": "one counting query over the whole table (validate_plan); counts only, no values"
+    }
+   },
+   {
+    "id": "rel:order_items.order_id>orders",
+    "type": "relationship",
+    "source": "order_items",
+    "columns": [
+     "order_id"
+    ],
+    "target": "orders",
+    "target_columns": [
+     "order_id"
+    ],
+    "rule": "R1",
+    "review": "proposed",
+    "reason": "",
+    "check": {
+     "status": "passed",
+     "checked_at": "2026-11-17T00:40Z",
+     "result": {
+      "rows_with_value": 134,
+      "orphans": 0
+     },
+     "verdict": "holds for all 134 rows with a value",
+     "scope": "one counting query over the whole table (validate_plan); counts only, no values"
+    }
+   },
+   {
+    "id": "rel:order_items.product_id>products",
+    "type": "relationship",
+    "source": "order_items",
+    "columns": [
+     "product_id"
+    ],
+    "target": "products",
+    "target_columns": [
+     "product_id"
+    ],
+    "rule": "R1",
+    "review": "proposed",
+    "reason": "",
+    "check": {
+     "status": "passed",
+     "checked_at": "2026-11-17T00:40Z",
+     "result": {
+      "rows_with_value": 134,
+      "orphans": 0
+     },
+     "verdict": "holds for all 134 rows with a value",
+     "scope": "one counting query over the whole table (validate_plan); counts only, no values"
+    }
+   },
+   {
+    "id": "rel:orders.customer_id>customers",
+    "type": "relationship",
+    "source": "orders",
+    "columns": [
+     "customer_id"
+    ],
+    "target": "customers",
+    "target_columns": [
+     "customer_id"
+    ],
+    "rule": "R1",
+    "review": "proposed",
+    "reason": "",
+    "check": {
+     "status": "passed",
+     "checked_at": "2026-11-17T00:40Z",
+     "result": {
+      "rows_with_value": 60,
+      "orphans": 0
+     },
+     "verdict": "holds for all 60 rows with a value",
+     "scope": "one counting query over the whole table (validate_plan); counts only, no values"
+    }
+   },
+   {
+    "id": "rel:orders.ship_to_id>addresses",
+    "type": "relationship",
+    "source": "orders",
+    "columns": [
+     "ship_to_id"
+    ],
+    "target": "addresses",
+    "target_columns": [
+     "address_id"
+    ],
+    "rule": "R5",
+    "review": "proposed",
+    "reason": "",
+    "check": {
+     "status": "passed",
+     "checked_at": "2026-11-17T00:40Z",
+     "result": {
+      "rows_with_value": 60,
+      "orphans": 0
+     },
+     "verdict": "holds for all 60 rows with a value",
+     "scope": "one counting query over the whole table (validate_plan); counts only, no values"
+    }
+   },
+   {
+    "id": "rel:products.category_id>categories",
+    "type": "relationship",
+    "source": "products",
+    "columns": [
+     "category_id"
+    ],
+    "target": "categories",
+    "target_columns": [
+     "id"
+    ],
+    "rule": "R1",
+    "review": "proposed",
+    "reason": "",
+    "check": {
+     "status": "passed",
+     "checked_at": "2026-11-17T00:40Z",
+     "result": {
+      "rows_with_value": 8,
+      "orphans": 0
+     },
+     "verdict": "holds for all 8 rows with a value",
+     "scope": "one counting query over the whole table (validate_plan); counts only, no values"
+    }
+   }
+  ],
+  "open_questions": [
+   {
+    "about": "key:audit_log",
+    "question": "Does audit_log have a key? The rules found none; give one with keys, or keep it query only (it can reference others, nothing can reference it)."
+   }
+  ],
+  "left_out_by_corrections": [],
+  "arguments": {
+   "keys": {},
+   "confirmed": []
+  },
+  "since_previous": {
+   "previous_plan_id": "plan-dc47808ed933",
+   "changes": {
+    "first_run": false,
+    "tables_added": [],
+    "tables_removed": [],
+    "columns_added": [],
+    "columns_removed": [],
+    "types_changed": [],
+    "keys_changed": [],
+    "relationships_added": [],
+    "relationships_removed": [],
+    "changed": false
+   },
+   "decisions_no_longer_in_plan": [],
+   "source_differs": []
+  }
+ }
+}

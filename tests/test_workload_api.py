@@ -17,6 +17,7 @@ from starlette.testclient import TestClient  # noqa: E402
 
 import golden_support as gs  # noqa: E402
 from fabric_backend import entra, server, workload_api  # noqa: E402
+from fabric_backend.csn_onelake import STORAGE_SCOPE  # noqa: E402
 from fabric_backend.entra import EntraConfig, TokenError, Validator, WorkloadConfig  # noqa: E402
 
 TID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
@@ -204,7 +205,7 @@ def test_review_on_the_shop_schema(api):
     rules = {it["rule"][0] for it in rv["items"]}
     assert rules <= {"K", "R"} and {"K", "R"} <= rules                                     # the K and R pills
     assert out["counts"]["keys"] + out["counts"]["relationships"] == len(rv["items"])
-    assert {s for _, s in obo.calls} == {entra.FABRIC_SCOPE, entra.SQL_SCOPE}   # as the user, OBO
+    assert {s for _, s in obo.calls} == {entra.FABRIC_SCOPE, entra.SQL_SCOPE, STORAGE_SCOPE}   # as the user, OBO (CSN2: OneLake's Files)
     assert _writes(fake) == []
     text = json.dumps(out)
     assert "Harbour Bikes" not in text and "obo:" not in text and "wl-secret" not in text     # no row values, tokens, secrets

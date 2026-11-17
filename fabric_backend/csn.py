@@ -413,6 +413,16 @@ def read(source, name: str | None = None) -> Model:
     return model
 
 
+def read_named(pairs) -> Model:
+    """CSN objects already parsed, each with the name it is reported under ([(name, obj), ...]); CSN2 reads them from
+    the lakehouse's Files (csn_onelake.py) and names each by its path there."""
+    model = Model()
+    for label, obj in pairs:
+        model.files.append(label)
+        _read_definitions(obj, label, model)
+    return model
+
+
 # --------------------------------------------------------------------------------------------------------------------
 # names
 
@@ -673,7 +683,8 @@ def plan(schema, model: Model, prefix: str | None = None, **kwargs):
     report = {
         "rule": RULE, "provenance": PROVENANCE, "status": "declared by metadata, not verified against the rows: validate_plan counts it",
         "files": list(model.files), "versions": model.versions,
-        "entities": len(model.entities), "matched": {en: {"table": t, "by": nm.how[en]} for en, t in nm.tables.items()},
+        "entities": len(model.entities), "matched": {en: {"table": t, "by": nm.how[en], "file": model.entities[en].file}
+                                                      for en, t in nm.tables.items()},
         "keys": {t: cols for t, cols in mine.items()},
         "links": applied, "not_applied": not_applied,
         "amounts": amount_levels(model, nm, applied),
