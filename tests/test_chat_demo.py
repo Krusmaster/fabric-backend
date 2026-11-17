@@ -402,8 +402,11 @@ def test_the_status_sentence_is_built_from_tool_status_and_says_no_more():
 
 
 def test_the_status_sentence_changes_when_tool_status_does(monkeypatch):
-    """The sentence is not typed: change tool_status and it says something else (and the line above fails)."""
-    monkeypatch.delitem(ts.REVIEWED, "create_semantic_model")
+    """The sentence is not typed: change tool_status and it says something else (and the line above fails).
+    CI1: REVIEWED and LATER_LIVE are swapped for copies without the tool rather than edited with delitem: delitem puts the
+    key back at the end, and the order of LATER_LIVE is the order of the server's instructions sentence, which
+    tests/test_capabilities.py compares with the one built at import (it failed when it ran after this test)."""
+    monkeypatch.setattr(ts, "REVIEWED", {k: v for k, v in ts.REVIEWED.items() if k != "create_semantic_model"})
     assert pages.chat_status("create_semantic_model") == "Created in a live Fabric workspace."
     monkeypatch.setitem(ts.STATUS, "create_semantic_model", ts.STATUS["create_semantic_model"].__class__(
         ts.OPERATOR, ts.CREATES, "x", "unit tests", name="create_semantic_model"))
@@ -411,7 +414,7 @@ def test_the_status_sentence_changes_when_tool_status_does(monkeypatch):
                                                           "Creating it needs a permission the hosted service does not ask for today.")
     monkeypatch.setitem(ts.STATUS, "create_semantic_model", ts.STATUS["create_semantic_model"].__class__(
         ts.HOSTED, ts.CREATES, "x", "unit tests", name="create_semantic_model"))
-    monkeypatch.delitem(ts.LATER_LIVE, "create_semantic_model")
+    monkeypatch.setattr(ts, "LATER_LIVE", {k: v for k, v in ts.LATER_LIVE.items() if k != "create_semantic_model"})
     monkeypatch.setattr(ts, "LIVE_RUN", tuple(t for t in ts.LIVE_RUN if t != "create_semantic_model"))
     assert pages.chat_status("create_semantic_model") == "Not yet created in a live Fabric workspace."
     monkeypatch.setitem(ts.STATUS, "domain_draft", ts.STATUS["domain_draft"].__class__(ts.HOSTED, ts.DRAFT, "nothing", "unit tests", name="domain_draft"))

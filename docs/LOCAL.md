@@ -71,12 +71,13 @@ dbo"*, *"Check the plan against the data"*, *"How do orders connect to products?
 
 ## 4. What works locally, and what answers with an explanation
 
-The local server has 25 tools (`fabric_backend/mcp_server.py`; `tests/test_f1_findings_fixes.py` holds this section to
+The local server has 27 tools (`fabric_backend/mcp_server.py`; `tests/test_f1_findings_fixes.py` holds this section to
 the code). `fabric-backend-mcp --help` lists the settings and returns; without arguments the command waits for an MCP
 client on stdin and prints nothing, which is how a client starts it.
 
 Works on every source: `list_tables`, `plan_backend`, `validate_plan`, `review_plan` (the plan, the decisions and the
-checks as one file), `sample_rows`, `join_path`, `data_dictionary`, `dbt_schema`, `analyze_schema`,
+checks as one file), `record_decision` and `list_decisions` (a team's accept or reject of a key or link,
+kept in a local file and applied as a rule by every later plan; docs/DECISION-RULES.md), `sample_rows`, `join_path`, `data_dictionary`, `dbt_schema`, `analyze_schema`,
 `suggest_relationships`, `rayfin_connector`, `create_views` (dry run by default; `CREATE OR ALTER VIEW` in a schema of
 its own, never DROP; `CREATE OR ALTER` needs SQL Server 2016 SP1 or later) and `answer_query_draft` (a question in
 Swedish or English as T-SQL over the safest join path; runs nothing).
