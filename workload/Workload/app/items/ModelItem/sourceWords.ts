@@ -140,3 +140,18 @@ export function sourceNotes(readOnly?: ReadOnlySource, sap?: SapOffer): string[]
   if (sap?.licence) out.push(sap.licence);
   return out;
 }
+
+/** W13: why the schemas could not be listed, in words for the person (the engine's error names the route and the
+ * workspace's id: "no access to schemas: workspace '1111…', source 'demo_lh' (HTTP 403 …)"). No access: say so and what
+ * to ask for, and offer another source; anything else: the engine's sentence, then how to go on. */
+export function schemaProblem(error: { error: string; kind: string; hint?: string }, sourceName: string): { line: string; typeIt: boolean } {
+  const name = sourceName || "this source";
+  if (error.kind === "no_access") {
+    return {
+      line: `Your sign-in cannot open ${name}. Ask the workspace's admin for access (Viewer is enough to find keys and links, ` +
+        "Contributor to create), or choose another source.",
+      typeIt: false,
+    };
+  }
+  return { line: `The schemas could not be listed: ${error.error} Type the schema as the lakehouse spells it.`, typeIt: true };
+}

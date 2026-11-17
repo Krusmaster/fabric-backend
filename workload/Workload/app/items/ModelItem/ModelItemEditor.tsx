@@ -71,6 +71,9 @@ import { PICKER_TYPES, ReadOnlySource, SapOffer, restType, targetProblem } from 
 import { BuildIn, buildWorkspace, crossWorkspace, keptTarget, lakehouseProblem, productWorkspace, targetRequest } from "./buildPlace";
 import { DataProductPage, preloadParts } from "./lazyParts";   // n223: the Data product page loads when first shown
 import { OntoWait } from "./OntoWait";
+import { FlowSteps } from "./FlowSteps";
+import { flowSteps } from "./stepWords";
+import { NextStepsPanel } from "./NextStepsView";
 import { Wait, WaitSignal, checkLabel, newWait, reviewLabel, withSignal } from "./waitWords";
 import { accessLine } from "./accessWords";
 import { DrawioContext, DrawioFile, DrawioSource } from "./drawioDownload";
@@ -1059,16 +1062,35 @@ export function ModelItemEditor(props: PageProps) {
       actions.push({ key: "data-product", icon: BoxMultiple24Regular, label: "Data product", onClick: () => { go("product"); void loadProduct(); }, disabled: creating });
     }
     if (back[view]) actions.push({ key: "back", icon: ArrowLeft24Regular, label: "Back", onClick: () => go(back[view]) });
-    return actions;
+    // W13: every action but Save shows its label (Save stays icon only: Learn, publishing requirements for items, 3.4)
+    return actions.map((a) => (a.key === "save" ? a : { ...a, showLabel: true }));
   };
 
+  // W13: where you are (FlowSteps.tsx), at the top of every view's canvas; done steps can be gone back to
+  const steps = flowSteps(view, {
+    review: !!def.review, preview: !!preview || def.outputs.created.length > 0,
+    built: def.outputs.created.length > 0 || (def.outputs.removed ?? []).length > 0,
+  });
+  const goStep = (v: ModelView) => {
+    if (v === "product") { go("product"); void loadProduct(); } else go(v);
+  };
+  /** W13: a next step's "Dry run": those outputs ticked (and only those), then Choose what to build, as for any output */
+  const buildNext = (outputs: string[]) => {
+    setChoices((cs) => cs.map((c) => ({ ...c, enabled: outputs.includes(c.type) })));
+    go("outputs");
+  };
+  const nextPanel = (
+    <NextStepsPanel review={def.review} created={def.outputs.created} source={def.source} onBuild={buildNext} />
+  );
+
   const wrap = (node: React.ReactNode) => (
-    <>
+    <div className="kg-wrap">
+      <FlowSteps steps={steps} onGo={goStep} />
       <ErrorBar error={error} />
       {trialLine ? <div style={{ fontSize: 12, opacity: 0.75, margin: "4px 0" }} role="status">{trialLine}</div> : null}
       {quiet && !wait ? <Busy wait={quiet} mascotsOn={mascotsOn} skeleton={false} /> : null}
       {wait ? <Busy wait={wait} mascotsOn={mascotsOn} onCancel={cancelWait} /> : node}
-    </>
+    </div>
   );
 
   const views = [
@@ -1105,6 +1127,7 @@ export function ModelItemEditor(props: PageProps) {
             onChoice={onChoice}
             readOnly={sourceInfo.readOnly}
             sap={sourceInfo.sap}
+            onNext={() => go("outputs")}
           />
         ) : null
       ),
@@ -1137,10 +1160,13 @@ export function ModelItemEditor(props: PageProps) {
         appChoices={choices.find((c) => c.type === "rayfin_app")?.app} onAppChoices={chooseApp}
         appRecord={readAppRecord(choices.find((c) => c.type === "rayfin_app")?.app_package, choices.find((c) => c.type === "rayfin_app")?.name)} /> : null),
     },
+    // W13: next steps with other Fabric workloads, under the result once something was built
     {
-      name: "result",
-      component: wrap(
-        result || def.outputs.created.length ? <ResultView
+    name: "result",
+    component: wrap(
+      result || def.outputs.created.length ? (
+        <>
+          <ResultView
             answer={result}
             outputs={def.outputs}
             onOpen={openItem}
@@ -1151,14 +1177,15 @@ export function ModelItemEditor(props: PageProps) {
             onCreateRest={createRest}
             notice={notice}
             busy={updating || creating}
-          /> : null
-      ),
+          />
+          {!creating && nextPanel}
+        </>
+      ) : null
+    ),
     },
   ];
 
-  views.push({
-    name: "product",
-    component: wrap(
+  const productPage = (
       <DataProductPage
         productName={productName(def)}
         outputs={def.outputs}
@@ -1183,8 +1210,9 @@ export function ModelItemEditor(props: PageProps) {
         onFindLeftovers={() => void findLeftovers()}
         onAdopt={(id) => void adoptLeftover(id)}
       />
-    ),
-  });
+  );
+  views.push({ name: "product", component: wrap(<>{productPage}{nextPanel}</>) });
+
 
   // n228: "Download as draw.io" under the map and the data flow (drawioDownload.tsx); the engine makes the file from what is shown
   const drawioName = [def.source?.displayName, def.source?.schema].filter(Boolean).join(".");

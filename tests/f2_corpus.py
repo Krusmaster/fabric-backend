@@ -43,7 +43,7 @@ from fabric_backend.schema import Schema                                    # no
 CORPUS = Path(__file__).parent / "corpus"
 FIXTURES = Path(__file__).parent / "fixtures" / "schemas"
 BEFORE_COMMIT = "8066dd0"
-ORDER = ("adventureworks", "shop", "sap_sd", "sap_mm", "sap_renamed", "nordic_erp", "bc_like", "salesforce")
+ORDER = ("adventureworks", "shop", "sap_sd", "sap_mm", "sap_renamed", "nordic_erp", "bc_like", "dynamics365", "salesforce")
 NOT_PRESENT = {"sap_cds": "n230's CDS-shaped sample (seed(spark, schema='sap_cds')) is not on main at the time of this round; "
                           "it is added here when it is"}
 
@@ -361,6 +361,28 @@ def bc_like(seed: int = 9):
     return tables, rows, truth
 
 
+# ------------------------------------------------------------------ Dynamics 365 (round PK2) ------------------------
+
+def dynamics365():
+    """fabric_backend/dynamics_demo.py: SYNTHETIC DEMO DATA, 20 Dataverse tables as Link to Microsoft Fabric lands them and
+    13 Business Central tables as bc2adls names them. The truth is the dynamics365 pack's keys and its plain key links on
+    these columns (the demo is written from the pack). The pack's filtered links (a customer, owner or regarding lookup
+    filtered on its type column, a line's No. filtered on Type) are not key joins: the plan keeps them in plan.extended,
+    so they are not counted here."""
+    from fabric_backend import dynamics_demo, sap_pack
+    sql = {"string": "nvarchar", "int": "int"}
+    tables = {n: [(c, sql.get(k, "decimal")) for c, k in zip(cols, kinds)] for n, (cols, kinds, _r) in dynamics_demo.tables().items()}
+    rows = {n: list(r) for n, (_c, _k, r) in dynamics_demo.tables().items()}
+    schema, _x = dynamics_demo.sqlite()
+    m = sap_pack.match(schema, "dynamics365")
+    keys = {t: list(k) for t, k in m.keys.items()}
+    links = [[x["source"], list(x["source_cols"]), x["target"]] for x in m.relationships if x.get("kind", "key") == "key" and not x.get("where")]
+    return tables, rows, {"keys": keys, "links": links,
+                          "planted": {"soft_delete": "one salesorderdetail row soft-deleted (IsDelete 1, empty body)",
+                                      "orphan": "activity Demo call 2 regarding an account purged from the lake (a filtered link, in plan.extended)",
+                                      "companies": "Business Central customer C10000, item 1000 and invoice 103001 in two companies ($Company in the key)"}}
+
+
 # ------------------------------------------------------------------ the SAP-shaped samples --------------------------
 
 _SAP_TRUTH = {
@@ -437,6 +459,8 @@ SOURCES = {
                    "not a product's schema", nordic_erp),
     "bc_like": ("Business-Central-like shape", "`<company>$<table>$<app id>` table names, `No_` keys; synthetic, written for this "
                 "corpus, not Microsoft's schema", bc_like),
+    "dynamics365": ("Dynamics 365 demo (Dataverse and Business Central)", "fabric_backend/dynamics_demo.py, SYNTHETIC DEMO DATA written from "
+                    "the dynamics365 pack; Dataverse as Link to Microsoft Fabric lands it, Business Central as bc2adls names it", dynamics365),
     "salesforce": ("Salesforce-shaped sample, lead to cash and service", "fabric_backend/salesforce_demo.py, synthetic rows written from "
                    "the salesforce pack, object and field API names as a Copy job lands them; not Salesforce data", salesforce),
 }

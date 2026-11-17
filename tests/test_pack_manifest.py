@@ -8,6 +8,7 @@ import importlib
 import json
 import re
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -80,12 +81,14 @@ def test_the_sources_say_what_was_read_and_nothing_is_reviewed_yet(pack):
     assert m["sharing"] == "public-synthetic" and m["review_status"] == "proposed" and m["reviewed_by"] == "" and m["reviewed_at"] == ""
     assert m["version"].startswith("0.")
     unread = [s["id"] for s in m["sources"] if not s["verified"]]
-    assert unread, "every source read and checked: the manifest should say so, not this test"
+    assert unread or pack == "dynamics365", "every source read and checked: the manifest should say so, not this test"
     if pack == "younium_salesforce":                                      # n72: none of the Younium pages could be opened;
         assert unread == [s["id"] for s in m["sources"] if s["publisher"] == "Younium"]   # PK1: the Salesforce ones were read
+    elif pack == "dynamics365":                                           # PK2: every page was opened (17 November 2026); what
+        assert unread == [] and {s["accessed"] for s in m["sources"]} == {"2026-11-17"}   # its limits are in the notes
     elif pack == "salesforce":                                            # PK1: read on 17 November 2026, but for one Help page
         assert unread == ["sf_queue_owner"] and all(s["accessed"] == "2026-11-17" for s in m["sources"] if s["verified"])
-    else:
+    elif pack == "sap":
         assert "ms_fabric_mirroring_sap" not in unread and next(s for s in m["sources"] if s["id"] == "ms_fabric_mirroring_sap")["accessed"] == "2026-10-28"
 
 
@@ -98,7 +101,7 @@ def test_the_fixtures_build_and_the_pack_recognises_every_fixture_table(pack):
     expected = getattr(mod, fx["expected"])
     assert len(tables) == expected["tables"]
     entities = {e["name"] for e in m["entities"]}
-    assert {sap_pack.table_name(n) for n in tables} <= entities
+    assert {sap_pack._norm(sap_pack.table_name(n)) for n in tables} <= {sap_pack._norm(e) for e in entities}
     schema, execute = getattr(mod, fx["sqlite"])()
     match = sap_pack.match(schema, pack)
     assert match is not None and len(match.tables) == len(tables)
@@ -106,7 +109,8 @@ def test_the_fixtures_build_and_the_pack_recognises_every_fixture_table(pack):
 
 
 def _key(source: str, cols, target: str):
-    return (sap_pack.table_name(source), tuple(sap_pack._norm(c) for c in cols), sap_pack.table_name(target))
+    # PK2: names compared as the loader compares them (`CustLedgerEntry-21` is CUST_LEDGER_ENTRY, `No-1` is NO)
+    return (sap_pack._norm(sap_pack.table_name(source)), tuple(sap_pack.column_key(c) for c in cols), sap_pack._norm(sap_pack.table_name(target)))
 
 
 @pytest.mark.parametrize("pack", PACKS)
@@ -119,12 +123,13 @@ def test_the_benchmark_facit_and_the_candidate_relationships_agree(pack):
     facit = json.loads((ROOT / fx["facit"]).read_text(encoding="utf-8"))[fx["facit_set"]]
     truth = {_key(r["source"], r["source_cols"], r["target"]) for r in facit["relationships"]}
     tables = getattr(importlib.import_module(fx["module"]), fx["tables"])()
-    cols = {sap_pack.table_name(n): {sap_pack._norm(c) for c in t[0]} for n, t in tables.items()}
+    # the columns as the loader reads them, other spellings included (PK2: bc2adls `No-1`, the Web API's `_x_value`)
+    cols = {sap_pack._norm(sap_pack.table_name(n)): set(sap_pack._cols(SimpleNamespace(column_names=t[0]))) for n, t in tables.items()}
     cands = {}
     for r in m["candidate_relationships"]:
         s, sc = pm.parse_ref(r["from"])
         t, tc = pm.parse_ref(r["to"])
-        cands[_key(s, sc, t)] = (r, {sap_pack._norm(c) for c in tc})
+        cands[_key(s, sc, t)] = (r, {sap_pack.column_key(c) for c in tc})
     assert truth <= set(cands), truth - set(cands)
     applicable = {k for k, (r, tc) in cands.items() if r["applied"] and k[0] in cols and k[2] in cols and set(k[1]) <= cols[k[0]] and tc <= cols[k[2]]}
     assert applicable <= truth, applicable - truth

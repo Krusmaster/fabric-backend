@@ -1,0 +1,469 @@
+{
+ "name": "dynamics365",
+ "title": "Dynamics 365 demo (Dataverse and Business Central)",
+ "source": "fabric_backend/dynamics_demo.py, SYNTHETIC DEMO DATA written from the dynamics365 pack; Dataverse as Link to Microsoft Fabric lands it, Business Central as bc2adls names it",
+ "rows": 109,
+ "names": {
+  "tables": 33,
+  "keys_true": 33,
+  "keys_right": 33,
+  "keys_wrong": 0,
+  "keys_missed": 0,
+  "keys_extra": 0,
+  "keys_extra_list": [],
+  "links_true": 57,
+  "links_found": 57,
+  "links_wrong": 0,
+  "keys_wrong_list": [],
+  "keys_missed_list": [],
+  "links_missed_list": [],
+  "links_wrong_list": []
+ },
+ "before": {
+  "tables": 33,
+  "keys_true": 33,
+  "keys_right": 33,
+  "keys_wrong": 0,
+  "keys_missed": 0,
+  "keys_extra": 0,
+  "keys_extra_list": [],
+  "links_true": 57,
+  "links_found": 57,
+  "links_wrong": 0,
+  "keys_wrong_list": [],
+  "keys_missed_list": [],
+  "links_missed_list": [],
+  "links_wrong_list": []
+ },
+ "after": {
+  "tables": 33,
+  "keys_true": 33,
+  "keys_right": 33,
+  "keys_wrong": 0,
+  "keys_missed": 0,
+  "keys_extra": 0,
+  "keys_extra_list": [],
+  "links_true": 57,
+  "links_found": 57,
+  "links_wrong": 0,
+  "keys_wrong_list": [],
+  "keys_missed_list": [],
+  "links_missed_list": [],
+  "links_wrong_list": []
+ },
+ "plan": {
+  "keys": {
+   "CountryRegion-9": {
+    "columns": [
+     "$Company",
+     "Code-1"
+    ],
+    "rule": "SAP pack"
+   },
+   "CustLedgerEntry-21": {
+    "columns": [
+     "$Company",
+     "EntryNo-1"
+    ],
+    "rule": "SAP pack"
+   },
+   "Customer-18": {
+    "columns": [
+     "$Company",
+     "No-1"
+    ],
+    "rule": "SAP pack"
+   },
+   "DetailedCustLedgEntry-379": {
+    "columns": [
+     "$Company",
+     "EntryNo-1"
+    ],
+    "rule": "SAP pack"
+   },
+   "DimensionSetEntry-480": {
+    "columns": [
+     "$Company",
+     "DimensionSetID-1",
+     "DimensionCode-2"
+    ],
+    "rule": "SAP pack"
+   },
+   "GLEntry-17": {
+    "columns": [
+     "$Company",
+     "EntryNo-1"
+    ],
+    "rule": "SAP pack"
+   },
+   "Item-27": {
+    "columns": [
+     "$Company",
+     "No-1"
+    ],
+    "rule": "SAP pack"
+   },
+   "SalesHeader-36": {
+    "columns": [
+     "$Company",
+     "DocumentType-1",
+     "No-3"
+    ],
+    "rule": "SAP pack"
+   },
+   "SalesInvoiceHeader-112": {
+    "columns": [
+     "$Company",
+     "No-3"
+    ],
+    "rule": "SAP pack"
+   },
+   "SalesInvoiceLine-113": {
+    "columns": [
+     "$Company",
+     "DocumentNo-3",
+     "LineNo-4"
+    ],
+    "rule": "SAP pack"
+   },
+   "SalesLine-37": {
+    "columns": [
+     "$Company",
+     "DocumentType-1",
+     "DocumentNo-3",
+     "LineNo-4"
+    ],
+    "rule": "SAP pack"
+   },
+   "SalespersonPurchaser-13": {
+    "columns": [
+     "$Company",
+     "Code-1"
+    ],
+    "rule": "SAP pack"
+   },
+   "Vendor-23": {
+    "columns": [
+     "$Company",
+     "No-1"
+    ],
+    "rule": "SAP pack"
+   },
+   "account": {
+    "columns": [
+     "accountid"
+    ],
+    "rule": "SAP pack"
+   },
+   "activitypointer": {
+    "columns": [
+     "activityid"
+    ],
+    "rule": "SAP pack"
+   },
+   "businessunit": {
+    "columns": [
+     "businessunitid"
+    ],
+    "rule": "SAP pack"
+   },
+   "contact": {
+    "columns": [
+     "contactid"
+    ],
+    "rule": "SAP pack"
+   },
+   "incident": {
+    "columns": [
+     "incidentid"
+    ],
+    "rule": "SAP pack"
+   },
+   "invoice": {
+    "columns": [
+     "invoiceid"
+    ],
+    "rule": "SAP pack"
+   },
+   "invoicedetail": {
+    "columns": [
+     "invoicedetailid"
+    ],
+    "rule": "SAP pack"
+   },
+   "lead": {
+    "columns": [
+     "leadid"
+    ],
+    "rule": "SAP pack"
+   },
+   "opportunity": {
+    "columns": [
+     "opportunityid"
+    ],
+    "rule": "SAP pack"
+   },
+   "opportunityproduct": {
+    "columns": [
+     "opportunityproductid"
+    ],
+    "rule": "SAP pack"
+   },
+   "pricelevel": {
+    "columns": [
+     "pricelevelid"
+    ],
+    "rule": "SAP pack"
+   },
+   "product": {
+    "columns": [
+     "productid"
+    ],
+    "rule": "SAP pack"
+   },
+   "productpricelevel": {
+    "columns": [
+     "productpricelevelid"
+    ],
+    "rule": "SAP pack"
+   },
+   "quote": {
+    "columns": [
+     "quoteid"
+    ],
+    "rule": "SAP pack"
+   },
+   "quotedetail": {
+    "columns": [
+     "quotedetailid"
+    ],
+    "rule": "SAP pack"
+   },
+   "salesorder": {
+    "columns": [
+     "salesorderid"
+    ],
+    "rule": "SAP pack"
+   },
+   "salesorderdetail": {
+    "columns": [
+     "salesorderdetailid"
+    ],
+    "rule": "SAP pack"
+   },
+   "systemuser": {
+    "columns": [
+     "systemuserid"
+    ],
+    "rule": "SAP pack"
+   },
+   "team": {
+    "columns": [
+     "teamid"
+    ],
+    "rule": "SAP pack"
+   },
+   "transactioncurrency": {
+    "columns": [
+     "transactioncurrencyid"
+    ],
+    "rule": "SAP pack"
+   }
+  },
+  "links": [
+   "CustLedgerEntry-21.$Company+CustomerNo-3 -> Customer-18.$Company+No-1 [SAP pack]",
+   "Customer-18.$Company+CountryRegionCode-35 -> CountryRegion-9.$Company+Code-1 [SAP pack]",
+   "Customer-18.$Company+SalespersonCode-29 -> SalespersonPurchaser-13.$Company+Code-1 [SAP pack]",
+   "DetailedCustLedgEntry-379.$Company+CustLedgerEntryNo-2 -> CustLedgerEntry-21.$Company+EntryNo-1 [SAP pack]",
+   "DetailedCustLedgEntry-379.$Company+CustomerNo-9 -> Customer-18.$Company+No-1 [SAP pack]",
+   "SalesHeader-36.$Company+BilltoCustomerNo-4 -> Customer-18.$Company+No-1 [SAP pack]",
+   "SalesHeader-36.$Company+SalespersonCode-43 -> SalespersonPurchaser-13.$Company+Code-1 [SAP pack]",
+   "SalesHeader-36.$Company+SelltoCustomerNo-2 -> Customer-18.$Company+No-1 [SAP pack]",
+   "SalesInvoiceHeader-112.$Company+BilltoCustomerNo-4 -> Customer-18.$Company+No-1 [SAP pack]",
+   "SalesInvoiceHeader-112.$Company+SalespersonCode-43 -> SalespersonPurchaser-13.$Company+Code-1 [SAP pack]",
+   "SalesInvoiceHeader-112.$Company+SelltoCustomerNo-2 -> Customer-18.$Company+No-1 [SAP pack]",
+   "SalesInvoiceLine-113.$Company+DocumentNo-3 -> SalesInvoiceHeader-112.$Company+No-3 [SAP pack]",
+   "SalesLine-37.$Company+DocumentType-1+DocumentNo-3 -> SalesHeader-36.$Company+DocumentType-1+No-3 [SAP pack]",
+   "Vendor-23.$Company+CountryRegionCode-35 -> CountryRegion-9.$Company+Code-1 [SAP pack]",
+   "Vendor-23.$Company+PurchaserCode-29 -> SalespersonPurchaser-13.$Company+Code-1 [SAP pack]",
+   "account.owningbusinessunit -> businessunit.businessunitid [SAP pack]",
+   "account.parentaccountid -> account.accountid [SAP pack]",
+   "account.primarycontactid -> contact.contactid [SAP pack]",
+   "account.transactioncurrencyid -> transactioncurrency.transactioncurrencyid [SAP pack]",
+   "businessunit.parentbusinessunitid -> businessunit.businessunitid [SAP pack]",
+   "incident.parentcaseid -> incident.incidentid [SAP pack]",
+   "incident.primarycontactid -> contact.contactid [SAP pack]",
+   "incident.productid -> product.productid [SAP pack]",
+   "invoice.opportunityid -> opportunity.opportunityid [SAP pack]",
+   "invoice.salesorderid -> salesorder.salesorderid [SAP pack]",
+   "invoice.transactioncurrencyid -> transactioncurrency.transactioncurrencyid [SAP pack]",
+   "invoicedetail.invoiceid -> invoice.invoiceid [SAP pack]",
+   "invoicedetail.productid -> product.productid [SAP pack]",
+   "invoicedetail.salesorderdetailid -> salesorderdetail.salesorderdetailid [SAP pack]",
+   "lead.parentaccountid -> account.accountid [SAP pack]",
+   "lead.qualifyingopportunityid -> opportunity.opportunityid [SAP pack]",
+   "opportunity.originatingleadid -> lead.leadid [SAP pack]",
+   "opportunity.parentaccountid -> account.accountid [SAP pack]",
+   "opportunity.pricelevelid -> pricelevel.pricelevelid [SAP pack]",
+   "opportunity.transactioncurrencyid -> transactioncurrency.transactioncurrencyid [SAP pack]",
+   "opportunityproduct.opportunityid -> opportunity.opportunityid [SAP pack]",
+   "opportunityproduct.productid -> product.productid [SAP pack]",
+   "pricelevel.transactioncurrencyid -> transactioncurrency.transactioncurrencyid [SAP pack]",
+   "product.parentproductid -> product.productid [SAP pack]",
+   "product.pricelevelid -> pricelevel.pricelevelid [SAP pack]",
+   "productpricelevel.pricelevelid -> pricelevel.pricelevelid [SAP pack]",
+   "productpricelevel.productid -> product.productid [SAP pack]",
+   "quote.opportunityid -> opportunity.opportunityid [SAP pack]",
+   "quote.pricelevelid -> pricelevel.pricelevelid [SAP pack]",
+   "quote.transactioncurrencyid -> transactioncurrency.transactioncurrencyid [SAP pack]",
+   "quotedetail.productid -> product.productid [SAP pack]",
+   "quotedetail.quoteid -> quote.quoteid [SAP pack]",
+   "salesorder.opportunityid -> opportunity.opportunityid [SAP pack]",
+   "salesorder.pricelevelid -> pricelevel.pricelevelid [SAP pack]",
+   "salesorder.quoteid -> quote.quoteid [SAP pack]",
+   "salesorder.transactioncurrencyid -> transactioncurrency.transactioncurrencyid [SAP pack]",
+   "salesorderdetail.productid -> product.productid [SAP pack]",
+   "salesorderdetail.quotedetailid -> quotedetail.quotedetailid [SAP pack]",
+   "salesorderdetail.salesorderid -> salesorder.salesorderid [SAP pack]",
+   "systemuser.businessunitid -> businessunit.businessunitid [SAP pack]",
+   "systemuser.parentsystemuserid -> systemuser.systemuserid [SAP pack]",
+   "team.businessunitid -> businessunit.businessunitid [SAP pack]"
+  ],
+  "ambiguous": [],
+  "proposed": []
+ },
+ "row_results": {
+  "summary": "33 of 33 keys unique, 81 of 89 relationships hold without orphans",
+  "keys": {
+   "transactioncurrency": "unique in all 2 rows",
+   "businessunit": "unique in all 1 rows",
+   "systemuser": "unique in all 2 rows",
+   "team": "unique in all 1 rows",
+   "account": "unique in all 4 rows",
+   "contact": "unique in all 4 rows",
+   "lead": "unique in all 3 rows",
+   "pricelevel": "unique in all 2 rows",
+   "product": "unique in all 3 rows",
+   "productpricelevel": "unique in all 4 rows",
+   "opportunity": "unique in all 3 rows",
+   "opportunityproduct": "unique in all 5 rows",
+   "quote": "unique in all 2 rows",
+   "quotedetail": "unique in all 4 rows",
+   "salesorder": "unique in all 3 rows",
+   "salesorderdetail": "unique in all 7 rows",
+   "invoice": "unique in all 2 rows",
+   "invoicedetail": "unique in all 4 rows",
+   "incident": "unique in all 3 rows",
+   "activitypointer": "unique in all 6 rows",
+   "Customer-18": "unique in all 4 rows",
+   "Vendor-23": "unique in all 2 rows",
+   "Item-27": "unique in all 4 rows",
+   "SalespersonPurchaser-13": "unique in all 3 rows",
+   "CountryRegion-9": "unique in all 3 rows",
+   "SalesHeader-36": "unique in all 3 rows",
+   "SalesLine-37": "unique in all 5 rows",
+   "SalesInvoiceHeader-112": "unique in all 3 rows",
+   "SalesInvoiceLine-113": "unique in all 5 rows",
+   "CustLedgerEntry-21": "unique in all 3 rows",
+   "DetailedCustLedgEntry-379": "unique in all 4 rows",
+   "GLEntry-17": "unique in all 3 rows",
+   "DimensionSetEntry-480": "unique in all 2 rows"
+  },
+  "links": {
+   "Customer-18.$Company+SalespersonCode-29 -> SalespersonPurchaser-13": "holds for all 4 rows with a value",
+   "Customer-18.$Company+CountryRegionCode-35 -> CountryRegion-9": "holds for all 4 rows with a value",
+   "Vendor-23.$Company+PurchaserCode-29 -> SalespersonPurchaser-13": "holds for all 2 rows with a value",
+   "Vendor-23.$Company+CountryRegionCode-35 -> CountryRegion-9": "holds for all 2 rows with a value",
+   "SalesHeader-36.$Company+SelltoCustomerNo-2 -> Customer-18": "holds for all 3 rows with a value",
+   "SalesHeader-36.$Company+BilltoCustomerNo-4 -> Customer-18": "holds for all 3 rows with a value",
+   "SalesHeader-36.$Company+SalespersonCode-43 -> SalespersonPurchaser-13": "holds for all 3 rows with a value",
+   "SalesLine-37.$Company+DocumentType-1+DocumentNo-3 -> SalesHeader-36": "holds for all 5 rows with a value",
+   "SalesInvoiceHeader-112.$Company+SelltoCustomerNo-2 -> Customer-18": "holds for all 3 rows with a value",
+   "SalesInvoiceHeader-112.$Company+BilltoCustomerNo-4 -> Customer-18": "holds for all 3 rows with a value",
+   "SalesInvoiceHeader-112.$Company+SalespersonCode-43 -> SalespersonPurchaser-13": "holds for all 3 rows with a value",
+   "SalesInvoiceLine-113.$Company+DocumentNo-3 -> SalesInvoiceHeader-112": "holds for all 5 rows with a value",
+   "CustLedgerEntry-21.$Company+CustomerNo-3 -> Customer-18": "holds for all 3 rows with a value",
+   "DetailedCustLedgEntry-379.$Company+CustLedgerEntryNo-2 -> CustLedgerEntry-21": "holds for all 4 rows with a value",
+   "DetailedCustLedgEntry-379.$Company+CustomerNo-9 -> Customer-18": "holds for all 4 rows with a value",
+   "account.parentaccountid -> account": "holds for all 1 rows with a value",
+   "account.primarycontactid -> contact": "holds for all 2 rows with a value",
+   "account.transactioncurrencyid -> transactioncurrency": "holds for all 4 rows with a value",
+   "account.owningbusinessunit -> businessunit": "holds for all 4 rows with a value",
+   "lead.parentaccountid -> account": "holds for all 2 rows with a value",
+   "lead.qualifyingopportunityid -> opportunity": "holds for all 2 rows with a value",
+   "opportunity.parentaccountid -> account": "holds for all 3 rows with a value",
+   "opportunity.originatingleadid -> lead": "holds for all 2 rows with a value",
+   "opportunity.pricelevelid -> pricelevel": "holds for all 3 rows with a value",
+   "opportunity.transactioncurrencyid -> transactioncurrency": "holds for all 3 rows with a value",
+   "opportunityproduct.opportunityid -> opportunity": "holds for all 5 rows with a value",
+   "opportunityproduct.productid -> product": "holds for all 5 rows with a value",
+   "quote.opportunityid -> opportunity": "holds for all 2 rows with a value",
+   "quote.pricelevelid -> pricelevel": "holds for all 2 rows with a value",
+   "quote.transactioncurrencyid -> transactioncurrency": "holds for all 2 rows with a value",
+   "quotedetail.quoteid -> quote": "holds for all 4 rows with a value",
+   "quotedetail.productid -> product": "holds for all 4 rows with a value",
+   "salesorder.quoteid -> quote": "holds for all 2 rows with a value",
+   "salesorder.opportunityid -> opportunity": "holds for all 3 rows with a value",
+   "salesorder.pricelevelid -> pricelevel": "holds for all 3 rows with a value",
+   "salesorder.transactioncurrencyid -> transactioncurrency": "holds for all 3 rows with a value",
+   "salesorderdetail.salesorderid -> salesorder": "holds for all 6 rows with a value",
+   "salesorderdetail.productid -> product": "holds for all 5 rows with a value",
+   "salesorderdetail.quotedetailid -> quotedetail": "holds for all 4 rows with a value",
+   "invoice.salesorderid -> salesorder": "holds for all 2 rows with a value",
+   "invoice.opportunityid -> opportunity": "holds for all 2 rows with a value",
+   "invoice.transactioncurrencyid -> transactioncurrency": "holds for all 2 rows with a value",
+   "invoicedetail.invoiceid -> invoice": "holds for all 4 rows with a value",
+   "invoicedetail.productid -> product": "holds for all 4 rows with a value",
+   "invoicedetail.salesorderdetailid -> salesorderdetail": "holds for all 4 rows with a value",
+   "product.parentproductid -> product": "holds for all 1 rows with a value",
+   "product.pricelevelid -> pricelevel": "holds for all 3 rows with a value",
+   "pricelevel.transactioncurrencyid -> transactioncurrency": "holds for all 2 rows with a value",
+   "productpricelevel.pricelevelid -> pricelevel": "holds for all 4 rows with a value",
+   "productpricelevel.productid -> product": "holds for all 4 rows with a value",
+   "incident.primarycontactid -> contact": "holds for all 3 rows with a value",
+   "incident.productid -> product": "holds for all 2 rows with a value",
+   "incident.parentcaseid -> incident": "holds for all 1 rows with a value",
+   "systemuser.businessunitid -> businessunit": "holds for all 2 rows with a value",
+   "systemuser.parentsystemuserid -> systemuser": "holds for all 1 rows with a value",
+   "team.businessunitid -> businessunit": "holds for all 1 rows with a value",
+   "businessunit.parentbusinessunitid -> businessunit": "no rows with a value: nothing to check",
+   "SalesLine-37.$Company+No-6 -> Item-27": "holds for all 4 rows with a value",
+   "SalesInvoiceLine-113.$Company+No-6 -> Item-27": "holds for all 4 rows with a value",
+   "account.ownerid -> systemuser": "holds for all 3 rows with a value",
+   "account.ownerid -> team": "holds for all 1 rows with a value",
+   "contact.parentcustomerid -> account": "holds for all 3 rows with a value",
+   "contact.parentcustomerid -> contact": "holds for all 1 rows with a value",
+   "opportunity.customerid -> account": "holds for all 3 rows with a value",
+   "opportunity.customerid -> contact": "no rows with a value: nothing to check",
+   "opportunity.ownerid -> systemuser": "holds for all 2 rows with a value",
+   "opportunity.ownerid -> team": "holds for all 1 rows with a value",
+   "quote.customerid -> account": "holds for all 2 rows with a value",
+   "quote.customerid -> contact": "no rows with a value: nothing to check",
+   "salesorder.customerid -> account": "holds for all 2 rows with a value",
+   "salesorder.customerid -> contact": "holds for all 1 rows with a value",
+   "salesorder.ownerid -> systemuser": "holds for all 2 rows with a value",
+   "salesorder.ownerid -> team": "holds for all 1 rows with a value",
+   "invoice.customerid -> account": "holds for all 2 rows with a value",
+   "invoice.customerid -> contact": "no rows with a value: nothing to check",
+   "incident.customerid -> account": "holds for all 2 rows with a value",
+   "incident.customerid -> contact": "holds for all 1 rows with a value",
+   "incident.ownerid -> systemuser": "holds for all 1 rows with a value",
+   "incident.ownerid -> team": "holds for all 2 rows with a value",
+   "activitypointer.regardingobjectid -> account": "1 of 2 rows (50.0%) point at nothing",
+   "activitypointer.regardingobjectid -> contact": "holds for all 1 rows with a value",
+   "activitypointer.regardingobjectid -> lead": "no rows with a value: nothing to check",
+   "activitypointer.regardingobjectid -> opportunity": "holds for all 1 rows with a value",
+   "activitypointer.regardingobjectid -> quote": "no rows with a value: nothing to check",
+   "activitypointer.regardingobjectid -> salesorder": "holds for all 1 rows with a value",
+   "activitypointer.regardingobjectid -> invoice": "no rows with a value: nothing to check",
+   "activitypointer.regardingobjectid -> incident": "holds for all 1 rows with a value",
+   "activitypointer.ownerid -> systemuser": "holds for all 5 rows with a value",
+   "activitypointer.ownerid -> team": "holds for all 1 rows with a value"
+  }
+ },
+ "planted": {
+  "soft_delete": "one salesorderdetail row soft-deleted (IsDelete 1, empty body)",
+  "orphan": "activity Demo call 2 regarding an account purged from the lake (a filtered link, in plan.extended)",
+  "companies": "Business Central customer C10000, item 1000 and invoice 103001 in two companies ($Company in the key)"
+ }
+}

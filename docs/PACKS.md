@@ -2,10 +2,11 @@
 
 Round n77, 2 November 2026. A knowledge pack is what Krusgraph knows about a named source system before it has seen a
 row: the tables, their keys, the relationships between them, the amounts and their levels, and the traps a person
-falls into when joining them. Three packs exist: `sap` ([SAP.md](SAP.md), six modules for tables and, since round
+falls into when joining them. Four packs exist: `sap` ([SAP.md](SAP.md), six modules for tables and, since round
 n230, three for released CDS views, [SAP-CDS.md](SAP-CDS.md)), `younium_salesforce`
-([YOUNIUM-SALESFORCE.md](YOUNIUM-SALESFORCE.md), two modules) and, since round PK1, `salesforce`
-([SALESFORCE.md](SALESFORCE.md), one module, 21 standard objects). A pack can read a module of another pack instead of
+([YOUNIUM-SALESFORCE.md](YOUNIUM-SALESFORCE.md), two modules), since round PK1, `salesforce`
+([SALESFORCE.md](SALESFORCE.md), one module, 21 standard objects) and, since round PK2, `dynamics365`
+([DYNAMICS365.md](DYNAMICS365.md), Dataverse and Business Central). A pack can read a module of another pack instead of
 copying it: `packs/<pack>/<module>.include` is JSON naming the pack, the module, the tables and the traps to take
 (`younium_salesforce/salesforce.include` takes nine objects of the `salesforce` pack), so one claim lives in one file.
 Each lives in `fabric_backend/packs/<pack>/`, one JSON file per module (`pack.schema.json` is their schema,
