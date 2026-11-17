@@ -7,7 +7,7 @@
  * (green passed, red failed with its orphans or duplicates, grey not checked), Onto, Thinker and Builder in their own
  * colours with the site's figures, Thinker's questions with their choices inline, and Accept all. Words: modelWords.ts.
  */
-import { ReadOnlySource, SapOffer, isReadOnly, sapMark, sourceButton, sourceNotes, targetButton, targetLine } from "./sourceWords";
+import { ReadOnlySource, SapOffer, isReadOnly, sapMark, schemaProblem, sourceButton, sourceNotes, targetButton, targetLine } from "./sourceWords";
 import React, { useState } from "react";
 import {
   Badge,
@@ -143,13 +143,23 @@ export function SchemaChoice(props: {
   schemas: { loading: boolean; list?: SchemasAnswer; error?: EngineError; wait?: Wait };
   onSchemaChange: (schema: string) => void;
   mascotsOn?: boolean;
+  /** W13: the source's name, for the no-access sentence */
+  sourceName?: string;
 }) {
   const { loading, list, error } = props.schemas;
   // n223: a list kept in the item shows at once while it is read again; without one, the wait is Onto's line
   if (loading && !list) return <Busy wait={props.schemas.wait} label="Reading the lakehouse's schemas…" skeleton={2} mascotsOn={props.mascotsOn} />;
+  if (error && !schemaProblem(error, props.sourceName ?? "").typeIt) {
+    // W13: no access is not fixed by typing a schema: say what to ask for (the field would only lead to the same 403)
+    return (
+      <MessageBar intent="warning" role="alert">
+        <MessageBarBody>{schemaProblem(error, props.sourceName ?? "").line}</MessageBarBody>
+      </MessageBar>
+    );
+  }
   if (error || !list) {
     return (
-      <Field label="Schema" hint={error ? `The schemas could not be listed: ${error.error} Type the schema as the lakehouse spells it.` : "Choose a lakehouse first"}>
+      <Field label="Schema" hint={error ? schemaProblem(error, props.sourceName ?? "").line : "Choose a lakehouse first"}>
         <Input value={props.schema} disabled={!error} onChange={(_, d) => props.onSchemaChange(d.value)} />
       </Field>
     );
@@ -208,7 +218,8 @@ export function EmptyView(props: {
           <Button appearance={source ? "secondary" : "primary"} onClick={props.onChooseLakehouse}>
             {sourceButton(source)}
           </Button>
-          {source && <SchemaChoice schema={props.schema} schemas={props.schemas} onSchemaChange={props.onSchemaChange} mascotsOn={props.mascotsOn} />}
+          {source && <SchemaChoice schema={props.schema} schemas={props.schemas} onSchemaChange={props.onSchemaChange} mascotsOn={props.mascotsOn}
+            sourceName={source.displayName} />}
           {source && props.schemas.loading && props.schemas.list && (
             <Caption1 role="status">The schemas kept in this item are shown; reading them again…</Caption1>
           )}
@@ -218,7 +229,8 @@ export function EmptyView(props: {
               <Button appearance="secondary" onClick={props.onChooseTarget}>{targetButton(source.target)}</Button>
             </>
           )}
-          <Button appearance="primary" disabled={!source || !props.schema.trim() || (props.schemas.loading && !props.schemas.list)} onClick={props.onReview}>
+          <Button appearance="primary" disabled={!source || !props.schema.trim() || (props.schemas.loading && !props.schemas.list) ||
+            (!!props.schemas.error && !schemaProblem(props.schemas.error, source.displayName).typeIt)} onClick={props.onReview}>
             Find keys and relationships
           </Button>
         </div>
