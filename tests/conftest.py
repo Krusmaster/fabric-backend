@@ -24,3 +24,15 @@ def docs_all(client) -> str:
     """n86a: /docs is split into sub-pages; the whole docs text is all of them together."""
     from fabric_backend.pages import docs_pages
     return "".join(client.get(x["path"]).text for x in docs_pages())
+
+
+@pytest.fixture(autouse=True)
+def _no_onelake(monkeypatch):
+    """CSN2: the hosted plan looks for CSN files in the lakehouse's Files (csn_onelake.py). No test reaches OneLake:
+    the one network call answers 404 (no such folder), so the plan is made as before; tests of the reader fake it."""
+    from fabric_backend import csn_onelake
+
+    class _Missing:
+        status_code = 404
+
+    monkeypatch.setattr(csn_onelake, "_http_get", lambda url, **kw: _Missing())

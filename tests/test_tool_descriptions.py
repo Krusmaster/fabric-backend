@@ -74,4 +74,6 @@ def test_read_only_listing_stays_small():
     # 69 000 since n229: the verify_build tool (2 271 characters, of which 1 459 are the parameters it shares with the plan
     # tools: it builds the dry run again from the same plan; its own words were cut to four sentences first): 66 637 before,
     # 68 972 after
-    assert size <= 69_000, f"read-only tools/list is {size} characters"
+    # 69 400 since CSN2: csn_path on plan_backend and validate_plan (a SAP CSN file or folder in the lakehouse's Files; its
+    # description cut to one short sentence first): 68 972 before, 69 312 after
+    assert size <= 69_400, f"read-only tools/list is {size} characters"
