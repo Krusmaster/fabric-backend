@@ -9,7 +9,7 @@
  *   datahub      the lakehouse picker answers demo_lh at once (?picker=cancel answers nothing)
  *   auth         a token from engine.py's /e2e/token (the audience the routes accept)
  *   notification, navigation, dialog, settings, theme: recorded in window.__host for run.js to read
- * Query: ?fresh=1 clears the saved item first.
+ * Query: ?fresh=1 clears the saved item (and W14's unsaved drafts) first; ?slowsave=<ms> makes each save take that long.
  */
 import React from "react";
 import { createRoot } from "react-dom/client";
@@ -18,13 +18,18 @@ import { FluentProvider } from "@fluentui/react-components";
 import { fabricLightTheme } from "../../Workload/app/theme";
 import { ModelItemEditor } from "../../Workload/app/items/ModelItem";
 import { EditorErrorBoundary } from "../../Workload/app/items/ModelItem/EditorErrorBoundary";
+import { DRAFT_PREFIX } from "../../Workload/app/items/ModelItem/autosave";
 
 const WS = "11111111-2222-3333-4444-555555555555";   // tests/golden_support.py's workspace and lakehouse
 const LH = "aaaaaaaa-0000-0000-0000-000000000001";
 const ITEM = "33333333-3333-3333-3333-333333333333";
 const KEY = "w13-e2e-parts";
 const q = new URLSearchParams(location.search);
-if (q.get("fresh")) localStorage.removeItem(KEY);
+if (q.get("fresh")) {
+  localStorage.removeItem(KEY);
+  // W14: and the editor's unsaved drafts (autosave.ts), so a fresh run is not a recovery
+  for (const k of Object.keys(localStorage)) if (k.startsWith(DRAFT_PREFIX)) localStorage.removeItem(k);
+}
 
 type Host = { notifications: unknown[]; navigations: unknown[]; saves: number; dialogs: unknown[]; tabs: unknown[] };
 const host: Host = { notifications: [], navigations: [], saves: 0, dialogs: [], tabs: [] };
@@ -37,6 +42,8 @@ const wc = {
     getItemDefinition: async () => ({ definition: { parts: parts() } }),
     updateItemDefinition: async (p: { payload?: { definition?: { parts?: unknown[] } } }) => {
       host.saves += 1;
+      const slow = Number(q.get("slowsave") || 0);   // W14: a save still on its way when the tab is closed
+      if (slow) await new Promise((r) => setTimeout(r, slow));
       localStorage.setItem(KEY, JSON.stringify(p?.payload?.definition?.parts ?? []));
       return {};
     },

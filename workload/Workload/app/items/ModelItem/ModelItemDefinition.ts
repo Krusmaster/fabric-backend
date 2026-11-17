@@ -220,6 +220,23 @@ export interface ItemSettings {
   /** n223: what the editor shows at once on reopening, before the engine has answered again: the last review's map and
    * the source's schema list. Names and counts only, as the review file; optional, so older definitions read as before. */
   cache?: ItemCache;
+  /** W14: the last save's revision (autosave.ts); optional, so older definitions read as revision 0 */
+  saved?: SavedMark;
+}
+
+/** W14: what item.json keeps about the last save: a number that grows with each save, when, and which editor session
+ * (a random id, not a person, not a token). */
+export interface SavedMark {
+  rev: number;
+  at: string;
+  session: string;
+}
+
+/** W14: the mark kept only when it has the shape the editor writes. */
+export function cleanSaved(x: unknown): SavedMark | undefined {
+  const m = x as SavedMark;
+  return m && typeof m === "object" && typeof m.rev === "number" && Number.isFinite(m.rev) && m.rev >= 0 && typeof m.at === "string"
+    && typeof m.session === "string" ? { rev: Math.floor(m.rev), at: m.at, session: m.session } : undefined;
 }
 
 export interface ItemCache {
@@ -325,6 +342,7 @@ export function migrate(def: ModelDefinition): ModelDefinition {
       view: def.item?.view ?? (def.review ? "review" : "empty"),
       ...(def.item?.answers && typeof def.item.answers === "object" ? { answers: def.item.answers } : {}),
       ...(cleanCache(def.item?.cache) ? { cache: cleanCache(def.item?.cache) } : {}),   // n223
+      ...(cleanSaved(def.item?.saved) ? { saved: cleanSaved(def.item?.saved) } : {}),   // W14
     },
     source: def.source ? { ...def.source, version: DEFINITION_VERSION, schema: def.source.schema || "dbo" } : undefined,
     outputs: {
