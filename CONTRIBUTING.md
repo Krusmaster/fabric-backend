@@ -25,8 +25,10 @@ commit and again after every `git pull`.
 
 ## What an agent must not do
 
-- Deploy, or call Azure, Entra, DNS or Fabric with real credentials. Deployment is `bash deploy/krusgraph.sh
-  --update`, run by the maintainer.
+- Deploy by hand, or call Azure, Entra, DNS or Fabric with real credentials. Deployment is the workflow
+  `.github/workflows/deploy.yml` once the maintainer has switched it on (`docs/AUTO-DEPLOY.md`), and otherwise
+  `bash deploy/krusgraph.sh --update`, run by the maintainer.
+- Merge a pull request that the section "Merging and deploying" below does not allow a round to merge.
 - Publish anywhere (MCP registry, directories, package indexes) or send email.
 - Delete branches, tags or releases, or rewrite history on `main`.
 
@@ -70,6 +72,52 @@ comment (`tests/test_b2_supply_chain.py`); take a new one's commit from `git ls-
 --check --from-installed`, so a pip PR that changes a pin in `deploy/constraints.txt` is red until
 `THIRD_PARTY_NOTICES.md` is regenerated on its branch (`python tools/third_party_notices.py`): a simple consequence,
 fixed in place. The job also stops on a dependency under the AGPL or the SSPL, which is not fixed in place.
+## Merging and deploying
+
+The maintainer's decision of 16 November 2026: code with green tests may be merged and deployed automatically.
+
+**A round may merge its own pull request into `main`** when all of these hold:
+
+- every CI job on the pull request's current head is green, including *path-guard*;
+- the pull request touches only code, tests and public docs, and `tools/path_guard.py` finds nothing protected;
+- the branch is up to date with `main` (update it and wait for CI again if `main` has moved);
+- nothing in the round wrote to a Fabric tenant other than the demo tenant.
+
+Use the repository's usual merge method (a merge commit; Dependabot PRs are squashed, as above). Then check that
+`main` is green before the next merge.
+
+**Never merged by a round.** The round adds the label `needs-gustav` to the pull request and stops; the maintainer
+merges it. This applies to a pull request that touches any of the following:
+
+- `social/`, or marketing copy meant for publishing (`docs/marketing/` and the like);
+- pricing or sales material, including the pricing page. Pricing and sales material do not belong in this repository at
+  all (see "What never goes into the repository");
+- the legal pages' text: privacy, terms, cookies, the security policy page, `legal.py`, the DPA draft and the licences;
+- the workload name or manifest identity: `workload/Workload/Manifest/`, the package build scripts, `server.json`
+  (for example `Krusgraph.Modeler`, PR #26);
+- secrets or permissions: `.github/workflows/`, `deploy/` scripts, `Dockerfile`, `entra.py`, `access.py`,
+  `SECURITY.md`;
+- the deletion or retention of user data (`registration_store.py`, `usage.py`);
+- a major version bump of a dependency (`deploy/constraints.txt`, `pyproject.toml`,
+  `workload/Workload/package.json`; for 0.x versions a new minor counts as major);
+- this section, `tools/path_guard.py` or the pull request template.
+
+A Fabric write to a tenant other than the demo tenant cannot be seen in a diff. A round that made one labels its pull
+request `needs-gustav` itself.
+
+**The rule is enforced.** `.github/workflows/path-guard.yml` runs `tools/path_guard.py` on every pull request and on every
+label change. It fails when a protected path or a major bump has no `needs-gustav` label. The rules come from the base
+branch, so a pull request cannot loosen the check that judges it. A change to the rules is itself protected.
+`tests/test_cd1_path_guard.py` tests the check.
+
+**Deploying.** After a push to `main` whose CI run is green, `.github/workflows/deploy.yml` builds the image in Azure
+and updates the container app, the same way `bash deploy/krusgraph.sh --from-azure --update` does. It runs the same
+health checks (the home page, docs, privacy, the MCP login requirement, the build id at `/healthz`). If they fail, it
+rolls back to the previous image automatically and opens an issue. One deployment runs at a time, and commits that are
+superseded while waiting are skipped. It signs in with GitHub's OIDC token, so no stored secret is needed. It stays
+dormant until the maintainer has done the one-time steps in `docs/AUTO-DEPLOY.md`, which also says how to switch it
+off. The Fabric workload package upload stays manual.
+
 ## Reusing external code
 
 Depending on a package (a pin in `deploy/constraints.txt`, an extra in `pyproject.toml`) and copying code into this

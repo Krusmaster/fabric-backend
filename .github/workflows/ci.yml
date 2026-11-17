@@ -32,7 +32,11 @@ jobs:
       - run: node -e "require('playwright').chromium.launch().then(b => b.close())" || npx playwright install-deps chromium
       # n189: tests/test_n189_rayfin_design.py writes its screenshots of the generated Rayfin App (1280 x 720 and 375 x 812,
       # light and dark) here; they are kept as an artifact of the run, never committed
-      - run: pytest -q
+      # CI1: the suite runs on every CPU of the runner (pytest-xdist, pinned in the test extra); serially the job took 21 min
+      # 44 s (run 43971148114, 16 November 2026). --dist loadscope keeps a test file on one worker, so its module fixtures
+      # (a local server, a Chromium script of up to 4.5 minutes in tests/test_browser.py) run once, not once per worker.
+      # --durations=30 lists the slowest tests in the log.
+      - run: pytest -q -n auto --dist loadscope --durations=30
         env: { RAYFIN_APP_SHOTS: "${{ runner.temp }}/rayfin-app-shots" }
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

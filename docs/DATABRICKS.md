@@ -54,6 +54,7 @@ OAuth token; nothing is stored by Krusgraph. Tools take the schema without the c
 | `list_tables` | Draft only | Unity Catalog `information_schema.columns` |
 | `plan_backend` | Draft only | inference on names; informational PRIMARY KEY / FOREIGN KEY constraints are K0 / R0 |
 | `validate_plan` | Draft only | the counting queries in Databricks SQL on the SQL warehouse |
+| `record_decision`, `list_decisions` | Draft only | a team's decision kept in the local decision file and applied as a rule to the Unity Catalog plan (docs/DECISION-RULES.md) |
 | `review_plan` | Draft only | the review file over the Unity Catalog plan; with `validate=true` the counts from the SQL warehouse |
 | `sample_rows` | Draft only | `LIMIT n`; columns flagged by name or by a Unity Catalog column tag are masked |
 | `join_path` | Draft only | the chain with Databricks SQL (three-part names, `LIMIT`) |
@@ -74,8 +75,9 @@ OAuth token; nothing is stored by Krusgraph. Tools take the schema without the c
 | `silver_notebook_draft` | Not on Databricks | a Fabric notebook; `databricks_pipeline_draft` carries the same rules |
 | `ontology_draft`, `rayfin_connector` | Not on Databricks | Fabric IQ and Rayfin read Fabric items |
 | `answer_query_draft` | Planned | the drafted query is T-SQL; `join_path` gives the joins in Databricks SQL |
+| `plan_migration` | Not on Databricks | with `fabric_schema` only: its after-landing counts read Fabric; without it the tool reads only the exported metadata files ([MIGRATE-DATABRICKS-SNOWFLAKE.md](MIGRATE-DATABRICKS-SNOWFLAKE.md)) |
 
-The last six answer `kind: unsupported` with the hint above; of them only `answer_query_draft` is planned for
+The six before it answer `kind: unsupported` with the hint above (`plan_migration` only when given `fabric_schema`); of them only `answer_query_draft` is planned for
 Databricks, the others build Fabric items. The seven `databricks_*` tools answer
 `unsupported` on a Fabric source. Every tool has a title and annotations; the two new creating tools have
 `readOnlyHint: false`, `destructiveHint: true` like the Fabric creating tools.

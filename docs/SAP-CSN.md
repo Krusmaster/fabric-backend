@@ -79,7 +79,53 @@ already left out). Columns the CSN does not name are listed in `extra_columns`.
 
 ## 4. Pointing Krusgraph at a CSN file
 
-No new external call: every route reads a file that is already where Krusgraph runs.
+### How to use it in Fabric (round CSN2): upload the file, nothing else
+
+1. Export the CSN/JSON file from SAP Datasphere (section 5), or compile it from a CAP project.
+2. In the lakehouse that holds the landed tables, open *Files*, create the folder **`krusgraph/csn`** and upload the
+   file there (several files are fine: each `.json` and `.csn` in the folder is read, not its sub-folders).
+3. Use Krusgraph as usual: the hosted MCP tools (`plan_backend`, `validate_plan` and every tool that plans) and the
+   Fabric workload's Model item (review, check, build) look in `Files/krusgraph/csn/` of the lakehouse they plan and use
+   what they find. Keys and links come with the rule **"CSN metadata"** and `provenance: "declared by metadata (CSN)"`,
+   and `validate_plan` and the workload's check count them in the rows like any other.
+4. The answer's `csn` block says what was used: `files`, each key with the `file` it came from, each link with
+   `declared_in` (file, association, declared cardinality), `not_applied` with why, `amounts` with their level,
+   `unmatched` entities, and `lakehouse` (`looked_in`, `used`, `skipped` with why, `not_read` with a hint).
+
+Elsewhere in Files: pass **`csn_path`** (a folder or one file under *Files*, such as `Files/sap/exports/Orders.json`) to
+`plan_backend` or `validate_plan`, or `csn_path` in the workload's `/review` and `/check` body. The build reads the
+default folder only. A path that leaves *Files* (`..`, `Tables/`, a URL) is refused.
+
+What is used, and what is not:
+
+- A file is used only when it is JSON and CSN: a `definitions` object and `$version`, `csnInteropEffective` or
+  `version.csn`. Other files are listed in `skipped` with why and not used; other extensions are not opened.
+- Limits: 20 files, 5 MB per file, 20 MB together. A larger file is not opened.
+- Only a lakehouse has *Files*; a warehouse, a SQL database or a mirrored database plans without a CSN (with
+  `csn_path`, the answer says why). Put the file in a lakehouse and plan that.
+- Nothing found in the default folder, or no OneLake sign-in, is silent: the plan is made as before. Pass `csn_path`
+  to see why a file was not used.
+- The operator setting `KRUSGRAPH_LAKEHOUSE_CSN=0` stops the default folder from being read; `csn_path` still reads.
+
+How it reads, and what stays in your tenant. `fabric_backend/csn_onelake.py` reads OneLake's DFS API as the signed-in
+user, read-only: one GET to list the folder and one GET per file, at
+`https://onelake.dfs.fabric.microsoft.com/<workspace id>/<lakehouse id>/Files/...` (Microsoft Learn, "How do I connect to
+OneLake?", learn.microsoft.com/fabric/onelake/onelake-access-api). It never writes, renames or deletes anything in the
+lakehouse. The file is read in the call and dropped with it: no copy in Krusgraph's storage, no cache, and the log line
+holds counts only (files used, skipped), never a name or a content. Nothing is sent anywhere but the plan back to the
+caller.
+
+**Permission.** The token is for the Azure Storage audience (`https://storage.azure.com/.default`). The Entra app the
+sign-in goes through (the MCP app, and the workload's app) needs the delegated permission **Azure Storage:
+user_impersonation**, consented by an administrator, and the person needs read access to the lakehouse. Without it the
+plan is made without the CSN, and an asked-for `csn_path` answers `not_read` with `kind: "denied"` or `"no_sign_in"`.
+
+**Not yet verified**: not run against OneLake or in Fabric; tested with a fake OneLake listing over the fixtures in
+`tests/fixtures/csn` and the synthetic rows of section 8 (`tests/test_csn2_onelake.py`, 16 November 2026).
+
+### The other routes
+
+No new external call: each of these reads a file that is already where Krusgraph runs.
 
 - **In a Fabric notebook** (the file uploaded to the lakehouse's *Files*, next to the tables):
 
@@ -98,7 +144,7 @@ No new external call: every route reads a file that is already where Krusgraph r
 - **Local MCP server** (`fabric-backend-mcp`, [LOCAL.md](LOCAL.md)): set `KRUSGRAPH_CSN` to a file or folder on that
   machine (and `KRUSGRAPH_CSN_PREFIX` if needed); every tool that plans then plans with the CSN, and `validate_plan`
   counts its keys and links. A CSN kept in OneLake is read here after you copy it to disk.
-- **Not yet**: the hosted MCP server takes no CSN, and nothing reads a file from OneLake over the network.
+- **Hosted MCP server and the Fabric workload**: the file in the lakehouse's *Files*, as above.
 
 ## 5. Exporting CSN from SAP Datasphere (in your own tenant)
 
@@ -113,7 +159,7 @@ and `importing-and-exporting-objects-in-csn-json-files-f8ff062.md`; read, not tr
    is the useful one for a mirror or a Copy job (the CDS views and the table that lands); a view exports its sources;
    an analytic model its fact and dimension sources; an E/R model all its tables and views; a local table with delta
    capture an extra `_Delta` table.
-4. Put the file in the lakehouse's *Files* (or on the machine running the CLI) and follow section 4.
+4. Put the file in the lakehouse's *Files*, in `krusgraph/csn/` (or on the machine running the CLI), and follow section 4.
 
 The pages also name the Transport app and the `datasphere` command line's `objects` commands; neither was tried.
 From a CAP project, `cds compile srv --to json > model.json` writes the inferred CSN (CAP's `cds compile` help,
@@ -130,9 +176,13 @@ target are available) is not verified here.
    model) and export it as in section 5. If the trial can run a replication flow to cloud storage, export that flow.
 2. Keep the exported file **outside this repository** (it is the tenant's metadata, even in a trial): not in a
    commit, an issue, a PR or a chat log that is published.
-3. Land the same objects' rows in a lakehouse (the replication flow, or a CSV export), then run section 4 in a
-   notebook: `csn.plan(...)`, then `validate_plan` (or `evidence.validate`).
-4. What to look at: `report["unmatched"]` and `report["ambiguous"]` (did the landing's names map?), `cdc_columns`,
+3. Land the same objects' rows in a lakehouse (the replication flow, or a CSV export).
+4. Upload the exported file to that lakehouse's `Files/krusgraph/csn/` (section 4, "How to use it in Fabric"). Then,
+   with the hosted connector, ask for `plan_backend` and `validate_plan` on that lakehouse and schema; or open a Model
+   item in the workload, pick the lakehouse and run the review and the check. The answer's `csn` block names the file
+   each key and link came from. If it has none, call `plan_backend` with `csn_path="Files/krusgraph/csn"` to see why
+   (`not_read`: the Azure Storage permission, or the folder). The notebook route of section 4 works as well.
+5. What to look at: `report["unmatched"]` and `report["ambiguous"]` (did the landing's names map?), `cdc_columns`,
    `not_applied` with its reasons, the key and link counts, and `amount_levels`. What may be shared back: the counts
    and the reasons, without the tenant's object names.
 
@@ -191,3 +241,6 @@ an amount.
   join; confirm it by hand.
 - Structured elements are flattened with `_`, as CAP does; another landing's flattening is not recognised.
 - A CSN is the customer's metadata. Krusgraph keeps nothing: the file is read in the call and the plan returned.
+- Reading the lakehouse's *Files* (CSN2) needs the Azure Storage delegated permission on the Entra app; whether the
+  maintainer's deployment has it is not verified here. The OneLake calls are the documented DFS forms, not tried
+  against OneLake. The workload's build reads only the default folder, not a `csn_path` given in the review.

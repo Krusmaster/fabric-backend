@@ -15,7 +15,7 @@ sql = ["pyodbc"]
 mcp = ["mcp>=1.2", "requests", "pyodbc"]
 server = ["mcp>=2,<3", "requests", "pyodbc", "uvicorn", "pyjwt[crypto]>=2.8", "graphql-core>=3.2,<3.4"]
 databricks = ["requests", "databricks-sdk"]
-test = ["pytest", "sqlglot", "pyyaml"]
+test = ["pytest", "sqlglot", "pyyaml", "pytest-xdist==3.8.0"]   # CI1: pytest-xdist runs the suite in parallel (`pytest -n auto`), pinned exactly
 
 [project.scripts]
 fabric-backend = "fabric_backend.cli:main"
