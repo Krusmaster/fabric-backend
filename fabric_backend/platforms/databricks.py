@@ -406,6 +406,8 @@ TOOLS = {
     "list_tables": ("Draft only", "Unity Catalog information_schema.columns"),
     "plan_backend": ("Draft only", "inference on names; informational PRIMARY KEY / FOREIGN KEY constraints are K0 / R0"),
     "validate_plan": ("Draft only", "the counting queries in Databricks SQL on the SQL warehouse"),
+    "record_decision": ("Draft only", "your team's decision kept in the local decision file (docs/DECISION-RULES.md); rules applied to the Unity Catalog plan"),
+    "list_decisions": ("Draft only", "the decisions in the local decision file"),
     "review_plan": ("Draft only", "the review file over the Unity Catalog plan; with validate=true the counts from the SQL warehouse"),
     "sample_rows": ("Draft only", "LIMIT n in Databricks SQL; personal columns by name and by Unity Catalog column tag are masked"),
     "join_path": ("Draft only", "the chain with Databricks SQL (three-part names, LIMIT)"),

@@ -64,7 +64,7 @@ def key_rule_state(rule: str) -> str:
     """A key's state from its rule alone, before anything is counted in this call."""
     if rule == "K0":
         return DECLARED
-    if rule == "K1":
+    if rule in ("K1", "decided"):            # L1: "decided", a key your team accepted earlier (decisions.py)
         return GIVEN
     if rule == PACK_RULE:
         return PACK
@@ -77,7 +77,7 @@ def rel_rule_state(r) -> str:
     rule = r.rule
     if rule == "R0":
         return DECLARED
-    if rule == "confirmed":
+    if rule in ("confirmed", "decided"):
         return GIVEN
     if rule == PACK_RULE:
         return PACK
