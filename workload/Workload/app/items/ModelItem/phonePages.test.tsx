@@ -19,6 +19,8 @@ import { choicesFor } from "./buildWords";
 import { ReviewFile, ReviewItem, SourceDefinition, OutputsDefinition } from "./ModelItemDefinition";
 import { OUTPUTS, STATUS } from "./productPage.fixture";
 import { APP_BEFORE_CREATE } from "./appWords";
+import { CatalogView } from "./CatalogPanel";
+import type { CatalogAnswer } from "./catalogWords";
 
 const ROOT = path.resolve(process.cwd(), "../..");
 const DIR = path.join(ROOT, "tests/fixtures/n225");
@@ -72,6 +74,33 @@ function page(title: string, el: React.ReactElement): string {
     `<style>body{margin:0;background:#fff;font-family:"Segoe UI",system-ui,sans-serif}</style></head><body>${body}</body></html>\n`;
 }
 
+/** CA1: the catalog step after a dry run, with long names, as a phone shows it. */
+const CATALOG: CatalogAnswer = {
+  summary: "1 data product card(s); as you: 1 description(s) and tags on 1 item(s) to write; for others: 3 request(s) in the handover files",
+  products: [{
+    name: "Shop sales", slug: "shop_sales", tables: ["orders", LONG],
+    description: `Data product Shop sales (shop): Orders, ${LONG}. Checked by Krusgraph: 2 of 2 keys unique, 0 orphan rows over 1 link, checked 17 Nov 2026.`,
+    owner: "not chosen yet", domain: { proposed: "Shop sales", why: "orders is the table the others point at most", note: "a proposal" },
+    tags: ["Krusgraph", "Shop sales"], contract: { format: "ODCS v3.2.0", status: "draft", file: "contracts/shop_sales.odcs.yaml" },
+    glossary: [{ term: "Orders", definition: "One row of shop.orders; identified by order_id (rule K1)." }],
+    evidence: { counted: true, line: "2 of 2 keys unique, 0 orphan rows over 1 link, checked 17 Nov 2026" },
+    quality_rules: [{ id: "orders_key_unique", kind: "unique_key", says: "orders.order_id has no duplicates and no empty values", status: "proven", sql: "" }],
+  }],
+  diff: [
+    { item: `${LONG}_model`, field: "description", before: "", after: `Data product Shop sales (shop): Orders, ${LONG}. Checked by Krusgraph: 2 of 2 keys unique.`, action: "write" },
+    { item: SOURCE.displayName, field: "tags", before: [], after: ["Krusgraph"], action: "write" },
+    { item: SOURCE.displayName, field: "description", before: null, after: "Data product Shop sales", action: "kept", why: "the item has its own description and Krusgraph did not build it" },
+  ],
+  confirm: "catalog-0123abcd", writable: false,
+  handover: {
+    requests: [{ step: "Create the tags", by: "fabric_admin", method: "POST", url: "x" },
+      { step: "Assign the workspace to the domain", by: "workspace_admin", method: "POST", url: "x" },
+      { step: "Endorse Shop sales", by: "reviewer", method: null, url: null }],
+    approvals: [], files: { "handover/fabric-admin.md": "#", "handover/endorsement.md": "#", "handover/purview.json": "{}" },
+  },
+  note: "Nothing was created or changed in Fabric.",
+};
+
 export const PAGES: Record<string, () => React.ReactElement> = {
   review: () => (
     <ReviewView source={SOURCE} review={REVIEW} answered={{}} checking={false} mascotsOn={false} onToggleMascots={noop}
@@ -88,6 +117,9 @@ export const PAGES: Record<string, () => React.ReactElement> = {
     <DataProductView productName="Shop sales" outputs={TWO_PLANS} status={STATUS}
       health="Health: not checked since this Create (2026-11-12 09:05 UTC). The latest result is from run r-17, checked 2026-11-11 19:23 UTC: red. 7 failed in the latest run."
       saved={{ state: "failed", at: "2026-11-12T09:06:00.000Z", tries: 4 }} />
+  ),
+  catalog: () => (
+    <CatalogView answer={CATALOG} busy={false} owner="" checked={false} onOwner={noop} onPrepare={noop} onChecked={noop} onWrite={noop} />
   ),
 };
 

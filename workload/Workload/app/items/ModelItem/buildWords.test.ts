@@ -3,6 +3,7 @@
 // with the data product, Open in Fabric per created item, and the card's words.
 import { describe, expect, it } from "vitest";
 import {
+  nameLabel,
   KINDS,
   ORDER,
   afterCreate,
@@ -163,5 +164,14 @@ describe("a card's words", () => {
   it("the Create button says when something is updated", () => {
     expect(createLabel({ ...ANSWER, outputs: [card({})] })).toBe("Create");
     expect(createLabel({ ...ANSWER, outputs: [card({ would: "update" })] })).toBe("Create and update");
+  });
+});
+
+describe("W13: the name field's label", () => {
+  it("keeps an acronym's case and lowers only a plain first word", () => {
+    expect(nameLabel("API for GraphQL")).toBe("Name of the API for GraphQL");
+    expect(nameLabel("Semantic model")).toBe("Name of the semantic model");
+    expect(nameLabel("App (Rayfin, preview)")).toBe("Name of the app (Rayfin, preview)");
+    expect(nameLabel("Report")).toBe("Name of the report");
   });
 });

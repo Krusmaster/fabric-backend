@@ -1,0 +1,326 @@
+{
+ "name": "salesforce",
+ "title": "Salesforce-shaped sample, lead to cash and service",
+ "source": "fabric_backend/salesforce_demo.py, synthetic rows written from the salesforce pack, object and field API names as a Copy job lands them; not Salesforce data",
+ "rows": 81,
+ "names": {
+  "tables": 21,
+  "keys_true": 21,
+  "keys_right": 21,
+  "keys_wrong": 0,
+  "keys_missed": 0,
+  "keys_extra": 0,
+  "keys_extra_list": [],
+  "links_true": 53,
+  "links_found": 53,
+  "links_wrong": 0,
+  "keys_wrong_list": [],
+  "keys_missed_list": [],
+  "links_missed_list": [],
+  "links_wrong_list": []
+ },
+ "before": {
+  "tables": 21,
+  "keys_true": 21,
+  "keys_right": 21,
+  "keys_wrong": 0,
+  "keys_missed": 0,
+  "keys_extra": 0,
+  "keys_extra_list": [],
+  "links_true": 53,
+  "links_found": 53,
+  "links_wrong": 0,
+  "keys_wrong_list": [],
+  "keys_missed_list": [],
+  "links_missed_list": [],
+  "links_wrong_list": []
+ },
+ "after": {
+  "tables": 21,
+  "keys_true": 21,
+  "keys_right": 21,
+  "keys_wrong": 0,
+  "keys_missed": 0,
+  "keys_extra": 0,
+  "keys_extra_list": [],
+  "links_true": 53,
+  "links_found": 53,
+  "links_wrong": 0,
+  "keys_wrong_list": [],
+  "keys_missed_list": [],
+  "links_missed_list": [],
+  "links_wrong_list": []
+ },
+ "plan": {
+  "keys": {
+   "Account": {
+    "columns": [
+     "Id"
+    ],
+    "rule": "SAP pack"
+   },
+   "Asset": {
+    "columns": [
+     "Id"
+    ],
+    "rule": "SAP pack"
+   },
+   "Campaign": {
+    "columns": [
+     "Id"
+    ],
+    "rule": "SAP pack"
+   },
+   "CampaignMember": {
+    "columns": [
+     "Id"
+    ],
+    "rule": "SAP pack"
+   },
+   "Case": {
+    "columns": [
+     "Id"
+    ],
+    "rule": "SAP pack"
+   },
+   "Contact": {
+    "columns": [
+     "Id"
+    ],
+    "rule": "SAP pack"
+   },
+   "Contract": {
+    "columns": [
+     "Id"
+    ],
+    "rule": "SAP pack"
+   },
+   "Event": {
+    "columns": [
+     "Id"
+    ],
+    "rule": "SAP pack"
+   },
+   "Lead": {
+    "columns": [
+     "Id"
+    ],
+    "rule": "SAP pack"
+   },
+   "Opportunity": {
+    "columns": [
+     "Id"
+    ],
+    "rule": "SAP pack"
+   },
+   "OpportunityContactRole": {
+    "columns": [
+     "Id"
+    ],
+    "rule": "SAP pack"
+   },
+   "OpportunityLineItem": {
+    "columns": [
+     "Id"
+    ],
+    "rule": "SAP pack"
+   },
+   "Order": {
+    "columns": [
+     "Id"
+    ],
+    "rule": "SAP pack"
+   },
+   "OrderItem": {
+    "columns": [
+     "Id"
+    ],
+    "rule": "SAP pack"
+   },
+   "Pricebook2": {
+    "columns": [
+     "Id"
+    ],
+    "rule": "SAP pack"
+   },
+   "PricebookEntry": {
+    "columns": [
+     "Id"
+    ],
+    "rule": "SAP pack"
+   },
+   "Product2": {
+    "columns": [
+     "Id"
+    ],
+    "rule": "SAP pack"
+   },
+   "Quote": {
+    "columns": [
+     "Id"
+    ],
+    "rule": "SAP pack"
+   },
+   "QuoteLineItem": {
+    "columns": [
+     "Id"
+    ],
+    "rule": "SAP pack"
+   },
+   "Task": {
+    "columns": [
+     "Id"
+    ],
+    "rule": "SAP pack"
+   },
+   "User": {
+    "columns": [
+     "Id"
+    ],
+    "rule": "SAP pack"
+   }
+  },
+  "links": [
+   "Account.OwnerId -> User.Id [SAP pack]",
+   "Asset.AccountId -> Account.Id [SAP pack]",
+   "Asset.ContactId -> Contact.Id [SAP pack]",
+   "Asset.OwnerId -> User.Id [SAP pack]",
+   "Asset.Product2Id -> Product2.Id [SAP pack]",
+   "Campaign.OwnerId -> User.Id [SAP pack]",
+   "CampaignMember.CampaignId -> Campaign.Id [SAP pack]",
+   "CampaignMember.ContactId -> Contact.Id [SAP pack]",
+   "CampaignMember.LeadId -> Lead.Id [SAP pack]",
+   "Case.AccountId -> Account.Id [SAP pack]",
+   "Case.AssetId -> Asset.Id [SAP pack]",
+   "Case.ContactId -> Contact.Id [SAP pack]",
+   "Case.ProductId -> Product2.Id [SAP pack]",
+   "Contact.AccountId -> Account.Id [SAP pack]",
+   "Contact.OwnerId -> User.Id [SAP pack]",
+   "Contract.AccountId -> Account.Id [SAP pack]",
+   "Contract.OwnerId -> User.Id [SAP pack]",
+   "Event.AccountId -> Account.Id [SAP pack]",
+   "Lead.CampaignId -> Campaign.Id [SAP pack]",
+   "Lead.ConvertedAccountId -> Account.Id [SAP pack]",
+   "Lead.ConvertedContactId -> Contact.Id [SAP pack]",
+   "Lead.ConvertedOpportunityId -> Opportunity.Id [SAP pack]",
+   "Opportunity.AccountId -> Account.Id [SAP pack]",
+   "Opportunity.CampaignId -> Campaign.Id [SAP pack]",
+   "Opportunity.OwnerId -> User.Id [SAP pack]",
+   "Opportunity.Pricebook2Id -> Pricebook2.Id [SAP pack]",
+   "OpportunityContactRole.ContactId -> Contact.Id [SAP pack]",
+   "OpportunityContactRole.OpportunityId -> Opportunity.Id [SAP pack]",
+   "OpportunityLineItem.OpportunityId -> Opportunity.Id [SAP pack]",
+   "OpportunityLineItem.PricebookEntryId -> PricebookEntry.Id [SAP pack]",
+   "OpportunityLineItem.Product2Id -> Product2.Id [SAP pack]",
+   "Order.AccountId -> Account.Id [SAP pack]",
+   "Order.ContractId -> Contract.Id [SAP pack]",
+   "Order.OpportunityId -> Opportunity.Id [SAP pack]",
+   "Order.OwnerId -> User.Id [SAP pack]",
+   "Order.Pricebook2Id -> Pricebook2.Id [SAP pack]",
+   "Order.QuoteId -> Quote.Id [SAP pack]",
+   "OrderItem.OrderId -> Order.Id [SAP pack]",
+   "OrderItem.PricebookEntryId -> PricebookEntry.Id [SAP pack]",
+   "OrderItem.Product2Id -> Product2.Id [SAP pack]",
+   "OrderItem.QuoteLineItemId -> QuoteLineItem.Id [SAP pack]",
+   "PricebookEntry.Pricebook2Id -> Pricebook2.Id [SAP pack]",
+   "PricebookEntry.Product2Id -> Product2.Id [SAP pack]",
+   "Quote.AccountId -> Account.Id [SAP pack]",
+   "Quote.ContactId -> Contact.Id [SAP pack]",
+   "Quote.OpportunityId -> Opportunity.Id [SAP pack]",
+   "Quote.OwnerId -> User.Id [SAP pack]",
+   "Quote.Pricebook2Id -> Pricebook2.Id [SAP pack]",
+   "QuoteLineItem.OpportunityLineItemId -> OpportunityLineItem.Id [SAP pack]",
+   "QuoteLineItem.PricebookEntryId -> PricebookEntry.Id [SAP pack]",
+   "QuoteLineItem.Product2Id -> Product2.Id [SAP pack]",
+   "QuoteLineItem.QuoteId -> Quote.Id [SAP pack]",
+   "Task.AccountId -> Account.Id [SAP pack]"
+  ],
+  "ambiguous": [],
+  "proposed": []
+ },
+ "row_results": {
+  "summary": "21 of 21 keys unique, 51 of 53 relationships hold without orphans",
+  "keys": {
+   "User": "unique in all 3 rows",
+   "Account": "unique in all 5 rows",
+   "Contact": "unique in all 6 rows",
+   "Lead": "unique in all 5 rows",
+   "Campaign": "unique in all 2 rows",
+   "CampaignMember": "unique in all 5 rows",
+   "Product2": "unique in all 3 rows",
+   "Pricebook2": "unique in all 2 rows",
+   "PricebookEntry": "unique in all 5 rows",
+   "Opportunity": "unique in all 5 rows",
+   "OpportunityLineItem": "unique in all 6 rows",
+   "OpportunityContactRole": "unique in all 4 rows",
+   "Quote": "unique in all 2 rows",
+   "QuoteLineItem": "unique in all 5 rows",
+   "Contract": "unique in all 2 rows",
+   "Order": "unique in all 2 rows",
+   "OrderItem": "unique in all 4 rows",
+   "Asset": "unique in all 3 rows",
+   "Case": "unique in all 4 rows",
+   "Task": "unique in all 5 rows",
+   "Event": "unique in all 3 rows"
+  },
+  "links": {
+   "Account.OwnerId -> User": "holds for all 5 rows with a value",
+   "Contact.AccountId -> Account": "holds for all 5 rows with a value",
+   "Contact.OwnerId -> User": "holds for all 6 rows with a value",
+   "Lead.ConvertedAccountId -> Account": "holds for all 1 rows with a value",
+   "Lead.ConvertedContactId -> Contact": "holds for all 1 rows with a value",
+   "Lead.ConvertedOpportunityId -> Opportunity": "holds for all 1 rows with a value",
+   "Lead.CampaignId -> Campaign": "holds for all 3 rows with a value",
+   "Opportunity.AccountId -> Account": "holds for all 5 rows with a value",
+   "Opportunity.CampaignId -> Campaign": "holds for all 3 rows with a value",
+   "Opportunity.Pricebook2Id -> Pricebook2": "1 of 4 rows (25.0%) point at nothing | re-count: 3 of 4 rows with a value match as written; trimming spaces, folding case and stripping leading zeros match no more",
+   "Opportunity.OwnerId -> User": "holds for all 5 rows with a value",
+   "OpportunityLineItem.OpportunityId -> Opportunity": "holds for all 6 rows with a value",
+   "OpportunityLineItem.PricebookEntryId -> PricebookEntry": "holds for all 6 rows with a value",
+   "OpportunityLineItem.Product2Id -> Product2": "holds for all 6 rows with a value",
+   "OpportunityContactRole.OpportunityId -> Opportunity": "holds for all 4 rows with a value",
+   "OpportunityContactRole.ContactId -> Contact": "holds for all 4 rows with a value",
+   "Case.AccountId -> Account": "holds for all 4 rows with a value",
+   "Case.ContactId -> Contact": "holds for all 3 rows with a value",
+   "Case.AssetId -> Asset": "holds for all 2 rows with a value",
+   "Case.ProductId -> Product2": "holds for all 2 rows with a value",
+   "Campaign.OwnerId -> User": "holds for all 2 rows with a value",
+   "CampaignMember.CampaignId -> Campaign": "holds for all 5 rows with a value",
+   "CampaignMember.LeadId -> Lead": "holds for all 3 rows with a value",
+   "CampaignMember.ContactId -> Contact": "holds for all 3 rows with a value",
+   "Order.AccountId -> Account": "holds for all 2 rows with a value",
+   "Order.ContractId -> Contract": "holds for all 2 rows with a value",
+   "Order.OpportunityId -> Opportunity": "holds for all 2 rows with a value",
+   "Order.QuoteId -> Quote": "holds for all 1 rows with a value",
+   "Order.Pricebook2Id -> Pricebook2": "holds for all 2 rows with a value",
+   "Order.OwnerId -> User": "holds for all 2 rows with a value",
+   "OrderItem.OrderId -> Order": "holds for all 4 rows with a value",
+   "OrderItem.PricebookEntryId -> PricebookEntry": "holds for all 4 rows with a value",
+   "OrderItem.Product2Id -> Product2": "holds for all 4 rows with a value",
+   "OrderItem.QuoteLineItemId -> QuoteLineItem": "holds for all 3 rows with a value",
+   "PricebookEntry.Pricebook2Id -> Pricebook2": "1 of 5 rows (20.0%) point at nothing | re-count: 4 of 5 rows with a value match as written; trimming spaces, folding case and stripping leading zeros match no more",
+   "PricebookEntry.Product2Id -> Product2": "holds for all 5 rows with a value",
+   "Quote.OpportunityId -> Opportunity": "holds for all 2 rows with a value",
+   "Quote.AccountId -> Account": "holds for all 2 rows with a value",
+   "Quote.ContactId -> Contact": "holds for all 2 rows with a value",
+   "Quote.Pricebook2Id -> Pricebook2": "holds for all 2 rows with a value",
+   "Quote.OwnerId -> User": "holds for all 2 rows with a value",
+   "QuoteLineItem.QuoteId -> Quote": "holds for all 5 rows with a value",
+   "QuoteLineItem.PricebookEntryId -> PricebookEntry": "holds for all 5 rows with a value",
+   "QuoteLineItem.Product2Id -> Product2": "holds for all 5 rows with a value",
+   "QuoteLineItem.OpportunityLineItemId -> OpportunityLineItem": "holds for all 3 rows with a value",
+   "Contract.AccountId -> Account": "holds for all 2 rows with a value",
+   "Contract.OwnerId -> User": "holds for all 2 rows with a value",
+   "Asset.AccountId -> Account": "holds for all 3 rows with a value",
+   "Asset.ContactId -> Contact": "holds for all 2 rows with a value",
+   "Asset.Product2Id -> Product2": "holds for all 3 rows with a value",
+   "Asset.OwnerId -> User": "holds for all 3 rows with a value",
+   "Task.AccountId -> Account": "holds for all 4 rows with a value",
+   "Event.AccountId -> Account": "holds for all 2 rows with a value"
+  }
+ },
+ "planted": {
+  "PricebookEntry.Pricebook2Id": "PricebookEntry.Pricebook2Id -> Pricebook2 has an orphan: a price book deleted while lines used it is archived and not returned",
+  "Opportunity.Pricebook2Id": "Opportunity.Pricebook2Id -> Pricebook2 has an orphan: a price book deleted while lines used it is archived and not returned"
+ }
+}

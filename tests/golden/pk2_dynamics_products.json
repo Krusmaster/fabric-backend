@@ -1,0 +1,251 @@
+{
+ "_about": "Round PK2: what fabric_backend.dynamics_demo.products() computes on the SYNTHETIC DEMO DATA (the engine, not hand-written). Regenerate only for a conscious change: python -c \"import json; from fabric_backend import dynamics_demo as d; print(json.dumps(d.products(), indent=1))\"",
+ "lead_to_cash": {
+  "title": "Lead to cash (Dataverse: Dynamics 365 Sales)",
+  "tables": 12,
+  "pack": "dynamics365",
+  "keys": {
+   "total": 12,
+   "unique": 12
+  },
+  "relationships": {
+   "planned": 26,
+   "extended": 4,
+   "checked": 30,
+   "hold": 30,
+   "orphans": []
+  },
+  "doubled_amounts": [
+   "invoice.totalamount over invoicedetail",
+   "opportunity.estimatedvalue over opportunityproduct",
+   "opportunity.totalamount over opportunityproduct",
+   "quote.totalamount over quotedetail",
+   "salesorder.totalamount over salesorderdetail",
+   "salesorder.totalamount_base over salesorderdetail",
+   "salesorder.totallineitemamount over salesorderdetail"
+  ],
+  "domains": [
+   {
+    "name": "lead to cash and order to cash",
+    "tables": [
+     "account",
+     "invoice",
+     "lead",
+     "opportunity",
+     "quote",
+     "salesorder",
+     "transactioncurrency"
+    ]
+   },
+   {
+    "name": "lead to cash and order to cash 2",
+    "tables": [
+     "invoicedetail",
+     "opportunityproduct",
+     "product",
+     "quotedetail",
+     "salesorderdetail"
+    ]
+   }
+  ],
+  "unassigned": [],
+  "ontology": {
+   "entity_types": 12,
+   "with_key": 12,
+   "relationship_types": 26,
+   "skipped_relationships": 0
+  },
+  "semantic_model": {
+   "tables": 12,
+   "relationships_active": 11,
+   "relationships_inactive": 15,
+   "measures": 75,
+   "header_amounts": [
+    "invoice.totalamount",
+    "lead.estimatedamount",
+    "opportunity.estimatedvalue",
+    "opportunity.totalamount",
+    "quote.totalamount",
+    "quotedetail.extendedamount",
+    "salesorder.totalamount",
+    "salesorder.totalamount_base",
+    "salesorder.totallineitemamount",
+    "salesorderdetail.extendedamount",
+    "salesorderdetail.extendedamount_base",
+    "salesorderdetail.priceperunit"
+   ]
+  }
+ },
+ "order_to_cash": {
+  "title": "Order to cash (Business Central)",
+  "tables": 11,
+  "pack": "dynamics365",
+  "keys": {
+   "total": 11,
+   "unique": 11
+  },
+  "relationships": {
+   "planned": 12,
+   "extended": 2,
+   "checked": 14,
+   "hold": 14,
+   "orphans": []
+  },
+  "doubled_amounts": [
+   "CustLedgerEntry-21.SalesLCY-18 over DetailedCustLedgEntry-379"
+  ],
+  "domains": [
+   {
+    "name": "order to cash",
+    "tables": [
+     "Customer-18",
+     "Item-27",
+     "SalesHeader-36",
+     "SalesInvoiceHeader-112",
+     "SalesInvoiceLine-113",
+     "SalesLine-37",
+     "SalespersonPurchaser-13"
+    ]
+   },
+   {
+    "name": "order to cash 2",
+    "tables": [
+     "CustLedgerEntry-21",
+     "DetailedCustLedgEntry-379"
+    ]
+   }
+  ],
+  "unassigned": [
+   "DimensionSetEntry-480",
+   "GLEntry-17"
+  ],
+  "ontology": {
+   "entity_types": 11,
+   "with_key": 11,
+   "relationship_types": 12,
+   "skipped_relationships": 0
+  },
+  "semantic_model": {
+   "tables": 11,
+   "relationships_active": 7,
+   "relationships_inactive": 5,
+   "measures": 26,
+   "header_amounts": [
+    "CustLedgerEntry-21.SalesLCY-18"
+   ]
+  }
+ },
+ "customer_360": {
+  "title": "Customer 360 (Dataverse)",
+  "tables": 9,
+  "pack": "dynamics365",
+  "keys": {
+   "total": 9,
+   "unique": 9
+  },
+  "relationships": {
+   "planned": 9,
+   "extended": 26,
+   "checked": 35,
+   "hold": 31,
+   "orphans": [
+    "activitypointer.regardingobjectid -> account: 1"
+   ]
+  },
+  "doubled_amounts": [],
+  "domains": [
+   {
+    "name": "order to cash and customer 360",
+    "tables": [
+     "account",
+     "invoice",
+     "opportunity",
+     "salesorder",
+     "team"
+    ]
+   },
+   {
+    "name": "customer 360 and organisation",
+    "tables": [
+     "activitypointer",
+     "contact",
+     "incident",
+     "systemuser"
+    ]
+   }
+  ],
+  "unassigned": [],
+  "ontology": {
+   "entity_types": 9,
+   "with_key": 9,
+   "relationship_types": 9,
+   "skipped_relationships": 0
+  },
+  "semantic_model": {
+   "tables": 9,
+   "relationships_active": 5,
+   "relationships_inactive": 4,
+   "measures": 23,
+   "header_amounts": [
+    "opportunity.estimatedvalue",
+    "opportunity.totalamount",
+    "salesorder.totalamount",
+    "salesorder.totalamount_base",
+    "salesorder.totallineitemamount"
+   ]
+  }
+ },
+ "service_cases": {
+  "title": "Service cases (Dataverse: Dynamics 365 Customer Service)",
+  "tables": 8,
+  "pack": "dynamics365",
+  "keys": {
+   "total": 8,
+   "unique": 8
+  },
+  "relationships": {
+   "planned": 11,
+   "extended": 13,
+   "checked": 24,
+   "hold": 22,
+   "orphans": [
+    "activitypointer.regardingobjectid -> account: 1"
+   ]
+  },
+  "doubled_amounts": [],
+  "domains": [
+   {
+    "name": "customer 360 and product catalog",
+    "tables": [
+     "account",
+     "contact",
+     "incident",
+     "product"
+    ]
+   },
+   {
+    "name": "organisation",
+    "tables": [
+     "activitypointer",
+     "businessunit",
+     "systemuser",
+     "team"
+    ]
+   }
+  ],
+  "unassigned": [],
+  "ontology": {
+   "entity_types": 8,
+   "with_key": 8,
+   "relationship_types": 11,
+   "skipped_relationships": 0
+  },
+  "semantic_model": {
+   "tables": 8,
+   "relationships_active": 6,
+   "relationships_inactive": 5,
+   "measures": 6,
+   "header_amounts": []
+  }
+ }
+}

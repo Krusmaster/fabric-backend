@@ -406,6 +406,8 @@ TOOLS = {
     "list_tables": ("Draft only", "Unity Catalog information_schema.columns"),
     "plan_backend": ("Draft only", "inference on names; informational PRIMARY KEY / FOREIGN KEY constraints are K0 / R0"),
     "validate_plan": ("Draft only", "the counting queries in Databricks SQL on the SQL warehouse"),
+    "record_decision": ("Draft only", "your team's decision kept in the local decision file (docs/DECISION-RULES.md); rules applied to the Unity Catalog plan"),
+    "list_decisions": ("Draft only", "the decisions in the local decision file"),
     "review_plan": ("Draft only", "the review file over the Unity Catalog plan; with validate=true the counts from the SQL warehouse"),
     "sample_rows": ("Draft only", "LIMIT n in Databricks SQL; personal columns by name and by Unity Catalog column tag are masked"),
     "join_path": ("Draft only", "the chain with Databricks SQL (three-part names, LIMIT)"),
@@ -440,6 +442,9 @@ NOT_ON_DATABRICKS = {
                               "databricks_pipeline_draft gives the same silver rules as a Lakeflow pipeline with expectations."),
     "answer_query_draft": ("the drafted query is T-SQL; a Databricks SQL version is Planned",
                            "join_path gives the joins in Databricks SQL for the same tables."),
+    "plan_migration": ("its after-landing counts read the Fabric side, and this server reads Databricks (MG1)",
+                       "Call plan_migration without fabric_schema here (it reads only the exported files), or from a local server "
+                       "whose FABRIC_ODBC points at the Fabric SQL analytics endpoint."),
 }
 
 

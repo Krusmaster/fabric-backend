@@ -71,6 +71,32 @@ Relationships = Annotated[list[dict] | None, _d(
 Count = Annotated[bool, _d("true counts the keys and links in the tables of `schema` behind this server. Default false.")]
 
 
+# The local server's descriptions (mcp_server.py), kept here with the tools they describe.
+LOCAL_DOCS = {
+    "qlik_plan": """Reads a Qlik load script: its tables, keys and associations as a plan, each synthetic key in one of five
+    cases, circular references and a proposed star schema. Requires script. With count=true it counts keys and links
+    in the tables of `schema` behind this local server; by default it counts nothing. The script stays on this
+    machine. Returns JSON: plan.keys and plan.confirmed, statements not read, kg_card. Fixed rules, no AI model, no
+    connection to Qlik. Not tested on a customer's Qlik installation. Errors: {error, kind, hint}.""",
+    "qlik_measures_draft": """Drafts DAX from Qlik master measures or chart expressions by fixed rules, each labelled translated,
+    suggested (with when it may differ from Qlik) or not_translated (with the reason). Requires measures. Covers Sum,
+    Min, Max, Avg, Count, arithmetic, If, literal set modifiers and TOTAL; not Aggr, P(), E(), searches, alternate
+    states or run-time dollar-sign expansion. Returns JSON with counts and kg_card. Runs no Qlik and no DAX; creates
+    nothing; no AI model. Errors: {error, kind, hint}.""",
+    "qlik_reconcile_draft": """Writes one T-SQL statement per KPI: the values exported from Qlik, the same KPI computed on the migrated
+    tables at the same grain, and the comparison (qlik_value, new_value, difference, status). Requires script and
+    kpis. Runs nothing; with results (the rows a statement returned) it fills the comparison in. A KPI no rule covers
+    gets no SQL and the reason; a difference is listed as open, never explained by guess. Returns JSON with kg_card.
+    No AI model. Errors: {error, kind, hint}.""",
+}
+
+
+def local_doc(fn):
+    """Gives a local tool its description from LOCAL_DOCS, as its docstring."""
+    fn.__doc__ = LOCAL_DOCS[fn.__name__]
+    return fn
+
+
 def bad_input(fn):
     """A script, a measure list or a KPI list that cannot be read is the caller's to fix: kind bad_input, with the
     reader's own sentence, instead of an unexpected error."""

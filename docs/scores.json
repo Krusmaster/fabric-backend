@@ -250,35 +250,113 @@
    "names": {
     "tables": 10,
     "keys_true": 10,
-    "keys_right": 3,
-    "keys_wrong": 4,
-    "keys_missed": 3,
+    "keys_right": 10,
+    "keys_wrong": 0,
+    "keys_missed": 0,
     "keys_extra": 0,
     "links_true": 12,
-    "links_found": 0,
+    "links_found": 10,
     "links_wrong": 0
    },
    "before": {
     "tables": 10,
     "keys_true": 10,
-    "keys_right": 3,
-    "keys_wrong": 4,
-    "keys_missed": 3,
+    "keys_right": 10,
+    "keys_wrong": 0,
+    "keys_missed": 0,
     "keys_extra": 0,
     "links_true": 12,
-    "links_found": 0,
+    "links_found": 10,
     "links_wrong": 0
    },
    "after": {
     "tables": 10,
     "keys_true": 10,
-    "keys_right": 8,
-    "keys_wrong": 2,
+    "keys_right": 10,
+    "keys_wrong": 0,
     "keys_missed": 0,
     "keys_extra": 0,
     "links_true": 12,
     "links_found": 10,
-    "links_wrong": 1
+    "links_wrong": 0
+   }
+  },
+  {
+   "name": "dynamics365",
+   "title": "Dynamics 365 demo (Dataverse and Business Central)",
+   "source": "fabric_backend/dynamics_demo.py, SYNTHETIC DEMO DATA written from the dynamics365 pack; Dataverse as Link to Microsoft Fabric lands it, Business Central as bc2adls names it",
+   "row_count": 109,
+   "names": {
+    "tables": 33,
+    "keys_true": 33,
+    "keys_right": 33,
+    "keys_wrong": 0,
+    "keys_missed": 0,
+    "keys_extra": 0,
+    "links_true": 57,
+    "links_found": 57,
+    "links_wrong": 0
+   },
+   "before": {
+    "tables": 33,
+    "keys_true": 33,
+    "keys_right": 33,
+    "keys_wrong": 0,
+    "keys_missed": 0,
+    "keys_extra": 0,
+    "links_true": 57,
+    "links_found": 57,
+    "links_wrong": 0
+   },
+   "after": {
+    "tables": 33,
+    "keys_true": 33,
+    "keys_right": 33,
+    "keys_wrong": 0,
+    "keys_missed": 0,
+    "keys_extra": 0,
+    "links_true": 57,
+    "links_found": 57,
+    "links_wrong": 0
+   }
+  },
+  {
+   "name": "salesforce",
+   "title": "Salesforce-shaped sample, lead to cash and service",
+   "source": "fabric_backend/salesforce_demo.py, synthetic rows written from the salesforce pack, object and field API names as a Copy job lands them; not Salesforce data",
+   "row_count": 81,
+   "names": {
+    "tables": 21,
+    "keys_true": 21,
+    "keys_right": 21,
+    "keys_wrong": 0,
+    "keys_missed": 0,
+    "keys_extra": 0,
+    "links_true": 53,
+    "links_found": 53,
+    "links_wrong": 0
+   },
+   "before": {
+    "tables": 21,
+    "keys_true": 21,
+    "keys_right": 21,
+    "keys_wrong": 0,
+    "keys_missed": 0,
+    "keys_extra": 0,
+    "links_true": 53,
+    "links_found": 53,
+    "links_wrong": 0
+   },
+   "after": {
+    "tables": 21,
+    "keys_true": 21,
+    "keys_right": 21,
+    "keys_wrong": 0,
+    "keys_missed": 0,
+    "keys_extra": 0,
+    "links_true": 53,
+    "links_found": 53,
+    "links_wrong": 0
    }
   }
  ],

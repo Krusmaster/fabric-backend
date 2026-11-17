@@ -18,6 +18,7 @@ pytest.importorskip("jwt")
 
 import golden_support as gs  # noqa: E402
 from fabric_backend import entra, workload_api  # noqa: E402
+from fabric_backend.csn_onelake import STORAGE_SCOPE  # noqa: E402
 from test_workload_api import FABRIC_ORIGIN, MCP, SRC, TID, WL, FakeJWKS, FakeOBO, _post, _writes, api, keys, tok  # noqa: E402,F401
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -46,7 +47,7 @@ def test_check_answers_with_the_review_checked_the_totals_the_map_and_the_questi
     assert {r["state"] for r in out["map"]["relationships"]} == {"passed"}
     assert {t.get("key_check") for t in out["map"]["tables"]} == {"passed", None}        # audit_log has no key
     assert [q["about"] for q in out["questions"]] == ["key:audit_log"]
-    assert {s for _, s in obo.calls} == {entra.FABRIC_SCOPE, entra.SQL_SCOPE} and {t for t, _ in obo.calls} == {TID}
+    assert {s for _, s in obo.calls} == {entra.FABRIC_SCOPE, entra.SQL_SCOPE, STORAGE_SCOPE} and {t for t, _ in obo.calls} == {TID}   # CSN2: Files
     assert _writes(fake) == [] and "Nothing was created" in out["note"]
     text = json.dumps(out)
     assert "Harbour Bikes" not in text and "obo:" not in text and "wl-secret" not in text

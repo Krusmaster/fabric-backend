@@ -51,7 +51,7 @@ TOOLS_NAMED = (
     "ontology_draft", "plan_backend", "plan_drift", "query_graphql", "rayfin_connector", "review_plan",
     "sample_rows", "sap_pack_draft", "semantic_model_draft", "silver_notebook_draft", "suggest_relationships",
     "validate_plan",
-    "verify_build",
+    "verify_build", "publish_catalog",
     "qlik_plan", "qlik_measures_draft", "qlik_reconcile_draft")
 TOOL_NAME = re.compile(r"\b(?:" + "|".join(sorted(TOOLS_NAMED, key=len, reverse=True)) + r")\b")
 SAP_PACK = "SAP pack: Krusgraph's list of known SAP keys"

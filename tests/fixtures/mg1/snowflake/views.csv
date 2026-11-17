@@ -1,0 +1,18 @@
+TABLE_CATALOG,TABLE_SCHEMA,TABLE_NAME,VIEW_DEFINITION
+SHOP,SALES,V_LATEST_ORDER,"create or replace view V_LATEST_ORDER as
+select CUSTOMER_ID, ORDER_ID, IFF(TOTAL_AMOUNT > 0, TOTAL_AMOUNT, 0)::NUMBER(12,2) as TOTAL
+from ORDERS
+qualify row_number() over (partition by CUSTOMER_ID order by ORDER_DATE desc) = 1"
+SHOP,SALES,V_TOP_CUSTOMERS,"create view V_TOP_CUSTOMERS as
+-- synthetic: colour from the attributes, 'a:b' in a string is not a path
+select c.CUSTOMER_ID, NVL(p.ATTRIBUTES:color::string, 'a:b') as COLOR
+from CUSTOMERS c join ORDERS o on o.CUSTOMER_ID = c.CUSTOMER_ID
+join ORDER_LINES l on l.ORDER_ID = o.ORDER_ID join PRODUCTS p on p.PRODUCT_ID = l.PRODUCT_ID
+order by c.CUSTOMER_ID
+limit 10"
+SHOP,SALES,V_PRODUCT_ATTRIBUTES,"create view V_PRODUCT_ATTRIBUTES as
+select p.PRODUCT_ID, f.key as KEY, f.value as VALUE
+from PRODUCTS p,
+lateral flatten(input => p.ATTRIBUTES) f"
+SHOP,SALES,V_ORDER_MARGIN,"create view V_ORDER_MARGIN as
+select ORDER_ID, MARGIN_PCT(TOTAL_AMOUNT) as MARGIN from ORDERS"
