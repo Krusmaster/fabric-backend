@@ -17,8 +17,8 @@ workspace**. The writes Gustav allowed there were not used. Everything below ran
 `workload/scripts/e2e/run.js` repeats the whole walk. It writes the screenshots in `docs/workload-test-2026-11-17/` and
 `results-before.json` / `results-after.json` there. The before run is the same walk on `main` at 616a22b.
 
-Suites on this branch: vitest 318 passed (35 files), `tsc --noEmit` clean, and `pytest -n 4` (the result is in the
-PR). The generated Data Science notebook also ran on a local Spark 3.5 (below).
+Suites on this branch: vitest 318 passed (35 files), `tsc --noEmit` clean, and `pytest -n 4` 4364 passed, 9 skipped
+(without PySpark, as CI runs it). The generated Data Science notebook also ran on a local Spark 3.5 (below).
 
 ## 1. Each flow, pass or fail, with evidence
 
@@ -63,6 +63,7 @@ test keeps it so. Delta and Fabric's MLflow tracking were not run here.
 | F4 | After the review, the next step was only an unlabelled arrow in the ribbon. The Builder said "choose Next" and nothing on the page was called Next | A primary **Next: choose what to build** on the page, and labels in the ribbon | `nextSteps.test.tsx`, run.js step 5 |
 | F5 | Not fixed (engine, CSN2 holds `workload_api.py`): Look for leftovers, given ids that are not GUIDs, says "each of outputs.created has the Fabric id and workspace (GUIDs) Create recorded" | Word it for a person when CSN2 releases the file. Real Fabric ids are GUIDs, so a person should not normally see it | — |
 | F6 | Not fixed (a decision): review decisions are saved only by Save or by Create. An item closed after Accept all and before Save comes back without them | Recommend saving after each decision with the existing throttled `persist` (n197). It is a behaviour change, so it is left for Gustav | — |
+| F8 | Not fixed (engine, found on the way; **on `main` as well**): with PySpark installed, `tests/test_spark_notebooks.py::test_pipeline_check_notebook_runs_after_silver_and_gold_in_pyspark` fails. "The check failed (2): gold.order_items: 135 rows after the join, 134 in silver.order_items; SUM(quantity) is 327.0 after the join, 324.0 in silver". A gold join repeats one line, which is exactly a doubled total. The other 8 Spark tests pass, run one at a time with `PYSPARK_PYTHON` set (under `-n 4` they also fail from the environment). CI skips them because it has no PySpark | An Engine round: find which join of `gold.order_items` repeats a row (likely `ship_to_id → addresses`, R5) | the failing test itself |
 | F7 | Not fixed (Microsoft's kit): the empty state's picture is the kit's check mark (`EditorEmpty.svg`), which reads as "done" on a page where nothing is done yet | Replace it with Onto (`static/mascots/`) when the mascot art is final | — |
 
 ## 3. UI against Microsoft's guidelines, and what changed
