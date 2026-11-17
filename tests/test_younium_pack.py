@@ -41,7 +41,7 @@ def test_two_modules_and_a_consistent_merge():
     assert set(p["tables"]) == {"ACCOUNTS", "PRODUCTS", "CHARGE_PLANS", "CHARGES", "SUBSCRIPTIONS", "SUBSCRIPTION_VERSIONS", "SUBSCRIPTION_CHARGES",
                                 "SALES_ORDERS", "INVOICES", "INVOICE_LINES", "PAYMENTS",
                                 "ACCOUNT", "CONTACT", "OPPORTUNITY", "OPPORTUNITYLINEITEM", "PRODUCT2", "PRICEBOOKENTRY", "ORDER", "ORDERITEM", "CONTRACT"}
-    assert sap_pack.available() == ["sap", "younium_salesforce"]
+    assert {"sap", "younium_salesforce"} <= set(sap_pack.available())    # PK2 adds dynamics365 beside them
 
 
 def test_the_relationships_the_round_asked_for_are_there():

@@ -28,7 +28,11 @@ SCORES = {
     "sap_mm":         {"true": (8, 7),   "names": (7, 0, 1, 0, 7, 1),     "before": (7, 0, 1, 0, 7, 1),     "after": (8, 0, 0, 0, 7, 1)},
     "sap_renamed":    {"true": (12, 18), "names": (0, 0, 12, 0, 0, 0),    "before": (0, 0, 12, 0, 0, 0),    "after": (11, 0, 1, 0, 13, 2)},
     "nordic_erp":     {"true": (8, 9),   "names": (0, 0, 8, 0, 0, 0),     "before": (0, 0, 8, 0, 0, 0),     "after": (8, 0, 0, 0, 5, 0)},
-    "bc_like":        {"true": (10, 12), "names": (3, 4, 3, 0, 0, 0),     "before": (3, 4, 3, 0, 0, 0),     "after": (8, 2, 0, 0, 10, 1)},
+    # PK2: the dynamics365 pack reads the Business Central names (it was (3, 4, 3, 0, 0, 0) by names and (8, 2, 0, 0, 10, 1)
+    # after, before the pack); the two links it leaves are Sales/Purchase Line No. -> Item, which the pack applies only
+    # filtered on Type, a column this corpus lacks
+    "bc_like":        {"true": (10, 12), "names": (10, 0, 0, 0, 10, 0),   "before": (10, 0, 0, 0, 10, 0),   "after": (10, 0, 0, 0, 10, 0)},
+    "dynamics365":    {"true": (33, 57), "names": (33, 0, 0, 0, 57, 0),   "before": (33, 0, 0, 0, 57, 0),   "after": (33, 0, 0, 0, 57, 0)},
 }
 
 
@@ -72,9 +76,10 @@ def test_no_corpus_gets_worse_with_the_profile(results):
         "adventureworks": ["TransactionHistoryArchive.transactionid -> TransactionHistory"],
         # the two links by name (R3) the unrenamed sample has too, once the pack knows the tables
         "sap_renamed": ["order_extension.mandt+vbeln -> billing_header", "order_extension.mandt+vbeln -> delivery_header"],
-        # the rows fit (every ledger entry's document is a sales order here); the source declares no such link
-        "bc_like": [f"{bc('Cust_ Ledger Entry')}.document no_ -> {bc('Sales Header')}"],
+        # PK2: bc_like's "Cust_ Ledger Entry.document no_ -> Sales Header" (the rows fit, the source declares no such link)
+        # is no longer proposed: the dynamics365 pack reads the tables before the rows are asked
     }
+    assert bc("Sales Header").startswith("Example AB$")
     # the keys that are wrong after and were not wrong before, each a key the rows do count unique but the source declares wider
     aw = results["adventureworks"]
     assert sorted(set(aw["after"]["keys_wrong_list"]) - set(aw["before"]["keys_wrong_list"])) == [

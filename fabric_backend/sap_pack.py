@@ -36,7 +36,10 @@ from pathlib import Path
 PACKS = Path(__file__).parent / "packs"
 RULE = "SAP pack"
 MIRROR_RULE = "SAP mirror metadata"       # n129: keys (and descriptions) a mirrored source declares; see sap_mirror.py
-CLIENT_COLUMNS = ("MANDT", "RCLNT", "CLIENT")      # BUT000 and the CVI link tables name it CLIENT
+CLIENT_COLUMNS = ("MANDT", "RCLNT", "CLIENT", "COMPANY")   # BUT000 and the CVI link tables name it CLIENT; COMPANY is
+# Business Central's `$Company` column, which an export adds to per-company tables (bc2adls) and a per-company SQL
+# table (`<company>$<table>$<app id>`) does not have: like SAP's client it is left out of keys and relationships on both
+# sides when the table lacks it (round PK2, packs/dynamics365)
 # words a landing puts in front of a source table's name: a layer (raw, bronze) or the system (sap, younium, sf)
 _LEADING = ("sap", "raw", "stg", "src", "bronze", "landing", "mirror", "mirrored", "ext", "extract", "younium", "sf", "salesforce", "crm",
             "cds", "s4", "s4hana")
@@ -148,8 +151,25 @@ def problems(pack: dict) -> list[str]:
     return out
 
 
+_BC_SUFFIX = re.compile(r"^(.*[A-Za-z].*)-\d+$")     # bc2adls: `SalesHeader-36` (table), `No-3` (field); round PK2
+
+
+def _bc_name(name: str) -> str:
+    """A Business Central name without what its landing adds (round PK2): the company and the app id of a per-company SQL
+    table (`Example AB$Sales Header$437dbf0e-...` -> `Sales Header`; schema prefixes go with the company), and the
+    table or field number bc2adls appends (`SalesHeader-36` -> `SalesHeader`). Other names are returned as they are."""
+    if "$" in name:
+        parts = name.split("$")
+        if len(parts) >= 2 and parts[1].strip():
+            name = parts[1]
+    m = _BC_SUFFIX.match(name)
+    return m.group(1) if m else name
+
+
 def table_name(name: str) -> str:
-    """The name a pack would know a table by: `bronze.SAP_VBAK` -> `VBAK`."""
+    """The name a pack would know a table by: `bronze.SAP_VBAK` -> `VBAK`; `CRONUS$Sales Header$<app id>` and
+    `SalesHeader-36` -> `SALES_HEADER`/`SALESHEADER` (Business Central, round PK2; compared without underscores)."""
+    name = _bc_name(name.split(".")[-1] if "$" not in name else name)
     words = [w for w in re.split(r"[^A-Za-z0-9]+", name.split(".")[-1]) if w]
     while len(words) > 1 and words[0].lower() in _LEADING:
         words = words[1:]
@@ -202,8 +222,18 @@ class Match:
 def _norm(column: str) -> str:
     """A column name as a pack compares it: without case and underscores, so a pack written in snake case (EXTERNAL_CRM_ID)
     reads a camelCase landing (externalCrmId) and a snake-case one (external_crm_id) alike. SAP names have no such
-    doubles (VBTYP_N is only ever VBTYP_N)."""
-    return column.upper().replace("_", "")
+    doubles (VBTYP_N is only ever VBTYP_N). Since round PK2 every character that is not a letter or a digit is left out,
+    so Business Central's `Document No.` reads `Document No_` (its SQL spelling), `DOCUMENT_NO` and `$Company` reads
+    `COMPANY`."""
+    return re.sub(r"[^A-Z0-9]", "", column.upper())
+
+
+def column_key(column: str) -> str:
+    """A column as the loader compares it, in its plain spelling (round PK2): `_parentaccountid_value` and
+    `parentaccountid` -> PARENTACCOUNTID, `DocumentNo-3` and `Document No_` -> DOCUMENTNO."""
+    lookup = re.fullmatch(r"_(.+)_value", column)
+    bc = _BC_SUFFIX.match(column)
+    return _norm(lookup.group(1) if lookup else bc.group(1) if bc else column)
 
 
 def _cols(table) -> dict[str, str]:
@@ -211,6 +241,11 @@ def _cols(table) -> dict[str, str]:
     out: dict[str, str] = {}
     for c in table.column_names:
         out.setdefault(_norm(c), c)
+    for c in table.column_names:                     # round PK2: other spellings of a column, when the plain one is absent
+        lookup = re.fullmatch(r"_(.+)_value", c)     # Dataverse Web API lookups: `_parentaccountid_value` is parentaccountid
+        bc = _BC_SUFFIX.match(c)                     # bc2adls fields: `No-3` is No.
+        for other in ((lookup.group(1),) if lookup else ()) + ((bc.group(1),) if bc else ()):
+            out.setdefault(_norm(other), c)
     return out
 
 
