@@ -42,7 +42,7 @@ def test_two_modules_and_a_consistent_merge():
     assert set(p["tables"]) == {"ACCOUNTS", "PRODUCTS", "CHARGE_PLANS", "CHARGES", "SUBSCRIPTIONS", "SUBSCRIPTION_VERSIONS", "SUBSCRIPTION_CHARGES",
                                 "SALES_ORDERS", "INVOICES", "INVOICE_LINES", "PAYMENTS",
                                 "ACCOUNT", "CONTACT", "OPPORTUNITY", "OPPORTUNITYLINEITEM", "PRODUCT2", "PRICEBOOKENTRY", "ORDER", "ORDERITEM", "CONTRACT"}
-    assert sap_pack.available() == ["salesforce", "sap", "younium_salesforce"]
+    assert {"salesforce", "sap", "younium_salesforce"} <= set(sap_pack.available())     # PK2 may add dynamics365
     sf = sap_pack.load("salesforce")                                      # PK1: one truth: the included tables are the pack's own
     assert all(p["tables"][n] == {**sf["tables"][n]} for n in sf["tables"] if n in p["tables"])
     assert p["rule"] == "Younium + Salesforce pack"
