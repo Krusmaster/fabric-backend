@@ -225,3 +225,11 @@ StartPlan = Annotated[dict | None, _d('{keys, confirmed, decisions} so far, as r
 StartCreate = Annotated[list[str] | None, _d('Step create: dry-run item names the user asked to create.')]
 StartConfirm = Annotated[bool, _d('Step create: true only after the user said yes to exactly those names.')]
 StartSample = Annotated[bool, _d('true: the synthetic shop sample; no Fabric.')]
+
+# ------------------------------------------------------------------ publish_catalog (CA1) ---------------
+
+CatalogItems = Annotated[list[str] | None, _d(
+    'More item names to describe and tag, besides the source and the items Krusgraph built. Default none.')]
+CatalogOwner = Annotated[str | None, _d('The data products\' owner, a person\'s name or e-mail. Default: not chosen yet.')]
+CatalogConfirm = Annotated[str | None, _d('With dry_run=false: the confirm value the dry run returned.')]
+CatalogCheckRows = Annotated[bool, _d('true (default): counts keys and orphans for the evidence line and the rules.')]
