@@ -1,0 +1,38 @@
+TIKTOK (under 150 characters)
+
+If you use Microsoft Fabric, you need to see this. An ontology from your tables. Voice: AI-generated. #MicrosoftFabric #FabricIQ #Ontology
+
+
+INSTAGRAM REELS
+
+If you use Microsoft Fabric, you need to see this. 👀
+
+1. In Claude: Connectors → Add custom connector
+2. Paste krusgraph.com/mcp
+3. Sign in with your work account
+4. Ask for an order to cash ontology
+
+Use it in Claude. Krusgraph checks every key and link against your rows (17 of 17 keys unique; order lines → orders: 1 of 6 rows (16.7%) point at nothing), then drafts a Fabric IQ ontology: customers, orders, order lines and invoices, with the links it checked. It creates the item in Fabric only when you say yes.
+
+Shown on our SAP-shaped example, not data from an SAP system. Krusgraph is independent and not affiliated with SAP or Microsoft. Voice: AI-generated.
+
+#MicrosoftFabric #FabricIQ #Ontology #PowerBI #MCP #Claude #SAP #Krusgraph
+
+Try it in your browser: krusgraph.com/check (link in bio)
+
+
+YOUTUBE SHORTS
+
+Title (under 100 characters):
+
+If you use Microsoft Fabric, you need to see this: an ontology from your tables #shorts
+
+Description:
+
+Use it in Claude: add Krusgraph as a custom connector (krusgraph.com/mcp), sign in with your work account and ask for an order to cash ontology. Krusgraph checks every key and link against your rows (17 of 17 keys unique; order lines → orders: 1 of 6 rows (16.7%) point at nothing), then drafts a Fabric IQ ontology: customers, orders, order lines and invoices, with the links it checked. It creates the item in Fabric only when you say yes.
+
+Shown on our SAP-shaped example, not data from an SAP system. Krusgraph is independent and not affiliated with SAP or Microsoft. Voice: AI-generated.
+
+#MicrosoftFabric #FabricIQ #Ontology #MCP #Claude #Krusgraph
+
+Try it in your browser: krusgraph.com/check (link in bio)
