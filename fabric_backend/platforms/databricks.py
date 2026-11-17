@@ -438,6 +438,9 @@ NOT_ON_DATABRICKS = {
                               "databricks_pipeline_draft gives the same silver rules as a Lakeflow pipeline with expectations."),
     "answer_query_draft": ("the drafted query is T-SQL; a Databricks SQL version is Planned",
                            "join_path gives the joins in Databricks SQL for the same tables."),
+    "plan_migration": ("its after-landing counts read the Fabric side, and this server reads Databricks (MG1)",
+                       "Call plan_migration without fabric_schema here (it reads only the exported files), or from a local server "
+                       "whose FABRIC_ODBC points at the Fabric SQL analytics endpoint."),
 }
 
 
