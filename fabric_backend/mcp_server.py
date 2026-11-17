@@ -742,6 +742,41 @@ def silver_notebook_draft(schema: str = "dbo", silver_schema: str = "silver", or
 # ------------------------------------------------------------------ Databricks (KRUSGRAPH_PLATFORM=databricks) ------
 # Draft only: unit-tested with Databricks mocked at its REST API, not yet run against a workspace (docs/DATABRICKS.md).
 
+# Q2: Krusgraph Migrate (qlik_tools.py). The same three tools as the hosted server, their descriptions in
+# qlik_tools.LOCAL_DOCS; here the load script, the expressions and the exported values stay on this machine.
+from . import qlik_tools as _q  # noqa: E402
+
+
+@_tool(_q.TITLES["qlik_plan"], RO)
+@safe
+@_q.bad_input
+@_q.local_doc
+def qlik_plan(script: _q.Script, schema: _q.LandedSchema = "dbo", count: _q.Count = False, tables: _q.TableNames = None,
+              detail: _q.Detail = "summary") -> str:
+    if not count:
+        return _compact.bounded(_q.plan_answer(script, None, schema, tables, detail), MAX_RESULT_CHARS)
+    with _connection(schema) as execute:
+        return _compact.bounded(_q.plan_answer(script, execute, schema, tables, detail, dialect=_dialect()), MAX_RESULT_CHARS)
+
+
+@_tool(_q.TITLES["qlik_measures_draft"], RO)
+@safe
+@_q.bad_input
+@_q.local_doc
+def qlik_measures_draft(measures: _q.Measures, script: _q.OptionalScript = None, tables: _q.TableNames = None,
+                        tmdl: _q.Tmdl = False) -> str:
+    return _compact.bounded(_q.measures_answer(measures, script, tables, tmdl), MAX_RESULT_CHARS)
+
+
+@_tool(_q.TITLES["qlik_reconcile_draft"], RO)
+@safe
+@_q.bad_input
+@_q.local_doc
+def qlik_reconcile_draft(script: _q.Script, kpis: _q.Kpis, schema: _q.LandedSchema = "dbo", tolerance: _q.Tolerance = 0.005,
+                         results: _q.Results = None, tables: _q.TableNames = None, confirmed: _q.Relationships = None) -> str:
+    return _compact.bounded(_q.reconcile_answer(script, kpis, schema, tolerance, results, tables, confirmed), MAX_RESULT_CHARS)
+
+
 def _validated(execute, p, max_items: int = 200) -> dict:
     return _evidence.validate(p, execute, max_items=max(1, min(int(max_items), 200)))
 

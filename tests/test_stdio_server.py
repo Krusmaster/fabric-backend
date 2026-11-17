@@ -191,7 +191,7 @@ def test_local_tools_carry_titles_and_hints_like_the_remote_ones():
     hints = {t.name: (t.annotations.read_only_hint, t.annotations.destructive_hint) for t in tools}
     writing = ("create_backend", "create_views", "create_databricks_constraints", "create_databricks_pipeline")   # the last two: round n13
     local = ("record_decision",)                       # round L1: writes one row to the local decision file, nothing in the source
-    assert len(hints) == 27 and all(t.title for t in tools)          # MG1: plan_migration
+    assert len(hints) == 30 and all(t.title for t in tools)          # MG1: plan_migration; Q2: the three Qlik tools
     assert all(hints[k] == (False, True) for k in writing) and all(hints[k] == (False, False) for k in local)
     assert all(v == (True, False) for k, v in hints.items() if k not in writing + local)
 

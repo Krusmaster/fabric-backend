@@ -39,7 +39,9 @@ def test_qvs_tables_and_fields(qvs):
         "OrderLines": ["OrderID", "LineNo", "ProductID", "Quantity", "UnitPrice", "LineAmount"],
         "Shipments": ["ShipmentID", "OrderID", "CustomerID", "ShippedOn"],
         "Budget": ["BudgetYear", "BudgetAmount"],
+        "Targets": ["TargetMonth", "Target"],          # Q2: CrossTable is applied; the `*` before it is not in the script
     }
+    assert "fields_unknown" in next(t for t in qvs["tables"] if t["name"] == "Targets")
 
 
 def test_qvs_keys_are_the_fields_two_tables_share(qvs):
@@ -53,7 +55,7 @@ def test_qvs_keys_are_the_fields_two_tables_share(qvs):
     }
     keys = {t["name"]: t["keys"] for t in qvs["tables"]}
     assert keys["Orders"] == ["OrderID", "CustomerID", "ShipToID"]
-    assert keys["Budget"] == [] and qvs["unlinked_tables"] == ["Budget"]
+    assert keys["Budget"] == [] and qvs["unlinked_tables"] == ["Budget", "Targets"]
 
 
 def test_qvs_synthetic_key_and_circular_reference(qvs):
@@ -98,9 +100,14 @@ def test_qvs_tabs_variables_and_statements_without_effect(qvs):
 
 
 def test_qvs_what_is_not_read_is_listed_with_its_line(qvs):
-    assert [(n["line"], n["statement"].split()[0]) for n in qvs["not_read"]] == [(83, "FOR"), (85, "NEXT"), (87, "Targets:")]
-    assert "Targets" not in {t["name"] for t in qvs["tables"]}
-    assert all(n["why"] for n in qvs["not_read"])
+    # Q2: a control statement is listed on its own (the loads inside it are read as if each ran once), and CrossTable
+    # is applied, so this script has nothing left that was not read; a prefix that is not applied still is listed
+    assert qvs["not_read"] == []
+    assert [(c["line"], c["word"]) for c in qvs["control_statements"]] == [(83, "for"), (85, "next")]
+    assert next(t for t in qvs["tables"] if t["name"] == "Targets")["loads"][0]["crosstable"] == {
+        "attribute": "TargetMonth", "data": "Target", "qualifiers": 1}
+    generic = mr.read_qvs("T:\nGENERIC LOAD a, b, c FROM [lib://X/t.qvd] (qvd);")
+    assert [(n["line"], n["statement"].split()[0]) for n in generic["not_read"]] == [(1, "T:")] and all(n["why"] for n in generic["not_read"])
 
 
 # ------------------------------------------------------------------ Qlik: one rule per small script ------------------
@@ -319,8 +326,8 @@ def test_twbx_reads_the_one_workbook_in_the_package(twb):
 
 def test_listing_names_tables_keys_synthetic_keys_joins_and_calculated_fields(qvs, twb):
     q = mr.listing(qvs)
-    assert q.splitlines()[0] == ("Qlik load script: 8 table(s), 6 linking field(s), 1 synthetic key(s), 1 circular reference(s), "
-                                 "6 calculated field(s), 3 statement(s) not read.")
+    assert q.splitlines()[0] == ("Qlik load script: 9 table(s), 6 linking field(s), 1 synthetic key(s), 1 circular reference(s), "
+                                 "6 calculated field(s), 0 statement(s) not read.")
     for line in ("table Orders: OrderID, CustomerID, ShipToID, OrderDate, OrderYear, OrderMonth | keys: OrderID, CustomerID, ShipToID",
                  "synthetic key: Orders and Shipments share CustomerID, OrderID",
                  "circular reference: Customers - Orders - ShipTo through Country, CustomerID, ShipToID",

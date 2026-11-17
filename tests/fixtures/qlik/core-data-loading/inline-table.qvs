@@ -1,0 +1,20 @@
+// Test fixture of Krusgraph, copied from github.com/qlik-oss/core-data-loading at commit 0b79c835e30af66f06590b93e5dfa4d4d8bc1ff5, file scripts/inline-table.qvs. Licence: MIT, see LICENSE-core-data-loading.txt in this folder. This line was added; other changes are listed in ../SOURCES.md.
+// The script below uses the INLINE keyword which enables providing the table
+// field names and values directly in the load script file.
+// Here, the first row gives the field names 'City' and 'Country'.
+// Succeeding rows provides the field values.
+
+Cities:
+    LOAD * INLINE 
+    [
+        City, Country
+        Stockholm, Sweden
+        Shanghai, China
+        Oslo, Norway
+        Copenhagen, Denmark
+        Helsinki, Finland
+        Berlin, Germany
+        Barcelona, Spain,
+        Cairo, Egypt
+        Bangalore, India
+    ];

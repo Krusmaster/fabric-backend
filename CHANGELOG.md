@@ -9,6 +9,27 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round Q2: **Krusgraph Migrate, from Qlik to Power BI: three tools, a public test corpus and the design of a
+  workload of its own.** The founder decided on 16 November 2026 that Migrate becomes its own Fabric workload
+  (name proposal `Krusgraph.Migrate`; "Qlik" not in the registered name), with chat tools and a guided page built
+  first because name registration is still blocked. **Tools** (hosted and local, read-only, fixed rules, no AI model,
+  no connection to Qlik; status "draft only", titles end in "(experimental)"): `qlik_plan` (a Qlik load script as
+  tables, keys and associations, each synthetic key in one of five cases, circular references, a proposed star schema,
+  and `plan.keys` and `plan.confirmed` for the planning and building tools; with a workspace and a source the keys and
+  links are counted in the landed tables), `qlik_measures_draft` (expressions as DAX, labelled translated, suggested
+  or not translated with the reason) and `qlik_reconcile_draft` (one T-SQL statement per KPI that compares values
+  exported from Qlik with the migrated tables, and the comparison table; it runs nothing and names no reason for a
+  difference). 44 hosted tools (41 before), 27 local (24 before); the read-only listing guard goes from 69 000 to
+  75 500 characters. **Corpus**: 58 public load scripts from four repositories under the MIT licence as fixtures with
+  attribution (`tests/fixtures/qlik/SOURCES.md`); of 1 856 statements the reader reads 1 092, lists 722 as control flow
+  and 29 as includes, and leaves 13 not read (813 before the fixes). The reader (`migration_read.py`, the Qlik part) now
+  lists control statements and includes on their own, reads variables with built names, `REPLACE`/`ADD` loads, labels
+  built by dollar-sign expansion and `CROSSTABLE`, and no longer cuts `lib://` in an Include as a comment. A tool that
+  writes its own `kg_card` has it shown as it is (`mcp_apps_words.card`). **Docs**: `docs/MIGRATE-WORKLOAD-DESIGN.md`
+  (item type, editor flow, how it shares the engine with Modeler, manifest and Entra, the ask-list for Microsoft; nothing
+  built and the name in no build), `docs/MIGRATE-GUIDED-PAGE-DRAFT.md` (a draft, not a page of the site), and section 0
+  and 3b of `docs/QLIK-MIGRATION-PRODUCT.md`. Not tested: no script, measure or number came from a Qlik installation;
+  the DAX was not run; the statements ran on SQLite, not on Fabric; nothing was deployed.
 - Round n227: **The chat cards after the founder's test in claude.ai.** The founder tried the MCP Apps cards on
   12 November 2026 (deploy `src-37ff21adce4ff691`): the Start stepper and its buttons worked and real items were
   created, but the cards drew the raw `summary` where the answer already held plain words in `kg_card`. Now every card

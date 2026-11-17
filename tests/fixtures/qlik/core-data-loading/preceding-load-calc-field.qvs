@@ -1,0 +1,9 @@
+// Test fixture of Krusgraph, copied from github.com/qlik-oss/core-data-loading at commit 0b79c835e30af66f06590b93e5dfa4d4d8bc1ff5, file scripts/preceding-load-calc-field.qvs. Licence: MIT, see LICENSE-core-data-loading.txt in this folder. This line was added; other changes are listed in ../SOURCES.md.
+// The load script below shows how to use preceding LOAD to calculate a new
+// field, 'Tax', in one table in a single pass.
+
+SET SalesTax = 0.10;
+
+Taxes:
+    LOAD *, Salary * $(SalesTax) as Tax;
+    LOAD * FROM [lib://data/salaries.csv]

@@ -1,0 +1,3 @@
+// Test fixture of Krusgraph, copied from github.com/qlik-oss/corectl at commit 38cdf7a4ff697892f89ef12b95019eb5129d1286, file test/projects/using-script/script3.qvs. Licence: MIT, see LICENSE-corectl.txt in this folder. This line was added; other changes are listed in ../SOURCES.md.
+set a = 10;
+let b = sqr(10)
