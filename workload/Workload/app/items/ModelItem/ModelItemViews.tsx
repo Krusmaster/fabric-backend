@@ -57,6 +57,7 @@ import {
   cardTitle,
   choiceProblems,
   nameAction,
+  nameLabel,
   needsChoice,
   refreshWords,
   openLinks,
@@ -70,7 +71,7 @@ import { ChosenProductsView } from "./SuggestedProductsView";
 import { canRetry, progressLabel, toRetry } from "./createRun";
 import { AgentChoices, AgentPanel, JobsPanel, PipelineChoices } from "./JobsViews";
 import { agentOf, jobsOf, scheduleProblems } from "./jobsWords";
-import { ICON_SIZE, NOTICES, itemIcon } from "./fabricIcons";
+import { ICON_SIZE, NOTICES, altBeside, itemIcon } from "./fabricIcons";
 import {
   APP_STEPS_TITLE, CardState, FINISH_CSS, LastCreate, STATE_MARK, banner, cardState, itemTypeLabel, keepUpToDate, nextSteps,
   readLastCreate, running, stepsTitle,
@@ -541,7 +542,7 @@ export function OutputsView(props: {
               )}
               {c.enabled && (
                 <>
-                  <Field label={`Name of the ${k.label.toLowerCase()}`} validationState={valid ? "none" : "error"}
+                  <Field label={nameLabel(k.label)} validationState={valid ? "none" : "error"}
                     validationMessage={valid ? undefined : "Letters, digits and underscores only"}>
                     <Input value={c.name} onChange={(_, d) => set(k.kind, { name: d.value })} />
                   </Field>
@@ -910,11 +911,13 @@ export function FinishView(props: { last: LastCreate; mascotsOn: boolean; timeZo
 }
 
 /** n184: an output's title with the Fabric icon of the item type it creates at its left (fabricIcons.ts). */
-export function ItemTitle(props: { kind?: string; children: React.ReactNode }) {
+export function ItemTitle(props: { kind?: string; children: React.ReactNode; label?: string }) {
   const icon = itemIcon(props.kind);
+  // W13: the label's own words, when it is text, decide whether the icon's alt would repeat them (altBeside)
+  const label = props.label ?? (typeof props.children === "string" ? props.children : undefined);
   return (
     <span className="krusgraph-item-title">
-      {icon && <img className="krusgraph-item-icon" src={icon.src} alt={icon.alt} width={ICON_SIZE} height={ICON_SIZE} />}
+      {icon && <img className="krusgraph-item-icon" src={icon.src} alt={altBeside(icon.alt, label)} width={ICON_SIZE} height={ICON_SIZE} />}
       {props.children}
     </span>
   );
@@ -942,7 +945,7 @@ export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["i
   const refused = !!(c.refusal || c.answer?.error);
   return (
     <section className={`krusgraph-output${refused ? " refused" : ""}`} aria-label={cardTitle(c)} data-output={c.output}>
-      <ItemTitle kind={c.output}><Subtitle2>{cardTitle(c)}</Subtitle2><StateMark state={cardState(c)} /></ItemTitle>
+      <ItemTitle kind={c.output} label={cardTitle(c)}><Subtitle2>{cardTitle(c)}</Subtitle2><StateMark state={cardState(c)} /></ItemTitle>
       {facts.length > 0 && (
         <ul className="krusgraph-list">
           {facts.map((f) => (

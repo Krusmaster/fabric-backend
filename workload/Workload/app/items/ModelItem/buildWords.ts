@@ -57,6 +57,14 @@ export const KINDS: KindInfo[] = [
 export const ORDER: OutputKind[] = KINDS.map((k) => k.kind);
 export const FLOW_KINDS: OutputKind[] = ["silver_notebook", "gold_views", "pipeline"];
 
+/** W13: the name field's label: "Name of the semantic model", "Name of the API for GraphQL" (an acronym and a product's
+ * own spelling keep their case; it read "Name of the api for graphql"). */
+export function nameLabel(label: string): string {
+  const [first, ...rest] = label.split(" ");
+  const keep = first.length > 1 && first === first.toUpperCase();
+  return `Name of the ${keep ? first : first.charAt(0).toLowerCase() + first.slice(1)}${rest.length ? " " + rest.join(" ") : ""}`;
+}
+
 export function kindInfo(kind: string): KindInfo | undefined {
   return KINDS.find((k) => k.kind === kind);
 }
