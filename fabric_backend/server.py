@@ -15,7 +15,7 @@ Authentication, in order:
      "custom connection" model Lovable's Fabric connector uses: one principal, no per-user identity.
 The server stores nothing: no tokens beyond their lifetime, no data, no query results.
 
-Tools (all annotated for the Claude directory): forty-one, from start to verify_build; docs page
+Tools (all annotated for the Claude directory): forty-two, from start to publish_catalog; docs page
 /docs lists them. Around every tool: fair-use limits (limits.py), anonymous usage counts (usage.py) and the dormant paid-plan
 check (entitlements.py).
 """
@@ -3731,6 +3731,59 @@ def query_graphql(workspace: _p.Workspace, api: _p.Api, query: _p.Query = "", va
     if suggestion is not None:
         body = {"suggested": suggestion, "result": body}
     return _bounded(body, MAX_RESULT_CHARS)
+
+
+@mcp.tool(title="Publish data products to the OneLake catalog (dry run by default)", annotations=WRITE)
+@safe
+def publish_catalog(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", items: _p.CatalogItems = None,
+                    owner: _p.CatalogOwner = None, check_rows: _p.CatalogCheckRows = True, dry_run: _p.DryRun = True,
+                    confirm: _p.CatalogConfirm = None, ctx: Context = None) -> str:
+    """Prepares the OneLake catalog entry of each data product the plan proves: description, owner, proposed domain,
+    tags, glossary terms, row-check evidence and quality rules. Requires workspace and source. Returns JSON with the
+    product cards, the diff of what it would write as you (item descriptions, existing tags), a confirm value, the undo
+    calls and handover files for what needs a Fabric admin, a Purview steward or a reviewer. Never endorses. Changes
+    Fabric only with dry_run=false, the confirm, and a workspace the operator allows. Errors: {error, kind, hint}."""
+    from datetime import date as _date
+    from . import catalog_publish as _cp
+    from .catalog_publish import fabric_io as _io, writes as _cw
+    validation = None
+    if check_rows:
+        s, execute = _connected(workspace, source, schema, ctx)
+        try:
+            p = _hosted_plan(s, None, None, execute)
+            validation = _evidence.validate(p, execute)
+        finally:
+            getattr(execute, "close", lambda: None)()
+    else:
+        p, _, _ = _plan(workspace, source, schema, None, None, ctx)
+    schema = p.schema.schema
+    headers = _headers(ctx)
+    ws = _workspace_id(workspace, headers)
+    item = _resolve_source(ws, source, headers)
+    get = _io.reader(headers)
+    listed = _io.items(get, ws)
+    chosen = _io.pick(listed, item.get("id"), set(), schema, items)
+    tenant, readable = _io.tenant_tags(get)
+    on_items = list({t.get("id"): t for it in listed for t in it.get("tags") or [] if t.get("id")}.values())
+    owners = None
+    if owner:
+        owners = {d["slug"]: owner for d in _domains.propose_plan(p, validation)["domains"]}
+    out = _cp.prepare(p, schema, ws, chosen, source=item.get("displayName") or source, validation=validation,
+                      checked_on=_date.today().isoformat() if validation else None, owners=owners,
+                      tenant_tags=tenant, tags_readable=readable, workspace_tags=on_items)
+    if dry_run:
+        out = _cp.for_chat(out)
+        out["note"] = ("A dry run: nothing was written. Check the diff; to write as you, call again with dry_run=false and "
+                       "this confirm. The handover files are for the people named in them; domain_draft gives the contracts.")
+        return _bounded(out, MAX_RESULT_CHARS)
+    try:
+        done = _cp.apply(out, ws, confirm, _io.sender(headers))
+    except _cw.NotAllowed as e:
+        return json.dumps({"error": str(e), "kind": "not_allowed", "hint": "Nothing was written. The dry run's diff and "
+                           "handover files stay yours to use."}, indent=2)
+    return _bounded({"summary": out["summary"], "results": done["results"], "undo": done["undo"],
+                     "handover": _cp.for_chat(out)["handover"], "note": "Written as you. undo lists the calls that put back what was there."},
+                    MAX_RESULT_CHARS)
 
 
 MAX_RESULT_CHARS = 60000
