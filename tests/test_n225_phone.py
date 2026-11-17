@@ -109,11 +109,11 @@ def runs():
 
 
 def test_the_pages_are_rendered():
-    assert {p.stem for p in PAGES.glob("*.html")} == {"review", "outputs", "product"}
+    assert {p.stem for p in PAGES.glob("*.html")} == {"review", "outputs", "product", "catalog"}   # CA1: the catalog step
 
 
 def test_no_horizontal_scroll_at_375_412_and_1280(runs):
-    assert {(r["file"], r["width"]) for r in runs} == {(f"{p}.html", w) for p in ("review", "outputs", "product") for w in (375, 412, 1280)}
+    assert {(r["file"], r["width"]) for r in runs} == {(f"{p}.html", w) for p in ("review", "outputs", "product", "catalog") for w in (375, 412, 1280)}
     for r in runs:
         assert r["scroll"] <= 0, (r["file"], r["width"], r["scroll"])
         assert r["wide"] == [], (r["file"], r["width"], r["wide"])

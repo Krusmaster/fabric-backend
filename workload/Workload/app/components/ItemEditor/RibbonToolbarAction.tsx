@@ -49,6 +49,9 @@ export interface RibbonToolbarActionProps {
    * Optional custom aria-label (defaults to label)
    */
   ariaLabel?: string;
+
+  /** Krusgraph (W13): show the label next to the icon */
+  showLabel?: boolean;
 }
 
 /**
@@ -98,7 +101,8 @@ export const RibbonToolbarAction: React.FC<RibbonToolbarActionProps> = ({
   disabled = false,
   testId,
   appearance = 'subtle',
-  ariaLabel
+  ariaLabel,
+  showLabel = false
 }) => {
   const IconComponent = icon;
   
@@ -128,7 +132,10 @@ export const RibbonToolbarAction: React.FC<RibbonToolbarActionProps> = ({
         data-testid={testId}
         icon={<IconComponent />}
         onClick={handleClick}
-      />
+      >
+        {/* Krusgraph (W13): the label as text when asked (showLabel); icon-only otherwise, as the kit had it */}
+        {showLabel && label ? <span className="ribbon-action-label">{label}</span> : undefined}
+      </ToolbarButton>
     </Tooltip>
   );
 };

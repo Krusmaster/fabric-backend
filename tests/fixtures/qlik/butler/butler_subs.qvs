@@ -1,0 +1,813 @@
+// Test fixture of Krusgraph, copied from github.com/ptarmiganlabs/butler at commit ccc017cb883940d3318c6ca765e1dab420d7708f, file docs/sense_script/butler_subs.qvs. Licence: MIT, see LICENSE-butler.txt in this folder. This line was added; other changes are listed in ../SOURCES.md.
+// ------------------------
+// INSTRUCTIONS
+//
+// All of thee subs below deal with Butler's API. It isassumed that two variables exist:
+//   vButlerHost : The host, fully-qualified-domain-name or IP of the server where Butler is running
+//   vButlerPort : The port on which Butler's REST API is exposed
+//
+// If unsure what the proper values for those variables are, check Butler's YAML config file, 
+// or the log messages printed when Butler starts. Look for a log line like this one:
+//
+//          MAIN: REST server listening on http://butler.example:8080
+//
+// In this case vButlerHost should be set to 'http://butler.example' and vButlerPort to '8080'
+// ------------------------
+
+
+
+// ------------------------------------------------------------
+// ** Time stamped trace messages **
+//
+// Get nice trace lines in the reload log by calling the line with 
+// CALL NiceTrace('My trace message. Variable value=$(vVariableName)');
+//
+// Paramaters:
+// vMsg                  : Message sent to reload log
+// ------------------------------------------------------------
+sub NiceTrace(vMsg)
+	let vNow = Now(1);
+	TRACE >>> $(vNow): $(vMsg);
+    
+    // Clear timestamp variable
+    set vNow=;
+end sub
+
+
+
+
+// ------------------------------------------------------------
+// ** Initialize Butler data structures **
+//
+// Create mapping table for conversion from utf8 to URL encoded
+// Could be a good idea to save this to a QVD rather than to read it from online, in order to
+// prevent reloads to break if there is no Internet connectivity.
+//
+// The sub assumes there is a web data connection called "URL encode table", pointing
+// to http://www.w3schools.com/tags/ref_urlencode.asp
+// This is the mapping table used to do the URL encoding.
+// ------------------------------------------------------------
+sub ButlerInit
+  // Initialize mapping table needed for URL encoding
+	URL_EncodingReferenceMap:
+	Mapping LOAD
+		Replace([Character], 'space', ' ') as ASCII_Character,
+		//     Text([From Windows-1252]) as URL_encoding,
+		Text([From UTF-8]) as URL_encoding
+	FROM
+	[lib://URL encode table] (html, utf8, embedded labels, table is @1);
+end sub
+
+
+
+// ------------------------------------------------------------
+// ** List enabled API endpoints **
+//
+// Parameters:
+// vResultTable			 : Name of table to which names of enabled API 
+//                         endpoints will be added
+// ------------------------------------------------------------
+sub GetEnabledButlerAPIEndpoints(vResultTable)
+	LIB CONNECT TO 'Butler_GET';
+
+    RestConnectorMasterTable:
+    SQL SELECT 
+        "@Value"
+    FROM JSON (wrap on) "root" ArrayValueAlias "@Value"
+    WITH CONNECTION (
+    Url "$(vButlerHost):$(vButlerPort)/v4/configfile/endpointsenabled",
+    );
+
+    [$(vResultTable)]:
+    NoConcatenate LOAD	
+    	[@Value]	as "Endpoint name"
+    RESIDENT RestConnectorMasterTable;
+
+	set vResultTable=;
+    DROP TABLE RestConnectorMasterTable;
+end sub
+
+
+
+// ------------------------------------------------------------
+// ** Reload QSEoW apps **
+//
+// NOTE: The reload is done directly in the engine, i.e. no reload 
+// tasks are used for the reload.
+// This means that the reload cannot be triggered using QMC tasks. 
+// 
+// The options for starting the reload are using the sub below or 
+// via direct calls to Butler's API.
+//
+// Parameters:
+// vAppId: ID of QSEoW app that should be reloaded.
+// vPartialReload: true/false
+// vReloadMode: 0, 1, 2. 
+// vStartQSEoWTaskOnSuccess: Array of Sense task IDs. Will be started if the reload completes successfully.
+//                           Format is '["taskid1","taskid2","taskid3"]'
+// 							
+// vStartQSEoWTaskOnFailure: Array of Sense task IDs. Will be started if the reload fails.
+//                           Format is '["taskid1","taskid2","taskid3"]'
+//
+// ------------------------------------------------------------
+sub ReloadSenseApp(vAppId, vPartialReload, vReloadMode, vStartQSEoWTaskOnSuccess, vStartQSEoWTaskOnFailure)
+	// Make task IDs double double-quoted
+	let vStartQSEoWTaskOnSuccess = Replace('$(vStartQSEoWTaskOnSuccess)', '"', '""');
+	let vStartQSEoWTaskOnFailure = Replace('$(vStartQSEoWTaskOnFailure)', '"', '""');
+	
+    // Build request body
+    let vRequestBody = '{""partialReload"":""$(vPartialReload)"", ""reloadMode"":$(vReloadMode), ""startQSEoWTaskOnSuccess"":$(vStartQSEoWTaskOnSuccess), ""startQSEoWTaskOnFailure"":$(vStartQSEoWTaskOnFailure)}';
+
+    LIB CONNECT TO 'Butler_POST';
+
+    RestConnectorMasterTable:
+    SQL SELECT 
+    	"appId"
+    FROM JSON (wrap on) "root"
+    WITH CONNECTION (
+    Url "$(vButlerHost):$(vButlerPort)/v4/app/$(vAppId)/reload",
+    BODY "$(vRequestBody)",
+    HTTPHEADER "X-HTTP-Method-Override" "PUT"
+    );
+
+	set vAppId=;
+	set vPartialReload=;
+    set vReloadMode=;
+    set vStartQSEoWTaskOnSuccess=;
+    set vStartQSEoWTaskOnFailure=;
+    set vRequestBody=;
+    DROP TABLE RestConnectorMasterTable;
+end sub
+
+
+
+// ------------------------------------------------------------
+// ** Start QSEoW task **
+//
+// Use Butler to start the task identified by the ID in parameter vTaskId.
+// All parameters are optional, but at least one of the task related (=first 4) paramaters should be specified.
+//
+// Paramaters:
+// vTaskId               : Optional. ID of task to be started. Can be found in QMC task view
+//						   Use any invlaid task ID (for example '-', w/o quotes) if not using this parameter
+// vTaskIdTable			 : Optional. Name of table containing task IDs that should be started
+// vTagTable			 : Optional. Name of table containing tags identifying tasks that should be started
+// vCustomPropertyTable  : Optional. Name of table containing custom properties identifying tasks that should be started
+// vKeyValueStoreTable   : Optional. Name of table containing key-value pairs that should be inserted into Butler's KV store 
+// ------------------------------------------------------------
+sub StartTask(vTaskId, vTaskIdTable, vTagTable, vCustomPropertyTable, vKeyValueStoreTable)
+
+	// Build request body
+    let vRequestBody = '';
+
+	// Handle task IDs, if any
+    if (vTaskIdTable <> Null) then
+    	for Each vItem in FieldValueList('$(vTaskIdTable).TaskId')
+		    let vRequestBody = vRequestBody & '{""type"":""starttaskid"", ""payload"":{""taskId"":""$(vItem)""}},';
+    	next vItem
+    end if
+
+	// Handle tags, if any
+    if (vTagTable <> Null) then
+    	for Each vItem in FieldValueList('$(vTagTable).Tag')
+//         	trace Tag: $(vItem);
+        	
+		    let vRequestBody = vRequestBody & '{""type"":""starttasktag"", ""payload"":{""tag"":""$(vItem)""}},';
+    	next vItem
+    end if
+
+	// Handle custom properties, if any
+    if (vCustomPropertyTable <> Null) then
+    	for i = 0 to NoOfRows('$(vCustomPropertyTable)') - 1
+//         	trace i=$(i);
+        	let vName = Peek('$(vCustomPropertyTable).Name', i, '$(vCustomPropertyTable)');
+        	let vValue = Peek('$(vCustomPropertyTable).Value', i, '$(vCustomPropertyTable)');
+
+//             trace Name: $(vName);
+//             trace Value: $(vValue);
+
+		    let vRequestBody = vRequestBody & '{""type"":""starttaskcustomproperty"", ""payload"":{""customPropertyName"":""$(vName)"", ""customPropertyValue"":""$(vValue)""}},';
+        next i
+
+		set vName=;
+        set vValue=;
+    end if
+
+	// Handle key values, if any
+    if (vKeyValueStoreTable <> Null) then
+    	for i = 0 to NoOfRows('$(vKeyValueStoreTable)') - 1
+//         	trace i=$(i);
+        	let vNamespace = Peek('$(vKeyValueStoreTable).Namespace', i, '$(vKeyValueStoreTable)');
+        	let vKey = Peek('$(vKeyValueStoreTable).Key', i, '$(vKeyValueStoreTable)');
+        	let vValue = Peek('$(vKeyValueStoreTable).Value', i, '$(vKeyValueStoreTable)');
+        	let vTTL = Peek('$(vKeyValueStoreTable).TTL', i, '$(vKeyValueStoreTable)');
+
+//             trace Namespace: $(vNamespace);
+//             trace Key: $(vKey);
+//             trace Value: $(vValue);
+//             trace TTL: $(vTTL);
+
+		    let vRequestBody = vRequestBody & '{""type"":""keyvaluestore"", ""payload"":{""namespace"":""$(vNamespace)"", ""key"":""$(vKey)"", ""value"":""$(vValue)"", ""ttl"":""$(vTTL)""}},';
+        next i
+
+		set vNamespace=;
+        set vKey=;
+        set vValue=;
+        set vTTL=;
+    end if
+
+	// Remove last comma if there is one
+    if (Len('$(vRequestBody)')>0 and Index('$(vRequestBody)', ',', -1) = Len('$(vRequestBody)')) then
+ 	    let vRequestBody = Left('$(vRequestBody)', Len('$(vRequestBody)')-1);
+    end if
+
+	// Make it an array
+    let vRequestBody = '[' & vRequestBody & ']';
+    
+	LIB CONNECT TO 'Butler_POST';
+
+    RestConnectorMasterTable:
+    SQL SELECT 
+    	"taskId"
+    FROM JSON (wrap on) "root"
+    WITH CONNECTION (
+    Url "$(vButlerHost):$(vButlerPort)/v4/reloadtask/$(vTaskId)/start",
+    BODY "$(vRequestBody)",
+    HTTPHEADER "X-HTTP-Method-Override" "PUT"
+    );
+
+    set vTaskId=;
+    set vTaskIdTable=;
+    set vTagTable=;
+    set vCustomTable=;
+    set vKeyValueStoreTable;
+    DROP TABLE RestConnectorMasterTable;    
+end sub
+
+
+
+// ------------------------------------------------------------
+// ** Start QSEoW task, with key-value parameter **
+//
+// Use Butler to start the task identified by the ID in parameter vTaskId.
+// The key-value pair will be stored in Butler's built-in KV store (assuming it's 
+// enabled in Butler's config file).
+//
+// Paramaters:
+// vTaskId               : ID of task to be started. Can be found in QMC task view.
+// vNamespace            : Namespace in which key-value pair will be stored
+// vKey                  : Key in KV pair
+// vValue                : Value in KV pair
+// vTTL                  : Time to live for KV pair. Set to 0 to disable TTL.
+// ------------------------------------------------------------
+sub StartTask_KeyValue(vTaskId, vNamespace, vKey, vValue, vTTL)
+	LIB CONNECT TO 'Butler_POST';
+
+    // Build request body
+    let vRequestBody = '[{""type"":""keyvaluestore"", ""payload"":{""namespace"":""$(vNamespace)"", ""key"":""$(vKey)"", ""value"":""$(vValue)"", ""ttl"":""$(vTTL)""}}]';
+
+    RestConnectorMasterTable:
+    SQL SELECT 
+    	"taskId"
+    FROM JSON (wrap on) "root"
+    WITH CONNECTION (
+    Url "$(vButlerHost):$(vButlerPort)/v4/reloadtask/$(vTaskId)/start",
+    BODY "$(vRequestBody)",
+    HTTPHEADER "X-HTTP-Method-Override" "PUT"
+    );
+
+    set vTaskId=;
+    set vNamespace=;
+    set vKey=;
+    set vValue=;
+    set vTTL=;
+    set vRequestBody=;
+    DROP TABLE RestConnectorMasterTable;    
+end sub
+
+
+
+
+
+// ------------------------------------------------------------
+// ** Copy files/directories **
+//
+// Note: Butler will create any missing directories in the path.
+//
+// Parameters:
+// vSource
+// vDest
+// vOverwrite
+// vPreserveTimestamp
+//
+// ------------------------------------------------------------
+sub CopyFile(vSource, vDest, vOverwrite, vPreserveTimestamp)
+	let vSource = Replace('$(vSource)', '\', '/');
+	let vSource = Replace('$(vSource)', '#', '%23');
+
+	let vDest = Replace('$(vDest)', '\', '/');
+	let vDest = Replace('$(vDest)', '#', '%23');
+
+	let vRequestBody = '{""fromFile"":""$(vSource)"", ""toFile"":""$(vDest)"", ""overwrite"":""$(vOverwrite)"", ""preserveTimestamp"":""$(vPreserveTimestamp)""}';
+
+    LIB CONNECT TO 'Butler_POST';
+
+    RestConnectorMasterTable:
+    SQL SELECT 
+    	"fromFile",
+        "toFile",
+        "overwrite",
+        "preserveTimestamp"
+    FROM JSON (wrap on) "root"
+    WITH CONNECTION (
+    Url "$(vButlerHost):$(vButlerPort)/v4/filecopy",
+    BODY "$(vRequestBody)",
+    HTTPHEADER "X-HTTP-Method-Override" "PUT"
+    );
+
+	set vSource=;
+    set vDest=;
+    set vOverwrite=;
+    set vPreserveTimestamp=;
+    set vRequestBody=;
+    DROP TABLE RestConnectorMasterTable;
+end sub
+
+
+
+
+// ------------------------------------------------------------
+// ** Move file **
+//
+// File moves are only allowed between the source and destination directories
+// approved in the Butler config file.
+//
+// Paramaters:
+// vSource             : Source file
+// vDest               : Destination file
+// vOverwrite		   : true/false. Should destination file be overwritten if it already exists?
+// ------------------------------------------------------------
+sub MoveFile(vSource, vDest, vOverwrite)
+	let vSource = Replace('$(vSource)', '\', '/');
+	let vSource = Replace('$(vSource)', '#', '%23');
+
+	let vDest = Replace('$(vDest)', '\', '/');
+	let vDest = Replace('$(vDest)', '#', '%23');
+
+	let vRequestBody = '{""fromFile"":""$(vSource)"", ""toFile"":""$(vDest)"", ""overwrite"":""$(vOverwrite)""}';
+
+    LIB CONNECT TO 'Butler_POST';
+
+    RestConnectorMasterTable:
+    SQL SELECT 
+    	"fromFile",
+        "toFile",
+        "overwrite"
+    FROM JSON (wrap on) "root"
+    WITH CONNECTION (
+    Url "$(vButlerHost):$(vButlerPort)/v4/filemove",
+    BODY "$(vRequestBody)",
+    HTTPHEADER "X-HTTP-Method-Override" "PUT"
+    );
+
+	set vSource=;
+    set vDest=;
+    set vOverwrite=;
+    set vRequestBody=;
+    DROP TABLE RestConnectorMasterTable;
+end sub
+	
+
+// ------------------------------------------------------------
+// ** Delete file **
+//
+// Files can only be deleted in folders (and subfolders of) directories that 
+// have been approved in the Butler config file.
+//
+// Paramaters:
+// vFile                : File to be deleted. 
+// ------------------------------------------------------------
+sub DeleteFile(vFile)
+	let vFile = Replace('$(vFile)', '\', '/');
+	let vFile = Replace('$(vFile)', '#', '%23');
+
+	let vRequestBody = '{""deleteFile"":""$(vFile)""}';
+
+    LIB CONNECT TO 'Butler_POST';
+
+    RestConnectorMasterTable:
+    SQL SELECT 
+    	"vFile"
+    FROM JSON (wrap on) "root"
+    WITH CONNECTION (
+    Url "$(vButlerHost):$(vButlerPort)/v4/filedelete",
+    BODY "$(vRequestBody)",
+    HTTPHEADER "X-HTTP-Method-Override" "DELETE"
+    );
+
+	set vFile=;
+    set vRequestBody=;
+    DROP TABLE RestConnectorMasterTable;
+end sub
+
+
+
+
+// ------------------------------------------------------------
+// ** Create directory on disk **
+//
+// Note: Butler will create any missing directories in the path.
+//
+// Parameters:
+// vDir                  : Path and name of directory to be created
+//
+// ------------------------------------------------------------
+sub CreateDir(vDir)
+	let vDir = Replace('$(vDir)', '\', '/');
+	let vDir = Replace('$(vDir)', '#', '%23');
+
+    let vRequestBody = '{""directory"":""$(vDir)""}';
+
+	LIB CONNECT TO 'Butler_POST';
+
+    RestConnectorMasterTable:
+    SQL SELECT 
+        "directory"
+    FROM JSON (wrap on) "root"
+    WITH CONNECTION (
+    Url "$(vButlerHost):$(vButlerPort)/v4/createdir",
+    BODY "$(vRequestBody)",
+    HTTPHEADER "Content-Type" "application/json"
+    );
+
+	set vDir=;
+    set vRequestBody=;
+    DROP TABLE RestConnectorMasterTable;
+end sub
+
+// ------------------------------------------------------------
+// ** Create directory on disk, under the QVD folder specified in Butler's config file **
+//
+// Note: Butler will create any missing directories in the path.
+//
+// Parameters:
+// vDir                  : Path and name of directory to be created
+//
+// ------------------------------------------------------------
+sub CreateDirQVD(vDir)
+	let vDir = Replace('$(vDir)', '\', '/');
+	let vDir = Replace('$(vDir)', '#', '%23');
+
+    let vRequestBody = '{""directory"":""$(vDir)""}';
+
+	LIB CONNECT TO 'Butler_POST';
+
+    RestConnectorMasterTable:
+    SQL SELECT 
+        "directory"
+    FROM JSON (wrap on) "root"
+    WITH CONNECTION (
+    Url "$(vButlerHost):$(vButlerPort)/v4/createdirqvd",
+    BODY "$(vRequestBody)",
+    HTTPHEADER "Content-Type" "application/json"
+    );
+
+	set vDir=;
+    set vRequestBody=;
+    DROP TABLE RestConnectorMasterTable;
+end sub
+
+
+
+
+
+// ------------------------------------------------------------
+// ** Add key-value pair to a namespace **
+//
+// Paramaters:
+// vNamespace            : Namespace in which the KV pair will be stored
+// vKey                  : Key name
+// vValue                : Value to store together with key
+// vTimeToLive           : How long should the KV pair exist before being automatically deleted?
+//                         Set to 0 to disable TTL feature (=no auto-delete of KV pair)
+// ------------------------------------------------------------
+sub AddKeyValue(vNamespace, vKey, vValue, vTimeToLive)
+    LIB CONNECT TO 'Butler_POST';
+
+	if (vTimeToLive>0) then
+	    let vRequestBody = '{"key": "$(vKey)", "value": "$(vValue)", "ttl": "$(vTimeToLive)"}';
+    else
+		let vRequestBody = '{"key": "$(vKey)", "value": "$(vValue)"}';    
+    end if
+    
+    // Escape " in request body 
+    let vRequestBody = replace(vRequestBody,'"', chr(34)&chr(34));
+
+    RestConnectorMasterTable:
+    SQL SELECT 
+        "namespace",
+        "key",
+        "value",
+        "ttl"
+    FROM JSON (wrap on) "root"
+    WITH CONNECTION (
+    Url "$(vButlerHost):$(vButlerPort)/v4/keyvalues/$(vNamespace)",
+    BODY "$(vRequestBody)",
+    HTTPHEADER "Content-Type" "application/json"
+    );
+
+	set vNamespace=;
+    set vKey=;
+    set vValue=;
+    set vTimeToLive=;
+    set vRequestBody=;
+    DROP TABLE RestConnectorMasterTable;
+end sub
+
+
+// ------------------------------------------------------------
+// ** Get key-value pair from a namespace **
+//
+// Paramaters:
+// vNamespace            : Namespace in which the KV pair will be stored
+// vKey                  : Key name
+// vResultVarName		 : Name of variable in wich value will be placed
+// ------------------------------------------------------------
+sub GetKeyValue(vNamespace, vKey, vResultVarName)
+    LIB CONNECT TO 'Butler_GET';
+
+    RestConnectorMasterTable:
+    SQL 
+    SELECT 
+        "key",
+        "value"
+    FROM JSON (wrap on) "root"
+    WITH CONNECTION (
+    Url "$(vButlerHost):$(vButlerPort)/v4/keyvalues/$(vNamespace)?key=$(vKey)"
+    );
+
+	let $(vResultVarName) = Peek('value', 0, 'RestConnectorMasterTable');
+
+	set vResultVarName=;
+	set vNamespace=;
+    set vKey=;
+    set vRequestBody=;
+    DROP TABLE RestConnectorMasterTable;
+end sub
+
+
+
+// ------------------------------------------------------------
+// ** Delete a key-value pair from a namespace **
+//
+// Paramaters:
+// vNamespace            : Namespace in which the KV pair will be stored
+// vKey                  : Key name
+// ------------------------------------------------------------
+sub DeleteKeyValue(vNamespace, vKey)
+    LIB CONNECT TO 'Butler_POST';
+
+    RestConnectorMasterTable:
+    SQL SELECT 
+    FROM JSON (wrap on) "root"
+    WITH CONNECTION (
+    Url "$(vButlerHost):$(vButlerPort)/v4/keyvalues/$(vNamespace)/$(vKey)",
+    HTTPHEADER "X-HTTP-Method-Override" "DELETE"
+    );
+
+	set vNamespace=;
+    set vKey=;
+    DROP TABLE RestConnectorMasterTable;
+end sub
+
+
+
+// ------------------------------------------------------------
+// ** Checks if a key exists in a particular namespace **
+//
+// Paramaters:
+// vNamespace            : Namespace in which to look for key
+// vKey                  : Key name
+// vResultVarName		 : Name of variable in wich value will be placed
+// ------------------------------------------------------------
+sub ExistsKeyValue(vNamespace, vKey, vResultVarName)
+    LIB CONNECT TO 'Butler_GET';
+
+    RestConnectorMasterTable:
+    SQL SELECT 
+        "keyExists",
+        "__KEY_root",
+        (SELECT 
+            "namespace",
+            "key",
+            "value",
+            "ttl",
+            "__FK_keyValue"
+        FROM "keyValue" FK "__FK_keyValue")
+    FROM JSON (wrap on) "root" PK "__KEY_root"
+    WITH CONNECTION (
+    Url "$(vButlerHost):$(vButlerPort)/v4/keyvalues/$(vNamespace)/keyexists?key=$(vKey)",
+    );
+
+    [keyValue]:
+    LOAD	
+        [namespace],
+        [key],
+        [value],
+        [ttl],
+        [__FK_keyValue] AS [__KEY_root]
+    RESIDENT RestConnectorMasterTable
+    WHERE NOT IsNull([__FK_keyValue]);
+
+    [root]:
+    LOAD	
+    	[keyExists],
+        [__KEY_root]
+    RESIDENT RestConnectorMasterTable
+    WHERE NOT IsNull([__KEY_root]);
+
+	let $(vResultVarName) = Peek('keyExists', 0, 'root');
+
+	set vResultVarName=;
+    set vNamespace=;
+    set vKey=;
+    DROP TABLE RestConnectorMasterTable, root, keyValue;
+end sub
+
+
+
+// ------------------------------------------------------------
+// ** Delete a namespace and all key-value pairs in it. **
+//
+// Paramaters:
+// vNamespace            : Namespace to be deleted
+// ------------------------------------------------------------
+sub DeleteKeyValueNamespace(vNamespace)
+    LIB CONNECT TO 'Butler_POST';
+
+    RestConnectorMasterTable:
+    SQL SELECT 
+    FROM JSON (wrap on) "root"
+    WITH CONNECTION (
+    Url "$(vButlerHost):$(vButlerPort)/v4/keyvalues/$(vNamespace)",
+    HTTPHEADER "X-HTTP-Method-Override" "DELETE"
+    );
+
+	set vNamespace=;
+    DROP TABLE RestConnectorMasterTable;
+end sub
+
+
+
+// ------------------------------------------------------------
+// ** Get a list of all currently defined namespaces. **
+//
+// Paramaters:
+// vResultTableName		 : Name of table in which namespaces will be returned
+// ------------------------------------------------------------
+sub GetKeyValueNamespaces(vResultTableName)
+    LIB CONNECT TO 'Butler_GET';
+
+    RestConnectorMasterTable:
+    SQL SELECT 
+        "@Value"
+    FROM JSON (wrap on) "root" ArrayValueAlias "@Value"
+    WITH CONNECTION (
+    Url "$(vButlerHost):$(vButlerPort)/v4/keyvaluesnamespaces",
+    );
+
+    [$(vResultTableName)]:
+    NoConcatenate LOAD	
+    	[@Value]	as [Namespace name]
+    RESIDENT RestConnectorMasterTable;
+
+	set vResultTableName=;
+    DROP TABLE RestConnectorMasterTable;
+end sub
+
+
+
+
+// ------------------------------------------------------------
+// ** Get all keys that exist in a specific namespace **
+//
+// Parameters:
+// vResultTable	         : Name of table to which KV pairs will be added
+// vNamespace            : Namespace from which KV pairs will be retrieved
+// ------------------------------------------------------------
+sub GetAllKeysInNamespace(vResultTable, vNamespace)
+	LIB CONNECT TO 'Butler_GET';
+
+    RestConnectorMasterTable:
+	SQL SELECT 
+            "namespace",
+            "__KEY_root",
+            (SELECT 
+                "key",
+                "__FK_keys"
+            FROM "keys" FK "__FK_keys")
+		FROM JSON (wrap on) "root" PK "__KEY_root"
+    WITH CONNECTION (
+    Url "$(vButlerHost):$(vButlerPort)/v4/keylist/$(vNamespace)",
+    );
+
+    [$(vResultTable)]:
+    NoConcatenate LOAD	
+    	[key]	as "Key"
+    RESIDENT RestConnectorMasterTable
+	WHERE NOT IsNull([__FK_keys]);
+
+	set vResultTable=;
+    set vNamespace=;
+    DROP TABLE RestConnectorMasterTable;
+end sub
+
+
+
+
+
+// ------------------------------------------------------------
+// ** Publish message to MQTT topic **
+//
+// Publishes a message to a MQTT topic.
+// The address of the MQTT server is configured in the Butler config file.
+//
+// Paramaters:
+// vTopic                : MQTT topic
+// vMessage              : MQTT message
+// ------------------------------------------------------------
+sub PostToMQTT(vTopic, vMessage)
+    // URL encode the parameters passed to Butler, to ensure spaces, international characters etc are handled correctly.
+    // I.e. call ButlerInit before calling this Sub...
+    let vRequestBody = '{""topic"":""$(vTopic)"", ""message"":""$(vMessage)""}';
+
+    LIB CONNECT TO 'Butler_POST';
+
+    RestConnectorMasterTable:
+    SQL SELECT 
+    "directory"
+    FROM JSON (wrap on) "root"
+    WITH CONNECTION (
+    Url "$(vButlerHost):$(vButlerPort)/v4/mqttpublishmessage",
+    BODY "$(vRequestBody)",
+    HTTPHEADER "Content-Type" "application/json",
+    HTTPHEADER "X-HTTP-Method-Override" "PUT"
+    );
+
+    set vTopic=;
+    set vMessage=;
+    set vRequestBody=;
+    DROP TABLE RestConnectorMasterTable;  
+end sub
+
+
+
+// ------------------------------------------------------------
+// ** Publish message to Slack **
+//
+// Publishes a basic message to Slack.
+// The Slack API access URL is configured in the Butler config file.
+//
+// No advanced layout can be used, available formatting options for messages: https://api.slack.com/docs/formatting
+// Available emojis: http://www.emoji-cheat-sheet.com/
+// Slack API docs: https://api.slack.com/incoming-webhooks
+//
+// Paramaters:
+// vSlackChannel         : Channel to which message will be posted
+// vFromUser             : Name of user that will appear as sender of message
+// vMessage              : Message to send
+// vEmoji                : Emoji to show next to message in Slack
+// ------------------------------------------------------------
+sub PostToSlack(vToSlackChannel, vFromUser, vMessage, vEmoji)
+    // URL encode the parameters passed to Butler, to ensure spaces, international characters etc are handled correctly.
+    // If neither # nor @ is specified as first character of the Slack channel name, # will be added.
+    if ( (left('$(vToSlackChannel)', 1) <> '@') and (left('$(vToSlackChannel)', 1) <> '#') ) then
+      let vToSlackChannel = '#$(vToSlackChannel)';
+    endif
+
+    // Build request body
+    let vRequestBody = '{""channel"":""$(vToSlackChannel)"", ""from_user"":""$(vFromUser)"", ""msg"":""$(vMessage)"", ""emoji"":""$(vEmoji)""}';
+
+    LIB CONNECT TO 'Butler_POST';
+
+    RestConnectorMasterTable:
+    SQL SELECT 
+    "directory"
+    FROM JSON (wrap on) "root"
+    WITH CONNECTION (
+    Url "$(vButlerHost):$(vButlerPort)/v4/slackpostmessage",
+    BODY "$(vRequestBody)",
+    HTTPHEADER "Content-Type" "application/json",
+    HTTPHEADER "X-HTTP-Method-Override" "PUT"
+    );
+
+    set vToSlackChannel=;
+    set vFromUser=;
+    set vMessage=;
+    set vEmoji=;
+    set vRequestBody=;
+	drop table RestConnectorMasterTable;
+end sub
+
+
+

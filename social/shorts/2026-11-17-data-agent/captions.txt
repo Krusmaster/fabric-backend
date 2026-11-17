@@ -1,0 +1,38 @@
+TIKTOK (under 150 characters)
+
+If you use Microsoft Fabric, you need to see this. A data agent that counts each order once. Voice: AI-generated. #MicrosoftFabric #DataAgent
+
+
+INSTAGRAM REELS
+
+If you use Microsoft Fabric, you need to see this. 👀
+
+1. In Claude: Connectors → Add custom connector
+2. Paste krusgraph.com/mcp
+3. Sign in with your work account
+4. Ask for a data agent on your orders
+
+Use it in Claude. Summed over the order lines, the order total on our example comes out at 1 950 instead of 750 (2.6x). So Krusgraph writes the Fabric data agent's instructions to count each order's total once: "never SUM(sap_vbak.NETWR) over sap_vbap rows". One of the example questions it gives the agent, with its T-SQL run on the example rows, adds up to 750.
+
+Shown on our SAP-shaped example, not data from an SAP system. Krusgraph is independent and not affiliated with SAP or Microsoft. Voice: AI-generated.
+
+#MicrosoftFabric #DataAgent #AIagents #PowerBI #MCP #Claude #SAP #Krusgraph
+
+Try it in your browser: krusgraph.com/check (link in bio)
+
+
+YOUTUBE SHORTS
+
+Title (under 100 characters):
+
+If you use Microsoft Fabric, you need to see this: a data agent that counts orders once #shorts
+
+Description:
+
+Use it in Claude: add Krusgraph as a custom connector (krusgraph.com/mcp), sign in with your work account and ask for a data agent on your orders. Summed over the order lines, the order total on our example comes out at 1 950 instead of 750 (2.6x). So Krusgraph writes the Fabric data agent's instructions to count each order's total once, and one of the example questions it gives the agent, with its T-SQL run on the example rows, adds up to 750.
+
+Shown on our SAP-shaped example, not data from an SAP system. Krusgraph is independent and not affiliated with SAP or Microsoft. Voice: AI-generated.
+
+#MicrosoftFabric #DataAgent #AIagents #MCP #Claude #Krusgraph
+
+Try it in your browser: krusgraph.com/check (link in bio)

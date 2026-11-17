@@ -178,6 +178,21 @@ def check_entra(az, config):
     print(f"Katalog, prenumeration och de nio API-behörigheterna{extra} är kontrollerade.", flush=True)
 
 
+def clean_name(value, flag):
+    """DP1: --app and --resource-group as Azure names them. Surrounding spaces and line breaks (a value pasted into a
+    GitHub variable or a terminal with a trailing newline) are removed; one inside the name stops the run, without
+    printing the value. Before DP1 `az containerapp show` accepted "krusgraph\\r\\n" while --from-azure compared names
+    exactly and stopped with "Hittade inte container-appen krusgraph"; both now get the same cleaned name."""
+    if value is None:
+        return None
+    text = value.strip()
+    if not text:
+        raise DeploymentError(f"{flag} är tomt.")
+    if any(ch.isspace() or not ch.isprintable() for ch in text):
+        raise DeploymentError(f"{flag} innehåller mellanslag, tabb eller radbrytning inuti namnet. Ange namnet utan mellanrum.")
+    return text
+
+
 def assert_owned(resource, name):
     if resource and (resource.get("tags") or {}).get("managed-by") != OWNER_TAG["managed-by"]:
         raise DeploymentError(f"{name} finns redan men tillhör inte denna driftsättning. Avbryter utan att ändra resursen.")
@@ -1624,6 +1639,11 @@ def main():
         parser.error("--from-azure läser Azure; --plan, --client-redirects och --client-registration gör inga Azure-anrop.")
     if not args.from_azure and (args.app or args.resource_group or args.overwrite_config):
         parser.error("--app, --resource-group och --overwrite-config hör till --from-azure.")
+    try:
+        args.app = clean_name(args.app, "--app")
+        args.resource_group = clean_name(args.resource_group, "--resource-group")
+    except DeploymentError as exc:
+        parser.error(str(exc))
     if args.out and not args.backup:
         parser.error("--out hör till --backup.")
     if (args.workload_host or args.dry_run) and not args.update:

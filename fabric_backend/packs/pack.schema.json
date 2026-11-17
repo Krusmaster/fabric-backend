@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://github.com/Krusmaster/fabric-backend/fabric_backend/packs/pack.schema.json",
   "title": "Krusgraph knowledge pack",
-  "description": "Tables, keys and relationships of a known source system, with a source per claim. Independent of how the data arrives (mirroring, Databricks, Data API builder, a pipeline). Packs: sap (SAP ERP), younium_salesforce (Younium subscription billing beside Salesforce).",
+  "description": "Tables, keys and relationships of a known source system, with a source per claim. Independent of how the data arrives (mirroring, Databricks, Data API builder, a pipeline). Packs: sap (SAP ERP), younium_salesforce (Younium subscription billing beside Salesforce; its Salesforce module is read from the salesforce pack through salesforce.include), salesforce (Salesforce standard objects, round PK1).",
   "type": "object",
   "required": [
     "pack",

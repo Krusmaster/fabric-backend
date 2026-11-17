@@ -39,7 +39,7 @@ MAX_CHARS = 2_000_000          # a script or workbook longer than this is refuse
 _NAME = r'(?:\[[^\]]+\]|"[^"]+"|[A-Za-z_@#$%][\w.@#$%]*)'
 _CONTROL = re.compile(r"\s*(?:if|elseif|else|end\s*if|endif|for|next|do|loop|sub|end\s*sub|endsub|call|switch|case|"
                       r"default|end\s*switch|endswitch|exit\s+(?:for|do|sub))\b", re.I)
-_NO_EFFECT = re.compile(r"(?:store|lib\s+connect|connect|odbc\s+connect|oledb\s+connect|disconnect|trace|sleep|tag|untag|"
+_NO_EFFECT = re.compile(r"(?:store|lib\s+connect|connect|odbc\s+connect|oledb\s+connect|disconnect|trace|sleep|tag|untag|execute|"
                         r"comment|directory|exit\s+script|null\w*|star|declare|derive|search|alias)\b", re.I)
 _SHAPING = re.compile(r"(?:crosstable|generic|hierarchy\w*|intervalmatch|buffer|first|sample|add|replace|merge|semantic|"
                       r"binary|bundle|info|image_size|unless|when)\b", re.I)
@@ -76,7 +76,7 @@ def _statements(text: str) -> tuple[list[tuple[int, str]], list[dict]]:
             tabs.append({"name": text[i + 7:end].strip(), "line": line})
             i = end
             continue
-        elif text.startswith("//", i):
+        elif text.startswith("//", i) and not (i > 0 and text[i - 1] == ":"):     # Q2: `lib://` in an Include is a path
             end = text.find("\n", i)
             i = n if end < 0 else end
             continue
@@ -223,6 +223,9 @@ class _Script:
         self.variables: list[dict] = []
         self.calculated: list[dict] = []
         self.not_read: list[dict] = []
+        self.control: list[dict] = []
+        self.includes: list[dict] = []
+        self.log: list[dict] = []
         self.other: dict[str, int] = {}
         self.qualify: list[tuple[bool, str]] = []
         self.pending: dict | None = None
@@ -275,9 +278,20 @@ class _Script:
         self.pending = None
         fields, unknown = self._resolve(chain["levels"])
         source, label, prefixes, line = parsed["source"], chain["label"], chain["prefixes"], chain["line"]
+        cross = prefixes.get("crosstable")
+        if cross:                                     # Q2: the first n fields stay, every other field becomes a row
+            top = chain["levels"][0]["fields"]
+            lead_known = not any(f.get("wildcard") for f in top[:cross["qualifiers"]]) or not unknown
+            kept = fields[:cross["qualifiers"]] if lead_known else []
+            unknown = not lead_known
+            fields = kept + [f for f in (cross["attribute"], cross["data"]) if f not in kept]
         info = {"line": line, "source": {k: v for k, v in source.items() if k != "header"},
                 "distinct": any(lv["distinct"] for lv in chain["levels"]), "where": any(lv["where"] for lv in chain["levels"]),
                 "group_by": any(lv["group_by"] for lv in chain["levels"]), "preceding_loads": len(chain["levels"]) - 1}
+        if cross:
+            info["crosstable"] = cross
+        if prefixes.get("noted"):
+            info["prefixes_not_applied"] = sorted(set(prefixes["noted"]))
         if prefixes.get("mapping"):
             self.mapping.append({"name": label or "(unnamed)", "fields": fields, "line": line})
             return
@@ -347,6 +361,23 @@ def _prefixes(body: str) -> tuple[dict, str]:
             out[m.group(1).lower()] = True
             body = body[m.end():]
             continue
+        # Q2: prefixes that do not change which fields a table has. Add and Replace only matter in a partial reload;
+        # Buffer keeps a copy of the rows; First and Sample take fewer rows. They are noted on the load, not applied.
+        m = re.match(r"(add|replace|merge)\b(?:\s+only\b)?\s*(?=(?:\w+\s+)*?(?:load|select|sql)\b)", body, re.I) \
+            or re.match(r"(buffer)\b\s*(?:\([^)]*\))?\s*", body, re.I) \
+            or re.match(r"(first|sample)\s+[\w.$()]+\s+", body, re.I)
+        if m:
+            out.setdefault("noted", []).append(m.group(1).lower())
+            body = body[m.end():]
+            continue
+        m = re.match(r"crosstable\s*\(([^)]*)\)\s*", body, re.I)
+        if m:
+            args = _split_commas(m.group(1))
+            if len(args) >= 2:
+                n = int(args[2]) if len(args) > 2 and args[2].strip().isdigit() else 1
+                out["crosstable"] = {"attribute": _unquote(args[0]), "data": _unquote(args[1]), "qualifiers": n}
+                body = body[m.end():]
+                continue
         m = re.match(rf"(?:(left|right|inner|outer)\s+)?(join|keep|concatenate)\b\s*(?:\(\s*({_NAME})\s*\))?\s*", body, re.I)
         if m and (m.group(2).lower() != "concatenate" or not m.group(1)):
             kind = m.group(2).lower()
@@ -368,32 +399,63 @@ def read_qvs(text: str) -> dict:
     statements, tabs = _statements(text.replace("\r\n", "\n"))
     s = _Script()
     for line, st in statements:
-        if _CONTROL.match(st):
-            s.skip(line, st, "a control statement: the loads inside it are read as if each ran once")
-            continue
-        m = re.match(rf"({_NAME})\s*:\s*(?=\S)", st)
+        before = len(s.not_read)
+        kind = _read_statement(s, line, st)
+        s.log.append({"line": line, "type": kind, "outcome": "not_read" if len(s.not_read) > before else
+                      "control" if kind == "control" else "include" if kind == "include" else "read"})
+    if s.pending is not None:
+        s.skip(s.pending["line"], "LOAD ...", "a load without a source at the end of the script")
+    return _qlik_model(s, tabs, text)
+
+
+_VARIABLE = r"(?:[\w.@#]|\$\((?:[^()]|\([^()]*\))*\))+"      # a variable name, which may be built by dollar-sign expansion
+_INCLUDE = re.compile(r"\$\(\s*(must_include|include)\s*=\s*(.*)\)\s*$", re.I | re.S)
+
+
+def _read_statement(s: "_Script", line: int, st: str) -> str:
+    """Applies one statement to the script's model and answers its type, as the coverage count names it (Q2)."""
+    if True:
+        if _CONTROL.match(st):                        # Q2: listed on its own, not among what was not read
+            word = " ".join(re.match(r"\s*(end\s*\w+|exit\s+\w+|\w+)", st, re.I).group(1).lower().split())
+            s.control.append({"line": line, "word": word})
+            return "control"
+        if (m := _INCLUDE.match(st)):                 # Q2: another file; this reader is given one text
+            s.includes.append({"line": line, "kind": m.group(1).lower(), "file": " ".join(m.group(2).split())[:200]})
+            return "include"
+        early = re.match(r"(noconcatenate)\s+(?=\S+\s*:)", st, re.I)   # Q2: `NoConcatenate Label: LOAD` is also written
+        st = st[early.end():] if early else st
+        m = re.match(rf"({_NAME}|{_VARIABLE})\s*:\s*(?=\S)", st)
         label, body = (_unquote(m.group(1)), st[m.end():]) if m and not re.match(r"(set|let)\b", st, re.I) else (None, st)
         prefixes, body = _prefixes(body)
+        if early:
+            prefixes["noconcatenate"] = True
         if re.match(r"load\b", body, re.I):
             s.load(label, prefixes, _parse_load(body, line))
+            return "load"
         elif re.match(r"(sql\s+)?select\b", body, re.I):
             s.load(label, prefixes, _parse_select(body, line))
+            return "select"
         elif s.pending is not None:
             s.skip(s.pending["line"], "LOAD ...", "a load without a source, and the next statement is not a load or a select")
             s.pending = None
             s.skip(line, st, "it follows a load without a source")
-        elif (m := re.match(r"(set|let)\s+([\w.@#$]+)\s*=\s*(.*)", body, re.I | re.S)):
+        elif (m := re.match(rf"(set|let)\s+({_VARIABLE})\s*(?:=\s*(.*))?$", body, re.I | re.S)
+              or re.match(rf"()({_VARIABLE})\s*=(?!=)\s*(.*)$", body, re.S)):       # Q2: `name = expression` is a Let without the word
             secret = re.search(r"pass|pwd|secret|token|apikey|api_key|credential", m.group(2), re.I)
-            s.variables.append({"name": m.group(2), "kind": m.group(1).lower(), "line": line,
-                                "value": "(not shown: the name looks like a secret)" if secret else " ".join(m.group(3).split())[:200]})
+            s.variables.append({"name": m.group(2), "kind": m.group(1).lower() or "let", "line": line,
+                                "value": "(not shown: the name looks like a secret)" if secret else " ".join((m.group(3) or "").split())[:200]})
+            return m.group(1).lower() or "let"
         elif (m := re.match(r"(un)?qualify\s+(.*)", body, re.I | re.S)):
             s.qualify += [(not m.group(1), p) for p in _names(m.group(2))]
+            return "qualify"
         elif (m := re.match(r"drop\s+tables?\s+(.*)", body, re.I | re.S)):
             for name in _names(m.group(1)):
                 if s.tables.pop(name, None) is not None:
                     s.dropped.append({"table": name, "line": line})
                 else:
-                    s.skip(line, st, f"no table named {name} was loaded before this line")
+                    s.skip(line, st, f"no table named {name} was loaded before this line in this text (a table made by a subroutine "
+                                         "of another file, or a name built when the script runs, is not known here)")
+            return "drop"
         elif (m := re.match(r"drop\s+fields?\s+(.*?)(?:\s+from\s+(.*))?$", body, re.I | re.S)):
             only = _names(m.group(2)) if m.group(2) else list(s.tables)
             for f in _names(m.group(1)):
@@ -401,6 +463,7 @@ def read_qvs(text: str) -> dict:
                     if name in s.tables and f in s.tables[name]["fields"]:
                         s.tables[name]["fields"].remove(f)
                 s.dropped.append({"field": f, "line": line, **({"tables": only} if m.group(2) else {})})
+            return "drop"
         elif (m := re.match(r"rename\s+(field|table)s?\s+(.*)", body, re.I | re.S)):
             for pair in _split_commas(m.group(2)):
                 ends = re.split(r"\s+to\s+", pair, maxsplit=1, flags=re.I)
@@ -413,18 +476,20 @@ def read_qvs(text: str) -> dict:
                 elif m.group(1).lower() == "field":
                     for t in s.tables.values():
                         t["fields"] = [new if f == old else f for f in t["fields"]]
+            return "rename"
         elif (m := re.match(r"section\s+(access|application)\b", body, re.I)):
             s.in_access = m.group(1).lower() == "access"
+            return "section"
         elif (m := _NO_EFFECT.match(body)):
             word = " ".join(m.group(0).lower().split())
             s.other[word] = s.other.get(word, 0) + 1
-        elif _SHAPING.match(body):
+            return word.split()[-1] if word.endswith("connect") else word.split()[0]
+        elif (m := _SHAPING.match(body)):
             s.skip(line, st, "a prefix or statement that changes the shape of a table; this reader does not apply it")
+            return m.group(0).lower()
         else:
             s.skip(line, st, "not a statement this reader knows")
-    if s.pending is not None:
-        s.skip(s.pending["line"], "LOAD ...", "a load without a source at the end of the script")
-    return _qlik_model(s, tabs, text)
+        return "other"
 
 
 def _loops(tables: dict[str, list[str]], shared: dict[str, list[str]]) -> list[dict]:
@@ -543,6 +608,9 @@ def _qlik_model(s: _Script, tabs: list[dict], text: str) -> dict:
         "dropped": s.dropped,
         "dollar_expansions": sum(1 for _ in re.finditer(r"\$\(", text)),
         "other_statements": dict(sorted(s.other.items())),
+        "control_statements": s.control,
+        "includes": s.includes,
+        "statements": s.log,
         "not_read": s.not_read,
     }
 

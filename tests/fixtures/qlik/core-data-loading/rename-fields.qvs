@@ -1,0 +1,13 @@
+// Test fixture of Krusgraph, copied from github.com/qlik-oss/core-data-loading at commit 0b79c835e30af66f06590b93e5dfa4d4d8bc1ff5, file scripts/rename-fields.qvs. Licence: MIT, see LICENSE-core-data-loading.txt in this folder. This line was added; other changes are listed in ../SOURCES.md.
+// The script below shows how custom field names can be assigned using the AS
+// keyword. In this example the field 'rowID' is given the name 'ID', and the
+// field 'Airport' is given the name 'Name' in the resulting 'Airports' table.
+// 'City' just referred to, without using AS, just keeps its name.
+
+Airports:
+    LOAD
+        rowID AS ID,
+        Airport AS Name,
+        City
+    FROM [lib://data/airports.xlsx]
+    (ooxml, embedded labels, table is Airports);

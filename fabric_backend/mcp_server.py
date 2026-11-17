@@ -21,6 +21,15 @@ SQLServer for an on-prem or Azure SQL Server reached with Windows or SQL sign-in
 lakehouse created with schemas when semantic_model_draft should write schemaName. With SQLServer the Fabric-only drafts
 (semantic model in Direct Lake, Fabric IQ ontology) answer with an explanation; everything else works. docs/LOCAL.md.
 
+CSN (round CDS2): KRUSGRAPH_CSN=<a CSN file or folder on this machine> (optionally KRUSGRAPH_CSN_PREFIX=dsp_) makes
+every tool plan with the keys and associations the file declares, rule "CSN metadata"; validate_plan counts them.
+docs/SAP-CSN.md.
+
+Decisions (round L1): record_decision keeps a team's accept or reject of a proposed key or link in a local SQLite
+file (KRUSGRAPH_DECISIONS, default ~/.krusgraph/decisions.sqlite; "off" turns it off; KRUSGRAPH_TENANT names the
+tenant, default "local"), and every tool then plans with them as rules: accepted ones proposed directly with the rule
+"decided", rejected ones not proposed, each with the decision it rests on (plan.decisions). docs/DECISION-RULES.md.
+
 Databricks (round n13, Draft only): KRUSGRAPH_PLATFORM=databricks with DATABRICKS_HOST (or a profile),
 DATABRICKS_WAREHOUSE_ID and DATABRICKS_CATALOG reads a Unity Catalog schema through platforms/databricks.py; the
 databricks_* tools draft constraints, a Lakeflow pipeline, metric views and a bundle. docs/DATABRICKS.md.
@@ -81,8 +90,10 @@ try:
     from mcp.types import ToolAnnotations
     RO = ToolAnnotations(read_only_hint=True, destructive_hint=False, open_world_hint=True)
     WRITE = ToolAnnotations(read_only_hint=False, destructive_hint=True, idempotent_hint=True, open_world_hint=True)
+    # L1: writes one row to the local decision file, nothing in the source or in Fabric
+    LOCAL = ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=False)
 except ImportError:  # pragma: no cover — an SDK without annotations: tools register without them
-    RO = WRITE = None
+    RO = WRITE = LOCAL = None
 
 
 def _tool(title: str, annotations):
@@ -149,12 +160,50 @@ def _connection(schema: str):
         getattr(execute, "close", lambda: None)()
 
 
-def _plan_on(execute, schema: str, keys=None, confirmed=None):
+def _decision_scope(schema: str) -> str:
+    """Where a decision applies: the platform, the database (or catalog) and the schema."""
+    from . import decisions as _decisions
+    db = (_platform().catalog or "") if _is_databricks() else _odbc_part("Database")
+    return _decisions.scope_of("databricks" if _is_databricks() else "fabric-odbc", db, schema)
+
+
+def _plan_on(execute, schema: str, keys=None, confirmed=None, decisions: bool = True):
+    """The plan of one schema over an open connection, with the tenant's decision rules (L1) when the local decision
+    file has any for this scope; decisions=False plans without them (record_decision looks items up in both)."""
+    from . import decisions as _decisions
+    store = _decisions.store_from_env() if decisions else None
+    rules = store.active(_decisions.tenant_from_env(), _decision_scope(schema)) if store else []
+    if store:
+        store.close()
+    if not rules:
+        return _plan_raw(execute, schema, keys, confirmed)
+    from .schema import Schema
+    from .infer import plan as _make_plan
+    if _is_databricks():
+        s = _platform().read_schema(execute, schema)
+        planner = _make_plan
+    elif os.environ.get("KRUSGRAPH_CSN"):
+        from . import csn
+        s, model = Schema.from_sql(execute, schema), csn.read(os.environ["KRUSGRAPH_CSN"])
+        planner = lambda sch, k, c: csn.plan(sch, model, prefix=os.environ.get("KRUSGRAPH_CSN_PREFIX") or None,  # noqa: E731
+                                             keys=k, confirmed=c)[0]
+    else:
+        s, planner = Schema.from_sql(execute, schema), _make_plan
+    return _decisions.plan(s, rules, planner, keys, confirmed)
+
+
+def _plan_raw(execute, schema: str, keys=None, confirmed=None):
     """The plan of one schema over an open connection: INFORMATION_SCHEMA through plan_from, or the Databricks adapter's
     reader (Unity Catalog: declared constraints, column tags) when KRUSGRAPH_PLATFORM=databricks."""
     if _is_databricks():
         from .infer import plan as _make_plan
         return _make_plan(_platform().read_schema(execute, schema), keys, confirmed)
+    if os.environ.get("KRUSGRAPH_CSN"):         # CDS2: a CSN file or folder on this machine; its keys and links come first
+        from . import csn
+        from .schema import Schema
+        p, _ = csn.plan(Schema.from_sql(execute, schema), csn.read(os.environ["KRUSGRAPH_CSN"]),
+                        prefix=os.environ.get("KRUSGRAPH_CSN_PREFIX") or None, keys=keys, confirmed=confirmed)
+        return p
     return plan_from(execute=execute, schema=schema, keys=keys, confirmed=confirmed)
 
 
@@ -249,12 +298,25 @@ def plan_backend(schema: str = "dbo", keys: dict[str, list[str]] | None = None,
     shown = _compact.sub_plan(p, keep)
     suggested = [s for s in _evidence.suggest_composite_keys(p) if keep is None or s["table"] in keep]
     from . import coverage as _coverage                                # n226: evidence state and coverage
+    from . import decisions as _decisions                              # L1: what came from your team's earlier decisions
+    decided = _decisions.answer(p)
     if _compact.pick_detail(detail, len(shown.schema)) == "summary":
         body = _coverage.attach(_compact.plan_summary(shown, suggested, f"{len(shown.schema)} of {len(p.schema)} tables shown" if keep else ""),
                                 p, first=_coverage.EVIDENCE_FIRST, keep=keep)
-        return _compact.bounded(body, MAX_RESULT_CHARS, _compact.NARROW_HINT)
+        return _compact.bounded(_with_decisions(body, decided), MAX_RESULT_CHARS, _compact.NARROW_HINT)
     body = _coverage.attach(_compact.plan_full(shown, suggested, states=_coverage.entry_states(p)), p, per_item=False)
-    return _compact.bounded(body, MAX_RESULT_CHARS, _compact.NARROW_HINT, drop=("mermaid",))
+    return _compact.bounded(_with_decisions(body, decided), MAX_RESULT_CHARS, _compact.NARROW_HINT, drop=("mermaid",))
+
+
+def _with_decisions(body, decided: dict | None):
+    """The answer with plan.decisions under `decisions` (a JSON text or a dict comes in; the same kind goes out)."""
+    if not decided:
+        return body
+    if isinstance(body, str):
+        out = json.loads(body)
+        out["decisions"] = decided
+        return json.dumps(out, indent=2, default=str)
+    return {**body, "decisions": decided}
 
 
 @_tool("Create or update the GraphQL API (dry run by default)", WRITE)
@@ -371,7 +433,20 @@ def validate_plan(schema: str = "dbo", keys: dict[str, list[str]] | None = None,
         out = _coverage.attach(out, p, full, first=_coverage.EVIDENCE_FIRST if detail == "summary" else None, keep=keep)
         if prof is not None:
             out["column_profile"] = prof
+        out = _validated_decisions(out, p, full)
         return json.dumps(out, indent=2, default=str)
+
+
+def _validated_decisions(out, p, full: dict):
+    """L1: a decided key or link the rows contradict is flagged, never trusted silently."""
+    from . import decisions as _decisions
+    decided = _decisions.answer(p)
+    if not decided:
+        return out
+    out = json.loads(out) if isinstance(out, str) else out
+    decided["contradicted_by_rows"] = _decisions.contradictions(p, full)
+    out["decisions"] = decided
+    return out
 
 
 @_tool("Keep the reviewed plan as a file", RO)
@@ -398,6 +473,66 @@ def review_plan(schema: str = "dbo", keys: dict[str, list[str]] | None = None, c
                        previous=prev, tables=sorted(keep) if keep is not None else None,
                        checked_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%MZ"))
     return _review.answer(rv, MAX_RESULT_CHARS)
+
+
+@_tool("Record a decision on a proposed key or link", LOCAL)
+@safe
+def record_decision(schema: str = "dbo", decision: str = "accepted", item: str | None = None, key: dict | None = None,
+                    link: dict | None = None, role: str = "reviewer", reason: str = "", count_rows: bool = True,
+                    undo: int | None = None) -> str:
+    """Keep your team's decision about one proposed key or link, so every later plan of this schema uses it as a rule:
+    an accepted key or link is proposed directly (rule "decided", "decided by your team on <date>") and still counted
+    by validate_plan; a rejected one is not proposed again, with the reason shown. item is an id from plan_backend or
+    review_plan (key:orders, rel:orders.customer_id>customers; a proposed or ambiguous candidate too), or give key=
+    {"table", "columns"} or link={"source", "source_cols", "target", "target_cols"}. decision: accepted or rejected.
+    role: steward, owner, engineer, analyst or reviewer (a role, never a name). reason: short, no personal data.
+    count_rows=true keeps what the rows say now (one counting query, counts only). undo=<id> undoes an earlier decision
+    instead (list_decisions shows the ids). Writes one row to the local decision file; nothing in the source."""
+    from . import decisions as _decisions
+    tenant, scope = _decisions.tenant_from_env(), _decision_scope(schema)
+    store = _decisions.store_from_env(create=True)
+    if store is None:
+        raise _decisions.DecisionError(f"Decisions are switched off on this server ({_decisions.ENV}=off).")
+    try:
+        if undo is not None:
+            d = store.undo(tenant, int(undo), role)
+            return json.dumps({"undone": d, "note": "No longer a rule: the next plan proposes by the other rules again. "
+                               "The decision stays in list_decisions' history."}, indent=2, default=str)
+        with _connection(schema) as execute:
+            p = _plan_on(execute, schema, decisions=False)          # the item as the rules alone propose it
+            kind, names = _decisions.names_for(p, item, key, link)
+            ev = _decisions.evidence_now(p, execute, kind, names) if count_rows else None
+        d = _decisions.record(store, tenant, scope, p, decision, role, key=names if kind == "key" else None,
+                              link=names if kind == "link" else None, reason=reason, evidence=ev)
+        out = {"recorded": d, "rule": _decisions.describe(d),
+               "note": ("From now on every plan of this schema proposes it directly with the rule \"decided\"; validate_plan "
+                        "still counts it and flags it when the rows contradict it." if decision == "accepted" else
+                        "From now on no plan of this schema proposes it (nor the same link from a renamed table); "
+                        "plan.decisions lists it with this reason.") + f" Undo with record_decision(undo={d['id']})."}
+        if ev and decision == "accepted" and not ev["verdict"].startswith(("unique", "holds", "empty", "no rows")):
+            out["warning"] = f"The rows do not support this {kind} now: {ev['verdict']}. It is recorded as your team decided."
+        return json.dumps(out, indent=2, default=str)
+    finally:
+        store.close()
+
+
+@_tool("List your team's decisions", RO)
+@safe
+def list_decisions(schema: str | None = None, include_undone: bool = True) -> str:
+    """The decisions recorded with record_decision for this tenant: what was accepted or rejected, by which role, when,
+    why, what the rows said then, and whether it was undone. schema limits the list to one schema of this source."""
+    from . import decisions as _decisions
+    store = _decisions.store_from_env()
+    if store is None:
+        return json.dumps({"decisions": [], "note": "No decision has been recorded on this machine yet."}, indent=2)
+    try:
+        tenant = _decisions.tenant_from_env()
+        rows = store.history(tenant, _decision_scope(schema) if schema else None)
+        rows = [d for d in rows if include_undone or not d["undone_at"]]
+        return json.dumps({"decisions": [{**d, "rule": _decisions.describe(d)} for d in rows],
+                           "not_undone": sum(1 for d in rows if not d["undone_at"])}, indent=2, default=str)
+    finally:
+        store.close()
 
 
 @_tool("Sample rows of one table", RO)
@@ -607,6 +742,41 @@ def silver_notebook_draft(schema: str = "dbo", silver_schema: str = "silver", or
 # ------------------------------------------------------------------ Databricks (KRUSGRAPH_PLATFORM=databricks) ------
 # Draft only: unit-tested with Databricks mocked at its REST API, not yet run against a workspace (docs/DATABRICKS.md).
 
+# Q2: Krusgraph Migrate (qlik_tools.py). The same three tools as the hosted server, their descriptions in
+# qlik_tools.LOCAL_DOCS; here the load script, the expressions and the exported values stay on this machine.
+from . import qlik_tools as _q  # noqa: E402
+
+
+@_tool(_q.TITLES["qlik_plan"], RO)
+@safe
+@_q.bad_input
+@_q.local_doc
+def qlik_plan(script: _q.Script, schema: _q.LandedSchema = "dbo", count: _q.Count = False, tables: _q.TableNames = None,
+              detail: _q.Detail = "summary") -> str:
+    if not count:
+        return _compact.bounded(_q.plan_answer(script, None, schema, tables, detail), MAX_RESULT_CHARS)
+    with _connection(schema) as execute:
+        return _compact.bounded(_q.plan_answer(script, execute, schema, tables, detail, dialect=_dialect()), MAX_RESULT_CHARS)
+
+
+@_tool(_q.TITLES["qlik_measures_draft"], RO)
+@safe
+@_q.bad_input
+@_q.local_doc
+def qlik_measures_draft(measures: _q.Measures, script: _q.OptionalScript = None, tables: _q.TableNames = None,
+                        tmdl: _q.Tmdl = False) -> str:
+    return _compact.bounded(_q.measures_answer(measures, script, tables, tmdl), MAX_RESULT_CHARS)
+
+
+@_tool(_q.TITLES["qlik_reconcile_draft"], RO)
+@safe
+@_q.bad_input
+@_q.local_doc
+def qlik_reconcile_draft(script: _q.Script, kpis: _q.Kpis, schema: _q.LandedSchema = "dbo", tolerance: _q.Tolerance = 0.005,
+                         results: _q.Results = None, tables: _q.TableNames = None, confirmed: _q.Relationships = None) -> str:
+    return _compact.bounded(_q.reconcile_answer(script, kpis, schema, tolerance, results, tables, confirmed), MAX_RESULT_CHARS)
+
+
 def _validated(execute, p, max_items: int = 200) -> dict:
     return _evidence.validate(p, execute, max_items=max(1, min(int(max_items), 200)))
 
@@ -795,6 +965,50 @@ def databricks_lineage(schema: str = "default", table: str | None = None, days: 
                              "entities": entities,
                              "note": "system.access.table_lineage holds a subset of read and write events (Databricks captures lineage "
                                      "where it can). Draft only: unit-tested; not yet run against a workspace."}, MAX_RESULT_CHARS)
+
+
+# ------------------------------------------------------------------ MG1: Snowflake or Databricks -> Fabric (dry run) ----
+# Reads the source's metadata from files the customer exported on this machine; opens no Snowflake or Databricks
+# connection. With fabric_schema it reads that schema over FABRIC_ODBC (read-only) for the after-landing checks.
+
+@_tool("Plan a Snowflake or Databricks migration to Fabric (dry run)", RO)
+@safe
+def plan_migration(export: str, source: str, schema: str | None = None, target: str = "lakehouse",
+                   fabric_schema: str | None = None, before: str | None = None, after: str | None = None,
+                   detail: str = "summary", dry_run: bool = True) -> str:
+    """A migration plan from Snowflake or Azure Databricks to Fabric, from metadata files the customer exported (the
+    queries are in docs/MIGRATE-DATABRICKS-SNOWFLAKE.md): per table and view the Fabric target (Lakehouse or Warehouse),
+    how it can land (mirroring, Copy job, rebuild, with the Microsoft page and its date), the column types that do not
+    carry, and each view's SQL against Fabric T-SQL by fixed rules ("translated by rule", "no change needed" or
+    "manual" with the construct and line). The declared PRIMARY/UNIQUE/FOREIGN KEY constraints become candidates with
+    the rule "Snowflake metadata" or "Databricks metadata": declared, not enforced by the source, counted in the rows.
+    export: a folder (or JSON file) on this machine; source: snowflake or databricks; fabric_schema: the landed schema
+    in the FABRIC_ODBC source, to run validate_plan's checks and the after-landing counts there (read-only); before /
+    after: saved results (metric,value CSV) of the counting queries. detail="full" adds the T-SQL drafts and the
+    counting SQL. Creates nothing; dry_run=false is refused."""
+    from . import migrate
+    from .migrate import compare as _cmp
+    from .schema import Schema
+    if not dry_run:
+        return json.dumps({"error": "plan_migration only plans: it creates nothing in Fabric, Snowflake or Databricks",
+                           "kind": "unsupported", "hint": "call it with dry_run=true (the default)"})
+    kw = dict(before=_cmp.read_results(before) if before else None, after=_cmp.read_results(after) if after else None)
+    if fabric_schema and _is_databricks():
+        return json.dumps(_platform().unsupported("plan_migration").answer(), indent=2)
+    if fabric_schema:
+        with _connection(fabric_schema) as execute:
+            out = migrate.plan_migration(export, source, schema, target, fabric_schema=Schema.from_sql(execute, fabric_schema),
+                                         fabric_execute=execute, fabric_schema_name=fabric_schema, **kw)
+    else:
+        out = migrate.plan_migration(export, source, schema, target, **kw)
+    r = dict(out["report"])
+    if _evidence.pick_detail(detail) == "summary":
+        r["views"] = [{k: v[k] for k in ("view", "status", "why")} | {"constructs": [f"{c['construct']} (line {c['line']}): {c['status']}"
+                                                                                  for c in v["constructs"]]} for v in r["views"]]
+        r["after_landing"] = {k: v for k, v in r["after_landing"].items() if not k.endswith("_sql")} | {
+            "sql": "detail=\"full\" returns the two counting queries"}
+        r.pop("report_markdown", None)
+    return json.dumps(r, indent=2, default=str)
 
 
 def main(argv: list[str] | None = None) -> None:

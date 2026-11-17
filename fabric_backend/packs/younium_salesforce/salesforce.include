@@ -1,0 +1,4 @@
+{"pack": "salesforce", "module": "salesforce",
+ "note": "Round PK1: the Salesforce standard objects the Younium connector meets are read from packs/salesforce/salesforce.json, not copied here. Tables listed below are taken with every relationship between them; the traps by id.",
+ "tables": ["ACCOUNT", "CONTACT", "OPPORTUNITY", "OPPORTUNITYLINEITEM", "PRODUCT2", "PRICEBOOKENTRY", "ORDER", "ORDERITEM", "CONTRACT"],
+ "traps": ["sf_rollup_amounts", "sf_product_through_price_book", "sf_multi_currency"]}

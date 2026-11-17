@@ -11,6 +11,9 @@
   fabric-backend dbt columns.csv [--source-name X] [--database X] [--out schema.yml]
   fabric-backend analyze columns.csv [--json analysis.json]
   fabric-backend views columns.csv [--views-schema krusgraph]
+  fabric-backend csn model.json|folder [--columns columns.csv] [--schema dbo] [--prefix dsp_] [--json out.json]
+  fabric-backend migrate EXPORT_DIR --source snowflake|databricks [--schema S] [--target lakehouse|warehouse] [--fabric-columns columns.csv]
+                         [--counting-sql DIR] [--before source.csv --after fabric.csv] [--report report.md] [--json out.json]
   fabric-backend demo [--sample | --folder DIR | --odbc "<connection string>" | --columns columns.csv] [--schema dbo] [--port 8765] [--no-browser]
 
 `plan` and `definition` work offline from an INFORMATION_SCHEMA.COLUMNS export (csv with
@@ -176,6 +179,81 @@ def cmd_sap_verify(a) -> int:
     return 0
 
 
+def cmd_csn(a) -> int:
+    """CDS2: what a CSN file (or a folder of them) declares; with --columns, the plan with the CSN's keys and links
+    first (rule "CSN metadata"), and what did not match the tables. Reads local files only."""
+    from . import csn
+    model = csn.read(a.csn)
+    if not a.columns:
+        out = csn.summary(model)
+        for n, e in out["entities"].items():
+            print(f"{n} ({e['kind']}{', ' + e['data_category'] if e.get('data_category') else ''}): key {', '.join(e['keys']) or '-'}")
+            for x in e["associations"]:
+                print(f"  {x['name']} -> {x['target']} {x['cardinality']}: " + ("; ".join(x["on"]) if x["on"] else "not read: " + x.get("why", "")))
+            for x in e.get("amounts", []):
+                print(f"  amount {x['column']} in {x['currency']} ({x['from']})")
+        for x in out["ignored"]:
+            print(f"  ignored: {x['what']}: {x['why']}")
+    else:
+        p, out = csn.plan(_source(a), model, prefix=a.prefix)
+        print(p.summary())
+        for t, (k, r) in p.keys.items():
+            print(f"  key {t}({', '.join(k)})  [{r}]")
+        for r in p.relationships:
+            print(f"  {r.source}.{'+'.join(r.source_cols)} -> {r.target}.{'+'.join(r.target_cols)}  [{r.rule}]")
+        for x in out["amounts"]:
+            print(f"  {x['kind']} {x['table']}.{x['column']}: {x['level']} level")
+        for x in out["not_applied"]:
+            print(f"  not applied: {x['association']}: {x['why']}")
+        for x in out["unmatched"]:
+            print(f"  no table: {x['entity']}: {x['why']}")
+    if a.json:
+        Path(a.json).write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
+    return 0
+
+
+def cmd_migrate(a) -> int:
+    """MG1: Snowflake or Databricks metadata exports -> a migration plan for Fabric (target, landing, view SQL, declared
+    keys and links as candidates); with --before/--after the before-and-after report. Reads local files only; creates nothing."""
+    from . import migrate
+    from .migrate import compare
+    fab = Schema.from_information_schema(_csv(a.fabric_columns), schema=a.fabric_schema or a.schema or "dbo") if a.fabric_columns else None
+    out = migrate.plan_migration(a.export, a.source, a.schema, a.target, fabric_schema=fab,
+                                 before=compare.read_results(a.before) if a.before else None,
+                                 after=compare.read_results(a.after) if a.after else None)
+    r = out["report"]
+    print(f"{r['source']} schema {r['schema']}: {r['counts']['tables']} table(s), {r['counts']['views']} view(s); target preference {r['prefer']} (dry run)")
+    print(out["plan"].summary())
+    for o in r["objects"]:
+        print(f"  {o['object']} ({o['kind']}): {o['target']}; {o['landing']['how']}" + (f"; SQL {o['sql']['status']}" if "sql" in o else ""))
+        for c in o["column_findings"]:
+            print(f"    column {c['column']} {c['type']}: {c['short']} does not land as a plain column")
+    for t, k in r["model"]["keys"].items():
+        print(f"  key {t}({', '.join(k['columns'])})  [{k['rule']}]")
+    for x in r["model"]["links"]:
+        print(f"  {x['source']}.{'+'.join(x['source_cols'])} -> {x['target']}.{'+'.join(x['target_cols'])}  [{x['rule']}]")
+    for x in r["model"]["not_applied"]:
+        print(f"  not applied: {x['object']}: {x['why']}")
+    print("manual:")
+    for x in r["manual"]:
+        print(f"  - {x}")
+    if a.counting_sql:
+        d = Path(a.counting_sql); d.mkdir(parents=True, exist_ok=True)
+        (d / f"before_{a.source}.sql").write_text(r["after_landing"]["source_sql"] + "\n", encoding="utf-8")
+        (d / "after_fabric.sql").write_text(r["after_landing"]["fabric_sql"] + "\n", encoding="utf-8")
+        print(f"wrote {d / f'before_{a.source}.sql'} and {d / 'after_fabric.sql'}")
+    if "comparison" in r:
+        print(r["report_markdown"])
+        if a.report:
+            Path(a.report).write_text(r["report_markdown"], encoding="utf-8")
+    elif bool(a.before) != bool(a.after):
+        print("fabric-backend: --before and --after go together", file=sys.stderr)
+        return 2
+    if a.json:
+        Path(a.json).write_text(json.dumps(r, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
+    return 0
+
+
 def cmd_sap_demo(a) -> int:
     """Synthetic SAP-shaped tables as CSV files and the notebook that loads them into a lakehouse (run it yourself)."""
     from . import sap_demo
@@ -293,6 +371,25 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--when", required=True, help="the date of the run, YYYY-MM-DD")
     s.add_argument("--write", action="store_true", help="record the verified relationships in fabric_backend/packs/sap/*.json")
     s.set_defaults(fn=cmd_sap_verify)
+    s = sub.add_parser("csn", help="read SAP CSN metadata (a .json/.csn file or folder); with --columns, plan with it")
+    s.add_argument("csn", help="a CSN file exported from SAP Datasphere or compiled by CAP, or a folder of them")
+    s.add_argument("--columns", help="an INFORMATION_SCHEMA.COLUMNS export of the tables the CSN describes")
+    s.add_argument("--schema", default="dbo"); s.add_argument("--prefix", help="a prefix the landing put before every table name")
+    s.add_argument("--json", help="write the summary or the plan's CSN report to this file"); s.set_defaults(fn=cmd_csn)
+
+    s = sub.add_parser("migrate", help="Snowflake or Databricks metadata exports -> a migration plan for Fabric (dry run; reads local files)")
+    s.add_argument("export", help="the folder (or JSON file) of the exports in docs/MIGRATE-DATABRICKS-SNOWFLAKE.md section 2")
+    s.add_argument("--source", required=True, choices=["snowflake", "databricks"])
+    s.add_argument("--schema", help="the schema to plan when the export holds more than one")
+    s.add_argument("--target", default="lakehouse", choices=["lakehouse", "warehouse"])
+    s.add_argument("--fabric-columns", help="INFORMATION_SCHEMA.COLUMNS of the landed tables in Fabric (plan on their names)")
+    s.add_argument("--fabric-schema", help="the Fabric schema of --fabric-columns (default: --schema)")
+    s.add_argument("--counting-sql", help="write the before (source) and after (Fabric) counting queries to this folder")
+    s.add_argument("--before", help="the source query's result saved as CSV (metric,value)")
+    s.add_argument("--after", help="the Fabric query's result saved as CSV (metric,value)")
+    s.add_argument("--report", help="write the before/after report (Markdown) to this file")
+    s.add_argument("--json", help="write the whole plan as JSON"); s.set_defaults(fn=cmd_migrate)
+
     s = sub.add_parser("sap-demo", help="write synthetic SAP-shaped tables as CSV files and a notebook to load them into Fabric")
     s.add_argument("--out", default="sap_demo", help="the folder to write to")
     s.add_argument("--prefix", default="sap_", help="table name prefix in the lakehouse (sap_vbak)")

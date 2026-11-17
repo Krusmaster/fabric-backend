@@ -54,6 +54,7 @@ OAuth token; nothing is stored by Krusgraph. Tools take the schema without the c
 | `list_tables` | Draft only | Unity Catalog `information_schema.columns` |
 | `plan_backend` | Draft only | inference on names; informational PRIMARY KEY / FOREIGN KEY constraints are K0 / R0 |
 | `validate_plan` | Draft only | the counting queries in Databricks SQL on the SQL warehouse |
+| `record_decision`, `list_decisions` | Draft only | a team's decision kept in the local decision file and applied as a rule to the Unity Catalog plan (docs/DECISION-RULES.md) |
 | `review_plan` | Draft only | the review file over the Unity Catalog plan; with `validate=true` the counts from the SQL warehouse |
 | `sample_rows` | Draft only | `LIMIT n`; columns flagged by name or by a Unity Catalog column tag are masked |
 | `join_path` | Draft only | the chain with Databricks SQL (three-part names, `LIMIT`) |
@@ -69,13 +70,17 @@ OAuth token; nothing is stored by Krusgraph. Tools take the schema without the c
 | `databricks_metric_view_draft` | Draft only | one metric view per fact table |
 | `export_databricks_bundle` | Draft only | a bundle folder: `databricks.yml`, the pipeline, two jobs, the SQL files |
 | `databricks_lineage` | Draft only | `system.access.table_lineage` for the schema's tables |
+| `qlik_plan` | Draft only | reads a Qlik load script given as text; with `count=true` the keys and links are counted in Databricks SQL (see [QLIK-MIGRATION-PRODUCT.md](QLIK-MIGRATION-PRODUCT.md)) |
+| `qlik_measures_draft` | Draft only | reads Qlik expressions given as text and drafts DAX; touches no source |
+| `qlik_reconcile_draft` | Draft only | writes T-SQL for a Fabric SQL analytics endpoint from text it is given; touches no source |
 | `create_backend` | Not on Databricks | the API for GraphQL is a Fabric item; mirror the catalog into Fabric (Mirrored Azure Databricks catalog) and use the hosted server |
 | `semantic_model_draft` | Not on Databricks | Direct Lake is Fabric's; `databricks_metric_view_draft` is the Databricks semantic layer |
 | `silver_notebook_draft` | Not on Databricks | a Fabric notebook; `databricks_pipeline_draft` carries the same rules |
 | `ontology_draft`, `rayfin_connector` | Not on Databricks | Fabric IQ and Rayfin read Fabric items |
 | `answer_query_draft` | Planned | the drafted query is T-SQL; `join_path` gives the joins in Databricks SQL |
+| `plan_migration` | Not on Databricks | with `fabric_schema` only: its after-landing counts read Fabric; without it the tool reads only the exported metadata files ([MIGRATE-DATABRICKS-SNOWFLAKE.md](MIGRATE-DATABRICKS-SNOWFLAKE.md)) |
 
-The last six answer `kind: unsupported` with the hint above; of them only `answer_query_draft` is planned for
+The six before it answer `kind: unsupported` with the hint above (`plan_migration` only when given `fabric_schema`); of them only `answer_query_draft` is planned for
 Databricks, the others build Fabric items. The seven `databricks_*` tools answer
 `unsupported` on a Fabric source. Every tool has a title and annotations; the two new creating tools have
 `readOnlyHint: false`, `destructiveHint: true` like the Fabric creating tools.

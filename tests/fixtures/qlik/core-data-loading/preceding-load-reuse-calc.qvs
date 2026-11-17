@@ -1,0 +1,21 @@
+// Test fixture of Krusgraph, copied from github.com/qlik-oss/core-data-loading at commit 0b79c835e30af66f06590b93e5dfa4d4d8bc1ff5, file scripts/preceding-load-reuse-calc.qvs. Licence: MIT, see LICENSE-core-data-loading.txt in this folder. This line was added; other changes are listed in ../SOURCES.md.
+// The (fictious) load script below performs the same calculation twice:
+// RecNo() * 1000 + Mod(RecNo(), 10) + 1
+
+// EvenOrOddness:
+//     LOAD
+//         RecNo() * 1000 + Mod(RecNo(), 10) + 1 AS KeyId,
+//         if(Even(RecNo() * 1000 + Mod(RecNo(), 10) + 1), 'Even', 'Odd') AS EvenOrOdd
+//         AUTOGENERATE 100;
+
+
+// By using preceding LOAD, we can reuse a calculation and avoid the double
+// calculation by adding an extra LOAD statement.
+
+EvenOrOddness:
+    LOAD
+        GenKey AS KeyId,
+        if(Even(GenKey), 'Even', 'Odd') AS EvenOrOdd;
+    LOAD
+        RecNo() * 1000 + Mod(recno(), 10) + 1 AS GenKey
+        AUTOGENERATE 100;

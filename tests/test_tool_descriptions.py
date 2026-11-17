@@ -74,4 +74,10 @@ def test_read_only_listing_stays_small():
     # 69 000 since n229: the verify_build tool (2 271 characters, of which 1 459 are the parameters it shares with the plan
     # tools: it builds the dry run again from the same plan; its own words were cut to four sentences first): 66 637 before,
     # 68 972 after
-    assert size <= 69_000, f"read-only tools/list is {size} characters"
+    # 75 500 since Q2: the three Qlik tools (qlik_plan 2 078, qlik_measures_draft 1 816, qlik_reconcile_draft 2 574
+    # characters; their descriptions were cut to five sentences and their parameters to one short sentence each first):
+    # 68 930 before, 75 398 after
+    # 69 400 since CSN2: csn_path on plan_backend and validate_plan (a SAP CSN file or folder in the lakehouse's Files; its
+    # description cut to one short sentence first): 68 972 before, 69 312 after
+    # 75 900 when Q2 met CSN2 and CA1 on main (M39): both together, 75 783
+    assert size <= 75_900, f"read-only tools/list is {size} characters"

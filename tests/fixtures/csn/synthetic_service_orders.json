@@ -1,0 +1,376 @@
+{
+ "$version": "2.0",
+ "meta": {
+  "creator": "Krusgraph tests: SYNTHETIC CSN, hand-written for tests/test_cds2_csn.py; not exported from any SAP system",
+  "flavor": "inferred"
+ },
+ "definitions": {
+  "ZI_ServiceOrder": {
+   "kind": "entity",
+   "@EndUserText.label": "Service order (synthetic)",
+   "@Analytics.dataCategory": {
+    "#": "FACT"
+   },
+   "@AccessControl.authorizationCheck": {
+    "#": "NOT_REQUIRED"
+   },
+   "query": {
+    "SELECT": {
+     "from": {
+      "ref": [
+       "synthetic_source"
+      ]
+     }
+    }
+   },
+   "elements": {
+    "ServiceOrder": {
+     "key": true,
+     "type": "cds.String",
+     "length": 10,
+     "@ObjectModel.text.element": [
+      {
+       "=": "ServiceOrderDescription"
+      }
+     ]
+    },
+    "ServiceOrderDescription": {
+     "type": "cds.String",
+     "length": 40,
+     "@Semantics.text": true
+    },
+    "Customer": {
+     "type": "cds.String",
+     "length": 10,
+     "@ObjectModel.foreignKey.association": {
+      "=": "_Customer"
+     }
+    },
+    "Status": {
+     "type": "cds.String",
+     "length": 2
+    },
+    "TotalNetAmount": {
+     "type": "cds.Decimal",
+     "precision": 15,
+     "scale": 2,
+     "@Semantics.amount.currencyCode": {
+      "=": "TransactionCurrency"
+     },
+     "@Aggregation.default": {
+      "#": "SUM"
+     }
+    },
+    "TransactionCurrency": {
+     "type": "cds.String",
+     "length": 5,
+     "@Semantics.currencyCode": true
+    },
+    "CreationDate": {
+     "type": "cds.Date"
+    },
+    "_Item": {
+     "type": "cds.Association",
+     "target": "ZI_ServiceOrderItem",
+     "cardinality": {
+      "max": "*"
+     },
+     "on": [
+      {
+       "ref": [
+        "$projection",
+        "ServiceOrder"
+       ]
+      },
+      "=",
+      {
+       "ref": [
+        "_Item",
+        "ServiceOrder"
+       ]
+      }
+     ]
+    },
+    "_Customer": {
+     "type": "cds.Association",
+     "target": "ZI_Customer",
+     "cardinality": {
+      "max": 1
+     },
+     "on": [
+      {
+       "ref": [
+        "$projection",
+        "Customer"
+       ]
+      },
+      "=",
+      {
+       "ref": [
+        "_Customer",
+        "Customer"
+       ]
+      }
+     ]
+    },
+    "_StatusText": {
+     "type": "cds.Association",
+     "target": "ZI_ServiceOrderStatusText",
+     "cardinality": {
+      "max": "*"
+     },
+     "on": [
+      {
+       "ref": [
+        "_StatusText",
+        "Status"
+       ]
+      },
+      "=",
+      {
+       "ref": [
+        "$projection",
+        "Status"
+       ]
+      },
+      "and",
+      {
+       "ref": [
+        "_StatusText",
+        "Language"
+       ]
+      },
+      "=",
+      {
+       "val": "E"
+      }
+     ]
+    }
+   }
+  },
+  "ZI_ServiceOrderItem": {
+   "kind": "entity",
+   "@EndUserText.label": "Service order item (synthetic)",
+   "@Analytics.dataCategory": {
+    "#": "FACT"
+   },
+   "elements": {
+    "ServiceOrder": {
+     "key": true,
+     "type": "cds.String",
+     "length": 10,
+     "@ObjectModel.foreignKey.association": {
+      "=": "_ServiceOrder"
+     }
+    },
+    "ServiceOrderItem": {
+     "key": true,
+     "type": "cds.String",
+     "length": 6
+    },
+    "Product": {
+     "type": "cds.String",
+     "length": 18,
+     "@ObjectModel.foreignKey.association": {
+      "=": "_Product"
+     }
+    },
+    "Quantity": {
+     "type": "cds.Decimal",
+     "precision": 13,
+     "scale": 3,
+     "@Semantics.quantity.unitOfMeasure": {
+      "=": "QuantityUnit"
+     }
+    },
+    "QuantityUnit": {
+     "type": "cds.String",
+     "length": 3,
+     "@Semantics.unitOfMeasure": true
+    },
+    "NetAmount": {
+     "type": "cds.Decimal",
+     "precision": 15,
+     "scale": 2,
+     "@Semantics.amount.currencyCode": {
+      "=": "TransactionCurrency"
+     },
+     "@Aggregation.default": {
+      "#": "SUM"
+     }
+    },
+    "TransactionCurrency": {
+     "type": "cds.String",
+     "length": 5,
+     "@Semantics.currencyCode": true
+    },
+    "_ServiceOrder": {
+     "type": "cds.Association",
+     "target": "ZI_ServiceOrder",
+     "cardinality": {
+      "min": 1,
+      "max": 1
+     },
+     "on": [
+      {
+       "ref": [
+        "$projection",
+        "ServiceOrder"
+       ]
+      },
+      "=",
+      {
+       "ref": [
+        "_ServiceOrder",
+        "ServiceOrder"
+       ]
+      }
+     ]
+    },
+    "_Product": {
+     "type": "cds.Association",
+     "target": "ZI_Product",
+     "cardinality": {
+      "max": 1
+     },
+     "on": [
+      {
+       "ref": [
+        "$projection",
+        "Product"
+       ]
+      },
+      "=",
+      {
+       "ref": [
+        "_Product",
+        "Product"
+       ]
+      }
+     ]
+    }
+   }
+  },
+  "ZI_Customer": {
+   "kind": "entity",
+   "@Analytics.dataCategory": {
+    "#": "DIMENSION"
+   },
+   "elements": {
+    "Customer": {
+     "key": true,
+     "type": "cds.String",
+     "length": 10,
+     "@ObjectModel.text.element": [
+      "CustomerName"
+     ]
+    },
+    "CustomerName": {
+     "type": "cds.String",
+     "length": 80,
+     "@Semantics.text": true
+    },
+    "Country": {
+     "type": "cds.String",
+     "length": 3
+    }
+   }
+  },
+  "ZI_Product": {
+   "kind": "entity",
+   "@Analytics.dataCategory": {
+    "#": "DIMENSION"
+   },
+   "elements": {
+    "Product": {
+     "key": true,
+     "type": "cds.String",
+     "length": 18,
+     "@ObjectModel.text.association": {
+      "=": "_Text"
+     }
+    },
+    "ProductGroup": {
+     "type": "cds.String",
+     "length": 9
+    },
+    "_Text": {
+     "type": "cds.Association",
+     "target": "ZI_ProductText",
+     "cardinality": {
+      "max": "*"
+     },
+     "on": [
+      {
+       "ref": [
+        "$projection",
+        "Product"
+       ]
+      },
+      "=",
+      {
+       "ref": [
+        "_Text",
+        "Product"
+       ]
+      }
+     ]
+    }
+   }
+  },
+  "ZI_ProductText": {
+   "kind": "entity",
+   "@ObjectModel.dataCategory": {
+    "#": "TEXT"
+   },
+   "elements": {
+    "Product": {
+     "key": true,
+     "type": "cds.String",
+     "length": 18
+    },
+    "Language": {
+     "key": true,
+     "type": "cds.String",
+     "length": 2
+    },
+    "ProductName": {
+     "type": "cds.String",
+     "length": 40,
+     "@Semantics.text": true
+    }
+   }
+  },
+  "ZI_ServiceOrderStatusText": {
+   "kind": "entity",
+   "@ObjectModel.dataCategory": {
+    "#": "TEXT"
+   },
+   "elements": {
+    "Status": {
+     "key": true,
+     "type": "cds.String",
+     "length": 2
+    },
+    "Language": {
+     "key": true,
+     "type": "cds.String",
+     "length": 2
+    },
+    "StatusName": {
+     "type": "cds.String",
+     "length": 40
+    }
+   }
+  },
+  "ZAmount": {
+   "kind": "type",
+   "type": "cds.Decimal",
+   "precision": 15,
+   "scale": 2
+  },
+  "ZServiceOrderService": {
+   "kind": "service"
+  }
+ }
+}
