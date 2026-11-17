@@ -664,3 +664,43 @@
   .kg-catalog-before-after { grid-template-columns: 1fr; }
   .kg-catalog-files .fui-Button { width: 100%; justify-content: flex-start; }
 }
+
+// ------------------------------------------------------------------ W14: autosave line (SaveIndicator.tsx)
+.kg-autosave {
+  margin: 2px 0 6px;
+  font-size: var(--fontSizeBase200);
+  color: var(--colorNeutralForeground2);
+}
+.kg-autosave-line,
+.kg-autosave-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.kg-autosave-mark { font-weight: var(--fontWeightSemibold); }
+.kg-autosave-ok .kg-autosave-mark { color: var(--colorPaletteGreenForeground1); }
+.kg-autosave-bad { color: var(--colorPaletteRedForeground1); }
+.kg-autosave-note {
+  margin-top: 4px;
+  padding: 6px 8px;
+  border-left: 4px solid var(--colorPaletteMarigoldBorderActive, var(--colorNeutralStroke1));
+  background: var(--colorNeutralBackground2);
+  color: var(--colorNeutralForeground1);
+}
+.kg-autosave-again {
+  min-height: 32px;
+  padding: 2px 10px;
+  border: 1px solid var(--colorNeutralStroke1);
+  border-radius: var(--borderRadiusMedium);
+  background: var(--colorNeutralBackground1);
+  color: var(--colorNeutralForeground1);
+  font: inherit;
+  cursor: pointer;
+}
+.kg-autosave-again:focus-visible { outline: 2px solid var(--colorStrokeFocus2); outline-offset: 2px; }
+@media (max-width: 600px) {
+  .kg-autosave-again { min-height: 44px; }
+}
