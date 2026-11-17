@@ -6,6 +6,12 @@ source system, with a public source per claim, read by the same loader (`fabric_
 standard objects Younium's Salesforce connector meets, and the one link between the two systems: a Younium account's
 External CRM Id is the Salesforce Account Id.
 
+**Since round PK1 (17 November 2026)** the Salesforce half of this pack is read from the standalone `salesforce` pack
+([SALESFORCE.md](SALESFORCE.md)): `packs/younium_salesforce/salesforce.include` names the nine objects below and the
+loader takes them, with the relationships between them and their sources, from `packs/salesforce/salesforce.json`.
+Those Salesforce pages were read that day and the claims checked against them (`fetched: true`); what this page says
+below about the Salesforce sources being unread is history. The Younium pages are still unread.
+
 **Read this first.** None of the source pages could be opened from the session that wrote the pack:
 `developer.younium.com`, `support.younium.com` and `developer.salesforce.com` are outside that session's allowed
 network. The pack was written after what is publicly known of the systems and after web search results of 1 November
@@ -31,7 +37,7 @@ from the pack, so a run on them shows that the tools work on such tables, never 
 | `INVOICE_LINES` | `ID` | `INVOICES`; by number to `CHARGES`, `SUBSCRIPTIONS`, `PRODUCTS` listed only | `AMOUNT` at line level; service period |
 | `PAYMENTS` | `ID` | `INVOICES`, `ACCOUNTS` | `AMOUNT`; one invoice per row assumed |
 
-### Salesforce (module `salesforce`, standard objects)
+### Salesforce (module `salesforce`, standard objects; read from the `salesforce` pack since round PK1)
 
 `ACCOUNT` (with `PARENT_ID` to itself, listed only), `CONTACT` → `ACCOUNT`, `OPPORTUNITY` → `ACCOUNT` and → `CONTRACT`,
 `OPPORTUNITYLINEITEM` → `OPPORTUNITY`, → `PRICEBOOKENTRY` and (derived, read-only) → `PRODUCT2`, `PRICEBOOKENTRY` →
@@ -155,6 +161,9 @@ Unverified in particular, and written after the known:
 - Cardinality of the account link: the connector is described as one Younium account per Salesforce account; the pack
   says many-to-one so the join is never wrong, and `validate_plan`'s counts tell.
 - The Salesforce claims are standard-object knowledge and the least uncertain, but the pages were not opened either.
+  (Round PK1 opened them: see [SALESFORCE.md](SALESFORCE.md). The included module now also lists three links whose
+  columns the demo lacks, `Contact.ReportsToId`, `Opportunity.ContactId` and `Opportunity.PartnerAccountId`; they are
+  never applied, and the plan of the demo is unchanged.)
 
 When the hosts are allowed from a session, open the nine pages, set `fetched: true` where the text agrees, correct
 the rest, and keep this list in step; the test `test_every_source_is_marked_unverified_with_the_date_it_was_not_reached`

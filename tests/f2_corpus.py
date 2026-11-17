@@ -43,7 +43,7 @@ from fabric_backend.schema import Schema                                    # no
 CORPUS = Path(__file__).parent / "corpus"
 FIXTURES = Path(__file__).parent / "fixtures" / "schemas"
 BEFORE_COMMIT = "8066dd0"
-ORDER = ("adventureworks", "shop", "sap_sd", "sap_mm", "sap_renamed", "nordic_erp", "bc_like")
+ORDER = ("adventureworks", "shop", "sap_sd", "sap_mm", "sap_renamed", "nordic_erp", "bc_like", "salesforce")
 NOT_PRESENT = {"sap_cds": "n230's CDS-shaped sample (seed(spark, schema='sap_cds')) is not on main at the time of this round; "
                           "it is added here when it is"}
 
@@ -407,6 +407,24 @@ def shop():
     return tables, rows, truth
 
 
+def salesforce():
+    """Round PK1: the synthetic Salesforce demo of fabric_backend/salesforce_demo.py, 21 tables named as a Fabric Copy job
+    lands Salesforce objects by default (Account, OpportunityLineItem; field API names as columns). The truth is
+    tests/fixtures/pk1/facit.json: the salesforce pack's applied relationships whose columns the demo has, which is what
+    the rows were written to hold (written from the pack, not by the engine); every table's key is Id."""
+    from fabric_backend import salesforce_demo
+    t = salesforce_demo.tables()
+    tables = {n: [(c, {"string": "nvarchar", "int": "int", "boolean": "bit"}.get(k, "decimal")) for c, k in zip(cols, kinds)]
+              for n, (cols, kinds, _rows) in t.items()}
+    rows = {n: list(r) for n, (_c, _k, r) in t.items()}
+    facit = json.loads((Path(__file__).parent / "fixtures" / "pk1" / "facit.json").read_text(encoding="utf-8"))["salesforce"]
+    truth = {"keys": {n: ["Id"] for n in t},
+             "links": [[r["source"], r["source_cols"], r["target"]] for r in facit["relationships"]],
+             "planted": {f"{o['source']}.{'+'.join(o['source_cols'])}": f"{o['source']}.{'+'.join(o['source_cols'])} -> {o['target']} has an "
+                         f"orphan: a price book deleted while lines used it is archived and not returned" for o in facit["traps"]["orphans"]}}
+    return tables, rows, truth
+
+
 SOURCES = {
     "adventureworks": ("AdventureWorks (OLTP)", "tables, keys and foreign keys as Microsoft's script declares them; rows generated "
                        "from those constraints (synthetic), not the sample's own rows", adventureworks),
@@ -419,6 +437,8 @@ SOURCES = {
                    "not a product's schema", nordic_erp),
     "bc_like": ("Business-Central-like shape", "`<company>$<table>$<app id>` table names, `No_` keys; synthetic, written for this "
                 "corpus, not Microsoft's schema", bc_like),
+    "salesforce": ("Salesforce-shaped sample, lead to cash and service", "fabric_backend/salesforce_demo.py, synthetic rows written from "
+                   "the salesforce pack, object and field API names as a Copy job lands them; not Salesforce data", salesforce),
 }
 
 

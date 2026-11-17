@@ -29,6 +29,9 @@ SCORES = {
     "sap_renamed":    {"true": (12, 18), "names": (0, 0, 12, 0, 0, 0),    "before": (0, 0, 12, 0, 0, 0),    "after": (11, 0, 1, 0, 13, 2)},
     "nordic_erp":     {"true": (8, 9),   "names": (0, 0, 8, 0, 0, 0),     "before": (0, 0, 8, 0, 0, 0),     "after": (8, 0, 0, 0, 5, 0)},
     "bc_like":        {"true": (10, 12), "names": (3, 4, 3, 0, 0, 0),     "before": (3, 4, 3, 0, 0, 0),     "after": (8, 2, 0, 0, 10, 1)},
+    # PK1: rows written from the salesforce pack, so the pack's own links are the truth; 2 of 53 links hold with orphans
+    # (the archived price book), as planted
+    "salesforce":     {"true": (21, 53), "names": (21, 0, 0, 0, 53, 0),   "before": (21, 0, 0, 0, 53, 0),   "after": (21, 0, 0, 0, 53, 0)},
 }
 
 

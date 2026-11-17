@@ -25,7 +25,7 @@ def _manifest(pack: str) -> dict:
 
 
 def test_every_pack_has_a_manifest_and_the_two_packs_are_there():
-    assert pm.available() == PACKS and {"sap", "younium_salesforce"} <= set(PACKS)
+    assert pm.available() == PACKS and {"salesforce", "sap", "younium_salesforce"} <= set(PACKS)
 
 
 @pytest.mark.parametrize("pack", PACKS)
@@ -81,8 +81,10 @@ def test_the_sources_say_what_was_read_and_nothing_is_reviewed_yet(pack):
     assert m["version"].startswith("0.")
     unread = [s["id"] for s in m["sources"] if not s["verified"]]
     assert unread, "every source read and checked: the manifest should say so, not this test"
-    if pack == "younium_salesforce":
-        assert len(unread) == len(m["sources"])                           # n72: none of the nine pages could be opened
+    if pack == "younium_salesforce":                                      # n72: none of the Younium pages could be opened;
+        assert unread == [s["id"] for s in m["sources"] if s["publisher"] == "Younium"]   # PK1: the Salesforce ones were read
+    elif pack == "salesforce":                                            # PK1: read on 17 November 2026, but for one Help page
+        assert unread == ["sf_queue_owner"] and all(s["accessed"] == "2026-11-17" for s in m["sources"] if s["verified"])
     else:
         assert "ms_fabric_mirroring_sap" not in unread and next(s for s in m["sources"] if s["id"] == "ms_fabric_mirroring_sap")["accessed"] == "2026-10-28"
 
