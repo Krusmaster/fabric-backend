@@ -948,7 +948,7 @@ def test_home_hub_names_vs_code_and_cursor_once_the_hosted_service_signs_them_in
     for name in ("Claude", "VS Code", "Cursor", "Lovable"):                             # no Experimental tag on any of them
         assert "experimental" not in dict(groups["Where you build"])[name], name
     assert "Independent product, not made by Microsoft, Anthropic, Anysphere or Lovable.</p>" in row
-    monkeypatch.delitem(ts.CLIENTS_TESTED, "Cursor")                                     # not recorded as tested: not named
+    monkeypatch.setattr(ts, "CLIENTS_TESTED", {k: v for k, v in ts.CLIENTS_TESTED.items() if k != "Cursor"})   # not recorded as tested: not named
     row, visual, groups, said = _hub(client)
     assert [n for n, _ in groups["Where you build"]] == ["Claude", "VS Code", "Lovable"] and "Cursor" not in row
     assert "Anysphere" not in row
