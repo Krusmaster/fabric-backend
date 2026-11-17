@@ -1,0 +1,310 @@
+{
+  "pack": "dynamics365",
+  "module": "dataverse",
+  "format_version": 1,
+  "title": "Dataverse tables of Dynamics 365 Sales and Customer Service: accounts, contacts, leads, opportunities, quotes, orders, invoices with their lines, products and price lists, cases, users, teams, business units, currencies and activities",
+  "rule": "Dynamics 365 pack",
+  "status": "documented",
+  "status_note": "Written on 17 November 2026 from Microsoft Learn's table/column reference (every table's page was opened and its key, lookups and money columns checked, ms.date 2026-09-18) and the Learn pages on Azure Synapse Link and Link to Microsoft Fabric, in our own words. Table names are the logical names in upper case (SALESORDERDETAIL); columns are logical names read without case or underscores, and the Web API's _<name>_value spelling of a lookup is read as <name>. Not verified against any environment's rows: validate_plan does that on yours. Krusgraph is independent and not affiliated with Microsoft.",
+  "variants": {
+    "fabric_link": "Dataverse tables in the lakehouse Link to Microsoft Fabric (or Azure Synapse Link for Dataverse in Delta format) creates: logical names, the system columns Id, IsDelete, SinkCreatedOn, SinkModifiedOn and versionnumber.",
+    "web_api": "Rows read through the Dataverse Web API by a pipeline: lookups as _<name>_value."
+  },
+  "sources": {
+    "dv_account": {
+      "title": "Dataverse table/entity reference: account",
+      "url": "https://learn.microsoft.com/en-us/power-apps/developer/data-platform/reference/entities/account",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-09-18. Primary key, lookups and their targets checked against the page's column list."
+    },
+    "dv_contact": {
+      "title": "Dataverse table/entity reference: contact",
+      "url": "https://learn.microsoft.com/en-us/power-apps/developer/data-platform/reference/entities/contact",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-09-18. Primary key, lookups and their targets checked against the page's column list."
+    },
+    "dv_systemuser": {
+      "title": "Dataverse table/entity reference: systemuser",
+      "url": "https://learn.microsoft.com/en-us/power-apps/developer/data-platform/reference/entities/systemuser",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-09-18. Primary key, lookups and their targets checked against the page's column list."
+    },
+    "dv_team": {
+      "title": "Dataverse table/entity reference: team",
+      "url": "https://learn.microsoft.com/en-us/power-apps/developer/data-platform/reference/entities/team",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-09-18. Primary key, lookups and their targets checked against the page's column list."
+    },
+    "dv_businessunit": {
+      "title": "Dataverse table/entity reference: businessunit",
+      "url": "https://learn.microsoft.com/en-us/power-apps/developer/data-platform/reference/entities/businessunit",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-09-18. Primary key, lookups and their targets checked against the page's column list."
+    },
+    "dv_transactioncurrency": {
+      "title": "Dataverse table/entity reference: transactioncurrency",
+      "url": "https://learn.microsoft.com/en-us/power-apps/developer/data-platform/reference/entities/transactioncurrency",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-09-18. Primary key, lookups and their targets checked against the page's column list."
+    },
+    "dv_activitypointer": {
+      "title": "Dataverse table/entity reference: activitypointer",
+      "url": "https://learn.microsoft.com/en-us/power-apps/developer/data-platform/reference/entities/activitypointer",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-09-18. Primary key, lookups and their targets checked against the page's column list."
+    },
+    "dv_lead": {
+      "title": "Dynamics 365 table/entity reference: lead",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/developer/reference/entities/lead",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-09-18. Primary key, lookups, their targets and the money columns checked against the page's column list. (The page is under dynamics365/developer/reference/entities; the power-apps path returns 404 for this table.)"
+    },
+    "dv_opportunity": {
+      "title": "Dynamics 365 table/entity reference: opportunity",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/developer/reference/entities/opportunity",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-09-18. Primary key, lookups, their targets and the money columns checked against the page's column list. (The page is under dynamics365/developer/reference/entities; the power-apps path returns 404 for this table.)"
+    },
+    "dv_opportunityproduct": {
+      "title": "Dynamics 365 table/entity reference: opportunityproduct",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/developer/reference/entities/opportunityproduct",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-09-18. Primary key, lookups, their targets and the money columns checked against the page's column list. (The page is under dynamics365/developer/reference/entities; the power-apps path returns 404 for this table.)"
+    },
+    "dv_quote": {
+      "title": "Dynamics 365 table/entity reference: quote",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/developer/reference/entities/quote",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-09-18. Primary key, lookups, their targets and the money columns checked against the page's column list. (The page is under dynamics365/developer/reference/entities; the power-apps path returns 404 for this table.)"
+    },
+    "dv_quotedetail": {
+      "title": "Dynamics 365 table/entity reference: quotedetail",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/developer/reference/entities/quotedetail",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-09-18. Primary key, lookups, their targets and the money columns checked against the page's column list. (The page is under dynamics365/developer/reference/entities; the power-apps path returns 404 for this table.)"
+    },
+    "dv_salesorder": {
+      "title": "Dynamics 365 table/entity reference: salesorder",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/developer/reference/entities/salesorder",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-09-18. Primary key, lookups, their targets and the money columns checked against the page's column list. (The page is under dynamics365/developer/reference/entities; the power-apps path returns 404 for this table.)"
+    },
+    "dv_salesorderdetail": {
+      "title": "Dynamics 365 table/entity reference: salesorderdetail",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/developer/reference/entities/salesorderdetail",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-09-18. Primary key, lookups, their targets and the money columns checked against the page's column list. (The page is under dynamics365/developer/reference/entities; the power-apps path returns 404 for this table.)"
+    },
+    "dv_invoice": {
+      "title": "Dynamics 365 table/entity reference: invoice",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/developer/reference/entities/invoice",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-09-18. Primary key, lookups, their targets and the money columns checked against the page's column list. (The page is under dynamics365/developer/reference/entities; the power-apps path returns 404 for this table.)"
+    },
+    "dv_invoicedetail": {
+      "title": "Dynamics 365 table/entity reference: invoicedetail",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/developer/reference/entities/invoicedetail",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-09-18. Primary key, lookups, their targets and the money columns checked against the page's column list. (The page is under dynamics365/developer/reference/entities; the power-apps path returns 404 for this table.)"
+    },
+    "dv_product": {
+      "title": "Dynamics 365 table/entity reference: product",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/developer/reference/entities/product",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-09-18. Primary key, lookups, their targets and the money columns checked against the page's column list. (The page is under dynamics365/developer/reference/entities; the power-apps path returns 404 for this table.)"
+    },
+    "dv_pricelevel": {
+      "title": "Dynamics 365 table/entity reference: pricelevel",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/developer/reference/entities/pricelevel",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-09-18. Primary key, lookups, their targets and the money columns checked against the page's column list. (The page is under dynamics365/developer/reference/entities; the power-apps path returns 404 for this table.)"
+    },
+    "dv_productpricelevel": {
+      "title": "Dynamics 365 table/entity reference: productpricelevel",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/developer/reference/entities/productpricelevel",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-09-18. Primary key, lookups, their targets and the money columns checked against the page's column list. (The page is under dynamics365/developer/reference/entities; the power-apps path returns 404 for this table.)"
+    },
+    "dv_incident": {
+      "title": "Dynamics 365 table/entity reference: incident",
+      "url": "https://learn.microsoft.com/en-us/dynamics365/developer/reference/entities/incident",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-09-18. Primary key, lookups, their targets and the money columns checked against the page's column list. (The page is under dynamics365/developer/reference/entities; the power-apps path returns 404 for this table.)"
+    },
+    "fabric_link": {
+      "title": "Link your Dataverse environment to Microsoft Fabric (Link to Microsoft Fabric)",
+      "url": "https://learn.microsoft.com/en-us/power-apps/maker/data-platform/azure-synapse-link-view-in-fabric",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-07-06. Delta parquet replica in Dataverse storage, a lakehouse with shortcuts to the tables; all non-system tables with Track changes enabled are added; finance and operations tables can be linked too. The page does not say how lookup columns are named in the lakehouse."
+    },
+    "fabric_link_platform": {
+      "title": "Link to Microsoft Fabric: how it works (latency, lakehouse naming, low-latency sync)",
+      "url": "https://learn.microsoft.com/en-us/power-apps/maker/data-platform/fabric-link-to-data-platform",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-11-11. Up to 60 minutes to update OneLake; the lakehouse name pattern is not to be relied on; low-latency sync writes timestamps as INT64."
+    },
+    "synapse_link_columns": {
+      "title": "Azure Synapse Link: choose finance and operations data (the table of system columns: Id, IsDelete, SinkCreatedOn, SinkModifiedOn, versionnumber, sysrowversion)",
+      "url": "https://learn.microsoft.com/en-us/power-apps/maker/data-platform/azure-synapse-link-select-fno-data",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-11-03. IsDelete true marks a soft-deleted row whose body is empty; SinkCreatedOn is when the row was written to the lake; versionnumber the last version synced. The page's sentence on reading active rows says to filter where isDelete is True, which reads as reversed; the FAQ (export_lake_faq) says isDeleted=0."
+    },
+    "export_lake_faq": {
+      "title": "Azure Synapse Link for Dataverse: frequently asked questions",
+      "url": "https://learn.microsoft.com/en-us/power-apps/maker/data-platform/export-data-lake-faq",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-11-06. Deletes: appended row with isDeleted=True (append-only) or a soft delete and a hard delete after 30 days (Delta; the finance and operations page says 28); latest row by id with VersionNumber and SinkModifiedOn, then isDeleted=0; lookup columns are an id and a value: join to the table itself."
+    },
+    "choice_labels": {
+      "title": "Azure Synapse Link: access choice labels (OptionsetMetadata, GlobalOptionsetMetadata, StateMetadata, StatusMetadata, TargetMetadata)",
+      "url": "https://learn.microsoft.com/en-us/power-apps/maker/data-platform/azure-synapse-link-choice-labels",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2022-04-27. A choice column holds the number; the label is in OptionsetMetadata (EntityName, OptionSetName, Option, LocalizedLabelLanguageCode, LocalizedLabel). TargetMetadata lists each lookup (AttributeName, e.g. transactioncurrencyid) with its ReferencedEntity: the only statement read that names a lookup column in the lake by its logical name."
+    },
+    "webapi_properties": {
+      "title": "Dataverse Web API: properties (lookup properties named _<name>_value)",
+      "url": "https://learn.microsoft.com/en-us/power-apps/developer/data-platform/webapi/web-api-properties",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2022-04-06. Lookup properties follow _<name>_value: computed, read-only, an Edm.Guid."
+    },
+    "multitable_lookup": {
+      "title": "Dataverse Web API: multi-table lookups (polymorphic lookups; Customer connects to account and contact)",
+      "url": "https://learn.microsoft.com/en-us/power-apps/developer/data-platform/webapi/multitable-lookup",
+      "publisher": "Microsoft Learn",
+      "fetched": true,
+      "note": "Read 17 November 2026; ms.date 2026-10-27. _<name>_value alone does not say which table the id belongs to (select-columns page, ms.date 2026-10-28: an annotation does)."
+    }
+  },
+  "tables": [
+    {"name": "ACCOUNT", "common_name": true, "level": "master", "area": "customer 360", "en": "Account (a company the organisation does business with)", "key": ["ACCOUNTID"], "delta": ["VERSIONNUMBER"], "note": "Key ACCOUNTID (a GUID); name column NAME. PARENTACCOUNTID is the parent account, PRIMARYCONTACTID the primary contact. In the lakehouse that Link to Microsoft Fabric creates, the table carries the system columns of Azure Synapse Link (Id, IsDelete, SinkCreatedOn, SinkModifiedOn, versionnumber); read only rows where IsDelete is not true.", "personal": [{"column": "TELEPHONE1", "rule": "P3"}, {"column": "EMAILADDRESS1", "rule": "P2"}, {"column": "ADDRESS1_LINE1", "rule": "P5"}], "sources": ["dv_account", "synapse_link_columns"], "variants": ["fabric_link", "web_api"]},
+    {"name": "CONTACT", "common_name": true, "level": "partner", "area": "customer 360", "en": "Contact (a person)", "key": ["CONTACTID"], "delta": ["VERSIONNUMBER"], "note": "Key CONTACTID; name column FULLNAME. PARENTCUSTOMERID is a Customer lookup: an account or a contact, with PARENTCUSTOMERIDTYPE saying which. Personal data throughout.", "personal": [{"column": "FULLNAME", "rule": "P1"}, {"column": "FIRSTNAME", "rule": "P1"}, {"column": "LASTNAME", "rule": "P1"}, {"column": "EMAILADDRESS1", "rule": "P2"}, {"column": "TELEPHONE1", "rule": "P3"}, {"column": "MOBILEPHONE", "rule": "P3"}, {"column": "ADDRESS1_LINE1", "rule": "P5"}, {"column": "BIRTHDATE", "rule": "P6"}], "sources": ["dv_contact"], "variants": ["fabric_link", "web_api"]},
+    {"name": "LEAD", "common_name": true, "level": "header", "area": "lead to cash", "en": "Lead (a prospect not yet qualified)", "key": ["LEADID"], "delta": ["VERSIONNUMBER"], "amounts": [{"column": "ESTIMATEDAMOUNT", "level": "header", "currency": "TRANSACTIONCURRENCYID (a lookup to transactioncurrency); each money column has a _BASE twin in the organisation's base currency, converted with EXCHANGERATE"}], "currency_columns": ["TRANSACTIONCURRENCYID"], "note": "Key LEADID; name column FULLNAME. Qualifying a lead creates an opportunity: QUALIFYINGOPPORTUNITYID on the lead, ORIGINATINGLEADID on the opportunity. CUSTOMERID is a Customer lookup (account or contact).", "personal": [{"column": "FULLNAME", "rule": "P1"}, {"column": "EMAILADDRESS1", "rule": "P2"}, {"column": "TELEPHONE1", "rule": "P3"}], "sources": ["dv_lead"], "variants": ["fabric_link", "web_api"]},
+    {"name": "OPPORTUNITY", "common_name": true, "level": "header", "area": "lead to cash", "en": "Opportunity (a potential sale)", "key": ["OPPORTUNITYID"], "delta": ["VERSIONNUMBER"], "amounts": [{"column": "ESTIMATEDVALUE", "level": "header", "currency": "TRANSACTIONCURRENCYID (a lookup to transactioncurrency); each money column has a _BASE twin in the organisation's base currency, converted with EXCHANGERATE"}, {"column": "ACTUALVALUE", "level": "header", "currency": "TRANSACTIONCURRENCYID (a lookup to transactioncurrency); each money column has a _BASE twin in the organisation's base currency, converted with EXCHANGERATE"}, {"column": "TOTALAMOUNT", "level": "header", "currency": "TRANSACTIONCURRENCYID (a lookup to transactioncurrency); each money column has a _BASE twin in the organisation's base currency, converted with EXCHANGERATE"}], "currency_columns": ["TRANSACTIONCURRENCYID"], "note": "Key OPPORTUNITYID. ESTIMATEDVALUE is the forecast revenue (entered by hand or computed from the products, as the Revenue field says); ACTUALVALUE defaults to it when the opportunity is won; TOTALAMOUNT is the sum of the products, discounts, freight and taxes. CUSTOMERID is a Customer lookup; the reference says to use PARENTACCOUNTID and PARENTCONTACTID rather than the internal ACCOUNTID and CONTACTID.", "sources": ["dv_opportunity"], "variants": ["fabric_link", "web_api"]},
+    {"name": "OPPORTUNITYPRODUCT", "level": "item", "area": "lead to cash", "en": "Opportunity product (a line of an opportunity)", "key": ["OPPORTUNITYPRODUCTID"], "delta": ["VERSIONNUMBER"], "amounts": [{"column": "EXTENDEDAMOUNT", "level": "item", "currency": "TRANSACTIONCURRENCYID (a lookup to transactioncurrency); each money column has a _BASE twin in the organisation's base currency, converted with EXCHANGERATE"}, {"column": "BASEAMOUNT", "level": "item", "currency": "TRANSACTIONCURRENCYID (a lookup to transactioncurrency); each money column has a _BASE twin in the organisation's base currency, converted with EXCHANGERATE"}], "currency_columns": ["TRANSACTIONCURRENCYID"], "note": "Key OPPORTUNITYPRODUCTID. PRICEPERUNIT is a price; BASEAMOUNT is price per unit times quantity after volume discount; EXTENDEDAMOUNT is that minus the manual discount (and with tax): the line's amount. A write-in product has no PRODUCTID.", "sources": ["dv_opportunityproduct"], "variants": ["fabric_link", "web_api"]},
+    {"name": "QUOTE", "common_name": true, "level": "header", "area": "lead to cash", "en": "Quote (a formal offer)", "key": ["QUOTEID"], "delta": ["VERSIONNUMBER"], "amounts": [{"column": "TOTALAMOUNT", "level": "header", "currency": "TRANSACTIONCURRENCYID (a lookup to transactioncurrency); each money column has a _BASE twin in the organisation's base currency, converted with EXCHANGERATE"}], "currency_columns": ["TRANSACTIONCURRENCYID"], "note": "Key QUOTEID. TOTALAMOUNT is the sum of the products, discounts, freight and taxes. OPPORTUNITYID is the opportunity it was made for.", "sources": ["dv_quote"], "variants": ["fabric_link", "web_api"]},
+    {"name": "QUOTEDETAIL", "level": "item", "area": "lead to cash", "en": "Quote product (a line of a quote)", "key": ["QUOTEDETAILID"], "delta": ["VERSIONNUMBER"], "amounts": [{"column": "EXTENDEDAMOUNT", "level": "item", "currency": "TRANSACTIONCURRENCYID (a lookup to transactioncurrency); each money column has a _BASE twin in the organisation's base currency, converted with EXCHANGERATE"}, {"column": "BASEAMOUNT", "level": "item", "currency": "TRANSACTIONCURRENCYID (a lookup to transactioncurrency); each money column has a _BASE twin in the organisation's base currency, converted with EXCHANGERATE"}], "currency_columns": ["TRANSACTIONCURRENCYID"], "note": "Key QUOTEDETAILID. EXTENDEDAMOUNT is the line's amount.", "sources": ["dv_quotedetail"], "variants": ["fabric_link", "web_api"]},
+    {"name": "SALESORDER", "common_name": true, "level": "header", "area": "order to cash", "en": "Order (a confirmed sale)", "key": ["SALESORDERID"], "delta": ["VERSIONNUMBER"], "amounts": [{"column": "TOTALAMOUNT", "level": "header", "currency": "TRANSACTIONCURRENCYID (a lookup to transactioncurrency); each money column has a _BASE twin in the organisation's base currency, converted with EXCHANGERATE"}, {"column": "TOTALLINEITEMAMOUNT", "level": "header", "currency": "TRANSACTIONCURRENCYID (a lookup to transactioncurrency); each money column has a _BASE twin in the organisation's base currency, converted with EXCHANGERATE"}, {"column": "TOTALTAX", "level": "header", "currency": "TRANSACTIONCURRENCYID (a lookup to transactioncurrency); each money column has a _BASE twin in the organisation's base currency, converted with EXCHANGERATE"}], "currency_columns": ["TRANSACTIONCURRENCYID"], "note": "Key SALESORDERID. TOTALAMOUNT is the total due (products, discounts, freight and taxes); TOTALLINEITEMAMOUNT the sum of the products. QUOTEID and OPPORTUNITYID name where the order came from. CUSTOMERID is a Customer lookup.", "sources": ["dv_salesorder"], "variants": ["fabric_link", "web_api"]},
+    {"name": "SALESORDERDETAIL", "common_name": true, "level": "item", "area": "order to cash", "en": "Order product (a line of an order)", "key": ["SALESORDERDETAILID"], "delta": ["VERSIONNUMBER"], "amounts": [{"column": "EXTENDEDAMOUNT", "level": "item", "currency": "TRANSACTIONCURRENCYID (a lookup to transactioncurrency); each money column has a _BASE twin in the organisation's base currency, converted with EXCHANGERATE"}, {"column": "BASEAMOUNT", "level": "item", "currency": "TRANSACTIONCURRENCYID (a lookup to transactioncurrency); each money column has a _BASE twin in the organisation's base currency, converted with EXCHANGERATE"}], "currency_columns": ["TRANSACTIONCURRENCYID"], "note": "Key SALESORDERDETAILID. EXTENDEDAMOUNT is the line's amount (unit price, quantity, discounts and tax); BASEAMOUNT before the manual discount.", "sources": ["dv_salesorderdetail"], "variants": ["fabric_link", "web_api"]},
+    {"name": "INVOICE", "common_name": true, "level": "header", "area": "order to cash", "en": "Invoice", "key": ["INVOICEID"], "delta": ["VERSIONNUMBER"], "amounts": [{"column": "TOTALAMOUNT", "level": "header", "currency": "TRANSACTIONCURRENCYID (a lookup to transactioncurrency); each money column has a _BASE twin in the organisation's base currency, converted with EXCHANGERATE"}], "currency_columns": ["TRANSACTIONCURRENCYID"], "note": "Key INVOICEID. TOTALAMOUNT is the sum of the products, discount, freight and taxes. SALESORDERID is the order it bills.", "sources": ["dv_invoice"], "variants": ["fabric_link", "web_api"]},
+    {"name": "INVOICEDETAIL", "common_name": true, "level": "item", "area": "order to cash", "en": "Invoice product (a line of an invoice)", "key": ["INVOICEDETAILID"], "delta": ["VERSIONNUMBER"], "amounts": [{"column": "EXTENDEDAMOUNT", "level": "item", "currency": "TRANSACTIONCURRENCYID (a lookup to transactioncurrency); each money column has a _BASE twin in the organisation's base currency, converted with EXCHANGERATE"}], "currency_columns": ["TRANSACTIONCURRENCYID"], "note": "Key INVOICEDETAILID. EXTENDEDAMOUNT is the line's amount. SALESORDERDETAILID is the order line it bills.", "sources": ["dv_invoicedetail"], "variants": ["fabric_link", "web_api"]},
+    {"name": "PRODUCT", "common_name": true, "level": "master", "area": "product catalog", "en": "Product", "key": ["PRODUCTID"], "delta": ["VERSIONNUMBER"], "note": "Key PRODUCTID; organisation-owned (no owner). PRICE, CURRENTCOST and STANDARDCOST are prices, not amounts. PRICELEVELID is the default price list.", "sources": ["dv_product"], "variants": ["fabric_link", "web_api"]},
+    {"name": "PRICELEVEL", "level": "master", "area": "product catalog", "en": "Price list", "key": ["PRICELEVELID"], "delta": ["VERSIONNUMBER"], "note": "Key PRICELEVELID; one currency per price list (TRANSACTIONCURRENCYID).", "sources": ["dv_pricelevel"], "variants": ["fabric_link", "web_api"]},
+    {"name": "PRODUCTPRICELEVEL", "level": "master", "area": "product catalog", "en": "Price list item (a product's price in one price list)", "key": ["PRODUCTPRICELEVELID"], "delta": ["VERSIONNUMBER"], "note": "Key PRODUCTPRICELEVELID. AMOUNT is a list price, not a sales amount.", "sources": ["dv_productpricelevel"], "variants": ["fabric_link", "web_api"]},
+    {"name": "INCIDENT", "common_name": true, "level": "header", "area": "service cases", "en": "Case (a customer service issue)", "key": ["INCIDENTID"], "delta": ["VERSIONNUMBER"], "note": "Key INCIDENTID; name column TITLE. CUSTOMERID is a Customer lookup (account or contact); PRIMARYCONTACTID a contact; PARENTCASEID a parent case.", "sources": ["dv_incident"], "variants": ["fabric_link", "web_api"]},
+    {"name": "SYSTEMUSER", "level": "organization", "area": "organisation", "en": "User", "key": ["SYSTEMUSERID"], "delta": ["VERSIONNUMBER"], "note": "Key SYSTEMUSERID; name column FULLNAME. BUSINESSUNITID is the user's business unit; PARENTSYSTEMUSERID the manager.", "personal": [{"column": "FULLNAME", "rule": "P1"}, {"column": "INTERNALEMAILADDRESS", "rule": "P2"}], "sources": ["dv_systemuser"], "variants": ["fabric_link", "web_api"]},
+    {"name": "TEAM", "common_name": true, "level": "organization", "area": "organisation", "en": "Team (a group of users that can own records)", "key": ["TEAMID"], "delta": ["VERSIONNUMBER"], "note": "Key TEAMID.", "sources": ["dv_team"], "variants": ["fabric_link", "web_api"]},
+    {"name": "BUSINESSUNIT", "level": "organization", "area": "organisation", "en": "Business unit", "key": ["BUSINESSUNITID"], "delta": ["VERSIONNUMBER"], "note": "Key BUSINESSUNITID; PARENTBUSINESSUNITID the parent unit.", "sources": ["dv_businessunit"], "variants": ["fabric_link", "web_api"]},
+    {"name": "TRANSACTIONCURRENCY", "level": "master", "area": "organisation", "en": "Currency", "key": ["TRANSACTIONCURRENCYID"], "delta": ["VERSIONNUMBER"], "note": "Key TRANSACTIONCURRENCYID; ISOCURRENCYCODE the ISO code; EXCHANGERATE the rate to the base currency.", "sources": ["dv_transactioncurrency"], "variants": ["fabric_link", "web_api"]},
+    {"name": "ACTIVITYPOINTER", "level": "header", "area": "customer 360", "en": "Activity (the shared table of e-mails, phone calls, tasks, appointments)", "key": ["ACTIVITYID"], "delta": ["VERSIONNUMBER"], "note": "Key ACTIVITYID (not activitypointerid). ACTIVITYTYPECODE says which kind of activity. REGARDINGOBJECTID is a multi-table lookup: the record the activity is about, with REGARDINGOBJECTTYPECODE naming its table (account, contact, opportunity, lead, incident, quote, salesorder, invoice and others).", "personal": [{"column": "SUBJECT", "rule": "P1"}], "sources": ["dv_activitypointer", "dv_opportunity"], "variants": ["fabric_link", "web_api"]}
+  ],
+  "relationships": [
+    {"source": "ACCOUNT", "source_cols": ["PARENTACCOUNTID"], "target": "ACCOUNT", "target_cols": ["ACCOUNTID"], "cardinality": "many-to-one", "role": "parent", "sources": ["dv_account"]},
+    {"source": "ACCOUNT", "source_cols": ["PRIMARYCONTACTID"], "target": "CONTACT", "target_cols": ["CONTACTID"], "cardinality": "many-to-one", "role": "primary_contact", "sources": ["dv_account"]},
+    {"source": "ACCOUNT", "source_cols": ["TRANSACTIONCURRENCYID"], "target": "TRANSACTIONCURRENCY", "target_cols": ["TRANSACTIONCURRENCYID"], "cardinality": "many-to-one", "sources": ["dv_account"]},
+    {"source": "ACCOUNT", "source_cols": ["OWNINGBUSINESSUNIT"], "target": "BUSINESSUNIT", "target_cols": ["BUSINESSUNITID"], "cardinality": "many-to-one", "role": "owning_business_unit", "sources": ["dv_account"]},
+    {"source": "ACCOUNT", "source_cols": ["OWNERID"], "target": "SYSTEMUSER", "target_cols": ["SYSTEMUSERID"], "cardinality": "many-to-one", "role": "owner", "condition": "The column holds a GUID of either table; OWNERIDTYPE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "OWNERIDTYPE", "in": ["systemuser"]}], "sources": ["dv_account"]},
+    {"source": "ACCOUNT", "source_cols": ["OWNERID"], "target": "TEAM", "target_cols": ["TEAMID"], "cardinality": "many-to-one", "role": "owner", "condition": "The column holds a GUID of either table; OWNERIDTYPE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "OWNERIDTYPE", "in": ["team"]}], "sources": ["dv_account"]},
+    {"source": "CONTACT", "source_cols": ["PARENTCUSTOMERID"], "target": "ACCOUNT", "target_cols": ["ACCOUNTID"], "cardinality": "many-to-one", "role": "parent_customer", "condition": "The column holds a GUID of either table; PARENTCUSTOMERIDTYPE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "PARENTCUSTOMERIDTYPE", "in": ["account"]}], "sources": ["dv_contact", "multitable_lookup"]},
+    {"source": "CONTACT", "source_cols": ["PARENTCUSTOMERID"], "target": "CONTACT", "target_cols": ["CONTACTID"], "cardinality": "many-to-one", "role": "parent_customer", "condition": "The column holds a GUID of either table; PARENTCUSTOMERIDTYPE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "PARENTCUSTOMERIDTYPE", "in": ["contact"]}], "sources": ["dv_contact", "multitable_lookup"]},
+    {"source": "LEAD", "source_cols": ["PARENTACCOUNTID"], "target": "ACCOUNT", "target_cols": ["ACCOUNTID"], "cardinality": "many-to-one", "sources": ["dv_lead"]},
+    {"source": "LEAD", "source_cols": ["QUALIFYINGOPPORTUNITYID"], "target": "OPPORTUNITY", "target_cols": ["OPPORTUNITYID"], "cardinality": "many-to-one", "role": "qualifying_opportunity", "sources": ["dv_lead"]},
+    {"source": "OPPORTUNITY", "source_cols": ["PARENTACCOUNTID"], "target": "ACCOUNT", "target_cols": ["ACCOUNTID"], "cardinality": "many-to-one", "sources": ["dv_opportunity"]},
+    {"source": "OPPORTUNITY", "source_cols": ["PARENTCONTACTID"], "target": "CONTACT", "target_cols": ["CONTACTID"], "cardinality": "many-to-one", "sources": ["dv_opportunity"]},
+    {"source": "OPPORTUNITY", "source_cols": ["ORIGINATINGLEADID"], "target": "LEAD", "target_cols": ["LEADID"], "cardinality": "many-to-one", "role": "originating_lead", "sources": ["dv_opportunity"]},
+    {"source": "OPPORTUNITY", "source_cols": ["PRICELEVELID"], "target": "PRICELEVEL", "target_cols": ["PRICELEVELID"], "cardinality": "many-to-one", "sources": ["dv_opportunity"]},
+    {"source": "OPPORTUNITY", "source_cols": ["TRANSACTIONCURRENCYID"], "target": "TRANSACTIONCURRENCY", "target_cols": ["TRANSACTIONCURRENCYID"], "cardinality": "many-to-one", "sources": ["dv_opportunity"]},
+    {"source": "OPPORTUNITY", "source_cols": ["CUSTOMERID"], "target": "ACCOUNT", "target_cols": ["ACCOUNTID"], "cardinality": "many-to-one", "role": "customer", "condition": "The column holds a GUID of either table; CUSTOMERIDTYPE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "CUSTOMERIDTYPE", "in": ["account"]}], "sources": ["dv_opportunity", "multitable_lookup"]},
+    {"source": "OPPORTUNITY", "source_cols": ["CUSTOMERID"], "target": "CONTACT", "target_cols": ["CONTACTID"], "cardinality": "many-to-one", "role": "customer", "condition": "The column holds a GUID of either table; CUSTOMERIDTYPE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "CUSTOMERIDTYPE", "in": ["contact"]}], "sources": ["dv_opportunity", "multitable_lookup"]},
+    {"source": "OPPORTUNITY", "source_cols": ["OWNERID"], "target": "SYSTEMUSER", "target_cols": ["SYSTEMUSERID"], "cardinality": "many-to-one", "role": "owner", "condition": "The column holds a GUID of either table; OWNERIDTYPE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "OWNERIDTYPE", "in": ["systemuser"]}], "sources": ["dv_opportunity"]},
+    {"source": "OPPORTUNITY", "source_cols": ["OWNERID"], "target": "TEAM", "target_cols": ["TEAMID"], "cardinality": "many-to-one", "role": "owner", "condition": "The column holds a GUID of either table; OWNERIDTYPE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "OWNERIDTYPE", "in": ["team"]}], "sources": ["dv_opportunity"]},
+    {"source": "OPPORTUNITYPRODUCT", "source_cols": ["OPPORTUNITYID"], "target": "OPPORTUNITY", "target_cols": ["OPPORTUNITYID"], "cardinality": "many-to-one", "sources": ["dv_opportunityproduct"]},
+    {"source": "OPPORTUNITYPRODUCT", "source_cols": ["PRODUCTID"], "target": "PRODUCT", "target_cols": ["PRODUCTID"], "cardinality": "many-to-one", "condition": "Empty for a write-in product (NULL, not an orphan).", "sources": ["dv_opportunityproduct"]},
+    {"source": "QUOTE", "source_cols": ["OPPORTUNITYID"], "target": "OPPORTUNITY", "target_cols": ["OPPORTUNITYID"], "cardinality": "many-to-one", "sources": ["dv_quote"]},
+    {"source": "QUOTE", "source_cols": ["PRICELEVELID"], "target": "PRICELEVEL", "target_cols": ["PRICELEVELID"], "cardinality": "many-to-one", "sources": ["dv_quote"]},
+    {"source": "QUOTE", "source_cols": ["TRANSACTIONCURRENCYID"], "target": "TRANSACTIONCURRENCY", "target_cols": ["TRANSACTIONCURRENCYID"], "cardinality": "many-to-one", "sources": ["dv_quote"]},
+    {"source": "QUOTE", "source_cols": ["CUSTOMERID"], "target": "ACCOUNT", "target_cols": ["ACCOUNTID"], "cardinality": "many-to-one", "role": "customer", "condition": "The column holds a GUID of either table; CUSTOMERIDTYPE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "CUSTOMERIDTYPE", "in": ["account"]}], "sources": ["dv_quote", "multitable_lookup"]},
+    {"source": "QUOTE", "source_cols": ["CUSTOMERID"], "target": "CONTACT", "target_cols": ["CONTACTID"], "cardinality": "many-to-one", "role": "customer", "condition": "The column holds a GUID of either table; CUSTOMERIDTYPE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "CUSTOMERIDTYPE", "in": ["contact"]}], "sources": ["dv_quote", "multitable_lookup"]},
+    {"source": "QUOTEDETAIL", "source_cols": ["QUOTEID"], "target": "QUOTE", "target_cols": ["QUOTEID"], "cardinality": "many-to-one", "sources": ["dv_quotedetail"]},
+    {"source": "QUOTEDETAIL", "source_cols": ["PRODUCTID"], "target": "PRODUCT", "target_cols": ["PRODUCTID"], "cardinality": "many-to-one", "condition": "Empty for a write-in product (NULL, not an orphan).", "sources": ["dv_quotedetail"]},
+    {"source": "SALESORDER", "source_cols": ["QUOTEID"], "target": "QUOTE", "target_cols": ["QUOTEID"], "cardinality": "many-to-one", "sources": ["dv_salesorder"]},
+    {"source": "SALESORDER", "source_cols": ["OPPORTUNITYID"], "target": "OPPORTUNITY", "target_cols": ["OPPORTUNITYID"], "cardinality": "many-to-one", "sources": ["dv_salesorder"]},
+    {"source": "SALESORDER", "source_cols": ["PRICELEVELID"], "target": "PRICELEVEL", "target_cols": ["PRICELEVELID"], "cardinality": "many-to-one", "sources": ["dv_salesorder"]},
+    {"source": "SALESORDER", "source_cols": ["TRANSACTIONCURRENCYID"], "target": "TRANSACTIONCURRENCY", "target_cols": ["TRANSACTIONCURRENCYID"], "cardinality": "many-to-one", "sources": ["dv_salesorder"]},
+    {"source": "SALESORDER", "source_cols": ["CUSTOMERID"], "target": "ACCOUNT", "target_cols": ["ACCOUNTID"], "cardinality": "many-to-one", "role": "customer", "condition": "The column holds a GUID of either table; CUSTOMERIDTYPE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "CUSTOMERIDTYPE", "in": ["account"]}], "sources": ["dv_salesorder", "multitable_lookup"]},
+    {"source": "SALESORDER", "source_cols": ["CUSTOMERID"], "target": "CONTACT", "target_cols": ["CONTACTID"], "cardinality": "many-to-one", "role": "customer", "condition": "The column holds a GUID of either table; CUSTOMERIDTYPE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "CUSTOMERIDTYPE", "in": ["contact"]}], "sources": ["dv_salesorder", "multitable_lookup"]},
+    {"source": "SALESORDER", "source_cols": ["OWNERID"], "target": "SYSTEMUSER", "target_cols": ["SYSTEMUSERID"], "cardinality": "many-to-one", "role": "owner", "condition": "The column holds a GUID of either table; OWNERIDTYPE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "OWNERIDTYPE", "in": ["systemuser"]}], "sources": ["dv_salesorder"]},
+    {"source": "SALESORDER", "source_cols": ["OWNERID"], "target": "TEAM", "target_cols": ["TEAMID"], "cardinality": "many-to-one", "role": "owner", "condition": "The column holds a GUID of either table; OWNERIDTYPE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "OWNERIDTYPE", "in": ["team"]}], "sources": ["dv_salesorder"]},
+    {"source": "SALESORDERDETAIL", "source_cols": ["SALESORDERID"], "target": "SALESORDER", "target_cols": ["SALESORDERID"], "cardinality": "many-to-one", "sources": ["dv_salesorderdetail"]},
+    {"source": "SALESORDERDETAIL", "source_cols": ["PRODUCTID"], "target": "PRODUCT", "target_cols": ["PRODUCTID"], "cardinality": "many-to-one", "condition": "Empty for a write-in product (NULL, not an orphan).", "sources": ["dv_salesorderdetail"]},
+    {"source": "SALESORDERDETAIL", "source_cols": ["QUOTEDETAILID"], "target": "QUOTEDETAIL", "target_cols": ["QUOTEDETAILID"], "cardinality": "many-to-one", "sources": ["dv_salesorderdetail"]},
+    {"source": "INVOICE", "source_cols": ["SALESORDERID"], "target": "SALESORDER", "target_cols": ["SALESORDERID"], "cardinality": "many-to-one", "sources": ["dv_invoice"]},
+    {"source": "INVOICE", "source_cols": ["OPPORTUNITYID"], "target": "OPPORTUNITY", "target_cols": ["OPPORTUNITYID"], "cardinality": "many-to-one", "sources": ["dv_invoice"]},
+    {"source": "INVOICE", "source_cols": ["TRANSACTIONCURRENCYID"], "target": "TRANSACTIONCURRENCY", "target_cols": ["TRANSACTIONCURRENCYID"], "cardinality": "many-to-one", "sources": ["dv_invoice"]},
+    {"source": "INVOICE", "source_cols": ["CUSTOMERID"], "target": "ACCOUNT", "target_cols": ["ACCOUNTID"], "cardinality": "many-to-one", "role": "customer", "condition": "The column holds a GUID of either table; CUSTOMERIDTYPE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "CUSTOMERIDTYPE", "in": ["account"]}], "sources": ["dv_invoice", "multitable_lookup"]},
+    {"source": "INVOICE", "source_cols": ["CUSTOMERID"], "target": "CONTACT", "target_cols": ["CONTACTID"], "cardinality": "many-to-one", "role": "customer", "condition": "The column holds a GUID of either table; CUSTOMERIDTYPE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "CUSTOMERIDTYPE", "in": ["contact"]}], "sources": ["dv_invoice", "multitable_lookup"]},
+    {"source": "INVOICEDETAIL", "source_cols": ["INVOICEID"], "target": "INVOICE", "target_cols": ["INVOICEID"], "cardinality": "many-to-one", "sources": ["dv_invoicedetail"]},
+    {"source": "INVOICEDETAIL", "source_cols": ["PRODUCTID"], "target": "PRODUCT", "target_cols": ["PRODUCTID"], "cardinality": "many-to-one", "condition": "Empty for a write-in product (NULL, not an orphan).", "sources": ["dv_invoicedetail"]},
+    {"source": "INVOICEDETAIL", "source_cols": ["SALESORDERDETAILID"], "target": "SALESORDERDETAIL", "target_cols": ["SALESORDERDETAILID"], "cardinality": "many-to-one", "sources": ["dv_invoicedetail"]},
+    {"source": "PRODUCT", "source_cols": ["PARENTPRODUCTID"], "target": "PRODUCT", "target_cols": ["PRODUCTID"], "cardinality": "many-to-one", "role": "parent", "sources": ["dv_product"]},
+    {"source": "PRODUCT", "source_cols": ["PRICELEVELID"], "target": "PRICELEVEL", "target_cols": ["PRICELEVELID"], "cardinality": "many-to-one", "role": "default_price_list", "sources": ["dv_product"]},
+    {"source": "PRICELEVEL", "source_cols": ["TRANSACTIONCURRENCYID"], "target": "TRANSACTIONCURRENCY", "target_cols": ["TRANSACTIONCURRENCYID"], "cardinality": "many-to-one", "sources": ["dv_pricelevel"]},
+    {"source": "PRODUCTPRICELEVEL", "source_cols": ["PRICELEVELID"], "target": "PRICELEVEL", "target_cols": ["PRICELEVELID"], "cardinality": "many-to-one", "sources": ["dv_productpricelevel"]},
+    {"source": "PRODUCTPRICELEVEL", "source_cols": ["PRODUCTID"], "target": "PRODUCT", "target_cols": ["PRODUCTID"], "cardinality": "many-to-one", "sources": ["dv_productpricelevel"]},
+    {"source": "INCIDENT", "source_cols": ["CUSTOMERID"], "target": "ACCOUNT", "target_cols": ["ACCOUNTID"], "cardinality": "many-to-one", "role": "customer", "condition": "The column holds a GUID of either table; CUSTOMERIDTYPE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "CUSTOMERIDTYPE", "in": ["account"]}], "sources": ["dv_incident", "multitable_lookup"]},
+    {"source": "INCIDENT", "source_cols": ["CUSTOMERID"], "target": "CONTACT", "target_cols": ["CONTACTID"], "cardinality": "many-to-one", "role": "customer", "condition": "The column holds a GUID of either table; CUSTOMERIDTYPE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "CUSTOMERIDTYPE", "in": ["contact"]}], "sources": ["dv_incident", "multitable_lookup"]},
+    {"source": "INCIDENT", "source_cols": ["PRIMARYCONTACTID"], "target": "CONTACT", "target_cols": ["CONTACTID"], "cardinality": "many-to-one", "role": "primary_contact", "sources": ["dv_incident"]},
+    {"source": "INCIDENT", "source_cols": ["PRODUCTID"], "target": "PRODUCT", "target_cols": ["PRODUCTID"], "cardinality": "many-to-one", "sources": ["dv_incident"]},
+    {"source": "INCIDENT", "source_cols": ["PARENTCASEID"], "target": "INCIDENT", "target_cols": ["INCIDENTID"], "cardinality": "many-to-one", "role": "parent", "sources": ["dv_incident"]},
+    {"source": "INCIDENT", "source_cols": ["OWNERID"], "target": "SYSTEMUSER", "target_cols": ["SYSTEMUSERID"], "cardinality": "many-to-one", "role": "owner", "condition": "The column holds a GUID of either table; OWNERIDTYPE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "OWNERIDTYPE", "in": ["systemuser"]}], "sources": ["dv_incident"]},
+    {"source": "INCIDENT", "source_cols": ["OWNERID"], "target": "TEAM", "target_cols": ["TEAMID"], "cardinality": "many-to-one", "role": "owner", "condition": "The column holds a GUID of either table; OWNERIDTYPE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "OWNERIDTYPE", "in": ["team"]}], "sources": ["dv_incident"]},
+    {"source": "SYSTEMUSER", "source_cols": ["BUSINESSUNITID"], "target": "BUSINESSUNIT", "target_cols": ["BUSINESSUNITID"], "cardinality": "many-to-one", "sources": ["dv_systemuser"]},
+    {"source": "SYSTEMUSER", "source_cols": ["PARENTSYSTEMUSERID"], "target": "SYSTEMUSER", "target_cols": ["SYSTEMUSERID"], "cardinality": "many-to-one", "role": "manager", "sources": ["dv_systemuser"]},
+    {"source": "TEAM", "source_cols": ["BUSINESSUNITID"], "target": "BUSINESSUNIT", "target_cols": ["BUSINESSUNITID"], "cardinality": "many-to-one", "sources": ["dv_team"]},
+    {"source": "BUSINESSUNIT", "source_cols": ["PARENTBUSINESSUNITID"], "target": "BUSINESSUNIT", "target_cols": ["BUSINESSUNITID"], "cardinality": "many-to-one", "role": "parent", "sources": ["dv_businessunit"]},
+    {"source": "ACTIVITYPOINTER", "source_cols": ["REGARDINGOBJECTID"], "target": "ACCOUNT", "target_cols": ["ACCOUNTID"], "cardinality": "many-to-one", "role": "regarding", "condition": "The column holds a GUID of either table; REGARDINGOBJECTTYPECODE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "REGARDINGOBJECTTYPECODE", "in": ["account"]}], "sources": ["dv_activitypointer", "multitable_lookup"]},
+    {"source": "ACTIVITYPOINTER", "source_cols": ["REGARDINGOBJECTID"], "target": "CONTACT", "target_cols": ["CONTACTID"], "cardinality": "many-to-one", "role": "regarding", "condition": "The column holds a GUID of either table; REGARDINGOBJECTTYPECODE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "REGARDINGOBJECTTYPECODE", "in": ["contact"]}], "sources": ["dv_activitypointer", "multitable_lookup"]},
+    {"source": "ACTIVITYPOINTER", "source_cols": ["REGARDINGOBJECTID"], "target": "LEAD", "target_cols": ["LEADID"], "cardinality": "many-to-one", "role": "regarding", "condition": "The column holds a GUID of either table; REGARDINGOBJECTTYPECODE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "REGARDINGOBJECTTYPECODE", "in": ["lead"]}], "sources": ["dv_activitypointer", "multitable_lookup"]},
+    {"source": "ACTIVITYPOINTER", "source_cols": ["REGARDINGOBJECTID"], "target": "OPPORTUNITY", "target_cols": ["OPPORTUNITYID"], "cardinality": "many-to-one", "role": "regarding", "condition": "The column holds a GUID of either table; REGARDINGOBJECTTYPECODE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "REGARDINGOBJECTTYPECODE", "in": ["opportunity"]}], "sources": ["dv_activitypointer", "multitable_lookup"]},
+    {"source": "ACTIVITYPOINTER", "source_cols": ["REGARDINGOBJECTID"], "target": "QUOTE", "target_cols": ["QUOTEID"], "cardinality": "many-to-one", "role": "regarding", "condition": "The column holds a GUID of either table; REGARDINGOBJECTTYPECODE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "REGARDINGOBJECTTYPECODE", "in": ["quote"]}], "sources": ["dv_activitypointer", "multitable_lookup"]},
+    {"source": "ACTIVITYPOINTER", "source_cols": ["REGARDINGOBJECTID"], "target": "SALESORDER", "target_cols": ["SALESORDERID"], "cardinality": "many-to-one", "role": "regarding", "condition": "The column holds a GUID of either table; REGARDINGOBJECTTYPECODE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "REGARDINGOBJECTTYPECODE", "in": ["salesorder"]}], "sources": ["dv_activitypointer", "multitable_lookup"]},
+    {"source": "ACTIVITYPOINTER", "source_cols": ["REGARDINGOBJECTID"], "target": "INVOICE", "target_cols": ["INVOICEID"], "cardinality": "many-to-one", "role": "regarding", "condition": "The column holds a GUID of either table; REGARDINGOBJECTTYPECODE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "REGARDINGOBJECTTYPECODE", "in": ["invoice"]}], "sources": ["dv_activitypointer", "multitable_lookup"]},
+    {"source": "ACTIVITYPOINTER", "source_cols": ["REGARDINGOBJECTID"], "target": "INCIDENT", "target_cols": ["INCIDENTID"], "cardinality": "many-to-one", "role": "regarding", "condition": "The column holds a GUID of either table; REGARDINGOBJECTTYPECODE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "REGARDINGOBJECTTYPECODE", "in": ["incident"]}], "sources": ["dv_activitypointer", "multitable_lookup"]},
+    {"source": "ACTIVITYPOINTER", "source_cols": ["OWNERID"], "target": "SYSTEMUSER", "target_cols": ["SYSTEMUSERID"], "cardinality": "many-to-one", "role": "owner", "condition": "The column holds a GUID of either table; OWNERIDTYPE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "OWNERIDTYPE", "in": ["systemuser"]}], "sources": ["dv_activitypointer"]},
+    {"source": "ACTIVITYPOINTER", "source_cols": ["OWNERID"], "target": "TEAM", "target_cols": ["TEAMID"], "cardinality": "many-to-one", "role": "owner", "condition": "The column holds a GUID of either table; OWNERIDTYPE names the table (an EntityName in Dataverse: the table's logical name). How a lake landing spells that type column and its values is not stated on the pages read; check it on your rows.", "where": [{"side": "source", "column": "OWNERIDTYPE", "in": ["team"]}], "sources": ["dv_activitypointer"]}
+  ],
+  "traps": [
+    {"id": "dv_doubled_totals", "title": "Header totals and line amounts are the same money", "text": "OPPORTUNITY.ESTIMATEDVALUE and TOTALAMOUNT, QUOTE.TOTALAMOUNT, SALESORDER.TOTALAMOUNT and INVOICE.TOTALAMOUNT are totals of their products (with discounts, freight and tax); OPPORTUNITYPRODUCT, QUOTEDETAIL, SALESORDERDETAIL and INVOICEDETAIL.EXTENDEDAMOUNT are the lines. Summing a header total over a join with its lines counts it once per line; adding header and line amounts counts the order twice. Sum the lines, or the headers alone.", "sources": ["dv_opportunity", "dv_opportunityproduct", "dv_salesorder", "dv_salesorderdetail", "dv_invoice", "dv_invoicedetail"]},
+    {"id": "dv_pipeline_vs_orders", "title": "Pipeline, quotes, orders and invoices are four stages of one sale", "text": "A won opportunity becomes a quote, an order and an invoice, each with its own total (QUOTEID, OPPORTUNITYID and SALESORDERID link them). Adding ESTIMATEDVALUE of opportunities to TOTALAMOUNT of orders or invoices counts the same sale more than once; ACTUALVALUE defaults to ESTIMATEDVALUE when the opportunity is won, so it is a forecast figure until someone corrects it.", "sources": ["dv_opportunity", "dv_quote", "dv_salesorder", "dv_invoice"]},
+    {"id": "dv_soft_delete", "title": "Deleted rows stay in the lake with IsDelete", "text": "Azure Synapse Link and Link to Microsoft Fabric keep a deleted row as a soft delete (IsDelete true, an empty body) until it is purged after about 30 days (28 on one page), and append-only tables add a row per change. Filter IsDelete and, for append-only tables, keep the latest row per id by versionnumber and SinkModifiedOn before counting or summing. SinkCreatedOn is when the lake got the row, not when the record was created (CREATEDON).", "sources": ["synapse_link_columns", "export_lake_faq"]},
+    {"id": "dv_polymorphic_lookups", "title": "Customer, owner and regarding lookups point at more than one table", "text": "CUSTOMERID and PARENTCUSTOMERID hold an account or a contact, OWNERID a user or a team, REGARDINGOBJECTID any of a long list of tables. A join of the column to one table finds nothing for the rows that point at another: filter on the type column (CUSTOMERIDTYPE, PARENTCUSTOMERIDTYPE, OWNERIDTYPE, REGARDINGOBJECTTYPECODE) first. The pack lists one filtered relationship per target table; none is a plain key join.", "sources": ["multitable_lookup", "dv_activitypointer", "dv_contact"]},
+    {"id": "dv_lookup_names", "title": "A lookup has a different name in the Web API and in the lake", "text": "The Web API returns a lookup as _<name>_value (_parentaccountid_value), a computed GUID; the table reference names the column by its logical name (parentaccountid), which is also how TargetMetadata in the lake names it (AttributeName). The pack reads both spellings. That the Fabric lakehouse names every lookup column by its logical name is stated on no page read: confirm it on your tables.", "sources": ["webapi_properties", "choice_labels"]},
+    {"id": "dv_choice_labels", "title": "Choice columns hold numbers; the labels are in metadata tables", "text": "STATECODE, STATUSCODE and every choice column hold a number. The label is in OptionsetMetadata, GlobalOptionsetMetadata, StateMetadata and StatusMetadata (by EntityName, OptionSetName, Option and the language code): join on all of them, or a label in another language doubles the rows.", "sources": ["choice_labels"]},
+    {"id": "dv_currency", "title": "Every money column is in the record's own currency", "text": "Money columns are in the currency of TRANSACTIONCURRENCYID; the _BASE twin is in the organisation's base currency, converted with the record's EXCHANGERATE. Summing EXTENDEDAMOUNT across currencies adds kronor to euros: sum EXTENDEDAMOUNT_BASE, or group by currency.", "sources": ["dv_salesorderdetail", "dv_transactioncurrency"]}
+  ]
+}

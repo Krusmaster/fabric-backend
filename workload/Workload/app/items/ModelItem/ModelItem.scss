@@ -636,3 +636,31 @@
 @media (max-width: 640px) {
   .ribbon-action-label { display: none; }
 }
+
+/* CA1: Publish to OneLake catalog (CatalogPanel.tsx). One column; each change its own block, nothing scrolls sideways. */
+.kg-catalog { margin: 24px 0 8px; display: flex; flex-direction: column; gap: 8px; max-width: 880px; }
+.kg-catalog-actions, .kg-catalog-files, .kg-catalog-write { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.kg-catalog-cards, .kg-catalog-diff { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.kg-catalog-card, .kg-catalog-change {
+  border: 1px solid var(--colorNeutralStroke2); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 4px;
+  overflow-wrap: anywhere;
+}
+.kg-catalog-change[data-action="kept"] { background: var(--colorNeutralBackground2); }
+.kg-catalog-change-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.kg-catalog-before-after { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 0; }
+.kg-catalog-before-after dt { color: var(--colorNeutralForeground2); font-weight: var(--fontWeightSemibold); }
+.kg-catalog-before-after dd { margin: 0; }
+.kg-catalog-plain { margin: 0; padding-left: 20px; overflow-wrap: anywhere; }
+/* n225's phone rules, for the catalog step wherever it is placed: 14 px text, 44 px tap targets, one column. */
+@media (max-width: 600px) {
+  .kg-catalog { font-size: 14px; line-height: 20px; overflow-wrap: anywhere; min-width: 0; }
+  .kg-catalog .fui-Caption1, .kg-catalog .fui-Badge, .kg-catalog .fui-Field__hint { font-size: 14px; line-height: 20px; }
+  .kg-catalog .fui-Badge { height: auto; min-height: 24px; white-space: normal; }
+  .kg-catalog .fui-Button, .kg-catalog .fui-Input, .kg-catalog .fui-Checkbox, .kg-catalog summary, .kg-catalog button,
+  .kg-catalog input[type="text"] { min-height: 44px; }
+  .kg-catalog summary { display: flex; align-items: center; }
+  .kg-catalog .fui-Checkbox { display: flex; align-items: center; }
+  .kg-catalog .fui-Checkbox__indicator { margin-block: auto; }
+  .kg-catalog-before-after { grid-template-columns: 1fr; }
+  .kg-catalog-files .fui-Button { width: 100%; justify-content: flex-start; }
+}

@@ -580,7 +580,7 @@ def engine_zip() -> bytes:
                 rel = p.relative_to(root)
                 if "__pycache__" in rel.parts or rel.parts[0] in ("static", "page_templates") or not p.is_file():
                     continue
-                if p.suffix == ".py" or (rel.parts[0] == "packs" and p.suffix == ".json"):
+                if p.suffix == ".py" or (rel.parts[0] == "packs" and p.suffix in (".json", ".include")):   # PK1: .include
                     z.writestr(zipfile.ZipInfo(f"fabric_backend/{rel.as_posix()}", (2026, 1, 1, 0, 0, 0)), p.read_bytes(),
                                zipfile.ZIP_DEFLATED)
         _ZIP = buf.getvalue()

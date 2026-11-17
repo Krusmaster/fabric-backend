@@ -143,6 +143,8 @@ _ITEM = "creates/updates one item; never deletes"
 # live, its date and its result; OPEN: what is still open), so `note` stays empty and label() builds the text.
 _RAW = {
     "start": (HOSTED, READS, "nothing (answers the next step; calls no tool itself)", "unit tests"),   # n219
+    "publish_catalog": (HOSTED, CREATES, "sets item descriptions and adds existing tags; never removes, deletes or endorses",
+                        "unit tests (Fabric replaced by a test double); not run against Fabric"),   # CA1
     "verify_build": (HOSTED, READS, _NO, "unit tests (definitions, rows and Power BI answers replaced by test doubles)"),   # n229
     "list_workspaces": (HOSTED, READS, _NO, "unit tests"),
     "list_sources": (HOSTED, READS, _NO, "unit tests"),
