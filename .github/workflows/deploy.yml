@@ -21,6 +21,13 @@ jobs:
     outputs:
       go: ${{ steps.decide.outputs.go }}
       sha: ${{ steps.commit.outputs.sha }}
+      # DP1: the variables as the gate cleaned them (surrounding spaces and line breaks removed, checked), so a value
+      # pasted with a trailing newline cannot reach azure/login, the snapshot or --update in two different forms.
+      app: ${{ steps.switch.outputs.app }}
+      rg: ${{ steps.switch.outputs.resource_group }}
+      client_id: ${{ steps.switch.outputs.client_id }}
+      tenant_id: ${{ steps.switch.outputs.tenant_id }}
+      subscription_id: ${{ steps.switch.outputs.subscription_id }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
@@ -32,6 +39,7 @@ jobs:
           KRUSGRAPH_RESOURCE_GROUP: ${{ vars.KRUSGRAPH_RESOURCE_GROUP }}
           KRUSGRAPH_APP: ${{ vars.KRUSGRAPH_APP }}
           KRUSGRAPH_AUTO_DEPLOY: ${{ vars.KRUSGRAPH_AUTO_DEPLOY }}
+        shell: bash      # -eo pipefail: a variable with a space or line break inside fails this job, despite the tee
         run: python3 deploy/auto_deploy.py gate | tee -a "$GITHUB_STEP_SUMMARY"
       # The commit to deploy: the one whose CI run just succeeded (workflow_run, pushes to main only), or main's tip
       # when started by hand, which must have a successful CI run of its own. Deployed only while it is still main's
@@ -71,8 +79,8 @@ jobs:
     timeout-minutes: 45
     permissions: { contents: read, id-token: write, issues: write }
     env:
-      APP: ${{ vars.KRUSGRAPH_APP }}
-      RG: ${{ vars.KRUSGRAPH_RESOURCE_GROUP }}
+      APP: ${{ needs.gate.outputs.app }}
+      RG: ${{ needs.gate.outputs.rg }}
       SHA: ${{ needs.gate.outputs.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -81,9 +89,9 @@ jobs:
         with: { python-version: "3.12" }
       - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
         with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ needs.gate.outputs.client_id }}
+          tenant-id: ${{ needs.gate.outputs.tenant_id }}
+          subscription-id: ${{ needs.gate.outputs.subscription_id }}
       - run: az extension add --name containerapp --upgrade --yes --only-show-errors
       - id: before
         run: python deploy/auto_deploy.py snapshot --app "$APP" --resource-group "$RG"

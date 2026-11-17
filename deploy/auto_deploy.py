@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import uuid
 from pathlib import Path
@@ -31,8 +32,21 @@ REQUIRED_VARIABLES = ("AZURE_CLIENT_ID", "AZURE_TENANT_ID", "AZURE_SUBSCRIPTION_
 SWITCH = "KRUSGRAPH_AUTO_DEPLOY"
 
 
+IDS = ("AZURE_CLIENT_ID", "AZURE_TENANT_ID", "AZURE_SUBSCRIPTION_ID")
+# The gate's outputs: the cleaned values the deploy job uses instead of the raw variables (DP1).
+OUTPUTS = {"AZURE_CLIENT_ID": "client_id", "AZURE_TENANT_ID": "tenant_id", "AZURE_SUBSCRIPTION_ID": "subscription_id",
+           "KRUSGRAPH_RESOURCE_GROUP": "resource_group", "KRUSGRAPH_APP": "app"}
+GUID = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+
+
+class GateError(Exception):
+    """A variable is set but cannot be right; the gate job fails instead of going dormant."""
+
+
 def gate(env) -> tuple[bool, str]:
-    """(go, reason). Dormant until every variable exists and the switch is "on"; anything else is a clean no-op."""
+    """(go, reason). Dormant until every variable exists and the switch is "on"; anything else is a clean no-op.
+    DP1: surrounding spaces and line breaks are removed from every value. A space or line break inside a value, or an
+    id that is not a GUID, raises GateError naming the variable (never its value)."""
     missing = [name for name in REQUIRED_VARIABLES if not (env.get(name) or "").strip()]
     if missing:
         return False, ("Automatic deployment is not set up (missing repository variables: " + ", ".join(missing)
@@ -40,7 +54,25 @@ def gate(env) -> tuple[bool, str]:
     switch = (env.get(SWITCH) or "").strip().lower()
     if switch != "on":
         return False, f"Automatic deployment is switched off ({SWITCH}={switch or 'unset'}). Nothing was deployed."
+    values(env)
     return True, "Automatic deployment is on."
+
+
+def values(env) -> dict:
+    """The required variables with surrounding whitespace removed, checked as gate() describes."""
+    cleaned, wrong = {}, []
+    for name in REQUIRED_VARIABLES:
+        text = (env.get(name) or "").strip()
+        if any(ch.isspace() or not ch.isprintable() for ch in text):
+            wrong.append(f"{name} contains a space, tab or line break inside the value")
+        elif name in IDS and not GUID.fullmatch(text):
+            wrong.append(f"{name} is not a GUID (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)")
+        cleaned[name] = text
+    if wrong:
+        raise GateError("Automatic deployment stopped before any Azure call: " + "; ".join(wrong)
+                        + ". Edit the repository variable (Settings -> Secrets and variables -> Actions -> Variables) and "
+                        "paste the value again without spaces or line breaks. See docs/AUTO-DEPLOY.md, step 3.")
+    return cleaned
 
 
 def _container(app: dict) -> dict:
@@ -121,18 +153,26 @@ def main(argv=None) -> int:
             p.add_argument("--build", default="")
     args = parser.parse_args(argv)
     if args.command == "gate":
-        go, reason = gate(os.environ)
+        try:
+            go, reason = gate(os.environ)
+        except GateError as exc:
+            print("STOP: " + str(exc))
+            _output({"go": "false"})
+            return 1
         print(reason)
-        _output({"go": "true" if go else "false"})
+        _output({"go": "true" if go else "false",
+                 **({OUTPUTS[k]: v for k, v in values(os.environ).items()} if go else {})})
         return 0
     try:
+        app = aca.clean_name(args.app, "--app")
+        rg = aca.clean_name(args.resource_group, "--resource-group")
         az = _azure()
         if args.command == "snapshot":
-            state = snapshot(az, args.app, args.resource_group)
+            state = snapshot(az, app, rg)
             print(json.dumps({k: state[k] for k in ("build", "revision")}))
             _output(state)
         else:
-            print(rollback(az, args.app, args.resource_group, args.image, args.build))
+            print(rollback(az, app, rg, args.image.strip(), args.build.strip()))
     except aca.DeploymentError as exc:
         print("STOP: " + str(exc), file=sys.stderr)
         return 1

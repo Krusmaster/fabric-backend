@@ -34,8 +34,20 @@ Use the Azure portal in Krusgraph's directory (the tenant the container app is i
 3. **Certificates & secrets → Federated credentials → Add credential.**
    - Scenario: *GitHub Actions deploying Azure resources*
    - Organization `Krusmaster`, Repository `fabric-backend`, Entity type *Branch*, GitHub branch name `main`
-   - Name `github-main`. The subject shown must be `repo:Krusmaster/fabric-backend:ref:refs/heads/main`.
+   - **Organization ID** `44801570` and **Repository ID** `1428587556` (the form's immutable-ID fields; see below).
+   - Name `github-main`. The subject shown must be exactly
+     `repo:Krusmaster@44801570/fabric-backend@1428587556:ref:refs/heads/main`.
    - **Add.**
+
+   GitHub's OIDC token for this repository carries that immutable-ID subject (owner and repository, each with its
+   numeric id). A credential with the name-only subject `repo:Krusmaster/fabric-backend:ref:refs/heads/main` does
+   not match it, and azure/login fails with `AADSTS700213: No matching federated identity record found`. The first run
+   on 17 November 2026 failed that way until the subject was changed. azure/login prints the subject it presents
+   ("subject claim - ...") in the *deploy* job's log; the credential must match it character for character.
+
+   The two ids, if they ever need checking: open `https://api.github.com/repos/Krusmaster/fabric-backend` (no login
+   needed for a public repository). `owner.id` is the Organization ID and the top-level `id` is the Repository ID. In
+   Cloud Shell: `curl -s https://api.github.com/repos/Krusmaster/fabric-backend | jq '{owner_id: .owner.id, repo_id: .id}'`.
 
 Do not create a client secret: GitHub signs in with a short-lived token that only runs from `main` of this repository
 can get.
@@ -67,6 +79,12 @@ variable**, six times:
 | `KRUSGRAPH_RESOURCE_GROUP` | the resource group's name |
 | `KRUSGRAPH_APP` | the container app's name |
 | `KRUSGRAPH_AUTO_DEPLOY` | `on` |
+
+Paste each value without spaces or line breaks before or after it (copying from a table or a terminal can bring a
+trailing line break along). The gate job removes them, and stops before any Azure call, naming the variable, when a
+space or line break is inside a value or an id is not a GUID. On 17 November 2026 `KRUSGRAPH_APP` held
+`krusgraph` plus a line break, and --update stopped with "Hittade inte container-appen krusgraph" although the app
+exists.
 
 None of these is a secret, and nothing goes under *Secrets*. The subscription, resource group and app names are the
 ones `bash deploy/krusgraph.sh --from-azure` prints in Cloud Shell. They stay in GitHub's settings and never go into
