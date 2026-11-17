@@ -1,0 +1,65 @@
+{
+  "$version": "2.0",
+  "meta": {"creator": "Krusgraph synthetic sample (hand-written for the SAP demo tables; not exported from an SAP system)"},
+  "definitions": {
+    "KNA1": {
+      "kind": "entity",
+      "@EndUserText.label": "Customer master (synthetic demo)",
+      "@Analytics.dataCategory": {"#": "DIMENSION"},
+      "elements": {
+        "MANDT": {"key": true, "type": "cds.String", "length": 3},
+        "KUNNR": {"key": true, "type": "cds.String", "length": 10},
+        "LAND1": {"type": "cds.String", "length": 3},
+        "ADRNR": {"type": "cds.String", "length": 10}
+      }
+    },
+    "MARA": {
+      "kind": "entity",
+      "@EndUserText.label": "Material master (synthetic demo)",
+      "@Analytics.dataCategory": {"#": "DIMENSION"},
+      "elements": {
+        "MANDT": {"key": true, "type": "cds.String", "length": 3},
+        "MATNR": {"key": true, "type": "cds.String", "length": 40},
+        "MTART": {"type": "cds.String", "length": 4},
+        "MEINS": {"type": "cds.String", "length": 3, "@Semantics.unitOfMeasure": true}
+      }
+    },
+    "VBAK": {
+      "kind": "entity",
+      "@EndUserText.label": "Sales document header (synthetic demo)",
+      "@Analytics.dataCategory": {"#": "FACT"},
+      "elements": {
+        "MANDT": {"key": true, "type": "cds.String", "length": 3},
+        "VBELN": {"key": true, "type": "cds.String", "length": 10},
+        "AUART": {"type": "cds.String", "length": 4},
+        "KUNNR": {"type": "cds.String", "length": 10},
+        "NETWR": {"type": "cds.Decimal", "precision": 15, "scale": 2, "@Semantics.amount.currencyCode": {"=": "WAERK"}},
+        "WAERK": {"type": "cds.String", "length": 5, "@Semantics.currencyCode": true},
+        "_SoldTo": {"type": "cds.Association", "target": "KNA1", "cardinality": {"max": 1},
+                    "on": [{"ref": ["_SoldTo", "MANDT"]}, "=", {"ref": ["MANDT"]}, "and",
+                           {"ref": ["_SoldTo", "KUNNR"]}, "=", {"ref": ["KUNNR"]}]},
+        "_Item": {"type": "cds.Composition", "target": "VBAP", "cardinality": {"max": "*"},
+                  "on": [{"ref": ["_Item", "MANDT"]}, "=", {"ref": ["MANDT"]}, "and",
+                         {"ref": ["_Item", "VBELN"]}, "=", {"ref": ["VBELN"]}]}
+      }
+    },
+    "VBAP": {
+      "kind": "entity",
+      "@EndUserText.label": "Sales document item (synthetic demo)",
+      "@Analytics.dataCategory": {"#": "FACT"},
+      "elements": {
+        "MANDT": {"key": true, "type": "cds.String", "length": 3},
+        "VBELN": {"key": true, "type": "cds.String", "length": 10},
+        "POSNR": {"key": true, "type": "cds.String", "length": 6},
+        "MATNR": {"type": "cds.String", "length": 40},
+        "NETWR": {"type": "cds.Decimal", "precision": 15, "scale": 2, "@Semantics.amount.currencyCode": {"=": "WAERK"}},
+        "WAERK": {"type": "cds.String", "length": 5, "@Semantics.currencyCode": true},
+        "KWMENG": {"type": "cds.Decimal", "precision": 15, "scale": 3, "@Semantics.quantity.unitOfMeasure": {"=": "VRKME"}},
+        "VRKME": {"type": "cds.String", "length": 3, "@Semantics.unitOfMeasure": true},
+        "_Material": {"type": "cds.Association", "target": "MARA", "cardinality": {"max": 1},
+                      "on": [{"ref": ["_Material", "MANDT"]}, "=", {"ref": ["MANDT"]}, "and",
+                             {"ref": ["_Material", "MATNR"]}, "=", {"ref": ["MATNR"]}]}
+      }
+    }
+  }
+}

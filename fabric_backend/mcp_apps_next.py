@@ -323,7 +323,9 @@ def check_rows(plan, full: dict) -> dict:
         state = {"not_counted": "not_checked"}.get(_amount_status(f), _amount_status(f))
         table = f.get("header") or f.get("table") or ""
         cols = f.get("amount_columns") or ([f["column"]] if f.get("column") else [])
-        rows.append({"kind": "amount", "id": f"amount:{table}", "label": f"{table}: {', '.join(cols)}"
+        # LT1: one header amount can be checked over several line tables (VBAP over VBEP, LIPS and VBRP), so the id names
+        # the line table too; amount:<table> alone repeated one id for different checks
+        rows.append({"kind": "amount", "id": f"amount:{table}" + (f">{f['line']}" if f.get("line") else ""), "label": f"{table}: {', '.join(cols)}"
                      + (f" over {f['line']}" if f.get("line") else ""), "state": state,
                      "counts": "repeated on every line: do not sum over the lines" if state == "failed" else "on its own level"})
     for table, (cols, rule) in plan.keys.items():

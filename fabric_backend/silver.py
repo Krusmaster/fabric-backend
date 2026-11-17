@@ -97,6 +97,14 @@ def _checked_basis(got: dict) -> str:
     return "accepted in the review"
 
 
+def _counted_unique(plan, table: str, key: list[str]) -> bool:
+    """LT1: the plan's own call counted this key (propose.py, plan.profile["key_counts"]): unique, no NULL, rows > 0, for
+    exactly these columns. Said in the texts; not a reason to remove rows (n208: new rows can share a guessed key)."""
+    c = ((getattr(plan, "profile", None) or {}).get("key_counts") or {}).get(table)
+    return bool(c and c.get("unique") and c.get("rows") and not c.get("nulls")
+                and [x.lower() for x in c.get("columns") or []] == [x.lower() for x in key])
+
+
 def not_deduplicated(s: dict) -> list[dict]:
     """n208: the tables of the spec that have a key silver does not remove rows on (a guess), with that key."""
     return [{"table": t["table"], "key": list(t["key"]), "rule": t["key_rule"]} for t in s["tables"]
@@ -109,8 +117,14 @@ def dedupe_note(s: dict) -> str:
     if not left:
         return ""
     names = ", ".join(f"{x['table']} ({' + '.join(x['key'])})" for x in left)
+    counted = {t["table"] for t in s["tables"] if t.get("key_counted_unique")}
+    n = sum(1 for x in left if x["table"] in counted)
+    # LT1: "not counted in the rows" was said of keys the same plan had just counted unique (the SAP pack's keys)
+    why = ("these keys were not declared, given or counted in the rows" if not n else
+           "these keys were not declared or given; the plan counted "
+           + ("them" if n == len(left) else f"{n} of them") + " unique in the rows today, which new rows can change")
     return (f"No duplicates were removed in {len(left)} table(s) because the key was not checked: {names}. Every row is kept; "
-            "these keys were not declared, given or counted in the rows. Give a key (keys=, or set it in the review) where rows that share it are true "
+            f"{why}. Give a key (keys=, or set it in the review) where rows that share it are true "
             "duplicates.")
 
 
@@ -211,7 +225,12 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", order_by: dict |
         got = _checked(plan, t, list(key)) if key and not dedupe else None   # n221: the editor's row check or the review
         dedupe = dedupe or got is not None
         basis = _checked_basis(got) if got else _key_basis(key_rule)
+        counted = bool(key) and not dedupe and _counted_unique(plan, t, list(key))
+        if counted:                                                          # LT1: say what the plan did count
+            basis = basis.replace(", not checked against the rows", "; counted unique in the rows when the plan was made, "
+                                  "not declared or given")
         out_tables.append({"table": t, "target": target(t), "key": list(key), "key_rule": label(key_rule) if key else "K3",
+                           **({"key_counted_unique": True} if counted else {}),
                            **({"key_rule_text": _rule_text(key_rule)} if key and label(key_rule) != key_rule else {}),
                            "dedupe": dedupe, **({"key_basis": basis} if key else {}),
                            **({"key_checked": {"how": got.get("how"), "on": checked_on(got.get("checked_at"))}} if got else {}),
