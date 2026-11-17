@@ -25,8 +25,10 @@ commit and again after every `git pull`.
 
 ## What an agent must not do
 
-- Deploy, or call Azure, Entra, DNS or Fabric with real credentials. Deployment is `bash deploy/krusgraph.sh
-  --update`, run by the maintainer.
+- Deploy by hand, or call Azure, Entra, DNS or Fabric with real credentials. Deployment is the workflow
+  `.github/workflows/deploy.yml` once the maintainer has switched it on (`docs/AUTO-DEPLOY.md`), and otherwise
+  `bash deploy/krusgraph.sh --update`, run by the maintainer.
+- Merge a pull request that the section "Merging and deploying" below does not allow a round to merge.
 - Publish anywhere (MCP registry, directories, package indexes) or send email.
 - Delete branches, tags or releases, or rewrite history on `main`.
 
@@ -38,14 +40,14 @@ owner of an area is listed here. Change an area you do not own only when the mai
 | Area | Files | Owner now |
 | --- | --- | --- |
 | Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/concepts.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | n242 holds `sap.html` and the new files `static/media/krusgraph-sap-to-report*` only (the approved SAP film on /sap, with captions); the rest is open |
-| MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | open; MG1 holds the new `plan_migration` tool in `mcp_server.py` (a block of its own before `main`) and the `migrate` command in `cli.py` only |
-| Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | open; MG1 holds the new package `fabric_backend/migrate/` only (Databricks and Snowflake metadata to a migration plan; no live connection); no tool, no pipeline cell, no workload code) |
+| MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | open; CA1 holds the new tool `publish_catalog` only (its block at the end of the tools in `server.py`, its rows in `tool_status.py`, `tool_params.py`, `discovery.py`, `mcp_apps_words.py` and the tool counts; dry run by default, writes only to workspaces listed in `KRUSGRAPH_CATALOG_WRITE_WORKSPACES`); Q2 holds the new file `fabric_backend/qlik_tools.py` (the tools `qlik_plan`, `qlik_measures_draft` and `qlik_reconcile_draft`: a Qlik load script to a plan, measure drafts and a reconciliation draft; read-only, no connection to Qlik), its registration lines at the end of the tool blocks in `server.py` and `mcp_server.py`, and its rows in `tool_status.py`, `tool_params.py`, `discovery.py` and the tool counts only; |
+| Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | open; CA1 holds the new package `fabric_backend/catalog_publish/` only (the OneLake catalog accelerator: product cards, quality rules, the write plan and the handover files); Q2 holds `fabric_backend/qlik/` and the Qlik reader in `migration_read.py` only (not its Tableau reader); no tool, no pipeline cell, no workload code) |
 | Deployment | `deploy/`, `Dockerfile`, `.github/` | open |
 | Pipeline jobs and permissions | `fabric_backend/pipeline_jobs.py`, `fabric_backend/access.py`, `fabric_backend/report.py` | open |
-| SAP pack | `fabric_backend/packs/`, `fabric_backend/sap_pack.py`, `fabric_backend/sap_demo.py`, `fabric_backend/exports.py` | | open |
-| Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | open; MG1 holds the new `docs/MIGRATE-DATABRICKS-SNOWFLAKE.md` and one tool line in section 4 of `docs/LOCAL.md` only; M1 holds new files under `docs/marketing/` only (marketing drafts: a fictional industrial case on synthetic data, LinkedIn posts, a film script, taglines, a home page section; nothing applied to the site or `llms.txt`); W9 holds the one new file `docs/INTEGRATE-AND-HEAL-DESIGN.md` (a design for connecting sources to OneLake and for self-healing data products by rules; docs only, nothing built); L1 holds the one new file `docs/LEARNING-DESIGN.md` and an update of `docs/LANDSCAPE.md` only (a re-run of the MCP landscape scan and a design for knowledge that accumulates by rules: decisions, packs, templates; docs only, nothing built); not the site, not the editor) |
-| Tests | `tests/` | open; MG1 holds the new `tests/test_mg1_migrate.py` and `tests/fixtures/mg1/` only |
-| Workload | `workload/` (the Fabric workload, a fork of Microsoft's starter kit), `fabric_backend/workload_api.py`, the workload routes in `server.py`, `docs/WORKLOAD-DEV.md` | open |
+| SAP pack | `fabric_backend/packs/`, `fabric_backend/sap_pack.py`, `fabric_backend/sap_demo.py`, `fabric_backend/exports.py` | | open; PK2 holds the new `fabric_backend/packs/dynamics365/`, the new `fabric_backend/dynamics_demo.py` and the reading of Dataverse and Business Central table and column names in `sap_pack.py` (`table_name`, `_cols`) only; PK1 holds `packs/salesforce` |
+| Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | open; CA1 holds the new `docs/CATALOG-ACCELERATOR.md` only; Q2 holds `docs/QLIK-MIGRATION-PRODUCT.md` and the new `docs/MIGRATE-WORKLOAD-DESIGN.md` and `docs/MIGRATE-GUIDED-PAGE-DRAFT.md` only (a design and a page draft; no workload code, nothing on the site); M1 holds new files under `docs/marketing/` only (marketing drafts: a fictional industrial case on synthetic data, LinkedIn posts, a film script, taglines, a home page section; nothing applied to the site or `llms.txt`); W9 holds the one new file `docs/INTEGRATE-AND-HEAL-DESIGN.md` (a design for connecting sources to OneLake and for self-healing data products by rules; docs only, nothing built); PK2 holds the new `docs/DYNAMICS365.md` only; L1 holds the one new file `docs/LEARNING-DESIGN.md` and an update of `docs/LANDSCAPE.md` only (a re-run of the MCP landscape scan and a design for knowledge that accumulates by rules: decisions, packs, templates; docs only, nothing built); not the site, not the editor) |
+| Tests | `tests/` | open; PK2 holds the new `tests/test_pk2_*.py`, the new `tests/corpus/dynamics365*.json`, `tests/corpus/bc_like.json` and the new goldens `tests/golden/pk2_*` only; CA1 holds the new `tests/test_ca1_*.py` and the tool counts only; Q2 holds `tests/test_q1_qlik.py`, the new `tests/test_q2_*.py` and the new `tests/fixtures/qlik/` only |
+| Workload | `workload/` (the Fabric workload, a fork of Microsoft's starter kit), `fabric_backend/workload_api.py`, the workload routes in `server.py`, `docs/WORKLOAD-DEV.md` | open; CA1 holds the route POST /workload/v1/catalog in `workload_api.py` and its line in `server.py`, the new files `workload/Workload/app/items/ModelItem/Catalog*.tsx`, `catalogWords.ts` and their tests, and the one entry for the catalog step in `ModelItemEditor.tsx`/`ModelItemViews.tsx` only (no manifest, no new Entra permission) |
 | Marketplace | `fabric_backend/marketplace.py`, `fabric_backend/entitlements.py`, the marketplace routes in `server.py`, `docs/MARKETPLACE-SETUP.md`, `tests/test_marketplace.py` | open |
 | Hub readiness | `docs/HUB-ATTESTATION.md`, `docs/HUB-READINESS.md`, `tools/hub_readiness.py`, `.github/workflows/hub-readiness.yml` (new files only; no `workload/` code, no site, no engine) | open |
 | Evolution | `docs/EVOLUTION.md`, `tools/evolution/`, `tests/test_e1_*` (how Krusgraph gets better by rules: the design, the score comparison that fails on a lower score and its baseline, the evolution-log tool, the case-record schema) | open |
@@ -70,6 +72,52 @@ comment (`tests/test_b2_supply_chain.py`); take a new one's commit from `git ls-
 --check --from-installed`, so a pip PR that changes a pin in `deploy/constraints.txt` is red until
 `THIRD_PARTY_NOTICES.md` is regenerated on its branch (`python tools/third_party_notices.py`): a simple consequence,
 fixed in place. The job also stops on a dependency under the AGPL or the SSPL, which is not fixed in place.
+## Merging and deploying
+
+The maintainer's decision of 16 November 2026: code with green tests may be merged and deployed automatically.
+
+**A round may merge its own pull request into `main`** when all of these hold:
+
+- every CI job on the pull request's current head is green, including *path-guard*;
+- the pull request touches only code, tests and public docs, and `tools/path_guard.py` finds nothing protected;
+- the branch is up to date with `main` (update it and wait for CI again if `main` has moved);
+- nothing in the round wrote to a Fabric tenant other than the demo tenant.
+
+Use the repository's usual merge method (a merge commit; Dependabot PRs are squashed, as above). Then check that
+`main` is green before the next merge.
+
+**Never merged by a round.** The round adds the label `needs-gustav` to the pull request and stops; the maintainer
+merges it. This applies to a pull request that touches any of the following:
+
+- `social/`, or marketing copy meant for publishing (`docs/marketing/` and the like);
+- pricing or sales material, including the pricing page. Pricing and sales material do not belong in this repository at
+  all (see "What never goes into the repository");
+- the legal pages' text: privacy, terms, cookies, the security policy page, `legal.py`, the DPA draft and the licences;
+- the workload name or manifest identity: `workload/Workload/Manifest/`, the package build scripts, `server.json`
+  (for example `Krusgraph.Modeler`, PR #26);
+- secrets or permissions: `.github/workflows/`, `deploy/` scripts, `Dockerfile`, `entra.py`, `access.py`,
+  `SECURITY.md`;
+- the deletion or retention of user data (`registration_store.py`, `usage.py`);
+- a major version bump of a dependency (`deploy/constraints.txt`, `pyproject.toml`,
+  `workload/Workload/package.json`; for 0.x versions a new minor counts as major);
+- this section, `tools/path_guard.py` or the pull request template.
+
+A Fabric write to a tenant other than the demo tenant cannot be seen in a diff. A round that made one labels its pull
+request `needs-gustav` itself.
+
+**The rule is enforced.** `.github/workflows/path-guard.yml` runs `tools/path_guard.py` on every pull request and on every
+label change. It fails when a protected path or a major bump has no `needs-gustav` label. The rules come from the base
+branch, so a pull request cannot loosen the check that judges it. A change to the rules is itself protected.
+`tests/test_cd1_path_guard.py` tests the check.
+
+**Deploying.** After a push to `main` whose CI run is green, `.github/workflows/deploy.yml` builds the image in Azure
+and updates the container app, the same way `bash deploy/krusgraph.sh --from-azure --update` does. It runs the same
+health checks (the home page, docs, privacy, the MCP login requirement, the build id at `/healthz`). If they fail, it
+rolls back to the previous image automatically and opens an issue. One deployment runs at a time, and commits that are
+superseded while waiting are skipped. It signs in with GitHub's OIDC token, so no stored secret is needed. It stays
+dormant until the maintainer has done the one-time steps in `docs/AUTO-DEPLOY.md`, which also says how to switch it
+off. The Fabric workload package upload stays manual.
+
 ## Reusing external code
 
 Depending on a package (a pin in `deploy/constraints.txt`, an extra in `pyproject.toml`) and copying code into this

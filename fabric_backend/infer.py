@@ -88,7 +88,7 @@ class Relationship:
     source_cols: list[str]
     target: str                      # the table being pointed at (the "one" side)
     target_cols: list[str]
-    rule: str                        # R0..R5, "SAP pack", or "confirmed"
+    rule: str                        # R0..R5, "SAP pack", "confirmed", "CSN metadata" or "decided"
     field_name: str = ""             # GraphQL field on the source, e.g. "customer"
     reverse_name: str = ""           # GraphQL field on the target, e.g. "orders"
     note: str = ""                   # how the name was read when it was not literal: "through the synonym table: kund -> customer"
@@ -173,6 +173,9 @@ class Plan:
     # CDS2: what a CSN file declared for this schema (csn.plan's report: keys, links, amounts with their level, what was
     # not applied and why). None: no CSN given. Its keys and links carry the rule "CSN metadata"; validate_plan counts them.
     csn: dict | None = None
+    # L1: what the tenant's earlier decisions did to this plan (decisions.plan's report: accepted keys and links applied
+    # with the rule "decided", rejected ones not proposed, conflicts, what no longer applies). None: no decisions read.
+    decisions: dict | None = None
 
     def summary(self) -> str:
         lines = [f"{len(self.schema)} tables, {len(self.keys)} with keys, {len(self.relationships)} relationships"]
@@ -221,6 +224,9 @@ class Plan:
             lines.append(f"{len(c['matched'])} table(s) described by CSN metadata ({', '.join(c['files'])}): {len(c['keys'])} key(s) and "
                          f"{len(c['links'])} link(s) declared, {len(c['not_applied'])} association(s) not applied (rule \"CSN metadata\"; "
                          "declared, not proven: validate_plan counts them) — see plan.csn")
+        if self.decisions and self.decisions.get("rules"):
+            from .decisions import summary_line
+            lines.append(summary_line(self.decisions))
         if self.pack:
             lines.append(f"{len(self.pack['tables'])} table(s) recognised by the {self.pack['pack']} pack: keys and relationships from its "
                          f"public sources (rule \"{self.label(self.pack['rule'])}\"), to be checked with validate_plan — see plan.pack")
