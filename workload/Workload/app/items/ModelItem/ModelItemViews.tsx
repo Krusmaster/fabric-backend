@@ -30,7 +30,7 @@ import {
   Title3,
   Tooltip,
 } from "@fluentui/react-components";
-import { CheckmarkCircle20Filled, CheckmarkStarburst24Regular, ErrorCircle20Filled, Open24Regular, Warning20Filled } from "@fluentui/react-icons";
+import { ArrowRight24Regular, CheckmarkCircle20Filled, CheckmarkStarburst24Regular, ErrorCircle20Filled, Open24Regular, Warning20Filled } from "@fluentui/react-icons";
 import { ItemEditorEmptyView } from "../../components/ItemEditor";
 import { AppChoices, BuildCard, DataProduct, EngineError, JobsCard, ManyAnswer, SchemasAnswer } from "./engineClient";
 import {
@@ -72,6 +72,8 @@ import { canRetry, progressLabel, toRetry } from "./createRun";
 import { AgentChoices, AgentPanel, JobsPanel, PipelineChoices } from "./JobsViews";
 import { agentOf, jobsOf, scheduleProblems } from "./jobsWords";
 import { ICON_SIZE, NOTICES, altBeside, itemIcon } from "./fabricIcons";
+import { FIRST_LINE } from "./stepWords";
+import { ProofStrip } from "./NextStepsView";
 import {
   APP_STEPS_TITLE, CardState, FINISH_CSS, LastCreate, STATE_MARK, banner, cardState, itemTypeLabel, keepUpToDate, nextSteps,
   readLastCreate, running, stepsTitle,
@@ -208,13 +210,15 @@ export function EmptyView(props: {
   return (
     <ItemEditorEmptyView
       title="Choose a source"
-      description={
-        CHOOSE_SOURCE_WORDS
-      }
+      description={FIRST_LINE}
       imageSrc="/assets/items/ModelItem/EditorEmpty.svg"
       imageAlt=""
       customContent={
         <div className="krusgraph-empty-form">
+          <details className="kg-how">
+            <summary><Caption1>What Krusgraph reads, and what it changes</Caption1></summary>
+            <Caption1 as="p">{CHOOSE_SOURCE_WORDS}</Caption1>
+          </details>
           <Button appearance={source ? "secondary" : "primary"} onClick={props.onChooseLakehouse}>
             {sourceButton(source)}
           </Button>
@@ -229,7 +233,7 @@ export function EmptyView(props: {
               <Button appearance="secondary" onClick={props.onChooseTarget}>{targetButton(source.target)}</Button>
             </>
           )}
-          <Button appearance="primary" disabled={!source || !props.schema.trim() || (props.schemas.loading && !props.schemas.list) ||
+          <Button appearance={source ? "primary" : "secondary"} disabled={!source || !props.schema.trim() || (props.schemas.loading && !props.schemas.list) ||
             (!!props.schemas.error && !schemaProblem(props.schemas.error, source.displayName).typeIt)} onClick={props.onReview}>
             Find keys and relationships
           </Button>
@@ -361,6 +365,8 @@ export function ReviewView(props: {
   /** n201: a read-only source, and the SAP pack's items with their sources */
   readOnly?: ReadOnlySource;
   sap?: SapOffer;
+  /** W13: the step after the review, shown on the page (it was only the ribbon's arrow) */
+  onNext?: () => void;
 }) {
   const [tab, setTab] = useState<"map" | "list">("map");
   const notes = sourceNotes(props.readOnly, props.sap);
@@ -410,6 +416,16 @@ export function ReviewView(props: {
           <Badge appearance="filled" color="informative">
             {totals.keys.not_checked + totals.relationships.not_checked + totals.keys.stale + totals.relationships.stale} not checked
           </Badge>
+        </div>
+      )}
+
+      {totals.checked > 0 && <ProofStrip review={props.review} />}
+      {props.onNext && (
+        <div className="kg-primary-row">
+          <Button appearance={totals.checked ? "primary" : "secondary"} icon={<ArrowRight24Regular />} onClick={props.onNext}>
+            Next: choose what to build
+          </Button>
+          <Caption1>{totals.checked ? "A dry run of each output comes before anything is created." : "You can check against the rows first, or go on without it."}</Caption1>
         </div>
       )}
 
