@@ -25,9 +25,12 @@ name and version; without --upload, or with --dry-run, nothing is sent.
     tools/workload-package.sh --frontend-app-id <the workload app's Application (client) ID>
                               [--name Org.Krusgraph|Krusgraph.Modeler] [--bump patch|minor|major] [--version 1.0.N]
                               [--previous <last .nupkg> | --previous-ref <git ref of the last upload>]
-                              [--out workload/build/package] [--skip-tests] [--upload]
+                              [--out workload/build/package] [--skip-tests | --full-tests]
+                              [--min-version 1.0.1396] [--summary-json <file>] [--upload]
 
-Runs in Azure Cloud Shell after `git clone` (python3 and git; pytest for step 3: `pip install --user pytest pillow`).
+Runs in Azure Cloud Shell after `git clone` (python3 and git; for step 3 `python3 -m pip install --user pytest pillow`:
+the manifest tests that need no server; the server-dependent workload tests run in CI, or here with --full-tests after
+`python3 -m pip install --user -e '.[server,test]'`). Versions never go below 1.0.1396 or a workload-pkg/ tag (WP1).
 Python's standard library otherwise; no network unless --upload and a documented API.
 """
 from __future__ import annotations
@@ -51,10 +54,23 @@ ROOT = Path(__file__).resolve().parents[1]
 BUILD_SCRIPT = ROOT / "workload" / "scripts" / "build_package.py"
 MANIFEST_DIR = "workload/Workload/Manifest"
 DEFAULT_OUT = ROOT / "workload" / "build" / "package"
-# The repository's tests for the manifest and the package (step 3)
-MANIFEST_TESTS = ("tests/test_workload_manifest.py", "tests/test_n201_manifest.py", "tests/test_workload_build.py",
-                  "tests/test_workload_publish.py")
+# The repository's tests for the manifest and the package (step 3). WP1 (18 November 2026): the first group needs only
+# pytest and pillow, so it runs in a clean Azure Cloud Shell; it runs with --noconftest, because tests/conftest.py's
+# shared fixtures import the server. The second group imports the server (starlette, mcp, ...): it runs where the server
+# extras are installed (CI, .github/workflows/workload-package.yml with --full-tests) and is named as not run otherwise.
+MANIFEST_TESTS = ("tests/test_workload_manifest.py", "tests/test_n201_manifest.py", "tests/test_workload_package_names.py")
+SERVER_TESTS = ("tests/test_workload_build.py", "tests/test_workload_publish.py", "tests/test_wp1_workload_server_pages.py")
+MANIFEST_TEST_MODULES = {"pytest": "pytest", "PIL": "pillow"}          # import name -> pip name
+INSTALL_LIGHT = "python3 -m pip install --user pytest pillow"
+INSTALL_FULL = "python3 -m pip install --user -e '.[server,test]'"
 DOC = "docs/WORKLOAD-PACKAGE-UPDATES.md"
+
+# WP1: versions only ever grow. Org.Krusgraph 1.0.1395 was uploaded and activated by hand on 17 November 2026, so no
+# package is built below 1.0.1396 (--min-version). The CI workflow tags each package it offers as workload-pkg/<version>;
+# the next build is at least one patch above the highest such tag, on any clone that has the tags (a plain `git clone`
+# fetches them).
+MIN_VERSION = "1.0.1396"
+TAG_PREFIX = "workload-pkg/"
 
 # No documented upload API (docs/WORKLOAD-PACKAGE-UPDATES.md, read 17 November 2026): the Fabric REST API's admin
 # Workloads group has only List Workloads and the workload assignments
@@ -117,6 +133,30 @@ def next_version(previous: str | None, part: str, floor: str | None, explicit: s
     if not candidates:
         raise StopError("No last package and no git history: pass --version 1.0.N (above the version in Fabric)")
     return max(candidates, key=parse_version)
+
+
+def tag_versions(run: Callable[[list[str]], str] | None = None, prefix: str = TAG_PREFIX) -> list[tuple[str, str]]:
+    """(version, tag) of every workload-pkg/<version> tag on this clone, lowest first; [] without git or tags."""
+    run = run or (lambda cmd: subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, check=True).stdout)
+    try:
+        out = run(["git", "tag", "--list", f"{prefix}*"])
+    except (OSError, subprocess.CalledProcessError):
+        return []
+    found = []
+    for tag in (out or "").split():
+        v = tag[len(prefix):]
+        if tag.startswith(prefix) and _VERSION.match(v):
+            found.append((v, tag))
+    return sorted(found, key=lambda x: parse_version(x[0]))
+
+
+def version_floor(commits_floor: str | None, tags: list[tuple[str, str]], minimum: str | None) -> str | None:
+    """The lowest version the next package may have: 1.0.<commits>, one patch above the last tagged package, and
+    --min-version (1.0.1396), whichever is highest."""
+    candidates = [v for v in (commits_floor, minimum) if v]
+    if tags:
+        candidates.append(bump(tags[-1][0], "patch"))
+    return max(candidates, key=parse_version) if candidates else None
 
 
 # ------------------------------------------------------------------ reading a package ----------------------------------
@@ -271,31 +311,78 @@ def manifest_diff(old: dict[str, bytes] | None, new: dict[str, bytes]) -> Diff:
 
 # ------------------------------------------------------------------ checks ---------------------------------------------
 
-def run_manifest_tests(runner: Callable[[list[str]], int] | None = None) -> tuple[bool, str]:
-    """The repository's manifest tests (pytest). (ok, what was run). Missing pytest is a stop, not a pass."""
-    if runner is None:
-        if importlib.util.find_spec("pytest") is None:
-            raise StopError("pytest is not installed, so the manifest tests cannot run. Install it "
-                            "(`python3 -m pip install --user pytest pillow`) or pass --skip-tests to build without them.")
+def missing_modules(names: dict[str, str] = MANIFEST_TEST_MODULES, find: Callable | None = None) -> list[str]:
+    """The pip names of the modules in `names` that cannot be imported here."""
+    find = find or importlib.util.find_spec
+    return [pip for mod, pip in names.items() if find(mod) is None]
 
+
+def server_import_problem(probe: Callable[[], str] | None = None) -> str | None:
+    """None when the server-dependent workload tests can import what they need, else the missing module's name.
+    It imports in a separate Python, so this tool never loads the server itself."""
+    if probe is None:
+        def probe():
+            code = ("import importlib, sys\n"
+                    "for m in ('starlette.testclient', 'httpx', 'jwt', 'cryptography', 'fabric_backend.server'):\n"
+                    "    try:\n        importlib.import_module(m)\n"
+                    "    except (ImportError, SystemExit) as e:\n"
+                    "        print(getattr(e, 'name', None) or m); sys.exit(0)\n")
+            r = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True)
+            return (r.stdout.strip() or ("fabric_backend.server" if r.returncode else ""))
+    missing = probe()
+    return missing or None
+
+
+def run_manifest_tests(runner: Callable[[list[str]], int] | None = None, *, full: bool = False,
+                       find: Callable | None = None, probe: Callable[[], str] | None = None) -> tuple[bool, str, list[str]]:
+    """The repository's manifest tests (pytest): (ok, what was run, notes for the person). Missing pytest or pillow is a
+    stop with the one install command, not a pass. The server-dependent workload tests run when the server extras are
+    installed; with `full` (CI) their absence is a stop too, otherwise a note says CI runs them."""
+    lacking = missing_modules(find=find)
+    if lacking:
+        raise StopError(f"The manifest tests need {' and '.join(lacking)}, which "
+                        f"{'is' if len(lacking) == 1 else 'are'} not installed here. Install with "
+                        f"`{INSTALL_LIGHT}` and run the same command again (or pass --skip-tests to build without them).")
+    if runner is None:
         def runner(cmd):
             return subprocess.run(cmd, cwd=ROOT).returncode
-    tests = [t for t in MANIFEST_TESTS if (ROOT / t).exists()]
-    cmd = [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", *tests]
-    return runner(cmd) == 0, " ".join(tests)
+    notes: list[str] = []
+    light = [t for t in MANIFEST_TESTS if (ROOT / t).exists()]
+    heavy = [t for t in SERVER_TESTS if (ROOT / t).exists()]
+    problem = server_import_problem(probe) if heavy else None
+    if problem and full:
+        raise StopError(f"--full-tests: the server-dependent workload tests cannot import {problem}. Install the server "
+                        f"extras with `{INSTALL_FULL}` (from the repository root) and run the same command again.")
+    base = [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider"]
+    ok = runner([*base, "--noconftest", *light]) == 0
+    ran = list(light)
+    if heavy and not problem:
+        ok = (runner([*base, *heavy]) == 0) and ok
+        ran += heavy
+    elif heavy:
+        notes.append(f"Not run here: the server-dependent workload tests ({' '.join(heavy)}) need the server extras "
+                     f"({problem} is missing). CI runs them on every push and pull request, and the workload-package "
+                     f"workflow runs them before it offers a package. To run them here too: `{INSTALL_FULL}`.")
+    return ok, " ".join(ran), notes
 
 
 # ------------------------------------------------------------------ the upload -----------------------------------------
 
-def portal_steps(path: Path, name: str, version: str, first_upload: bool) -> list[str]:
-    """The Admin-portal steps (docs/WORKLOAD-DEV.md, section 6; docs/WORKLOAD-PUBLISH.md). Nothing is opened."""
+# The Workloads page in Gustav's tenant (seen 17 November 2026): a plain portal page link, opened by a person; never
+# called by this tool or the workflow.
+PORTAL_URL = "https://app.fabric.microsoft.com/onelake/govern/org-config/workloads/publish?experience=fabric-developer"
+# How the uploaded Org.Krusgraph shows on that page (17 November 2026)
+DISPLAY_NAME = {"Org.Krusgraph": "Krusgraph (preview)"}
+
+
+def portal_steps(path: Path | str | None, name: str, version: str, first_upload: bool) -> list[str]:
+    """The Admin-portal steps (docs/WORKLOAD-PACKAGE-UPDATES.md; docs/WORKLOAD-PUBLISH.md). Nothing is opened."""
+    shown = DISPLAY_NAME.get(name, name)
     steps = [
         f"The package is {path}" + (" (in Cloud Shell: Manage files -> Download, that path)." if path else "."),
-        "As a Fabric administrator, at https://app.fabric.microsoft.com: OneLake catalog -> Govern -> Workloads "
-        "(on some tenants Govern -> Configurations -> Workloads).",
-        (f"Upload workload -> choose the file. The dialog must name {name}; if it names anything else, cancel."
-         if first_upload else f"{name} -> Upload -> choose the file (version {version})."),
-        f"Activate it: the workload's page -> version {version} -> Activate. Reload the Fabric tab.",
+        f"As a Fabric administrator, open {PORTAL_URL} (OneLake catalog -> Govern -> Configurations -> Workloads).",
+        f"Upload workload -> choose the file. The dialog must name {name}; if it names anything else, cancel.",
+        f"Open {shown} -> select version {version} -> Activate. Reload the Fabric tab.",
         "Undo: activate the previous version again on the same page.",
     ]
     if name == "Krusgraph.Modeler":
@@ -347,7 +434,13 @@ def _http(method: str, url: str, body: bytes, headers: dict) -> int:      # prag
 
 # ------------------------------------------------------------------ the command ----------------------------------------
 
-def main(argv=None, *, build=None, test_runner=None, confirm=input, out=print) -> int:
+def manifest_changed(diff: Diff) -> bool:
+    """False when an upload would only raise the version (WP1: the workflow then offers nothing)."""
+    return any(not line.startswith(("Version: ", "Nothing else changed")) for line in diff.lines)
+
+
+def main(argv=None, *, build=None, test_runner=None, test_find=None, test_probe=None, tags=None, confirm=input,
+         out=print) -> int:
     build = build or load_build()
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--frontend-app-id", required=True, help="the workload Entra app's Application (client) ID")
@@ -360,6 +453,10 @@ def main(argv=None, *, build=None, test_runner=None, confirm=input, out=print) -
     ap.add_argument("--offer-url", help="the live production Marketplace offer's page (Krusgraph.Modeler; see build_package.py)")
     ap.add_argument("--out", type=Path, default=DEFAULT_OUT, help="output folder; default workload/build/package (git-ignored)")
     ap.add_argument("--skip-tests", action="store_true", help="build without the repository's manifest tests (not advised)")
+    ap.add_argument("--full-tests", action="store_true",
+                    help="also require the server-dependent workload tests (CI; needs the server extras)")
+    ap.add_argument("--min-version", default=MIN_VERSION, help=f"never build below this version (default {MIN_VERSION})")
+    ap.add_argument("--summary-json", type=Path, help="also write the result (version, path, diff) as JSON (CI)")
     ap.add_argument("--upload", action="store_true", help="upload through a documented API, after a typed confirmation")
     ap.add_argument("--dry-run", action="store_true", help="with --upload: say what would be sent, send nothing")
     a = ap.parse_args(argv)
@@ -378,12 +475,20 @@ def main(argv=None, *, build=None, test_runner=None, confirm=input, out=print) -
             if found:
                 previous_files, previous_label = package_files(found), str(found)
         try:
-            floor = build.default_version()
+            commits_floor = build.default_version()
         except build.PackageError as e:
             if not a.version:
                 out(f"Note: {e}")
-            floor = None
+            commits_floor = None
+        if a.min_version:
+            parse_version(a.min_version)
+        tags = tag_versions() if tags is None else tags
+        floor = version_floor(commits_floor, tags, a.min_version)
         previous_version = package_version(previous_files) if previous_files else None
+        if a.version and floor and parse_version(a.version) < parse_version(floor):
+            raise StopError(f"--version {a.version} is below {floor}, the lowest version allowed now (1.0.<commits>, "
+                            f"one above the last tag {tags[-1][1] if tags else '(none)'}, and --min-version); "
+                            "Fabric's versions must keep growing")
         if a.previous_ref:
             # the ref's manifest built with this build's values; its version is not known from git, so the floor rules
             previous_files = files_at_ref(build, a.previous_ref, build.values(a.frontend_app_id, "0.0.0", a.frontend_url, name))
@@ -400,11 +505,17 @@ def main(argv=None, *, build=None, test_runner=None, confirm=input, out=print) -
         if a.skip_tests:
             out("NOT checked: the repository's manifest tests were skipped (--skip-tests).")
         else:
-            ok, ran = run_manifest_tests(test_runner)
+            try:
+                ok, ran, notes = run_manifest_tests(test_runner, full=a.full_tests, find=test_find, probe=test_probe)
+            except StopError:
+                path.unlink(missing_ok=True)
+                raise
             if not ok:
                 path.unlink(missing_ok=True)
                 raise StopError(f"The manifest tests failed ({ran}); the package was removed. Fix them, then build again.")
             out(f"Checked: the manifest tests passed ({ran}).")
+            for note in notes:
+                out(note)
 
         # 4: what changes for Fabric
         diff = manifest_diff(previous_files, new_files)
@@ -416,6 +527,11 @@ def main(argv=None, *, build=None, test_runner=None, confirm=input, out=print) -
             out("  ! The workload name or an item type changed. Fabric keeps a name for good once uploaded; this needs "
                 "Gustav's yes (label needs-gustav).")
         out("")
+        if a.summary_json:
+            a.summary_json.write_text(json.dumps({
+                "name": name, "version": version, "path": str(path), "file": path.name,
+                "previous": previous_label, "diff": diff.lines, "identity": diff.identity,
+                "changed": manifest_changed(diff), "tests_skipped": bool(a.skip_tests)}, indent=2), encoding="utf-8")
 
         # 5: upload, or the steps
         if a.upload:

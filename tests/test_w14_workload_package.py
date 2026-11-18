@@ -42,7 +42,9 @@ def _run(args, *, build=None, tests_ok=True, confirm=lambda prompt: "", ran=None
     def runner(cmd):
         calls.append(cmd)
         return 0 if tests_ok else 1
-    code = wp.main(["--frontend-app-id", APP, *args], build=build or _build(), test_runner=runner, confirm=confirm,
+    # --min-version 1.0.0: these tests use the fixed floor 1.0.500; WP1's 1.0.1396 minimum is tested in test_wp1_*
+    code = wp.main(["--frontend-app-id", APP, "--min-version", "1.0.0", *args], build=build or _build(),
+                   test_runner=runner, test_find=lambda m: object(), test_probe=lambda: "", tags=[], confirm=confirm,
                    out=lines.append)
     return code, "\n".join(lines), calls
 
@@ -74,9 +76,11 @@ def test_first_build_checks_tests_and_prints_the_steps(tmp_path):
     assert "Checked: the build's manifest checks passed" in out
     assert "Checked: the manifest tests passed" in out
     assert calls and calls[0][1:4] == ["-m", "pytest", "-q"] and "tests/test_workload_manifest.py" in calls[0]
+    assert "--noconftest" in calls[0] and "tests/test_workload_build.py" in calls[1]
     assert "No last package to compare with" in out
     assert "Nothing was uploaded." in out
-    assert "OneLake catalog -> Govern -> Workloads" in out and "Upload workload" in out and str(pkg) in out
+    assert "OneLake catalog -> Govern -> Configurations -> Workloads" in out and "Upload workload" in out and str(pkg) in out
+    assert wp.PORTAL_URL in out and "Krusgraph (preview)" in out
     assert "Activate" in out
 
 
@@ -128,7 +132,7 @@ def test_skip_tests_says_so(tmp_path):
 
 def test_without_pytest_it_stops_rather_than_passing(monkeypatch):
     monkeypatch.setattr(wp.importlib.util, "find_spec", lambda name: None)
-    with pytest.raises(wp.StopError, match="pytest is not installed"):
+    with pytest.raises(wp.StopError, match="pytest and pillow, which are not installed"):
         wp.run_manifest_tests()
 
 
