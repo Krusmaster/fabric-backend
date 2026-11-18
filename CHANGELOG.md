@@ -9,6 +9,12 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round WB11: **more Fabric item icons in the Model editor** (Gustav, 18 November 2026). The icons n184 put on the
+  output cards, from Microsoft's `@fabric-msft/svg-icons@12.0.0`, now stand beside every Fabric item type the editor
+  names: the next steps' cards (workload and item types at the top left), the Data product page's Built list, Retire,
+  the catalog's "What would be written as you" and the source and target buttons. Item icons only, always beside the
+  type's name, `alt=""` there; API for GraphQL and Activator use the package's generic item icon.
+  `docs/WORKLOAD-DEV.md`, section 13.
 - Round WB10: **Gustav's live test of the Model item in Fabric, 18 November 2026: the catalog step's owner, counts,
   dates and descriptions** (issues #58-#61). The owner field is the Data product page's people picker with Me, has
   autocomplete off and refuses an item's name (editor and engine). Every key and link count on the page comes from the

@@ -368,6 +368,10 @@
   flex: none;
 }
 
+.fui-Button__icon > .krusgraph-item-icon {
+  display: block;
+}
+
 .krusgraph-notices {
   margin-top: 16px;
 }
@@ -686,6 +690,7 @@
 
 .kg-next-head {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 8px;
@@ -694,6 +699,8 @@
 .kg-next-workload {
   color: var(--colorNeutralForeground2);
   font-weight: var(--fontWeightSemibold);
+  gap: 6px;
+  min-width: 0;
 }
 
 .kg-next-actions {

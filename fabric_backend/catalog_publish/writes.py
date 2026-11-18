@@ -120,7 +120,7 @@ def item_writes(workspace_id: str, item: dict, text, tag_names: list[str], tenan
         add_names.append(found.get("displayName", t))
     room = TAGS_PER_ITEM - len(have)
     if len(add) > room:
-        kept.append({"item": name, "field": "tags", "why": f"an item can have at most {TAGS_PER_ITEM} tags; "
+        kept.append({"item": name, "type": item.get("type"), "field": "tags", "why": f"an item can have at most {TAGS_PER_ITEM} tags; "
                      f"{len(add) - max(room, 0)} left out", "suggested": add_names[max(room, 0):]})
         add, add_names = add[:max(room, 0)], add_names[:max(room, 0)]
     if add:
@@ -143,11 +143,12 @@ def confirm_of(workspace_id: str, writes: list[dict]) -> str:
 def diff(writes: list[dict], kept: list[dict], optional: list[dict] | None = None) -> list[dict]:
     """One row per item and field, in the order the items were listed: what is there now and what would be there; then
     (WB10) one row per item Krusgraph did not build, unticked, with what would be written if it is ticked."""
-    rows = [{"item": w["item"], "field": w["field"], "before": w["before"], "after": w["after"], "action": "write"}
+    # WB11: each row says its item's Fabric type, so the editor shows that item type's icon beside the name
+    rows = [{"item": w["item"], "type": w.get("type"), "field": w["field"], "before": w["before"], "after": w["after"], "action": "write"}
             for w in writes]
-    rows += [{"item": k["item"], "field": k["field"], "before": None, "after": k.get("suggested"), "action": "kept",
+    rows += [{"item": k["item"], "type": k.get("type"), "field": k["field"], "before": None, "after": k.get("suggested"), "action": "kept",
               "why": k["why"]} for k in kept]
-    rows += [{"item": o["item"], "item_id": o["item_id"], "field": " and ".join(o["fields"]), "action": "optional",
+    rows += [{"item": o["item"], "item_id": o["item_id"], "type": o.get("type"), "field": " and ".join(o["fields"]), "action": "optional",
               "before": next((w["before"] for w in o["writes"] if w["field"] == "description"), None),
               "after": next((w["after"] for w in o["writes"] if w["field"] == "description"), None),
               "why": o["why"]} for o in optional or []]

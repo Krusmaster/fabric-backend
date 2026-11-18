@@ -7,7 +7,7 @@
  * (green passed, red failed with its orphans or duplicates, grey not checked), Onto, Thinker and Builder in their own
  * colours with the site's figures, Thinker's questions with their choices inline, and Accept all. Words: modelWords.ts.
  */
-import { ReadOnlySource, SapOffer, isReadOnly, sapMark, schemaProblem, sourceButton, sourceNotes, targetButton, targetLine } from "./sourceWords";
+import { ReadOnlySource, SapOffer, isReadOnly, restType, sapMark, schemaProblem, sourceButton, sourceNotes, targetButton, targetLine } from "./sourceWords";
 import React, { useState } from "react";
 import {
   Badge,
@@ -71,7 +71,8 @@ import { ChosenProductsView } from "./SuggestedProductsView";
 import { canRetry, progressLabel, toRetry } from "./createRun";
 import { AgentChoices, AgentPanel, JobsPanel, PipelineChoices } from "./JobsViews";
 import { agentOf, jobsOf, scheduleProblems } from "./jobsWords";
-import { ICON_SIZE, NOTICES, altBeside, itemIcon } from "./fabricIcons";
+import { ICON_SIZE, KIND_TYPE, NOTICES, altBeside, itemIcon } from "./fabricIcons";
+import { TypeIcon, TypeName } from "./itemIcons";
 import { FIRST_LINE } from "./stepWords";
 import { ProofStrip } from "./NextStepsView";
 import {
@@ -220,7 +221,8 @@ export function EmptyView(props: {
             <summary><Caption1>What Krusgraph reads, and what it changes</Caption1></summary>
             <Caption1 as="p">{CHOOSE_SOURCE_WORDS}</Caption1>
           </details>
-          <Button appearance={source ? "secondary" : "primary"} onClick={props.onChooseLakehouse}>
+          <Button appearance={source ? "secondary" : "primary"} onClick={props.onChooseLakehouse}
+            icon={source ? <TypeIcon type={restType(source.itemType)} beside={sourceButton(source)} /> : undefined}>
             {sourceButton(source)}
           </Button>
           {source && <SchemaChoice schema={props.schema} schemas={props.schemas} onSchemaChange={props.onSchemaChange} mascotsOn={props.mascotsOn}
@@ -231,7 +233,8 @@ export function EmptyView(props: {
           {readOnly && (
             <>
               <Body1>{targetLine(source, source.target)}</Body1>
-              <Button appearance="secondary" onClick={props.onChooseTarget}>{targetButton(source.target)}</Button>
+              <Button appearance="secondary" onClick={props.onChooseTarget}
+                icon={<TypeIcon type="Lakehouse" beside={targetButton(source.target)} />}>{targetButton(source.target)}</Button>
             </>
           )}
           <Button appearance={source ? "primary" : "secondary"} disabled={!source || !props.schema.trim() || (props.schemas.loading && !props.schemas.list) ||
@@ -1123,7 +1126,7 @@ export function ProductView(props: {
         {items.map((x) => (
           <li key={x.id || `${x.output}:${x.name}`}>
             <Body1>
-              {itemTypeLabel(x.type, x.output)} {x.name}
+              <TypeName type={x.type || KIND_TYPE[x.output ?? ""]} text={itemTypeLabel(x.type, x.output)} /> {x.name}
               {x.would ? ` (${productWould(x)})` : ""}
               {(x as { earlier?: boolean }).earlier ? " (earlier Create)" : ""}
             </Body1>

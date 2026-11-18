@@ -32,7 +32,7 @@ def test_every_output_has_an_icon_with_the_item_type_as_text():
     assert ICONS["kinds"]["silver_notebook"]["alt"] == "Notebook"
     assert ICONS["kinds"]["semantic_model"]["alt"] == "Semantic model"
     assert ICONS["kinds"]["graphql"]["alt"] == "API for GraphQL"
-    assert set(ICONS["files"]) == {i["file"] for i in ICONS["kinds"].values()}
+    assert set(ICONS["files"]) == {i["file"] for i in [*ICONS["kinds"].values(), *ICONS["types"].values()]}
 
 
 def test_icons_come_only_from_the_cited_package_at_the_pinned_version():

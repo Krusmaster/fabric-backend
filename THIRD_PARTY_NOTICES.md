@@ -86,8 +86,9 @@ PyPI release when this file was generated, and no version is written.
 
 ### Microsoft Fabric item icons in the workload editor
 
-The Model editor's output cards show Microsoft's Fabric item icons from the npm package `@fabric-msft/svg-icons@12.0.0`
-(a dependency of `workload/Workload`, pinned exactly; eight files, unmodified, named with their SHA-256 in
+The Model editor shows Microsoft's Fabric item icons beside the names of Fabric item types (the output cards since n184;
+since WB11 also the next steps, the data product, Retire, the catalog and the source) from the npm package
+`@fabric-msft/svg-icons@12.0.0` (a dependency of `workload/Workload`, pinned exactly; thirteen files, unmodified, named with their SHA-256 in
 `workload/Workload/app/items/ModelItem/fabricIcons.json`; none stored in this repository). Terms: Microsoft Learn,
 *Microsoft Fabric product, experience, and item icons* (https://learn.microsoft.com/fabric/fundamentals/icons), which
 offers the package "for use in Microsoft Fabric platform extension development"; Microsoft reserves all other rights.

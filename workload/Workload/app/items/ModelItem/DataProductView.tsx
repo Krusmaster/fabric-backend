@@ -8,6 +8,8 @@
 import React, { useState } from "react";
 import { BuildCard } from "./engineClient";
 import { itemTypeLabel } from "./createWords";
+import { KIND_TYPE } from "./fabricIcons";
+import { TypeName } from "./itemIcons";
 import { OutputsDefinition } from "./ModelItemDefinition";
 import {
   KEEPS_DATA, LeftoversAnswer, OWNER_WHY, OutOfDate, Person, ProductRow, RetireAnswer, STATE, StatusAnswer, healthWords, lastRunWords,
@@ -48,6 +50,8 @@ box-sizing:border-box;max-width:960px;padding:16px;overflow-wrap:anywhere}
 .kg-dp button:disabled{opacity:.55;cursor:not-allowed}
 .kg-dp button:focus-visible,.kg-dp input:focus-visible,.kg-dp select:focus-visible{outline:2px solid var(--kg-focus);outline-offset:2px}
 .kg-dp label{display:inline-flex;gap:6px;align-items:center}
+.kg-dp .krusgraph-item-title{display:inline-flex;align-items:center;gap:6px;align-self:center}
+.kg-dp .krusgraph-item-icon{width:20px;height:20px;flex:none}
 .kg-dp input[type=text]{font:inherit;min-height:32px;padding:4px 8px;border:1px solid var(--kg-line);border-radius:4px;background:var(--kg-bg);color:var(--kg-fg);width:100%;max-width:360px}
 .kg-dp .kg-dp-field{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
 .kg-dp .kg-dp-field>label{display:block;flex-basis:100%;font-weight:600}
@@ -251,7 +255,7 @@ function ItemRows(props: { rows: ProductRow[]; chosen: string[]; toggle: (id: st
         return (
           <li key={x.key} className="kg-dp-row" data-state={x.state}>
             <span className={`kg-dp-state tone-${s.tone}`}><span className="kg-dp-mark" aria-hidden="true">{s.mark}</span>{s.label}</span>
-            <span>{x.typeLabel}</span>
+            <TypeName type={x.type || KIND_TYPE[x.output ?? ""]} text={x.typeLabel} />
             <span className="kg-dp-name">{x.name}</span>
             {x.why && <span className="kg-dp-why">{x.why}</span>}
             {(x.openable && x.id) || (x.id && x.state !== "removed") ? (
@@ -282,12 +286,12 @@ function RetirePanel(props: { r: RetireAnswer; typed: string; setTyped: (s: stri
           {s.result && <span className="kg-dp-why">{resultWords(s as { result: string; why?: string })}</span>}</li>)}</ul>
       )}
       {r.scope === "delete" && r.dry_run && r.items && r.items.length > 0 && (
-        <ul aria-label="These items would be deleted">{r.items.map((x) => <li key={x.id} className="kg-dp-row"><span className="kg-dp-state tone-bad"><span className="kg-dp-mark" aria-hidden="true">✕</span>Would be deleted</span><span>{itemTypeLabel(x.type, x.output ?? undefined)}</span><span className="kg-dp-name">{x.name}</span></li>)}</ul>
+        <ul aria-label="These items would be deleted">{r.items.map((x) => <li key={x.id} className="kg-dp-row"><span className="kg-dp-state tone-bad"><span className="kg-dp-mark" aria-hidden="true">✕</span>Would be deleted</span><TypeName type={x.type} text={itemTypeLabel(x.type, x.output ?? undefined)} /><span className="kg-dp-name">{x.name}</span></li>)}</ul>
       )}
       {r.results && (
         <ul aria-label="Result per item">{r.results.map((x) => <li key={x.id} className="kg-dp-row" data-result={x.result}>
           <span className={`kg-dp-state tone-${x.result === "failed" ? "bad" : "ok"}`}><span className="kg-dp-mark" aria-hidden="true">{x.result === "failed" ? "✕" : "✓"}</span>{resultWords(x)}</span>
-          <span>{itemTypeLabel(x.type)}</span><span className="kg-dp-name">{x.name}</span></li>)}</ul>
+          <TypeName type={x.type} text={itemTypeLabel(x.type)} /><span className="kg-dp-name">{x.name}</span></li>)}</ul>
       )}
       {r.refused.length > 0 && (
         <ul aria-label="Left alone">{r.refused.map((x) => <li key={x.id} className="kg-dp-row"><span className="kg-dp-state tone-off"><span className="kg-dp-mark" aria-hidden="true">–</span>Left alone</span><span className="kg-dp-name">{x.name ?? x.id}</span><span className="kg-dp-why">{x.why}</span></li>)}</ul>

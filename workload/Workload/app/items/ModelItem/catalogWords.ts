@@ -29,6 +29,8 @@ export interface CatalogDiffRow {
   item: string;
   /** WB10: an optional row's item id, sent back in `include` when the person ticks it */
   item_id?: string;
+  /** WB11: the item's Fabric type (Lakehouse, Notebook, GraphQLApi, ...), for its icon and its word */
+  type?: string | null;
   /** "description", "tags", or for an optional row what would be written ("description and tags") */
   field: string;
   before: string | string[] | null;

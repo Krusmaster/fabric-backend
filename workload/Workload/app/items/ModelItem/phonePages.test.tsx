@@ -87,9 +87,9 @@ const CATALOG: CatalogAnswer = {
     quality_rules: [{ id: "orders_key_unique", kind: "unique_key", says: "orders.order_id has no duplicates and no empty values", status: "proven", sql: "" }],
   }],
   diff: [
-    { item: `${LONG}_model`, field: "description", before: "", after: `Data product Shop sales (shop): Orders, ${LONG}. Checked by Krusgraph: 2 of 2 keys unique.`, action: "write" },
-    { item: SOURCE.displayName, field: "tags", before: [], after: ["Krusgraph"], action: "write" },
-    { item: SOURCE.displayName, field: "description", before: null, after: "Data product Shop sales", action: "kept", why: "the item has its own description and Krusgraph did not build it" },
+    { item: `${LONG}_model`, type: "SemanticModel", field: "description", before: "", after: `Data product Shop sales (shop): Orders, ${LONG}. Checked by Krusgraph: 2 of 2 keys unique.`, action: "write" },
+    { item: SOURCE.displayName, type: "Lakehouse", field: "tags", before: [], after: ["Krusgraph"], action: "write" },
+    { item: SOURCE.displayName, type: "Lakehouse", field: "description", before: null, after: "Data product Shop sales", action: "kept", why: "the item has its own description and Krusgraph did not build it" },
   ],
   confirm: "catalog-0123abcd", writable: false,
   handover: {
