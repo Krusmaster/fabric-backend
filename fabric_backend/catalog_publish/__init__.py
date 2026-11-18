@@ -15,42 +15,49 @@ No AI model is used anywhere here: the same plan and counts give the same answer
 from __future__ import annotations
 
 from . import apis, cards as _cards, handover as _handover, writes as _writes
-from .cards import DESCRIPTION_MAX, evidence
+from .cards import DESCRIPTION_MAX, evidence, page_evidence
 
-__all__ = ["prepare", "apply", "for_chat", "apis", "evidence", "DESCRIPTION_MAX"]
+__all__ = ["prepare", "apply", "for_chat", "apis", "evidence", "page_evidence", "DESCRIPTION_MAX"]
 
 
-def _item_text(products: list[dict], label: str, ev: dict) -> str:
-    if len(products) == 1:
-        return products[0]["description"]
-    names = ", ".join(c["name"] for c in products)
-    tail = f" Checked by Krusgraph: {ev['line']}." if ev["counted"] else f" Krusgraph: {ev['line']}."
-    return _cards._fit(f"Data products {names} over {label}.{tail}", f"{len(products)} data products over {label}.{tail}")
+def _item_texts(products: list[dict], label: str, ev: dict) -> list[str]:
+    """WB10: the data-product sentence appended to an item's own first sentence, longest first: the page's totals (the
+    same as the Thinker line) with the links between data products stated separately, then shorter forms."""
+    names = " and ".join(c["name"] for c in products) if len(products) < 3 else f"{len(products)} data products"
+    what = f"Data product{'s' if len(products) > 1 else ''} {names} over {label}"
+    if not ev["counted"]:
+        return [f"{what}; Krusgraph: {ev['line']}.", f"{what}."]
+    return [f"{what}, checked by Krusgraph: {ev['line']}.", f"{what}, checked by Krusgraph: {ev['short']}.", f"{what}."]
 
 
 def prepare(p, schema: str, workspace_id: str, items: list[dict], *, source: str = "", validation: dict | None = None,
             checked_on: str | None = None, owners: dict | None = None, names: dict | None = None,
             created_ids: set[str] | None = None, tenant_tags: list[dict] | None = None,
-            tags_readable: bool = True, workspace_tags: list[dict] | None = None) -> dict:
+            tags_readable: bool = True, workspace_tags: list[dict] | None = None, include: set[str] | None = None) -> dict:
     """The whole answer for one plan. `items`: the Fabric items the products live in, as read now
     ({id, displayName, type, description, tags}); `created_ids`: the ones this Model (or tool) built; `tenant_tags`:
     GET /v1/tags as read now; with tags_readable=False (List Tags needs Tag.Read.All, which the apps do not hold) the
-    ids come from `workspace_tags`, the tags already on the workspace's items, and the rest go to the handover."""
+    ids come from `workspace_tags`, the tags already on the workspace's items, and the rest go to the handover.
+    WB10: `include`, ids of items Krusgraph did not build that the person ticked: only those are written to; the others
+    are offered, unticked, in `optional`."""
     created_ids = set(created_ids or ())
     got = _cards.cards(p, schema, source, validation, checked_on, owners, names)
     products = got["products"]
-    every = sorted({t for c in products for t in c["tables"]}, key=str.lower)
-    ev = evidence(validation, every, checked_on)
+    ev = page_evidence(validation, [{"name": c["name"], "tables": c["tables"]} for c in products], checked_on)
     label = source or schema
-    text = _item_text(products, label, ev) if products else ""
+    texts = _item_texts(products, label, ev) if products else []
     tag_names = list(dict.fromkeys(t for c in products for t in c["tags"]))
     pool = list(tenant_tags or []) if tags_readable else list(workspace_tags or [])
-    writes, kept, missing = [], [], []
+    writes, kept, missing, optional = [], [], [], []
+    include = set(include or ())
     if products:
         for it in items:
-            w, k, m = _writes.item_writes(workspace_id, it, text, tag_names, pool, created_ids)
-            writes += w
-            kept += k
+            w, k, m = _writes.item_writes(workspace_id, it, texts, tag_names, pool, created_ids)
+            if _writes.ours(it, created_ids) or it.get("id") in include:
+                writes += w
+                kept += k
+            elif w:
+                optional.append(_writes.offer(it, w))
             missing += m
     writes.sort(key=lambda w: (w["field"] != "description", [i.get("id") for i in items].index(w["item_id"])))
     missing_tags = sorted({m["tag"] for m in missing}, key=str.lower)
@@ -59,14 +66,16 @@ def prepare(p, schema: str, workspace_id: str, items: list[dict], *, source: str
     n_tags = sum(1 for w in writes if w["field"] == "tags")
     summary = (f"{len(products)} data product card(s); as you: {n_desc} description(s) and tags on {n_tags} item(s) to "
                f"write; for others: {len(hand['requests'])} request(s) in the handover files"
-               + (f"; {len(kept)} kept as they are" if kept else ""))
+               + (f"; {len(kept)} kept as they are" if kept else "")
+               + (f"; {len(optional)} item(s) Krusgraph did not build left out unless you tick them" if optional else ""))
     return {
         "summary": summary,
         "products": products,
         "unassigned": got["unassigned"],
         "evidence": ev,
         "writes": writes,
-        "diff": _writes.diff(writes, kept),
+        "diff": _writes.diff(writes, kept, optional),
+        "optional": optional,
         "kept": kept,
         "confirm": _writes.confirm_of(workspace_id, writes) if writes else None,
         "undo": [w["undo"] | {"item": w["item"]} for w in writes],

@@ -59,7 +59,8 @@ def test_a_card_per_product_with_everything_a_catalog_entry_needs(shop):
         assert c[k], k
     assert c["owner"] == "Data team" and a["products"][1]["owner"] == "not chosen yet"
     assert len(c["description"]) <= cp.DESCRIPTION_MAX and "Owner: Data team." in c["description"]
-    assert c["evidence"]["line"] == "4 of 4 keys unique, 0 orphan rows over 3 links, checked 17 Nov 2026"
+    assert c["evidence"]["line"] == ("4 of 4 keys unique, 0 orphan rows over 3 links inside customers, 1 link between "
+                                     "customers and products and 1 link to tables in no data product, checked 17 Nov 2026")
     assert c["contract"]["yaml"].startswith("# ODCS v3.2.0") and c["contract"]["file"] == "contracts/customers.odcs.yaml"
     assert c["tags"] == ["Krusgraph", "customers"]
     assert {t["term"] for t in c["glossary"]} == {"Addresses", "Customers", "Order items", "Orders"}
@@ -105,12 +106,14 @@ def test_a_broken_rule_is_proposed_not_proven(shop):
 def test_the_diff_writes_only_what_the_user_may_and_keeps_other_peoples_words(shop):
     a = _answer(shop)
     by = {(w["item"], w["field"]): w for w in a["writes"]}
-    assert set(by) == {("shop_model", "description"), ("silver_shop", "description"), ("demo_lh", "tags"),
+    assert set(by) == {("shop_model", "description"), ("silver_shop", "description"),
                        ("silver_shop", "tags"), ("shop_model", "tags")}
-    assert ("demo_lh", "description") not in by                      # its own words, not built by Krusgraph
-    kept = [k for k in a["kept"] if k["item"] == "demo_lh"]
-    assert kept and kept[0]["field"] == "description" and kept[0]["suggested"]
+    assert not any(w["item"] == "demo_lh" for w in a["writes"])      # WB10: not built by Krusgraph: offered, unticked
+    assert [o["item"] for o in a["optional"]] == ["demo_lh"]
+    row = next(d for d in a["diff"] if d["item"] == "demo_lh")
+    assert row["action"] == "optional" and "did not build demo_lh" in row["why"] and row["after"].startswith("Our own words. ")
     assert by[("shop_model", "description")]["after"].endswith("[Krusgraph plan plan-abc, schema shop (sha256:12ab), 6 links]")
+    assert by[("shop_model", "description")]["after"].startswith("Built by Krusgraph. Data products customers and products")
     assert by[("shop_model", "tags")]["body"] == {"tags": ["t-c"]}   # Krusgraph is there already: only adds
     assert [w["field"] for w in a["writes"]][:2] == ["description", "description"]
     assert {w["operation"] for w in a["writes"]} == {"Items_UpdateItem", "Tags_ApplyTags"}
@@ -221,9 +224,9 @@ def test_the_same_plan_gives_the_same_answer(shop):
 def test_publish_catalog_is_a_dry_run_by_default_and_sends_nothing(fabric):
     out = json.loads(server.publish_catalog(**SRC))
     assert "error" not in out, out
-    assert out["confirm"] and "dry run" in out["note"]
+    assert out["confirm"] is None and "dry run" in out["note"]   # WB10: nothing of Krusgraph's here to write
     assert [c["name"] for c in out["products"]] == ["customers", "products"]
-    assert any(d["item"] == "demo_lh" for d in out["diff"])
+    assert [(d["item"], d["action"]) for d in out["diff"]] == [("demo_lh", "optional")]   # WB10: not Krusgraph's
     assert not [c for c in fabric.calls if c[0] != "GET"]
     assert not fabric.created
 
@@ -236,18 +239,9 @@ def test_publish_catalog_refuses_to_write_outside_the_allowed_workspaces(fabric,
     assert not [c for c in fabric.calls if c[0] == "PATCH" or c[1].endswith("applyTags")]
 
 
-def test_publish_catalog_writes_in_the_allowed_workspace(fabric, monkeypatch):
+def test_publish_catalog_writes_nothing_to_an_item_krusgraph_did_not_build(fabric, monkeypatch):
+    # WB10 (Gustav's live test, 18 Nov 2026, #61): the lakehouse is the owner's: the tool offers it, never writes it
     monkeypatch.setenv(writes.ALLOW_ENV, gs.WS)
-    real = fabric._route
-
-    def route(method, url, body=None):
-        if method == "PATCH" and "/items/" in url:
-            fabric.calls.append((method, url))
-            return gs.Response(200, {})
-        return real(method, url, body)
-    monkeypatch.setattr(fabric, "_route", route)
     dry = json.loads(server.publish_catalog(**SRC))
-    assert [w["field"] for w in dry["writes"]] == ["description"]   # the lakehouse has none; no tag exists to apply
-    out = json.loads(server.publish_catalog(**SRC, dry_run=False, confirm=dry["confirm"]))
-    assert [r["ok"] for r in out["results"]] == [True]
-    assert out["undo"][0]["body"] == {"description": ""}
+    assert dry["writes"] == [] and dry["confirm"] is None and [o["item"] for o in dry["optional"]] == ["demo_lh"]
+    assert not [c for c in fabric.calls if c[0] == "PATCH" or c[1].endswith("applyTags")]

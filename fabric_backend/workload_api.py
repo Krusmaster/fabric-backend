@@ -921,6 +921,9 @@ def catalog_request(body) -> dict:
     owner = body.get("owner")
     if owner is not None and (not isinstance(owner, str) or len(owner) > 120):
         raise BadRequest("'owner' is a name or e-mail of at most 120 characters")
+    include = body.get("include") or []                # WB10: items Krusgraph did not build that the person ticked
+    if not isinstance(include, list) or len(include) > 100 or not all(isinstance(i, str) and _GUID.match(i) for i in include):
+        raise BadRequest("'include' is a list of item ids (GUIDs) to write to although Krusgraph did not build them")
     dry = body.get("dry_run", True)
     if not isinstance(dry, bool):
         raise BadRequest("'dry_run' must be true or false")
@@ -928,14 +931,14 @@ def catalog_request(body) -> dict:
     if confirm is not None and (not isinstance(confirm, str) or len(confirm) > 40):
         raise BadRequest("'confirm' is the dry run's confirm value")
     return {**req, "review": body["review"], "created_ids": ids, "owner": (owner or "").strip() or None,
-            "dry_run": dry, "confirm": confirm}
+            "dry_run": dry, "confirm": confirm, "include": sorted({i.lower() for i in include})}
 
 
 def run_catalog(req: dict) -> dict:
     """CA1: product cards, the diff and the handover files; with dry_run=false the writes, after the guard."""
-    from datetime import date
-    from . import server as S, review as R, evidence as E, catalog_publish as cp, domains as D
-    from .catalog_publish import fabric_io as io, writes as cw
+    from datetime import datetime, timezone
+    from . import server as S, review as R, evidence as E, catalog_publish as cp, domains as D, product_life as life
+    from .catalog_publish import fabric_io as io, owner as co, recorded as rc, writes as cw
     prev = R.read(req["review"])
     carried = R.carried_arguments(prev)
     s, execute = S._connected(req["workspace"], req["source"], req["schema"], None)
@@ -946,18 +949,26 @@ def run_catalog(req: dict) -> dict:
         validation = E.validate(p, execute)
     finally:
         getattr(execute, "close", lambda: None)()
+    # WB10: the counts and the time of the check recorded in this item (the Thinker line's), not a second count
+    now = datetime.now(timezone.utc).replace(second=0, microsecond=0).isoformat().replace("+00:00", "Z")
+    validation, checked_at = rc.with_recorded(validation, prev, now)
     headers = S._headers(None)
     get = io.reader(headers)
     ws = req["workspace"].lower()
     listed = io.items(get, ws)
+    if req["owner"]:                                   # WB10: a person or group in the workspace, never an item's name
+        refused = co.check(req["owner"], life.people(get, ws), listed, req.get("by"))
+        if refused:
+            return {"error": refused, "kind": "bad_owner",
+                    "hint": "Nothing was prepared or written. Pick a person or group from the list, or choose Me."}
     src = S._resolve_source(ws, req["source"], headers)
     chosen = io.pick(listed, src.get("id"), set(req["created_ids"]), req["schema"])
     tenant, readable = io.tenant_tags(get)
     on_items = list({t.get("id"): t for it in listed for t in it.get("tags") or [] if t.get("id")}.values())
     owners = {d["slug"]: req["owner"] for d in D.propose_plan(p, validation)["domains"]} if req["owner"] else None
     out = cp.prepare(p, req["schema"], ws, chosen, source=req["source_name"], validation=validation,
-                     checked_on=date.today().isoformat(), owners=owners, created_ids=set(req["created_ids"]),
-                     tenant_tags=tenant, tags_readable=readable, workspace_tags=on_items)
+                     checked_on=checked_at, owners=owners, created_ids=set(req["created_ids"]),
+                     tenant_tags=tenant, tags_readable=readable, workspace_tags=on_items, include=set(req["include"]))
     out["writable"] = ws in cw.allowed_workspaces()
     out["left_out"] = left_out
     if req["dry_run"]:
@@ -2655,7 +2666,7 @@ def routes(cfg, validator=None, obo=None) -> list:
                 return reply(refusal, STATUS["upgrade"], origin)
 
             tokens = Tokens(obo, token, claims["tid"], getattr(cfg, "client_id", None))
-            if where == "product":                     # n198: who removed or adopted an item, for outputs.json
+            if where in ("product", "catalog"):        # n198: who removed or adopted an item; WB10: the catalog owner's Me
                 req["by"] = who(claims)
             if where == "operation":                   # n197: the state of a background operation, for its owner only
                 from . import operations

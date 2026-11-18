@@ -8,8 +8,10 @@ Rules that keep it safe:
 - A dry run by default. A write needs dry_run=false, the `confirm` the dry run returned (a hash of exactly the writes
   shown), and a workspace listed in KRUSGRAPH_CATALOG_WRITE_WORKSPACES (comma-separated ids; empty: no workspace). The
   list is the maintainer's: Kruse Consulting's demo workspace while this is tested.
-- A description is replaced only on an item Krusgraph built (outputs.json's created ids, or its plan marker in the
-  description, which is kept); any other item keeps its own description unless it has none.
+- WB10 (Gustav's live test, 18 Nov 2026): a description is never replaced. The item's own first sentence is kept and
+  the data-product sentence appended (the plan marker stays at the end); an earlier data-product sentence of
+  Krusgraph's is replaced, so a second run does not repeat it. Items Krusgraph did not build (the source lakehouse)
+  are not written to by default: they are offered unticked (`optional`), with one line why.
 - Tags are only added, never removed; at most 10 per item; a tag that does not exist is not created here.
 - Every write records what was there before, and the answer carries the calls that undo it (Update Item with the old
   description, Tags - Unapply Tags with the ids that were added).
@@ -19,6 +21,9 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
+
+DESCRIPTION_MAX = 256
 
 FABRIC = "https://api.fabric.microsoft.com"
 TAGS_PER_ITEM = 10
@@ -34,19 +39,60 @@ def _mark_tools():
     return _w.MARK, _w.with_mark, _w.mark_of_description
 
 
-def _ours(item: dict, created_ids: set[str]) -> bool:
+def ours(item: dict, created_ids: set[str]) -> bool:
+    """Built by Krusgraph: one of outputs.json's created ids, or Krusgraph's plan marker in its description."""
     mark, _, of = _mark_tools()
     return item.get("id") in created_ids or of(item.get("description")) is not None
 
 
-def new_description(item: dict, text: str) -> str:
-    """The card's text; on an item with Krusgraph's plan marker the marker stays at the end (256 characters in all)."""
+_ours = ours
+OURS_START = ("Data product ", "Data products ")
+NOT_OURS_WHY = ("Krusgraph did not build {name}: its description and tags are its owner's, so nothing is written to it "
+                "unless you tick it")
+
+
+def own_first_sentence(description: str | None) -> str:
+    """The item's own first sentence, without the plan marker and without a data-product sentence of Krusgraph's."""
+    mark, _, _ = _mark_tools()
+    base = " ".join(mark.sub("", str(description or "")).split())
+    if not base or base.startswith(OURS_START):
+        return ""
+    m = re.match(r"(.+?[.!?])(?=\s|$)", base)
+    first = (m.group(1) if m else base).strip()
+    return first if first.endswith((".", "!", "?")) else first + "."
+
+
+def new_description(item: dict, texts) -> str:
+    """The item's own first sentence, then the data-product sentence (the longest of `texts` that fits), then
+    Krusgraph's plan marker if the item has one: 256 characters in all."""
     _, with_mark, of = _mark_tools()
+    texts = [texts] if isinstance(texts, str) else list(texts)
     m = of(item.get("description"))
-    return with_mark(text, m) if m else text
+    first = own_first_sentence(item.get("description"))
+    room = DESCRIPTION_MAX - (len(_mark_text(m)) + 1 if m else 0)
+    body = ""
+    for t in texts:
+        body = f"{first} {t}".strip()
+        if len(body) <= room:
+            break
+    if len(body) > room:
+        body = first if 0 < len(first) <= room else body[:max(room - 1, 0)].rstrip() + "…"
+    return with_mark(body, m) if m else body
 
 
-def item_writes(workspace_id: str, item: dict, text: str, tag_names: list[str], tenant_tags: list[dict] | None,
+def _mark_text(m: dict) -> str:
+    from ..workload_api import mark_text
+    return mark_text(m)
+
+
+def offer(item: dict, writes: list[dict]) -> dict:
+    """WB10: an item Krusgraph did not build, offered unticked: what would be written if the person ticks it."""
+    name = item.get("displayName") or item["id"]
+    return {"item": name, "item_id": item["id"], "type": item.get("type"), "why": NOT_OURS_WHY.format(name=name),
+            "fields": [w["field"] for w in writes], "writes": [{k: w[k] for k in ("field", "before", "after")} for w in writes]}
+
+
+def item_writes(workspace_id: str, item: dict, text, tag_names: list[str], tenant_tags: list[dict] | None,
                 created_ids: set[str]) -> tuple[list[dict], list[dict], list[dict]]:
     """(writes, kept, missing_tags) for one item {id, displayName, type, description, tags: [{id, displayName}]}."""
     writes, kept, missing = [], [], []
@@ -55,15 +101,11 @@ def item_writes(workspace_id: str, item: dict, text: str, tag_names: list[str], 
     before = item.get("description") or ""
     after = new_description(item, text)
     if after != before:
-        if _ours(item, created_ids) or not before.strip():
-            writes.append({"operation": "Items_UpdateItem", "method": "PATCH", "url": url, "body": {"description": after},
-                           "item": name, "item_id": item["id"], "type": item.get("type"), "field": "description",
-                           "before": before, "after": after,
-                           "undo": {"operation": "Items_UpdateItem", "method": "PATCH", "url": url,
-                                    "body": {"description": before}}})
-        else:
-            kept.append({"item": name, "field": "description", "why": "the item has its own description and Krusgraph "
-                         "did not build it: kept as it is; the card's text is offered to copy", "suggested": after})
+        writes.append({"operation": "Items_UpdateItem", "method": "PATCH", "url": url, "body": {"description": after},
+                       "item": name, "item_id": item["id"], "type": item.get("type"), "field": "description",
+                       "before": before, "after": after,
+                       "undo": {"operation": "Items_UpdateItem", "method": "PATCH", "url": url,
+                                "body": {"description": before}}})
     have = {str(t.get("displayName", "")).lower() for t in item.get("tags") or []}
     by_name = {str(t.get("displayName", "")).lower(): t for t in tenant_tags or []}
     add, add_names = [], []
@@ -98,12 +140,17 @@ def confirm_of(workspace_id: str, writes: list[dict]) -> str:
     return "catalog-" + hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
-def diff(writes: list[dict], kept: list[dict]) -> list[dict]:
-    """One row per item and field, in the order the items were listed: what is there now and what would be there."""
+def diff(writes: list[dict], kept: list[dict], optional: list[dict] | None = None) -> list[dict]:
+    """One row per item and field, in the order the items were listed: what is there now and what would be there; then
+    (WB10) one row per item Krusgraph did not build, unticked, with what would be written if it is ticked."""
     rows = [{"item": w["item"], "field": w["field"], "before": w["before"], "after": w["after"], "action": "write"}
             for w in writes]
     rows += [{"item": k["item"], "field": k["field"], "before": None, "after": k.get("suggested"), "action": "kept",
               "why": k["why"]} for k in kept]
+    rows += [{"item": o["item"], "item_id": o["item_id"], "field": " and ".join(o["fields"]), "action": "optional",
+              "before": next((w["before"] for w in o["writes"] if w["field"] == "description"), None),
+              "after": next((w["after"] for w in o["writes"] if w["field"] == "description"), None),
+              "why": o["why"]} for o in optional or []]
     return rows
 
 

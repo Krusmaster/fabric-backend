@@ -27,10 +27,14 @@ export interface CatalogCard {
 
 export interface CatalogDiffRow {
   item: string;
-  field: "description" | "tags";
+  /** WB10: an optional row's item id, sent back in `include` when the person ticks it */
+  item_id?: string;
+  /** "description", "tags", or for an optional row what would be written ("description and tags") */
+  field: string;
   before: string | string[] | null;
   after: string | string[] | null;
-  action: "write" | "kept";
+  /** WB10: "optional" is an item Krusgraph did not build: nothing is written to it unless the person ticks it */
+  action: "write" | "kept" | "optional";
   why?: string;
 }
 
@@ -82,7 +86,8 @@ export function shown(v: string | string[] | null | undefined): string {
 
 /** One line of the diff as a screen reader and a phone read it: item, field, what changes. */
 export function diffLine(r: CatalogDiffRow): string {
-  const what = r.field === "description" ? "description" : "tags";
+  const what = r.field;
+  if (r.action === "optional") return `${r.item}: not written unless you tick it (${r.why ?? "Krusgraph did not build it"})`;
   return r.action === "write"
     ? `${r.item}: ${what} will change from ${shown(r.before)} to ${shown(r.after)}`
     : `${r.item}: ${what} kept as it is (${r.why ?? "not Krusgraph's to change"})`;
@@ -127,4 +132,43 @@ export function fileHref(content: string, path: string): string {
 
 export function fileName(path: string): string {
   return path.replace(/\//g, "-");
+}
+
+// ------------------------------------------------------------------ WB10: the owner is a person or a group ----------
+
+export interface OwnerPerson {
+  name: string;
+  type: "User" | "Group";
+  role?: string;
+  upn?: string;
+}
+
+/** How a person is offered in the picker and saved: "Name (upn)" for a user with one, else the name (the Data product
+ * page's Owner offers the same). */
+export function personValue(p: OwnerPerson): string {
+  return p.upn ? `${p.name} (${p.upn})` : p.name;
+}
+
+/**
+ * WB10 (Gustav's live test, 18 Nov 2026): the field showed 'demo_lh_api9', an API for GraphQL item's name. The owner
+ * is a person or group: a value that names an item (an output this Model built) is refused, and where the workspace's
+ * people are known, so is anything that is not one of them or the signed-in person (Me). The engine checks the same
+ * (catalog_publish/owner.py). Empty: no owner, which is allowed. Returns the sentence that says why not, or "".
+ */
+export function ownerProblem(value: string, people: OwnerPerson[] | null | undefined, you?: string | null, itemNames: string[] = []): string {
+  const v = value.trim().replace(/\s+/g, " ");
+  if (!v) return "";
+  const low = v.toLowerCase();
+  if (you && low === you.trim().toLowerCase()) return "";
+  const known = (people ?? []).flatMap((p) => [p.name, p.upn, personValue(p)]).filter(Boolean).map((x) => String(x).toLowerCase());
+  if (known.includes(low)) return "";
+  if (itemNames.some((n) => n.trim().toLowerCase() === low))
+    return `'${v}' is an item in this workspace, not a person or group. Pick a person or group, or choose Me.`;
+  if (people && people.length) return `'${v}' is not a person or group with a role in this workspace. Pick one from the list, or choose Me.`;
+  return "";
+}
+
+/** The optional rows: items Krusgraph did not build, offered unticked. */
+export function optionalRows(a: CatalogAnswer | undefined): CatalogDiffRow[] {
+  return (a?.diff ?? []).filter((r) => r.action === "optional");
 }
