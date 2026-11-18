@@ -163,7 +163,8 @@ def _fan_out(f: dict, execute) -> dict:
         sb, sa = f["compare"]["summed_over_lines"], f["compare"]["summed_per_header"]
         bv, av = _one(execute, sb, "total"), _one(execute, sa, "total")
         if bv is not None or av is not None:
-            sums = {"summed_over_lines": bv, "summed_per_header": av}
+            from .number_words import rounded          # WB12 (#67): 22610.9, never 22610.900000000016
+            sums = {"summed_over_lines": rounded(bv), "summed_per_header": rounded(av)}
     out = {"type": DECISION,
            "what_is_wrong": (f"{header}.{col} sits on {header}, and {line} has up to {b.get('max_lines')} row(s) per {header} row: a "
                              f"report that joins the two and sums {col} counts it once per {line} row (a fan-out)."),

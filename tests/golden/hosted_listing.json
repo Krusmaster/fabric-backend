@@ -4326,7 +4326,7 @@
    "annotations": {
     "destructive_hint": false,
     "idempotent_hint": true,
-    "open_world_hint": false,
+    "open_world_hint": true,
     "read_only_hint": true,
     "title": "Start Krusgraph: a guided path (experimental)"
    },
