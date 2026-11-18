@@ -3,11 +3,61 @@
  * One card per suggestion: the workload, the title, one line of why, what Krusgraph does for it (a status word, never
  * colour alone) and one button. Cards wrap to one column on a phone (ModelItem.scss, .kg-next).
  */
-import React, { useState } from "react";
+import React, { createContext, useContext, useState } from "react";
 import { Badge, Body1, Button, Caption1, Subtitle2 } from "@fluentui/react-components";
 import { ArrowDownload20Regular, Copy20Regular, Open20Regular, Play20Regular } from "@fluentui/react-icons";
 import { NextInput, NextStep, grainLine, nextSteps, proofLine, proofOf } from "./nextSteps";
 import type { OutputKind } from "./engineClient";
+import type { CreatedItem } from "./ModelItemDefinition";
+
+/** WB10 (#64): the Data Science starter's Dry run, then Create (POST /workload/v1/starter): the notebook in the item's
+ * workspace, attached to the source lakehouse. Never run by Krusgraph. */
+export interface StarterAnswer {
+  would: "create" | "exists" | "created";
+  name: string;
+  words: string;
+  confirm: string | null;
+  created?: CreatedItem;
+}
+export interface StarterSource {
+  run: (opts: { name: string; cells: string[]; dryRun: boolean; confirm?: string | null }) => Promise<StarterAnswer>;
+  onCreated?: (item: CreatedItem) => void;
+}
+export const StarterContext = createContext<StarterSource | undefined>(undefined);
+
+function StarterCreate(props: { name: string; cells: string[] }) {
+  const source = useContext(StarterContext);
+  const [state, setState] = useState<{ busy?: boolean; answer?: StarterAnswer; problem?: string }>({});
+  if (!source) return null;
+  const go = async (dryRun: boolean) => {
+    setState((s) => ({ ...s, busy: true, problem: undefined }));
+    try {
+      const answer = await source.run({ name: props.name, cells: props.cells, dryRun, confirm: dryRun ? null : state.answer?.confirm });
+      if (answer.created) source.onCreated?.(answer.created);
+      setState({ answer });
+    } catch (e) {
+      const err = e as { answer?: { error?: string; hint?: string }; message?: string };
+      setState((s) => ({ ...s, busy: false, problem: [err.answer?.error ?? err.message ?? "The engine could not answer.", err.answer?.hint].filter(Boolean).join(" ") }));
+    }
+  };
+  const a = state.answer;
+  return (
+    <>
+      {a?.would !== "created" && (
+        <Button appearance="secondary" icon={<Play20Regular />} onClick={(): void => void go(true)} disabled={state.busy}
+          aria-label={`Dry run: create the notebook ${props.name}`}>
+          Dry run
+        </Button>
+      )}
+      {a?.would === "create" && a.confirm && (
+        <Button appearance="primary" onClick={(): void => void go(false)} disabled={state.busy}>Create {a.name}</Button>
+      )}
+      {(a || state.problem) && (
+        <Caption1 role="status" className="kg-next-starter-said">{state.problem ?? a?.words}</Caption1>
+      )}
+    </>
+  );
+}
 
 const STATUS_COLOR: Record<NextStep["status"], "brand" | "informative" | "success" | "subtle"> = {
   builds: "brand", starter: "success", "in Claude": "informative", "guide only": "subtle",
@@ -50,6 +100,7 @@ function StepCard(props: { step: NextStep; onBuild: (outputs: OutputKind[]) => v
         )}
         {how.kind === "starter" && (
           <>
+            <StarterCreate name={how.name} cells={how.cells} />
             <Button as="a" appearance="secondary" icon={<ArrowDownload20Regular />} href={href(how.content, how.mime)} download={how.filename}
               aria-label={`${how.label}: ${how.filename}`}>
               {how.label}

@@ -15,6 +15,9 @@ next deploy.
   check recorded in the item, with links between data products stated separately, and every sentence states that
   check's time. The catalog keeps each item's own first sentence and appends the data-product sentence; items
   Krusgraph did not build are offered unticked. `docs/WORKLOAD-TEST-2026-11-17.md`, section 8.
+- Round WB10, next steps (issues #62-#64): the Data product page says "No pipeline built for this data product" and
+  points to the Data Factory step; the Data Factory card says what is left when the silver notebook is built and ticks
+  only that; the Data Science starter has Dry run, then Create of the notebook in the workspace (never run by Krusgraph).
 - Round Q2: **Krusgraph Migrate, from Qlik to Power BI: three tools, a public test corpus and the design of a
   workload of its own.** The founder decided on 16 November 2026 that Migrate becomes its own Fabric workload
   (name proposal `Krusgraph.Migrate`; "Qlik" not in the registered name), with chat tools and a guided page built

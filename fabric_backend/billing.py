@@ -429,6 +429,8 @@ def route_writes(where: str, req: dict) -> bool:
         return req.get("dry_run") is False
     if where == "product":
         return req.get("action") == "retire" and req.get("dry_run") is False
+    if where == "starter":                          # WB10: the Data Science starter's Create
+        return req.get("dry_run") is False
     return False
 
 

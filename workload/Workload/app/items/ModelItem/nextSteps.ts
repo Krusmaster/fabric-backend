@@ -23,7 +23,8 @@ export type Workload =
 
 export type How =
   | { kind: "build"; outputs: OutputKind[]; label: string }
-  | { kind: "starter"; label: string; filename: string; mime: string; content: string; code: string }
+  /** WB10 (#64): `name` and `cells` let the card create the notebook in the workspace (a dry run, then Create) */
+  | { kind: "starter"; label: string; filename: string; mime: string; content: string; code: string; name: string; cells: string[] }
   | { kind: "ask"; label: string; text: string }
   | { kind: "guide"; label: string; url: string };
 
@@ -208,14 +209,34 @@ const BUILT_TYPE: Partial<Record<OutputKind, string>> = {
   graphql: "GraphQLApi", ontology: "Ontology", data_agent: "DataAgent", rayfin_app: "AppBackend",
 };
 
-/** The outputs this item built (by its recorded output, else its Fabric type where one type is one output). */
+/** The outputs this item built (by its recorded output, else its Fabric type where one type is one output). WB10:
+ * a notebook recorded without its output is told by the default name's suffix (buildWords: "<lakehouse>_silver",
+ * "<lakehouse>_gold"), so a built silver notebook is never suggested again. */
 export function builtKinds(created: NextInput["created"]): Set<string> {
   const out = new Set<string>();
   for (const c of created) {
     if (c.output) out.add(c.output);
-    else for (const [k, t] of Object.entries(BUILT_TYPE)) if (t === c.type && t !== "Notebook") out.add(k);
+    else if (c.type === "Notebook") {
+      const n = (c.name ?? "").toLowerCase();
+      if (n.endsWith("_silver")) out.add("silver_notebook");
+      else if (n.endsWith("_gold")) out.add("gold_views");
+    } else for (const [k, t] of Object.entries(BUILT_TYPE)) if (t === c.type && t !== "Notebook") out.add(k);
   }
   return out;
+}
+
+const FACTORY_WORDS: Record<string, [string, string]> = {
+  silver_notebook: ["Silver notebook", "silver notebook"], gold_views: ["Gold views", "gold views"], pipeline: ["A pipeline", "a pipeline"],
+};
+
+/** WB10 (#63): the Data Factory card says what is left, and what is built: "Gold views and a pipeline; the silver
+ * notebook is built". */
+export function factoryTitle(left: OutputKind[], done: OutputKind[]): string {
+  const say = (ks: OutputKind[], first: boolean) =>
+    ks.map((k, i) => FACTORY_WORDS[k][first && i === 0 ? 0 : 1]).join(ks.length > 2 ? ", " : " and ").replace(/, ([^,]+)$/, " and $1");
+  const head = say(left, true);
+  if (!done.length) return head;
+  return `${head}; the ${say(done, false).replace(/^a /, "")} ${done.length > 1 ? "are" : "is"} built`;
 }
 
 export const LEARN = {
@@ -242,14 +263,18 @@ export function nextSteps(input: NextInput): { proof: Proof; steps: NextStep[]; 
 
   if (g) {
     const cells = featureCells(g, { name: src.displayName, schema: src.schema, checkedAt: proof.checkedAt });
+    const nbName = ident(`${src.displayName}_${g.parent}_features`).slice(0, 123);
+    const nbBuilt = built.has("ds_features");
     steps.push({
       id: "ds-features", workload: "Data Science", title: `Feature table at the grain of ${g.parent}, with an Experiment`,
       why: `Your ${g.child} → ${g.parent} link is proven (${plural(g.childRows, "row")}, 0 orphans), so this notebook sums ${g.child} per ` +
         `${g.parent} row first: one row per ${g.parent} row, no total counted ${g.ratio}×.`,
       how: { kind: "starter", label: "Download notebook (.ipynb)", filename: `${ident(g.parent)}_features.ipynb`, mime: "application/x-ipynb+json",
-        content: toIpynb(cells), code: cells.join("\n\n# ----\n\n") },
+        content: toIpynb(cells), code: cells.join("\n\n# ----\n\n"), name: nbName, cells },
       status: "starter",
-      note: "Import it in the workspace (Import, Notebook) and run it. Krusgraph creates no item for it and trains no model.",
+      note: nbBuilt
+        ? `The notebook is in your workspace: open it and run it. Krusgraph does not run it and trains no model.`
+        : "Dry run, then Create puts the notebook in your workspace, attached to the lakehouse; or download it. Krusgraph never runs it and trains no model.",
     });
   }
   if (!has("semantic_model", "report")) {
@@ -269,10 +294,12 @@ export function nextSteps(input: NextInput): { proof: Proof; steps: NextStep[]; 
       note: "Left unpublished, a draft only you see, unless you tick Publish.",
     });
   }
-  if (lakehouse && !has("silver_notebook", "pipeline")) {
-    const outputs = (["silver_notebook", "gold_views", "pipeline"] as OutputKind[]).filter((k) => !built.has(k));
+  const factory = ["silver_notebook", "gold_views", "pipeline"] as OutputKind[];
+  if (lakehouse && factory.some((k) => !built.has(k))) {
+    // WB10 (#63): only what is left is ticked in the dry run, and the title says what is built
+    const outputs = factory.filter((k) => !built.has(k));
     steps.push({
-      id: "factory", workload: "Data Factory", title: "Silver notebook, gold views and a pipeline",
+      id: "factory", workload: "Data Factory", title: factoryTitle(outputs, factory.filter((k) => built.has(k))),
       why: `The keys are unique in all ${plural(proof.rows, "row")} today; the pipeline's check fails a run the day one stops being unique or a link breaks.`,
       how: { kind: "build", outputs, label: "Dry run" }, status: "builds", note: "Not run or scheduled unless you tick it.",
     });

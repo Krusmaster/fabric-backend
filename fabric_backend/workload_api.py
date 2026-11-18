@@ -86,6 +86,7 @@ proposal in the editor's words (suggest_products), and the ticked ones come back
 from __future__ import annotations
 
 import contextvars
+import hashlib
 import json
 import re
 import threading
@@ -980,6 +981,80 @@ def run_catalog(req: dict) -> dict:
         return {"error": str(e), "kind": "not_allowed", "hint": "Nothing was written. The diff and the handover files are yours."}
     log("catalog", dry_run=False, written=sum(1 for r in done["results"] if r["ok"]), failed=sum(1 for r in done["results"] if not r["ok"]))
     return _with_schema({**out, **done, "note": "Written as you; undo lists the calls that put back what was there."}, req)
+
+# ------------------------------------------------------------------ WB10: the Data Science starter, created ---------
+# POST /workload/v1/starter: the next step's feature-table notebook (nextSteps.ts featureCells), created as a Notebook
+# item in the item's workspace as the signed-in user, attached to the source lakehouse. Gustav, live test of 18 Nov 2026
+# (#64): one click, like the other cards. A dry run first (what would be created, nothing written); Create needs the dry
+# run's confirm. Krusgraph never runs the notebook and trains no model. An item of the same name is never overwritten.
+
+STARTER_MAX_CELLS = 12
+STARTER_MAX_CHARS = 60_000
+
+
+def starter_request(body) -> dict:
+    if not isinstance(body, dict):
+        raise BadRequest("the body must be a JSON object")
+    req = _source(body)
+    name = _item_name(body.get("name"), "The notebook's name")
+    cells = body.get("cells")
+    if (not isinstance(cells, list) or not 1 <= len(cells) <= STARTER_MAX_CELLS or not all(isinstance(c, str) for c in cells)
+            or sum(len(c) for c in cells) > STARTER_MAX_CHARS):
+        raise BadRequest(f"'cells' is the starter's code cells: 1 to {STARTER_MAX_CELLS} texts, {STARTER_MAX_CHARS} characters in all")
+    dry = body.get("dry_run", True)
+    if not isinstance(dry, bool):
+        raise BadRequest("'dry_run' must be true or false")
+    confirm = body.get("confirm")
+    if confirm is not None and (not isinstance(confirm, str) or len(confirm) > 40):
+        raise BadRequest("'confirm' is the dry run's confirm value")
+    return {**req, "name": name, "cells": cells, "dry_run": dry, "confirm": confirm}
+
+
+def starter_confirm(workspace: str, name: str, cells: list[str]) -> str:
+    text = json.dumps([workspace.lower(), name, cells], ensure_ascii=False)
+    return "starter-" + hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+
+
+STARTER_NOT_RUN = "Krusgraph does not run it and trains no model: open it in Fabric and run it yourself."
+
+
+def run_starter(req: dict) -> dict:
+    from . import server as S, notebook as _notebook
+    from .deploy import create_item_with_definition, find_item
+    headers = S._headers(None)
+    ws = S._workspace_id(req["workspace"], headers)
+    src = S._resolve_source(ws, req["source"], headers)
+    lh_id, lh_name = src.get("id") or "", src.get("displayName") or req["source_name"]
+    exists = find_item(ws, req["name"], headers, "Notebook")
+    confirm = starter_confirm(ws, req["name"], req["cells"])
+    out = {"name": req["name"], "type": "Notebook", "workspace": ws, "lakehouse": lh_name, "cells": len(req["cells"]),
+           "would": "exists" if exists else "create", "runs": False, "confirm": None if exists else confirm,
+           "words": (f"A notebook named {req['name']} is already in this workspace: Krusgraph does not overwrite it. "
+                     "Choose another name, or open that one." if exists else
+                     f"Would create the notebook {req['name']} in this workspace, attached to {lh_name}, with "
+                     f"{len(req['cells'])} cells. {STARTER_NOT_RUN}")}
+    if req["dry_run"] or exists:
+        log("starter", dry_run=req["dry_run"], exists=bool(exists))
+        return {**out, "note": NOTHING_CHANGED}
+    if req["confirm"] != confirm:
+        return {"error": "Send back the confirm value of the dry run, so what is created is what you saw.", "kind": "not_allowed",
+                "hint": "Nothing was created. Run the dry run again."}
+    source = _notebook.fabric_source([("code", c) for c in req["cells"]], _notebook.notebook_metadata(ws, lh_id, lh_name))
+    got = create_item_with_definition("notebooks", "Notebook",
+                                      _notebook.envelope(req["name"], source, f"Krusgraph starter: a feature table from the keys and links proven on {lh_name}"),
+                                      ws, token_provider=lambda: S.auth.fabric(None), update_existing=False)
+    log("starter", dry_run=False, status=got.get("status"))
+    if got.get("status") == "Timeout":
+        return {"error": f"Fabric had not finished creating {req['name']} when Krusgraph stopped waiting.", "kind": "timeout",
+                "hint": "Look in the workspace before trying again: it may have arrived. Nothing else was changed."}
+    if got.get("status") != "Succeeded" or not got.get("id"):
+        return {"error": f"Fabric did not create the notebook {req['name']} (HTTP {got.get('http', '?')}).", "kind": "fabric",
+                "hint": "Creating a notebook needs the Contributor role on the workspace. Nothing else was changed."}
+    created = {"type": "Notebook", "id": got["id"], "name": req["name"], "workspace": ws, "output": "ds_features"}
+    return {**out, "would": "created", "created": created,
+            "words": f"Created the notebook {req['name']}, attached to {lh_name}. {STARTER_NOT_RUN}",
+            "note": "Created as you; nothing was run."}
+
 
 # n179: every schema of the source with its number of tables, empty ones included (shown greyed in the editor). The
 # role schemas SQL Server lists in SCHEMATA (db_owner, db_datareader, ...) and the system schemas are left out.
@@ -2718,6 +2793,7 @@ def routes(cfg, validator=None, obo=None) -> list:
             Route(f"{PREFIX}/drawio", endpoint(drawio_request, run_drawio, "drawio"), methods=["POST", "OPTIONS"]),   # n228
             Route(f"{PREFIX}/verify", endpoint(verify_request, run_verify, "verify"), methods=["POST", "OPTIONS"]),   # n229
             Route(f"{PREFIX}/catalog", endpoint(catalog_request, run_catalog, "catalog"), methods=["POST", "OPTIONS"]),   # CA1
+            Route(f"{PREFIX}/starter", endpoint(starter_request, run_starter, "starter"), methods=["POST", "OPTIONS"]),   # WB10
             Route(f"{PREFIX}/access", endpoint(access_request, None, "access"), methods=["POST", "OPTIONS"])]
 
 
