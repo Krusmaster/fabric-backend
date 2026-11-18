@@ -5,7 +5,8 @@
  */
 import React, { createContext, useContext, useState } from "react";
 import { Badge, Body1, Button, Caption1, Subtitle2 } from "@fluentui/react-components";
-import { ArrowDownload20Regular, Copy20Regular, Open20Regular, Play20Regular } from "@fluentui/react-icons";
+import { Open20Regular, Play20Regular } from "@fluentui/react-icons";
+import { CopyText, FileActions, OutLink } from "./fileOffer";
 import { NextInput, NextStep, grainLine, nextSteps, proofLine, proofOf } from "./nextSteps";
 import type { OutputKind } from "./engineClient";
 import type { CreatedItem } from "./ModelItemDefinition";
@@ -66,21 +67,8 @@ const STATUS_WORD: Record<NextStep["status"], string> = {
   builds: "Krusgraph builds it", starter: "Starter to download", "in Claude": "Krusgraph in Claude", "guide only": "Guide only",
 };
 
-function href(content: string, mime: string): string {
-  return `data:${mime};charset=utf-8,${encodeURIComponent(content)}`;
-}
-
 function StepCard(props: { step: NextStep; onBuild: (outputs: OutputKind[]) => void }) {
   const { step } = props;
-  const [copied, setCopied] = useState(false);
-  const copy = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-    } catch {
-      setCopied(false);   // the frame may not allow the clipboard: the text is shown below to copy by hand
-    }
-  };
   const how = step.how;
   return (
     <li className="kg-next-card" data-step={step.id}>
@@ -101,24 +89,16 @@ function StepCard(props: { step: NextStep; onBuild: (outputs: OutputKind[]) => v
         {how.kind === "starter" && (
           <>
             <StarterCreate name={how.name} cells={how.cells} />
-            <Button as="a" appearance="secondary" icon={<ArrowDownload20Regular />} href={href(how.content, how.mime)} download={how.filename}
-              aria-label={`${how.label}: ${how.filename}`}>
-              {how.label}
-            </Button>
-            <Button appearance="subtle" icon={<Copy20Regular />} onClick={(): void => void copy(how.code)}>
-              {copied ? "Copied" : "Copy the code"}
-            </Button>
+            <FileActions file={{ filename: how.filename, mime: how.mime, text: how.content }} label={how.label} copy={false}
+              ariaLabel={`${how.label}: ${how.filename}`} />
+            <CopyText text={how.code} label="Copy the code" />
           </>
         )}
         {how.kind === "ask" && (
-          <Button appearance="secondary" icon={<Copy20Regular />} onClick={(): void => void copy(how.text)}>
-            {copied ? "Copied" : how.label}
-          </Button>
+          <CopyText text={how.text} label={how.label} appearance="secondary" />
         )}
         {how.kind === "guide" && (
-          <Button as="a" appearance="subtle" icon={<Open20Regular />} href={how.url} target="_blank" rel="noopener noreferrer">
-            {how.label}
-          </Button>
+          <OutLink url={how.url} className="kg-next-guide"><Open20Regular aria-hidden /> {how.label}</OutLink>
         )}
       </div>
       {how.kind === "starter" && (

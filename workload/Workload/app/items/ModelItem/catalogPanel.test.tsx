@@ -88,7 +88,7 @@ describe("CatalogView", () => {
     expect(changes[0].getAttribute("aria-label")).toContain("will change from old");
     expect(host.querySelectorAll(".kg-catalog-before-after").length).toBe(2);
     expect(host.textContent).toContain(ENDORSE_LINE);
-    expect(host.querySelectorAll("a[download]").length).toBe(2);
+    expect(host.querySelectorAll("button[aria-label^='Download handover/']").length).toBe(2);   // WB10: fileOffer.tsx
     expect(host.querySelector("table")).toBeNull();                       // nothing to scroll sideways on a phone
     const write = Array.from(host.querySelectorAll("button")).find((b) => b.textContent?.startsWith("Write"));
     expect(write?.hasAttribute("disabled")).toBe(true);                   // not ticked yet

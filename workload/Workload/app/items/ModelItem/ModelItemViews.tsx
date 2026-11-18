@@ -83,6 +83,7 @@ import { MASCOT_COLOURS, MASCOT_CSS, MASCOT_GLAD, MASCOT_NAMES } from "./cardMap
 import { MascotFigure } from "./mascotFigure";
 import { OntoWait } from "./OntoWait";
 import { VerifyButton } from "./verifyBuilt";
+import { FileActions } from "./fileOffer";   // WB10: downloads that work inside Fabric's frame
 import { Wait, newWait } from "./waitWords";
 import {
   CheckState,
@@ -775,7 +776,8 @@ export function AppPanel(props: { card: BuildCard; saved?: AppChoices; onAppChoi
       <Subtitle2>{APP_STEPS_TITLE}</Subtitle2>
       {href && (
         <div className="krusgraph-actions">
-          <a href={href} download={a.package.filename}>Download the package ({a.package.filename})</a>
+          <FileActions file={{ filename: a.package.filename, mime: "application/zip", base64: a.package.zip_base64 }}
+            label={`Download the package (${a.package.filename})`} copy={false} />
         </div>
       )}
       {a.one_command ? (
@@ -799,7 +801,8 @@ export function AppPanel(props: { card: BuildCard; saved?: AppChoices; onAppChoi
       )}
       {editHref(a.edit_yourself) && (
         <div className="krusgraph-actions" aria-label={EDIT_TITLE}>
-          <a href={editHref(a.edit_yourself)} download={a.edit_yourself.file ?? "EDIT-WITH-AI.md"}>{EDIT_TITLE}</a>
+          <FileActions file={{ filename: a.edit_yourself.file ?? "EDIT-WITH-AI.md", mime: "text/markdown", text: a.edit_yourself.markdown }}
+            label={EDIT_TITLE} copyLabel="Copy the text" appearance="subtle" />
           <Caption1> {EDIT_NOTE}</Caption1>
         </div>
       )}
@@ -839,7 +842,8 @@ export function BuiltAppPanel(props: { saved?: AppChoices; record?: AppPackageRe
       {(href || r?.one_command) && <Subtitle2>{APP_STEPS_TITLE}</Subtitle2>}
       {href && r?.package && (
         <div className="krusgraph-actions">
-          <a href={href} download={r.package.filename}>Download the package ({r.package.filename})</a>
+          <FileActions file={{ filename: r.package.filename, mime: "application/zip", base64: r.package.zip_base64 }}
+            label={`Download the package (${r.package.filename})`} copy={false} />
         </div>
       )}
       {r?.one_command && <OneCommand oc={r.one_command} />}

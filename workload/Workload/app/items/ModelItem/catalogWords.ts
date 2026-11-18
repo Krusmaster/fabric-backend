@@ -125,9 +125,12 @@ export function ruleCounts(c: CatalogCard): string {
   return `${proven} of ${c.quality_rules.length} quality rules proven by the row check`;
 }
 
+export function fileMime(path: string): string {
+  return path.endsWith(".json") ? "application/json" : path.endsWith(".yaml") ? "application/yaml" : "text/markdown";
+}
+
 export function fileHref(content: string, path: string): string {
-  const mime = path.endsWith(".json") ? "application/json" : path.endsWith(".yaml") ? "application/yaml" : "text/markdown";
-  return `data:${mime};charset=utf-8,${encodeURIComponent(content)}`;
+  return `data:${fileMime(path)};charset=utf-8,${encodeURIComponent(content)}`;
 }
 
 export function fileName(path: string): string {

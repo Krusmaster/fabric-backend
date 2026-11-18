@@ -13,10 +13,11 @@
  */
 import React, { createContext, useContext, useId, useState } from "react";
 import { Badge, Body1, Button, Caption1, Checkbox, Field, Input, Subtitle2 } from "@fluentui/react-components";
-import { ArrowDownload20Regular, BookDatabase20Regular, Edit20Regular } from "@fluentui/react-icons";
+import { BookDatabase20Regular, Edit20Regular } from "@fluentui/react-icons";
+import { FileActions } from "./fileOffer";
 import {
   CatalogAnswer, CatalogCard, CatalogDiffRow, ENDORSE_LINE, OwnerPerson, STEP_INTRO, STEP_TITLE, approvals, canWrite, diffLine,
-  fileHref, fileName, ownerProblem, personValue, ruleCounts, shown, writeCount,
+  fileMime, fileName, ownerProblem, personValue, ruleCounts, shown, writeCount,
 } from "./catalogWords";
 
 export interface CatalogSource {
@@ -143,10 +144,8 @@ export function CatalogView(props: {
           <Caption1>{ENDORSE_LINE}</Caption1>
           <div className="kg-catalog-files">
             {Object.entries(a.handover.files).map(([path, content]) => (
-              <Button key={path} as="a" appearance="secondary" icon={<ArrowDownload20Regular />}
-                href={fileHref(content, path)} download={fileName(path)} aria-label={`Download ${path}`}>
-                {path}
-              </Button>
+              <FileActions key={path} file={{ filename: fileName(path), mime: fileMime(path), text: content }} label={path}
+                ariaLabel={`Download ${path}`} copyLabel={`Copy ${path}`} />
             ))}
           </div>
 
