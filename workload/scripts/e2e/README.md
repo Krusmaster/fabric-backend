@@ -30,7 +30,8 @@ allow-scripts`: no `allow-downloads`, no `allow-popups`; Microsoft Learn, "How t
 A `data:` link with `download` clicked in the frame saves nothing there, as in Fabric (Gustav's live test, 18 Nov 2026).
 **Download as draw.io** then goes through the engine's single-use link (`POST /workload/v1/file`), which the stand-in
 host's `openBrowserTab` hands to the top frame to open, as Fabric's host does: one `.drawio` file is saved, and a second
-GET of the same link answers 410.
+GET of the same link answers 410. Flow **21**: the Data Science starter's **Dry run** says what would be created
+and that Krusgraph trains no model; **Create** sends one notebook to the doubles (#64).
 
 A network failure is made in the browser (`page.route(...).abort()`). What the doubles cannot show: a data agent
 (the double has no route for it, so its card shows Try again), real Fabric ids (Look for leftovers expects GUIDs),

@@ -140,6 +140,18 @@ async function main() {
       await panel.screenshot({ path: path.join(OUT, "08-next-steps.png") });
       return `08-next-steps.png; ${cards} cards; starter file ${dl}`;
     });
+    await step("21 The Data Science starter: Dry run, then Create (never run)", async () => {
+      const card = p.locator(".kg-next-card[data-step='ds-features']");
+      await card.getByRole("button", { name: /^Dry run/ }).click(); await settle(p, 2500);
+      const dry = await card.locator(".kg-next-starter-said").innerText();
+      const before = (await (await fetch(`${BASE}/e2e/log`)).json()).created.filter((c) => c === "notebooks").length;
+      expectTrue(dry.includes("Would create the notebook") && dry.includes("trains no model"), `dry run said: ${dry}`);
+      await card.getByRole("button", { name: /^Create / }).click(); await settle(p, 4000);
+      const said = await card.locator(".kg-next-starter-said").innerText();
+      const after = (await (await fetch(`${BASE}/e2e/log`)).json()).created.filter((c) => c === "notebooks").length;
+      expectTrue(after === before + 1 && said.startsWith("Created the notebook"), `notebooks ${before} -> ${after}; said: ${said}`);
+      return `${await shot(p, "21-starter-created")}; dry run: ${dry.slice(0, 90)}…; then ${said.slice(0, 80)}; the doubles received one notebook`;
+    });
     await step("9 A next step's Dry run ticks only its outputs", async () => {
       await p.locator(".kg-next-card[data-step='iq'] button").first().click(); await settle(p);
       const checked = await p.getByRole("checkbox", { checked: true }).evaluateAll((els) => els.map((e) => (e.closest("section") || e).getAttribute("aria-label")));
