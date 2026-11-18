@@ -8,7 +8,8 @@ reject), the doubled totals, a dry run of what would be built, and creating it o
 
 How it works. `guide()` is the `start` tool's answer, a stepper: where the user is in the path, what was chosen so far,
 and the next step as a call of one of the existing tools (tool, arguments, a button label and `say`, the exact sentence a
-host that cannot run tools from a card puts in the chat). It reads nothing and calls nothing: every step is the existing
+host that cannot run tools from a card puts in the chat). It calls no other tool and reads no rows (since WB12 the start
+tool reads the names to choose from on steps 1-3: workspaces, sources, schemas with table counts): every step is the existing
 tool, so the result is the one that tool gives when called directly. The flow is stateless: what was chosen (workspace,
 source, schema, keys, confirmed, decisions) travels in the arguments, and `after` is the `start` call that shows the
 next step with everything carried over.
@@ -76,6 +77,23 @@ FLOW = (
     "source tables -> ontology",
     "source tables -> data agent",
 )
+# WB12 (#72): the full sentence on the first card, then this line, which opens to the full sentence.
+HONEST_SHORT = "Only step 9 writes."
+# WB12 (#71): each rule code in words, once per card (infer.RULES says the same at length).
+RULE_WORDS = {
+    "R0": "the source declares this foreign key",
+    "R1": "the column is named after the table it points at",
+    "R2": "the column has the same name as the other table's key",
+    "R3": "the table holds every column of the other table's composite key",
+    "R4": "a weaker name match, through the synonym table",
+    "R5": "a code column checked against the rows of the table with the same stem",
+    "R6": "every value was found in the other table's key, counted in the rows",
+}
+ARROW = "\u2192"
+# WB12 (#76): steps 1-3 list what the account can open as buttons; a long list gets a search box on the card.
+CHOICES_MAX = 60
+CHOOSE = {"workspace": "Choose a workspace first.", "source": "Choose a source first.", "schema": "Choose a schema first."}
+SKIPPED_ON_SAMPLE = ("workspace", "source", "schema")
 HONEST = ("Steps 1-8 only read: they list, count and draft, and the dry runs create nothing. Only step 9 writes, and only "
           "after the dry run and a second confirmation from you that names each item. The answers are counts and names, "
           "no row values, unless you ask to see rows.")
@@ -125,7 +143,11 @@ def _start_args(c: dict, step: str) -> dict:
     """The `start` tool's arguments for `step`, with everything chosen so far: workspace, source, schema, and keys,
     confirmed and decisions together in `plan`."""
     if c.get("sample"):
-        return {"sample": True, "step": step}
+        out = {"sample": True, "step": step}
+        plan = {k: c[k] for k in ("confirmed", "decisions") if c.get(k)}
+        if plan:
+            out["plan"] = plan
+        return out
     out = {k: c[k] for k in ("workspace", "source", "schema") if c.get(k)}
     plan = {k: c[k] for k in ("keys", "confirmed", "decisions") if c.get(k)}
     if plan:
@@ -154,45 +176,131 @@ def current(step: str | None, c: dict) -> str:
     return step
 
 
-def _path(now: str) -> list[dict]:
+def _path(now: str, sample: bool = False) -> list[dict]:
+    """The nine steps, each done, now or later; on the sample, steps 1-3 are `skipped` (WB12, #73): nothing was chosen."""
     i = KEYS.index(now)
-    return [{"n": n + 1, "key": k, "title": t, "does": d,
-             "state": "done" if n < i else ("now" if n == i else "later")} for n, (k, t, d, _) in enumerate(STEPS)]
+    out = []
+    for n, (k, t, d, _) in enumerate(STEPS):
+        state = "done" if n < i else ("now" if n == i else "later")
+        if sample and k in SKIPPED_ON_SAMPLE:
+            state = "skipped"
+        out.append({"n": n + 1, "key": k, "title": t, "does": d, "state": state,
+                    **({"note": "skipped (sample)"} if state == "skipped" else {})})
+    return out
+
+
+def _finished(path: list[dict]) -> str:
+    """'Done: 1-5' for the card's one collapsed line (WB12, #73); '' when nothing is finished yet."""
+    def span(ns: list[int]) -> str:
+        return str(ns[0]) if len(ns) == 1 else f"{ns[0]}-{ns[-1]}"
+    done = [p["n"] for p in path if p["state"] == "done"]
+    skipped = [p["n"] for p in path if p["state"] == "skipped"]
+    parts = ([f"Done: {span(done)}"] if done else []) + ([f"skipped on the sample: {span(skipped)}"] if skipped else [])
+    line = "; ".join(parts)
+    return line[:1].upper() + line[1:]
+
+
+def _honest(out: dict, first: bool) -> None:
+    out["honest"] = HONEST
+    out["honest_short"] = HONEST_SHORT
+    out["honest_open"] = bool(first)
+
+
+def rule_words(rules) -> list[str]:
+    """'R1: the column is named after the table it points at', once per rule code, in the order met."""
+    seen = []
+    for r in rules:
+        if r in RULE_WORDS and r not in seen:
+            seen.append(r)
+    return [f"{r}: {RULE_WORDS[r]}" for r in seen]
+
+
+def _choice(label: str, hint: str, arguments: dict, disabled: str = "") -> dict:
+    """WB12 (#76): one option of steps 1-3 as a button that calls start with the choice set."""
+    return {"kind": "choose", "label": label, "who": "onto", "tool": TOOL, "arguments": arguments, "hint": hint,
+            "say": f"{label}: run start with {_shown(arguments)}.", "ask": f"Use {label}.",
+            **({"disabled": disabled} if disabled else {})}
+
+
+def _choices(now: str, c: dict, options: dict | None) -> tuple[list[dict], dict]:
+    """The options the start tool read for this step (server.start: names and counts only), as buttons."""
+    if not isinstance(options, dict) or options.get("step") != now or not isinstance(options.get("items"), list):
+        return [], {}
+    items = [x for x in options["items"] if isinstance(x, dict) and str(x.get("name") or "").strip()]
+    shown, out = items[:CHOICES_MAX], []
+    for x in shown:
+        name = str(x["name"])
+        if now == "workspace":
+            out.append(_choice(name, str(x.get("hint") or ""), {"workspace": name}))
+        elif now == "source":
+            out.append(_choice(name, str(x.get("hint") or ""), {"workspace": c["workspace"], "source": name}))
+        else:
+            n = int(x.get("tables") or 0)
+            hint = f"{n} table" + ("" if n == 1 else "s")
+            out.append(_choice(name, hint, {"workspace": c["workspace"], "source": c["source"], "schema": name},
+                               disabled="" if n else "no tables"))
+    meta = {"count": len(items), "shown": len(shown), "search": len(items) > 8}
+    return out, meta
 
 
 def guide(workspace: str | None = None, source: str | None = None, schema: str | None = None, step: str | None = None,
           keys: dict | None = None, confirmed: list | None = None, decisions: list | None = None,
-          create: list | None = None, confirm: bool = False, sample: bool = False) -> dict:
-    """The stepper's answer (see the module docstring). Pure: no Fabric, no SQL."""
+          create: list | None = None, confirm: bool = False, sample: bool = False, options: dict | None = None) -> dict:
+    """The stepper's answer (see the module docstring). Pure: no Fabric, no SQL. `options` (WB12, #76) is what the
+    start tool read for steps 1-3: {step, items: [{name, hint?, tables?}]} or {step, error}."""
     c = {"workspace": (workspace or "").strip() or None, "source": (source or "").strip() or None,
          "schema": (schema or "").strip() or None, "keys": keys or None, "confirmed": confirmed or None,
          "decisions": decisions or None, "sample": bool(sample)}
     if c["sample"]:
-        return _sample(step)
+        return _sample(step, c)
     now = current((step or "").strip().lower() or None, c)
     key, title, does, tool = BY_KEY[now]
     n = KEYS.index(now) + 1
     out = {"flow": PROMPT_TITLE, "step": {"n": n, "of": len(STEPS), "key": key, "title": title, "does": does},
            "path": _path(now), "chosen": {k: v for k, v in c.items() if v and k != "sample"}}
+    out["done_line"] = _finished(out["path"])
     actions: list[dict] = []
     nxt = _next_key(now)
+    picks, meta = _choices(now, c, options)
+    if picks:
+        out["choices"] = meta
+    elif isinstance(options, dict) and options.get("step") == now and options.get("error"):
+        out["choices_error"] = str(options["error"])[:200]
 
     if now == "workspace":
         out["say"] = "Which workspace shall we start in? I can list the ones your account can open."
-        actions.append(_call("List my workspaces", "list_workspaces", {}))
+        if picks:
+            out["say"] = (f"Which workspace shall we start in? Your account can open {meta['count']}"
+                          + (f"; the first {meta['shown']} are listed." if meta["shown"] < meta["count"] else "."))
+            actions += picks
+        else:
+            actions.append(_call("List my workspaces", "list_workspaces", {}))
         out["then"] = "When the user names one, call start with workspace set to it."
         actions.append({"kind": "sample", "label": "Show me on the synthetic shop sample", "who": "thinker", "tool": TOOL,
                         "arguments": {"sample": True}, "say": "Show me on the synthetic shop sample: run start with sample=true.",
                         "ask": "Show me on the synthetic shop sample."})
     elif now == "source":
         out["say"] = f"Which source in {c['workspace']}? I can list its lakehouses, warehouses and mirrored databases."
-        actions.append(_call("List the sources", "list_sources", {"workspace": c["workspace"]}))
+        if picks:
+            out["say"] = f"Which source in {c['workspace']}? It has {meta['count']} you can plan."
+            actions += picks
+        elif isinstance(options, dict) and options.get("step") == "source" and options.get("items") == []:
+            out["say"] = (f"{c['workspace']} has no lakehouse, warehouse or mirrored database I can read. Choose another "
+                          "workspace, or try the synthetic shop sample.")
+            actions.append(_call("Choose another workspace", TOOL, {}))
+        else:
+            actions.append(_call("List the sources", "list_sources", {"workspace": c["workspace"]}))
         out["then"] = "When the user names one, call start with workspace and source set."
     elif now == "schema":
         args = {"workspace": c["workspace"], "source": c["source"]}
         out["say"] = (f"Which schema in {c['source']}? I can list every schema that holds tables, with its table count. "
                       "Nothing is planned until you choose one; a source with one schema is planned at once.")
-        actions.append(_call("List the schemas", "plan_backend", args))
+        if picks:
+            out["say"] = (f"Which schema in {c['source']}? {meta['count']} "
+                          + ("schema holds" if meta["count"] == 1 else "schemas hold") + " tables; nothing is planned until you choose.")
+            actions += picks
+        else:
+            actions.append(_call("List the schemas", "plan_backend", args))
         out["then"] = ("When the user picks a schema, call start with schema set (and step=\"check\" if plan_backend already "
                        "planned it because the source has one schema).")
     elif now == "map":
@@ -209,8 +317,11 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
         out["then"] = ("review_plan records the decisions (item ids are in its file); an accepted link goes into confirmed "
                        "for the next steps.")
         args = _plan_args(c)
+        sent = [d for d in c.get("decisions") or [] if isinstance(d, dict) and d.get("review") in ("accepted", "rejected")]
+        if sent:
+            args["decisions"] = sent
         if c.get("decisions"):
-            args["decisions"] = c["decisions"]
+            out["decided"] = [_decided_line(d) for d in c["decisions"] if isinstance(d, dict)]
         actions.append(_call("Record my decisions", "review_plan", args))
     elif now == "totals":
         out["say"] = ("Where does a total double? Each amount is summed over the joined rows and once per row of its own "
@@ -238,10 +349,14 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
         out["unknown_step"] = {"asked": asked, "steps": list(KEYS)}
         out["say"] = (f"I don't know a step called “{asked[:40]}”, so this is where you are. " + out.get("say", ""))
     out["actions"] = actions
-    if nxt and now != "create":
+    if c.get("decisions") and now in ("totals", "dry_run", "create"):        # WB12 (#66): the decisions travel on
+        out["decided"] = [_decided_line(d) for d in c["decisions"] if isinstance(d, dict)]
+    if nxt and now in CHOOSE:                                                # WB12 (#77): no Next before the choice
+        out["next_waits"] = {"label": f"Next: {BY_KEY[nxt][1]}", "why": CHOOSE[now]}
+    elif nxt and now != "create":
         out["after"] = {"tool": TOOL, "arguments": _start_args(c, nxt), "label": f"Next: {BY_KEY[nxt][1]}",
                         "say": f"Next step: run start with {_shown(_start_args(c, nxt))}.", "ask": f"Next: {BY_KEY[nxt][1]}."}
-    out["honest"] = HONEST
+    _honest(out, now == "workspace")
     out["summary"] = (f"Step {n} of {len(STEPS)}: {title} ({does}). "
                       + ("Run the button's tool, show its answer, then continue with `after`." if actions else ""))
     return out
@@ -280,60 +395,226 @@ def _create(c: dict, create: list | None, confirm: bool) -> dict:
             "actions": actions}
 
 
+# ------------------------------------------------------------------ decisions (WB12, #66) -----------------------------
+
+def _decided_line(d: dict) -> str:
+    item = str(d.get("item") or "")
+    m = item[4:] if item.startswith("rel:") else item
+    m = m.replace(">", f" {ARROW} ")
+    how = {"accepted": "accepted", "rejected": "rejected", "skipped": "skipped for now"}.get(str(d.get("review")), str(d.get("review")))
+    use = {"accepted": ": the next steps use this link", "rejected": ": the next steps leave it out",
+           "skipped": ": the next steps leave it out until you decide"}.get(str(d.get("review")), "")
+    return f"{m}: {how}{use}."
+
+
+def _with_decision(c: dict, item: str, review: str, link: dict | None) -> dict:
+    """The start arguments after one more decision: the decision in plan.decisions (one per item, the last one kept),
+    and an accepted link in plan.confirmed (review_plan's and validate_plan's own `confirmed`)."""
+    decisions = [d for d in c.get("decisions") or [] if isinstance(d, dict) and d.get("item") != item]
+    decisions.append({"item": item, "review": review, "reason": "decided on the start card"})
+    confirmed = [x for x in c.get("confirmed") or [] if x != link]
+    if review == "accepted" and link:
+        confirmed.append(link)
+    nc = {**c, "decisions": decisions, "confirmed": confirmed or None}
+    return _start_args(nc, "decide")
+
+
+def _evidence_lines(s: dict) -> list[str]:
+    """The counted evidence under a question: the share of values found in the target and the distinct values."""
+    ev = s.get("evidence") or {}
+    n, m = int(ev.get("rows_with_value") or 0), int(ev.get("matched") or 0)
+    if not n:
+        return []
+    tgt = f"{s['target']}.{'+'.join(s.get('target_cols') or [])}"
+    out = [f"{m} of {n} {s['table']}.{s['column']} values found in {tgt} ({round(100 * m / n)}%)."]
+    if ev.get("distinct_values") is not None:
+        out.append(f"{ev['distinct_values']} distinct values.")
+    ru = s.get("runner_up") or {}
+    if ru.get("rows_with_value"):
+        out.append(f"The next candidate, {ru['target']}: {ru['matched']} of {ru['rows_with_value']} found.")
+    return out
+
+
+def open_decisions(suggestions: list[dict], c: dict) -> list[dict]:
+    """Each column no naming rule linked, as a decision with its question, its evidence and its Accept, Reject and Skip
+    buttons (each calls start again with the decision in plan.decisions)."""
+    taken = {str(d.get("item")): str(d.get("review")) for d in c.get("decisions") or [] if isinstance(d, dict)}
+    out = []
+    for s in suggestions:
+        item = f"rel:{s['table']}.{s['column']}>{s['target']}"
+        link = s.get("confirmed")
+        q = (f"{s['table']}.{s['column']} is not named after any table, so no naming rule linked it. "
+             f"Does it point at {s['target']}?")
+        acts = []
+        for review, label in (("accepted", "Accept"), ("rejected", "Reject"), ("skipped", "Skip for now")):
+            args = _with_decision(c, item, review, link)
+            acts.append({"kind": "decide", "decision": review, "label": f"{label}", "who": "thinker", "tool": TOOL,
+                         "arguments": args, "item": item,
+                         "say": f"{label} {s['table']}.{s['column']} {ARROW} {s['target']}: run start with {_shown(args)}.",
+                         "ask": f"{label}: {s['table']}.{s['column']} points at {s['target']}."
+                         if review == "accepted" else f"{label}: {s['table']}.{s['column']} {ARROW} {s['target']}."})
+        out.append({"item": item, "question": q, "evidence": _evidence_lines(s), "state": taken.get(item, "open"),
+                    "actions": acts})
+    return out
+
+
 # ------------------------------------------------------------------ the synthetic shop ---------------------------------
 
-def _sample(step: str | None) -> dict:
+_PROOF: dict = {}
+
+
+def sample_proof() -> dict:
+    """WB12 (#70): what the check proved on the synthetic shop, as the Fabric item's proof tiles say it (ProofStrip in
+    workload/.../NextStepsView.tsx): rows counted, keys unique, links holding, orphans, duplicate keys, and the grain
+    line of the first link whose table has more rows than the one it points at. Counted on seed.py's rows."""
+    if _PROOF:
+        return _PROOF
+    from . import demo, evidence
+    from .infer import plan
+    from .number_words import count
+    from .seed import schema
+    p = plan(schema("shop"), keys=demo.DEMO_KEYS)
+    v = evidence.validate(p, demo._demo_db(), max_items=200)
+    keys, rels = v["keys"], v["relationships"]
+    rows = sum(int(k.get("rows") or 0) for k in keys)
+    unique = [k for k in keys if k.get("nulls") == 0 and k.get("distinct") == k.get("rows")]
+    held = [r for r in rels if r.get("orphans") == 0]
+    orphans = sum(int(r.get("orphans") or 0) for r in rels)
+    dups = sum(max(0, int(k.get("rows") or 0) - int(k.get("nulls") or 0) - int(k.get("distinct") or 0)) for k in keys)
+    by = {k["table"]: int(k.get("rows") or 0) for k in keys}
+    grain = ""
+    key_cols = {k["table"]: {c.lower() for c in k.get("columns") or []} for k in keys}
+    # the item's grain line: a line table over its header first (order_items over orders), then any other link
+    held = sorted(held, key=lambda r: 0 if {c.lower() for c in r.get("columns") or r.get("source_cols") or []}
+                  <= key_cols.get(r.get("source"), set()) else 1)
+    for r in held:
+        child, parent = r.get("source"), r.get("target")
+        cr, pr = by.get(child, 0), by.get(parent, 0)
+        if pr > 0 and cr > pr:
+            ratio = round(cr / pr, 1)
+            grain = (f"{count(cr)} {child} rows over {count(pr)} {parent} rows: an amount on {parent} summed over {child} "
+                     f"would count each {parent} row {ratio}× on average. Sum {child} per {parent} row first.")
+            break
+    _PROOF.update({"rows": rows, "keys_unique": len(unique), "keys": len(keys), "links_holding": len(held),
+                   "links": len(rels), "orphans": orphans, "duplicates": dups, "grain": grain,
+                   "tiles": [[count(rows), "rows counted"], [f"{len(unique)} of {len(keys)}", "keys unique"],
+                             [f"{len(held)} of {len(rels)}", "links holding"],
+                             [count(orphans), "orphan" if orphans == 1 else "orphans"],
+                             [count(dups), "duplicate key" if dups == 1 else "duplicate keys"]]})
+    return _PROOF
+
+
+def _singular(t: str) -> str:
+    return t[:-3] + "y" if t.endswith("ies") else t[:-1] if t.endswith("s") and not t.endswith("ss") else t
+
+
+def doubled_lines(findings: list[dict]) -> tuple[list[str], list[str]]:
+    """WB12 (#67): each doubled total with its sums formatted (number_words), the factor, and one plain sentence."""
+    from .number_words import amount, factor
+    lines, advice = [], []
+    for x in findings:
+        sums = x.get("sums") or {}
+        over, once = sums.get("summed_over_lines"), sums.get("summed_per_header")
+        f = factor(over, once)
+        lines.append(f"{x['table']}.{x['column']} summed over the joined {x['joined_with']} rows: {amount(over)}; "
+                     f"once per {x['table']} row: {amount(once)}" + (f" ({f})." if f else "."))
+        one = _singular(str(x["table"]))
+        advice.append(f"A sum of {x['column']} after joining {x['joined_with']} counts each {one} once per "
+                      f"{x['joined_with']} row; sum per {one} first.")
+    return lines, advice
+
+
+def _sample(step: str | None, c: dict | None = None) -> dict:
     """The same path on the synthetic shop (demo.py: the engine's output on seed.py's shop). Nothing in Fabric is read
-    or created; each step shows what the tool answered on the shop, and `after` moves on."""
+    or created; each step shows what the tool answered on the shop, and `after` moves on. WB12: the decisions made on
+    step 6 (plan.decisions, plan.confirmed) travel with `after` into steps 7-9."""
     from . import demo
+    c = {"sample": True, **(c or {})}
     p = demo.demo_plan()
     now = (step or "map").strip().lower()
-    if now not in KEYS or now in ("workspace", "source", "schema"):
+    if now not in KEYS or now in SKIPPED_ON_SAMPLE:
         now = "map"
     key, title, does, tool = BY_KEY[now]
     n = KEYS.index(now) + 1
     d = p["drafts"]["as_is"]
     found: dict = {}
+    actions: list[dict] = []
+    decisions = open_decisions(p["suggestions"], c) if p["suggestions"] else []
+    waiting = [x for x in decisions if x["state"] == "open"]
     if now == "map":
         found = {"tool": "plan_backend", "summary": p["summary"].splitlines()[0],
-                 "links": [f"{r['source']}.{'+'.join(r['source_cols'])} -> {r['target']} ({r['rule']})" for r in p["relationships"]],
+                 "links": [f"{r['source']}.{'+'.join(r['source_cols'])} {ARROW} {r['target']} ({r['rule']})" for r in p["relationships"]],
+                 "rules": rule_words(r["rule"] for r in p["relationships"]),
                  "no_key": p["keyless"],
                  # F1 B4: the sample's plan is made from the names alone; on a real source the plan also counts
                  "note": ("This sample plan reads the names only. On your own data the plan also counts columns like "
                           "orders.ship_to_id against the rows and would already propose that link (rule R5); the "
                           "sample asks you about it in step 6.")}
     elif now == "check":
-        found = {"tool": "validate_plan", "summary": d["validation"]["summary"]}
+        found = {"tool": "validate_plan", "summary": d["validation"]["summary"], "proof": sample_proof()}
     elif now == "decide":
-        s = p["suggestions"][0] if p["suggestions"] else None
-        found = {"tool": "review_plan", "question": (f"{s['table']}.{s['column']} is not named after any table, so no "
-                                                     f"naming rule linked it. Does it point at {s['target']}? Accept or reject.")
-                 if s else "Nothing needs a decision on the shop."}
+        first = decisions[0] if decisions else None
+        found = {"tool": "review_plan", "decisions": [{k: v for k, v in x.items() if k != "actions"} for x in decisions],
+                 "question": (first["question"] + " Accept or reject.") if first else "Nothing needs a decision on the shop."}
+        for x in decisions:
+            if x["state"] == "open":
+                actions += x["actions"]
+            else:                                    # answered: one button to change it
+                other = [a for a in x["actions"] if a["decision"] != x["state"] and a["decision"] != "skipped"]
+                actions += [{**a, "kind": "decide", "label": "Change to " + ("Reject" if a["decision"] == "rejected" else "Accept")}
+                            for a in other[:1]]
     elif now == "totals":
         f = [x for x in d["fixes"]["findings"] if x.get("sums")]
-        found = {"tool": "validate_plan (fixes=true)",
-                 "doubled": [f"{x['table']}.{x['column']} summed over the joined {x['joined_with']} rows: "
-                             f"{x['sums']['summed_over_lines']}; once per {x['table']} row: {x['sums']['summed_per_header']}"
-                             for x in f]}
+        lines, advice = doubled_lines(f)
+        found = {"tool": "validate_plan (fixes=true)", "doubled": lines, "advice": advice}
     elif now == "dry_run":
         names = build_names("shop", "shop")
         found = {"would_build": [{"tool": t, "name": names[t], "what": w} for t, _, w in BUILDS], "data_flow": list(FLOW)}
     elif now == "create":
-        found = {"note": "This is the synthetic shop: nothing can be created here. Connect your own workspace and type "
-                         "\"start Krusgraph\" to run the same path on your data."}
+        found = {"note": "This is the synthetic shop: nothing can be created here. Start on your own data to run the same "
+                         "path on your Fabric workspace, or look at the dry run again."}
+        actions.append({"kind": "call", "label": "Start on my data", "who": "onto", "tool": TOOL, "arguments": {},
+                        "say": "Start on my data: run start with no arguments (it lists my workspaces).",
+                        "ask": "Start Krusgraph on my own Fabric data."})
+        back = _start_args(c, "dry_run")
+        actions.append({"kind": "call", "label": "Show the dry run again", "who": "onto", "tool": TOOL, "arguments": back,
+                        "say": f"Show the dry run again: run start with {_shown(back)}.", "ask": "Show the dry run again."})
+    if c.get("decisions") and now in ("totals", "dry_run", "create"):
+        found["decided"] = [_decided_line(x) for x in c["decisions"] if isinstance(x, dict)]
     nxt = _next_key(now)
     out = {"flow": PROMPT_TITLE, "sample": True, "step": {"n": n, "of": len(STEPS), "key": key, "title": title, "does": does},
-           "path": _path(now), "found": found,
+           "path": _path(now, sample=True), "found": found,
            "note": "Synthetic shop sample (fabric_backend/seed.py): no Fabric is read and nothing is created.",
-           "actions": [], "honest": HONEST}
+           "actions": actions}
+    out["done_line"] = _finished(out["path"])
+    if now == "decide" and decisions:
+        out["say"] = ((f"{len(waiting)} decision open. " if len(waiting) == 1 else f"{len(waiting)} decisions open. ")
+                      if waiting else "Every decision is answered. ") + \
+            (f"Does {waiting[0]['item'][4:].split('>')[0]} point at {waiting[0]['item'].split('>')[-1]}? Accept or reject."
+             if waiting else "Go on to the doubled totals.")
+    _honest(out, now == "map")
     if nxt:
-        args = {"sample": True, "step": nxt}
+        args = _start_args(c, nxt)
         out["after"] = {"tool": TOOL, "arguments": args, "label": f"Next: {BY_KEY[nxt][1]}",
                         "say": f"Next step: run start with {_shown(args)}.", "ask": f"Next: {BY_KEY[nxt][1]}."}
+        if now == "decide" and waiting:          # WB12 (#66): Next is secondary until every decision is answered or skipped
+            out["after"]["secondary"] = True
+            out["after"]["why"] = "Answer or skip the open decision first; Next leaves it open."
         out["actions"].append({"kind": "call", "label": f"Next: {BY_KEY[nxt][1]}", "who": "onto", "tool": TOOL,
-                               "arguments": args, "say": out["after"]["say"], "ask": out["after"]["ask"]})
+                               "arguments": args, "say": out["after"]["say"], "ask": out["after"]["ask"],
+                               **({"secondary": True} if out["after"].get("secondary") else {})})
     out["summary"] = f"Step {n} of {len(STEPS)} on the synthetic shop: {title}."
     return out
+
+
+YES = ("yes", "y", "true", "1", "sample", "ja", "on")
+NO = ("", "no", "n", "false", "0", "off", "nej")
+
+
+def wants_sample(answer) -> bool:
+    """WB12 (#75): the prompt's field: yes/true (and the like) for the sample; empty, no or false for your own data.
+    Anything else is read as your own data, the path that asks before it reads anything."""
+    return str(answer if answer is not None else "").strip().lower().rstrip(".!") in YES
 
 
 def prompt_text(sample: bool = False) -> str:

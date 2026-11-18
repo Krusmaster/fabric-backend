@@ -225,6 +225,8 @@ StartPlan = Annotated[dict | None, _d('{keys, confirmed, decisions} so far, as r
 StartCreate = Annotated[list[str] | None, _d('Step create: dry-run item names the user asked to create.')]
 StartConfirm = Annotated[bool, _d('Step create: true only after the user said yes to exactly those names.')]
 StartSample = Annotated[bool, _d('true: the synthetic shop sample; no Fabric.')]
+# WB12 (#75): the start prompt's one argument, as the question the claude.ai prompt dialog shows
+StartPromptSample = Annotated[str, _d('Use the synthetic shop sample? Type yes. Leave empty to use your own Fabric data.')]
 
 # ------------------------------------------------------------------ publish_catalog (CA1) ---------------
 

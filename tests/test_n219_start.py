@@ -37,7 +37,7 @@ def test_the_prompt_is_listed_with_its_title():
     got = asyncio.run(server.mcp.get_prompt(sf.PROMPT, {}))
     text = got.messages[0].content.text
     assert got.messages[0].role == "user" and "start tool" in text and "Create nothing unless I confirm" in text
-    sample = asyncio.run(server.mcp.get_prompt(sf.PROMPT, {"sample": "yes"})).messages[0].content.text
+    sample = asyncio.run(server.mcp.get_prompt(sf.PROMPT, {"use_sample": "yes"})).messages[0].content.text   # WB12 (#75)
     assert "sample=true" in sample
 
 

@@ -549,9 +549,42 @@ def _titled_tool(register):
 mcp.tool = _titled_tool(mcp.tool)
 
 
-# n219: Start Krusgraph, a guided path through the tools (start_flow.py). The tool reads nothing and calls nothing: it
+# n219: Start Krusgraph, a guided path through the tools (start_flow.py). The tool reads no rows and runs no other tool: it
 # answers where the user is, what was chosen and the next step as a call of an existing tool; the prompt starts it.
-START = ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False)
+# WB12 (#76): on steps 1-3 it reads the names to choose from (workspaces, sources, schemas with table counts), so it
+# reaches Fabric: open_world_hint is true, as for list_workspaces.
+START = ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=True)
+
+
+def _start_options(workspace: str, source: str, schema: str, sample: bool, ctx) -> dict | None:
+    """WB12 (#76): what step 1, 2 or 3 offers as buttons, read with the user's own sign-in: names and counts only, no
+    row values. None on the sample or from step 4 on; {step, error} when it cannot be read (the step then offers the
+    listing tool's button, as before)."""
+    if sample:
+        return None
+    now = _start_flow.current(None, {"workspace": (workspace or "").strip() or None,
+                                     "source": (source or "").strip() or None, "schema": (schema or "").strip() or None})
+    if now not in ("workspace", "source", "schema"):
+        return None
+    try:
+        if now == "workspace":
+            items = [{"name": w["name"], "hint": "" if w.get("capacity_id") else "no capacity: nothing can run here"}
+                     for w in _workspaces(_headers(ctx)) if w.get("name")]
+            items.sort(key=lambda x: (bool(x["hint"]), str(x["name"]).lower()))
+        elif now == "source":
+            listed = json.loads(list_sources(workspace, ctx=ctx))
+            if not isinstance(listed, dict) or listed.get("error"):
+                return {"step": now, "error": str((listed or {}).get("error") or "could not list the sources")}
+            words = {"Lakehouse": "lakehouse", "Warehouse": "warehouse", "MirroredDatabase": "mirrored database",
+                     "SQLDatabase": "SQL database", "MirroredAzureDatabricksCatalog": "mirrored catalog"}
+            items = [{"name": x["name"], "hint": words.get(x.get("type"), str(x.get("type") or ""))}
+                     for x in listed.get("sources") or []]
+        else:
+            items = [{"name": x["schema"], "tables": x["tables"]}
+                     for x in _candidate_schemas(_source_schemas(workspace, source, ctx))]
+    except Exception as e:                                       # noqa: BLE001 - the step keeps its listing button
+        return {"step": now, "error": (str(e) or type(e).__name__).splitlines()[0][:200]}
+    return {"step": now, "items": items}
 
 
 @mcp.tool(title="Start Krusgraph: a guided path", annotations=START, structured_output=False)
@@ -564,17 +597,20 @@ def start(workspace: _p.StartPick = "", source: _p.StartPick = "", schema: _p.St
     then create after a second confirmation of the names. Returns JSON {step, path, actions: [{tool, arguments, say}],
     after}: each action is an existing tool; after is the next start call. Changes nothing. Errors: {error, kind, hint}."""
     plan = plan if isinstance(plan, dict) else {}
+    options = _start_options(workspace, source, schema, bool(sample), ctx)
     return json.dumps(_start_flow.guide(workspace=workspace, source=source, schema=schema, step=step,
                                         keys=plan.get("keys"), confirmed=plan.get("confirmed"),
                                         decisions=plan.get("decisions"), create=create, confirm=confirm,
-                                        sample=sample), indent=2)
+                                        sample=sample, options=options), indent=2)
 
 
 @mcp.prompt(name=_start_flow.PROMPT, title=_start_flow.PROMPT_TITLE,
             description="A guided path from your workspace to a checked plan and a dry run of what would be built; "
-                        "nothing is created until you confirm the names. sample=yes runs it on the synthetic shop.")
-def start_prompt(sample: str = "") -> str:
-    return _start_flow.prompt_text(str(sample).strip().lower() in ("yes", "true", "1", "sample"))
+                        "nothing is created until you confirm the names. Leave the field empty for your own Fabric "
+                        "data, or type yes for the synthetic shop sample.")
+def start_prompt(use_sample: _p.StartPromptSample = "") -> str:
+    # WB12 (#75): the dialog showed a bare "Sample" field; the argument is named and described as the question it is
+    return _start_flow.prompt_text(_start_flow.wants_sample(use_sample))
 
 
 @mcp.tool(title="List workspaces", annotations=RO)

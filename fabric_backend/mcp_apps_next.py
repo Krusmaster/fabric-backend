@@ -265,10 +265,34 @@ def numbered(next_steps: list[dict], actions: list | None = None) -> list[tuple[
     return out
 
 
+# WB12 (#69): under the start card Claude wrote the card's content again. The start answer's lead says the card shows
+# it and asks for one short sentence and the step's question; the JSON after it stays complete for clients without cards.
+START_AFTER_CARD = ("For the assistant, not for the user: where the client drew the Start Krusgraph card, the card already "
+                    "shows this step: its findings, the step list and the buttons. Please do not repeat or summarise them; "
+                    "reply with at most one short sentence, then ask the step's question: \u201c{q}\u201d. Where no card "
+                    "was drawn, show the step from the JSON below in a few lines and its buttons as a numbered list.")
+
+
+def start_lead(answer: dict) -> str:
+    """The text a client model reads first after `start` (WB12, #69)."""
+    q = answer.get("say") if isinstance(answer.get("say"), str) and answer.get("say").strip() else ""
+    if not q:
+        found = answer.get("found") if isinstance(answer.get("found"), dict) else {}
+        q = found.get("question") if isinstance(found.get("question"), str) else ""
+    if not q:
+        q = (answer.get("after") or {}).get("label", "") if isinstance(answer.get("after"), dict) else ""
+        q = f"Shall we go on? ({q})" if q else "Shall we go on?"
+    st = answer.get("step") if isinstance(answer.get("step"), dict) else {}
+    head = f"Start Krusgraph, step {st.get('n')} of {st.get('of')}: {st.get('title')}." if st.get("n") else "Start Krusgraph."
+    return "\n\n".join([head, START_AFTER_CARD.format(q=words.plain(q)[:300]), "The full answer follows as JSON."])
+
+
 def lead(tool: str, answer: dict, next_steps: list[dict], actions: list | None = None) -> str:
     """The result first, in a few short lines, then the next steps as a numbered list in plain words (n227: a client
     that draws no card shows the list and the user replies with a number). The last paragraph is for the client model:
     which call each number is, and what not to add to the card."""
+    if tool == "start" and isinstance(answer, dict) and not answer.get("error"):
+        return start_lead(answer)
     lines = _first_lines(tool, answer) if isinstance(answer, dict) else []
     out = [" ".join(words.plain(x) for x in lines)[:600]] if lines else []
     todo = numbered(next_steps, actions)

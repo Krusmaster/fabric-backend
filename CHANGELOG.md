@@ -18,6 +18,20 @@ next deploy.
 - Round WB10, next steps (issues #62-#64): the Data product page says "No pipeline built for this data product" and
   points to the Data Factory step; the Data Factory card says what is left when the silver notebook is built and ticks
   only that; the Data Science starter has Dry run, then Create of the notebook in the workspace (never run by Krusgraph).
+- Round WB12: **The start cards in claude.ai, after Gustav's chat test of 18 November 2026** (issues #66-#77,
+  `docs/CHAT-TEST-2026-11-18.md`). Step 6 has Accept, Reject and Skip per open decision with the counted evidence
+  (share of values found, distinct values), the decision travels into steps 7-9, and Next is secondary until every
+  decision is answered or skipped. Sums are formatted (`fabric_backend/number_words.py`: thousands grouped by a thin
+  space, two decimals, the factor such as "about 13.6x") with one plain sentence, and validate_plan's fan-out sums are
+  rounded where they are made (`fix_plan.py`). The card reports the height of its content, not of its frame, so frames
+  no longer keep blank space. The text the client model reads after `start` says the card already shows the step and
+  asks for one short sentence and the step's question. Step 5 shows the item's proof tiles and the 2.2x line; step 4
+  says each rule code in words; the "Steps 1-8 only read" sentence is in full on the first card only; finished and
+  later steps fold into one line each; steps 1-3 are "skipped (sample)" on the sample; step 9 on the sample offers
+  "Start on my data" and "Show the dry run again". The prompt's argument is `use_sample` ("Use the synthetic shop
+  sample? Type yes. Leave empty to use your own Fabric data."). Steps 1-3 list the workspaces, sources and schemas
+  (with table counts; a schema without tables disabled) as buttons, with a search box over eight, read by `start`
+  itself (names and counts only, so `start` is now listed with `open_world_hint: true`); Next waits for the choice.
 - Round Q2: **Krusgraph Migrate, from Qlik to Power BI: three tools, a public test corpus and the design of a
   workload of its own.** The founder decided on 16 November 2026 that Migrate becomes its own Fabric workload
   (name proposal `Krusgraph.Migrate`; "Qlik" not in the registered name), with chat tools and a guided page built
