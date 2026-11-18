@@ -9,6 +9,12 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round WB10: **Gustav's live test of the Model item in Fabric, 18 November 2026: the catalog step's owner, counts,
+  dates and descriptions** (issues #58-#61). The owner field is the Data product page's people picker with Me, has
+  autocomplete off and refuses an item's name (editor and engine). Every key and link count on the page comes from the
+  check recorded in the item, with links between data products stated separately, and every sentence states that
+  check's time. The catalog keeps each item's own first sentence and appends the data-product sentence; items
+  Krusgraph did not build are offered unticked. `docs/WORKLOAD-TEST-2026-11-17.md`, section 8.
 - Round Q2: **Krusgraph Migrate, from Qlik to Power BI: three tools, a public test corpus and the design of a
   workload of its own.** The founder decided on 16 November 2026 that Migrate becomes its own Fabric workload
   (name proposal `Krusgraph.Migrate`; "Qlik" not in the registered name), with chat tools and a guided page built

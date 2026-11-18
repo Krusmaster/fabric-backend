@@ -1337,17 +1337,24 @@ export function ModelItemEditor(props: PageProps) {
 
   // CA1: "Publish to OneLake catalog" on the Data product page (CatalogPanel.tsx): a dry run first, the write with its confirm
   const catalogOwner = def.outputs.product?.owner ?? null;
+  // WB10: the same people and Me as the Data product page's Owner; the names of the items built are never an owner
+  const catalogPeople = dp.status?.people ?? null;
+  const catalogYou = dp.status?.you ?? null;
+  const catalogItems = def.outputs.created.map((c) => c.name).filter(Boolean).join("\n");
   const catalogSource = useMemo<CatalogSource>(
     () => ({
       owner: catalogOwner,
-      run: ({ dryRun, confirm, owner }) => {
+      people: catalogPeople,
+      you: catalogYou,
+      itemNames: catalogItems ? catalogItems.split("\n") : [],
+      run: ({ dryRun, confirm, owner, include }) => {
         const d = defRef.current;
         return engine.catalog<CatalogAnswer>(workloadClient, { ...sourceRequest(d), review: d.review, outputs: { created: d.outputs.created },
-          owner: owner ?? null, dry_run: dryRun, confirm: confirm ?? null });
+          owner: owner ?? null, dry_run: dryRun, confirm: confirm ?? null, include: include ?? [] });
       },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [workloadClient, catalogOwner]
+    [workloadClient, catalogOwner, catalogPeople, catalogYou, catalogItems]
   );
 
   // WB10 (#57): every download goes through the engine's single-use link, opened by the Fabric host in a new tab

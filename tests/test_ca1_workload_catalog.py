@@ -24,8 +24,11 @@ def test_the_dry_run_answers_cards_diff_and_handover_and_writes_nothing(api, mon
     out = r.json()
     assert [c["name"] for c in out["products"]] == ["customers", "products"]
     assert all(c["owner"] == "Data team" for c in out["products"])
-    assert out["confirm"] and out["writable"] is False and "Nothing was created" in out["note"]
-    assert any(d["item"] == "demo_lh" for d in out["diff"])
+    # WB10: the lakehouse is not Krusgraph's: nothing is written to it unless it is ticked (include)
+    assert out["confirm"] is None and out["writable"] is False and "Nothing was created" in out["note"]
+    assert [(d["item"], d["action"]) for d in out["diff"]] == [("demo_lh", "optional")]
+    ticked = _post(client, "/catalog", {**SRC, "review": rv, "include": [gs.LH]}, tok(priv)).json()
+    assert ticked["confirm"] and [w["item"] for w in ticked["writes"]] == ["demo_lh"]
     assert "handover/endorsement.md" in out["handover"]["files"]
     assert _writes(fake) == []
 
@@ -42,9 +45,9 @@ def test_a_rejected_link_is_left_out_of_the_cards(api):
 def test_writing_is_refused_outside_the_list_and_done_inside_it(api, monkeypatch):
     client, fake, _, priv = api
     rv = _review(client, priv)
-    dry = _post(client, "/catalog", {**SRC, "review": rv}, tok(priv)).json()
+    dry = _post(client, "/catalog", {**SRC, "review": rv, "include": [gs.LH]}, tok(priv)).json()
     monkeypatch.delenv(writes.ALLOW_ENV, raising=False)
-    no = _post(client, "/catalog", {**SRC, "review": rv, "dry_run": False, "confirm": dry["confirm"]}, tok(priv)).json()
+    no = _post(client, "/catalog", {**SRC, "review": rv, "include": [gs.LH], "dry_run": False, "confirm": dry["confirm"]}, tok(priv)).json()
     assert no["kind"] == "not_allowed" and _writes(fake) == []
     monkeypatch.setenv(writes.ALLOW_ENV, gs.WS)
     real = fake._route
@@ -55,7 +58,8 @@ def test_writing_is_refused_outside_the_list_and_done_inside_it(api, monkeypatch
             return gs.Response(200, {})
         return real(method, url, body)
     monkeypatch.setattr(fake, "_route", route)
-    out = _post(client, "/catalog", {**SRC, "review": rv, "dry_run": False, "confirm": dry["confirm"]}, tok(priv)).json()
+    out = _post(client, "/catalog", {**SRC, "review": rv, "include": [gs.LH], "dry_run": False, "confirm": dry["confirm"]},
+                tok(priv)).json()
     assert [r["ok"] for r in out["results"]] == [True] and out["undo"][0]["operation"] == "Items_UpdateItem"
     assert [c[0] for c in _writes(fake)] == ["PATCH"]
 

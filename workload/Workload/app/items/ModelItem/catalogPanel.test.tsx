@@ -105,13 +105,13 @@ describe("CatalogView", () => {
     act(() => root.render(<CatalogContext.Provider value={{ run }}><CatalogPanel /></CatalogContext.Provider>));
     const prepare = Array.from(host.querySelectorAll("button")).find((b) => b.textContent?.startsWith("Prepare"))!;
     await act(async () => { prepare.click(); });
-    expect(run).toHaveBeenCalledWith({ dryRun: true, confirm: null, owner: null });
+    expect(run).toHaveBeenCalledWith({ dryRun: true, confirm: null, owner: null, include: [] });
     const box = host.querySelector("input[type=checkbox]") as HTMLInputElement;
     await act(async () => { box.click(); });
     const write = Array.from(host.querySelectorAll("button")).find((b) => b.textContent?.startsWith("Write"))!;
     expect(write.hasAttribute("disabled")).toBe(false);
     await act(async () => { write.click(); });
-    expect(run).toHaveBeenLastCalledWith({ dryRun: false, confirm: "catalog-abc", owner: null });
+    expect(run).toHaveBeenLastCalledWith({ dryRun: false, confirm: "catalog-abc", owner: null, include: [] });
     expect(host.textContent).toContain("shop_model, description: written");
   });
 });

@@ -208,3 +208,17 @@ These are what the doubles cannot show. Use the demo workspace, synthetic shop d
 - **Manifest:** no change to the name, identity, publisher, pricing or licence links.
 - **Fluent 2 site:** not reachable from this session.
 - **F5 and F6:** left as findings. F5 is in a file CSN2 holds; F6 is a behaviour decision.
+
+## 8. Gustav's live test, 18 Nov
+
+Gustav used the Model item in the real Fabric portal on 18 November 2026 (workspace *Test*, lakehouse `shop_lh`, schema
+`shop`; a silver notebook `shop_lh_silver` and an API for GraphQL `shop_lh_api` built). Round WB10 opened one issue per
+finding and fixed them with tests. No Fabric credentials were used: what was verified ran in unit tests (pytest, vitest)
+and in the end-to-end harness on the doubles, not in Fabric.
+
+| # | Finding | Issue | Fix | Test |
+| --- | --- | --- | --- | --- |
+| 2 | *Owner of the data products* showed `demo_lh_api9`, an API for GraphQL item, and the cards said *Owner: demo_lh_api9* | #58 | The field had no `autocomplete` and Fluent's generated id, so the browser could fill it with a value typed in another field (most likely the output name field); nothing in the code prefilled it from an output. It now has `autocomplete="off"`, the name `kg-catalog-owner`, the Data product page's people list and a **Me** button. An item's name is refused in the editor and by the engine (`catalog_publish/owner.py`); where the workspace's role assignments are readable, so is anyone who is not a person or group in them. A saved owner that is an item's name is not prefilled | `wb10Catalog.test.tsx`, `tests/test_wb10_catalog.py` |
+| 3 | Counts disagreed: cards 6 keys and 5 links, the lakehouse's description 6 links, the silver notebook, next steps and Thinker 7 links | #59 | One source: the check recorded in the item's `review.json`, the set the Thinker line counts. Every link is counted once, as inside one data product, between two (stated separately: *1 link between customers and products*) or to a table in no data product; the totals equal the Thinker's. The cards and the written descriptions use the same counts (`catalog_publish/cards.py`, `link_split`, `page_evidence`) | `tests/test_wb10_catalog.py` (the route's totals against the review's) |
+| 4 | Two dates: Thinker *checked 2026-11-14 14:54 UTC*, cards *checked 18 Nov 2026* | #60 | The catalog no longer dates its own count "today": it states the latest check recorded in this item, with the time, written as the Thinker writes it (`2026-11-14 14:54 UTC`). Only when the item holds no check does it count and state that time | `tests/test_wb10_catalog.py`, `wb10Catalog.test.tsx` |
+| 5 | The catalog write replaced `shop_lh_silver`'s own description, and wrote to the lakehouse | #61 | Each item keeps its own first sentence; the data-product sentence is appended (the plan marker stays last), and a second run does not repeat it. Items Krusgraph did not build are not written to by default: they are offered as an unticked option with one line why, and ticking prepares the dry run again with them, so the confirm covers what is shown | `tests/test_wb10_catalog.py`, `tests/test_ca1_*.py`, `wb10Catalog.test.tsx` |
