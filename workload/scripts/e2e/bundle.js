@@ -23,6 +23,7 @@ async function bundle(out) {
     logLevel: "warning",
   });
   fs.copyFileSync(path.join(HERE, "index.html"), path.join(out, "index.html"));
+  fs.copyFileSync(path.join(HERE, "frame.html"), path.join(out, "frame.html"));   // WB10: the editor in Fabric's sandbox
   // the app's static assets (icons, mascots, empty-state image), served at /assets as webpack's copy plugin does
   fs.cpSync(path.resolve(HERE, "../../Workload/app/assets"), path.join(out, "assets"), { recursive: true });
   // Fabric's own item icons, copied as webpack.config.js copies them (fabricIcons.json)

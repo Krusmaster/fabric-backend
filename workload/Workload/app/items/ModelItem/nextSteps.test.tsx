@@ -135,7 +135,7 @@ describe("W13: the panel", () => {
     expect(html).toContain("Next, with other Fabric workloads");
     expect(html).toContain("Suggestions by rules from what was proven; no AI.");
     for (const w of ["Krusgraph builds it", "Starter to download", "Krusgraph in Claude"]) expect(html).toContain(w);
-    expect(html).toContain('download="orders_features.ipynb"');
+    expect(html).toContain('data-file="orders_features.ipynb"');   // WB10: offered through fileOffer.tsx
     expect(html).toContain("Download notebook (.ipynb)");
     expect((html.match(/class="kg-next-card"/g) ?? []).length).toBe(8);
   });

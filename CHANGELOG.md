@@ -32,6 +32,10 @@ next deploy.
   sample? Type yes. Leave empty to use your own Fabric data."). Steps 1-3 list the workspaces, sources and schemas
   (with table counts; a schema without tables disabled) as buttons, with a search box over eight, read by `start`
   itself (names and counts only, so `start` is now listed with `open_world_hint: true`); Next waits for the choice.
+- Round WB10, downloads (issue #57): every download in the Model editor works inside Fabric's sandboxed frame. The
+  engine keeps the file ten minutes behind a signed, single-use link (`POST /workload/v1/file`), the Fabric host opens it
+  in a new tab, and it is served once as an attachment; Copy falls back to a visible text area. E2E flow 20 runs the
+  editor in an iframe sandboxed as Fabric's.
 - Round Q2: **Krusgraph Migrate, from Qlik to Power BI: three tools, a public test corpus and the design of a
   workload of its own.** The founder decided on 16 November 2026 that Migrate becomes its own Fabric workload
   (name proposal `Krusgraph.Migrate`; "Qlik" not in the registered name), with chat tools and a guided page built

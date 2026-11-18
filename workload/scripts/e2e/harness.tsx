@@ -9,7 +9,8 @@
  *   datahub      the lakehouse picker answers demo_lh at once (?picker=cancel answers nothing)
  *   auth         a token from engine.py's /e2e/token (the audience the routes accept)
  *   notification, navigation, dialog, settings, theme: recorded in window.__host for run.js to read
- * Query: ?fresh=1 clears the saved item (and W14's unsaved drafts) first; ?slowsave=<ms> makes each save take that long.
+ * Query: ?framed=1 (frame.html, WB10) sends openBrowserTab to the top frame, which opens the tab;
+ * ?fresh=1 clears the saved item (and W14's unsaved drafts) first; ?slowsave=<ms> makes each save take that long.
  */
 import React from "react";
 import { createRoot } from "react-dom/client";
@@ -61,7 +62,12 @@ const wc = {
   notification: { open: async (n: unknown) => { host.notifications.push(n); return {}; }, hide: async () => ({}) },
   navigation: {
     navigate: async (...a: unknown[]) => { host.navigations.push(a); },
-    openBrowserTab: async (a: unknown) => { host.tabs.push(a); },
+    openBrowserTab: async (a: { url?: string }) => {
+      host.tabs.push(a);
+      // WB10: in frame.html (Fabric's sandbox) the top frame opens the tab, as Fabric's host does
+      if (q.get("framed") && window.parent !== window) window.parent.postMessage({ kgOpenTab: a?.url }, "*");
+      return { success: true };
+    },
     onBeforeNavigateAway: async () => undefined,
     onAfterNavigateAway: async () => undefined,
   },
