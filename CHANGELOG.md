@@ -9,7 +9,7 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
-- Round AP2: **a blank SAP partner field is no reference, not an orphan** (found 18 November 2026 in the live demo run of
+- Round AP2: **a blank partner field in SAP data is no reference, not an orphan** (found 18 November 2026 in the live demo run of
   `sap_lt1_pipeline`, where the silver notebook quarantined 5 `sap_vbpa` rows whose `KUNNR` or `PARNR` was blank). The
   silver notebook (and `silver.simulate`) and the pipeline's check notebook now count a NULL, a blank (`''` or spaces) or,
   where the SAP pack marks the relationship `optional` (VBPA -> KNA1, VBPA -> KNVK, KNVK -> KNA1/LFA1, the `ADRNR` links
