@@ -46,6 +46,7 @@ from . import lineage as _lineage, compact as _compact, sap_pack as _sap_pack
 from . import coverage as _coverage
 from . import domains as _domains
 from . import limits as _limits, usage as _usage, entitlements as _entitlements
+from . import usage_metrics as _usage_metrics  # UM1: anonymous daily counts for /metrics
 from . import billing as _billing
 from .deploy import create_semantic_model as _create_semantic_model
 from .deploy import answer_by as _answer_by  # noqa: E402  (n227: a Create answers before the host stops waiting)
@@ -510,7 +511,10 @@ def _instrumented(fn, name: str):
             refusal = _entitlements.check(name, dry_run, (who or {}).get("tid"))
         text = json.dumps(refusal, indent=2) if refusal is not None else _billing.with_notice(fn(*args, **kwargs), notice)
         try:
-            _usage.usage.record(name, _usage.outcome_of(text), time.monotonic() - start, dry_run, (who or {}).get("tid"))
+            if _usage_metrics.enabled():                   # UM1: KRUSGRAPH_METRICS=off counts nothing at all
+                outcome = _usage.outcome_of(text)
+                _usage.usage.record(name, outcome, time.monotonic() - start, dry_run, (who or {}).get("tid"))
+                _usage_metrics.counts.tool_call(name, outcome, (who or {}).get("tid"), (who or {}).get("oid"))
         except Exception:  # noqa: BLE001 — counting must never break a call
             pass
         return text
@@ -4058,12 +4062,42 @@ def build_app(host: str = "0.0.0.0"):
         return None
 
     async def metrics(request):
-        """Usage totals (usage.py) in the Prometheus text format, for the operator (operator_refusal); a 404 otherwise."""
-        refused = operator_refusal(request)
-        if refused is not None:
-            return refused
-        return PlainTextResponse(_usage.usage.prometheus(), media_type="text/plain; version=0.0.4", headers={"Cache-Control": "no-store"})
-    app.router.routes.append(Route("/metrics", metrics))
+        """UM1: the operator's usage page (usage_metrics.py): the last 7 and 30 days as HTML for a browser, or JSON with
+        ?format=json; usage.py's totals in the Prometheus text format for anything else (or ?format=prometheus). The
+        token as a bearer token, or (a browser, which cannot send one from the address bar) typed into the form, which
+        POSTs it in the body, never in the address. 404 without the token setting, 401 for a wrong token."""
+        from starlette.responses import HTMLResponse
+        from urllib.parse import parse_qs
+        import hmac
+        fmt = request.query_params.get("format", "")
+        browser = "text/html" in request.headers.get("accept", "")
+        nostore = {"Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow"}
+        page_headers = {**nostore, "Content-Security-Policy": _usage_metrics.PAGE_CSP, "Referrer-Policy": "no-referrer",
+                        "X-Frame-Options": "DENY"}
+        if request.method == "POST":
+            expected = os.environ.get("KRUSGRAPH_METRICS_TOKEN", "").strip()
+            if len(expected) < 32:
+                return PlainTextResponse("not found", status_code=404)
+            body = await request.body()
+            form = parse_qs(body[:4096].decode("utf-8", "replace")) if len(body) <= 4096 else {}
+            given = (form.get("token") or [""])[0].strip()
+            if not given or not hmac.compare_digest(given.encode(), expected.encode()):
+                return HTMLResponse(_usage_metrics.login_html(wrong=True), status_code=401, headers=page_headers)
+            fmt = (form.get("format") or [fmt])[0]
+        else:
+            refused = operator_refusal(request)
+            if refused is not None:
+                if refused.status_code == 401 and browser and not fmt:
+                    return HTMLResponse(_usage_metrics.login_html(), status_code=401, headers=page_headers)
+                return refused
+        if fmt == "prometheus" or (not fmt and not browser and request.method == "GET"):
+            return PlainTextResponse(_usage.usage.prometheus(), media_type="text/plain; version=0.0.4", headers=nostore)
+        from starlette.concurrency import run_in_threadpool
+        rep = await run_in_threadpool(_usage_metrics.report, _usage_metrics.counts)
+        if fmt == "json":
+            return JSONResponse(rep, headers=nostore)
+        return HTMLResponse(_usage_metrics.report_html(rep), headers=page_headers)
+    app.router.routes.append(Route("/metrics", metrics, methods=["GET", "POST"]))
 
     # n240: /check's visits and checks per UTC day and utm_source/medium/campaign (usage.Campaigns), read-only, JSON,
     # behind the same token as /metrics. Counts only: no cookie, IP address or identifier is behind any of them.
@@ -4347,7 +4381,7 @@ def build_app(host: str = "0.0.0.0"):
     from . import workload_host
 
     if not cfg:
-        return _with_security_headers(workload_host.wrap(app))
+        return _with_security_headers(_usage_metrics.asgi(workload_host.wrap(app)))
 
     from .entra import protected_resource_metadata, challenge, TokenError
 
@@ -4396,7 +4430,7 @@ def build_app(host: str = "0.0.0.0"):
             return await resp(scope, receive, send)
         return await inner(scope, receive, send)
 
-    return _with_security_headers(workload_host.wrap(guarded))
+    return _with_security_headers(_usage_metrics.asgi(workload_host.wrap(guarded)))   # UM1: sessions and workload routes counted
 
 
 def main() -> None:
