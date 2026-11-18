@@ -1,5 +1,5 @@
 {
-  "about": "n184: the Fabric item icons on the Model editor's output cards. Every file is Microsoft's, from the npm package below at the exact version, copied byte for byte into /assets/fabric-icons/ by webpack.config.js (never edited, never stored in this repository). sha256 is of the file in that version; fabricIcons.test.ts and tests/test_workload_fabric_icons.py check it. See docs/WORKLOAD-DEV.md, 'Fabric item icons'.",
+  "about": "n184: the Fabric item icons beside every Fabric item type the Model editor names (n184: the output cards; WB11: next steps, the data product, Retire, the catalog and the source). Every file is Microsoft's, from the npm package below at the exact version, copied byte for byte into /assets/fabric-icons/ by webpack.config.js (never edited, never stored in this repository). sha256 is of the file in that version; fabricIcons.test.ts and tests/test_workload_fabric_icons.py check it. See docs/WORKLOAD-DEV.md, 'Fabric item icons'.",
   "package": "@fabric-msft/svg-icons",
   "version": "12.0.0",
   "integrity": "sha512-we+ozRmYsIjmg+pNoDEr9PE9LtangeTk5FGvOSF/Y7zAk9xBp0cH6bli0vl+4Zyu9p+51unpLr1iCE6iRzhZiQ==",
@@ -14,7 +14,12 @@
     "generic_placeholder_24_item.svg": "d706dbfaac1761dec0317f084861e7222ccb59c55a61810d131e7d8e698e0122",
     "ontology_24_item.svg": "5d75f1119553559744ea7edeca68019554e916c122fbfe84903eef00b9ba843f",
     "data_agent_24_item.svg": "49e71cdf290e55e99f50ea654d854290c94613540484301de795c4f5cd0371c5",
-    "fabric_apps_24_item.svg": "f04ba09b2b1daab83b0409f6c1eca62b5d6a8b274682778aad7b3962af14580a"
+    "fabric_apps_24_item.svg": "f04ba09b2b1daab83b0409f6c1eca62b5d6a8b274682778aad7b3962af14580a",
+    "lakehouse_24_item.svg": "1c4b3b4c1f3d445d4e3694b3faedcaf6fa5429b9a0209d268073d9953c1e1731",
+    "data_warehouse_24_item.svg": "5584fa47cedb8fb7d59ced9a84464f7e4832b5c7ef9c312c46569340c8ad9b34",
+    "sql_database_24_item.svg": "8963853dffa1e235aa3079bfac3dece25bd977c5df6961f6571d6f1210447fed",
+    "mirrored_generic_database_24_item.svg": "2155e40cb5450bc4361612b73a6ae3097d04654d5abb86e650f776b83541214a",
+    "experiments_24_item.svg": "b850bab9a97fe55823c61e7aeba1e2d219f0752589f4f35da9e4d024bfd1fd1e"
   },
   "kinds": {
     "silver_notebook": { "file": "notebook_24_item.svg", "alt": "Notebook" },
@@ -26,5 +31,25 @@
     "ontology": { "file": "ontology_24_item.svg", "alt": "Ontology" },
     "data_agent": { "file": "data_agent_24_item.svg", "alt": "Data agent" },
     "rayfin_app": { "file": "fabric_apps_24_item.svg", "alt": "App" }
+  },
+  "types": {
+    "Lakehouse": { "file": "lakehouse_24_item.svg", "alt": "Lakehouse" },
+    "Warehouse": { "file": "data_warehouse_24_item.svg", "alt": "Warehouse" },
+    "SQLDatabase": { "file": "sql_database_24_item.svg", "alt": "SQL database" },
+    "MirroredDatabase": { "file": "mirrored_generic_database_24_item.svg", "alt": "Mirrored database" },
+    "Notebook": { "file": "notebook_24_item.svg", "alt": "Notebook" },
+    "MLExperiment": { "file": "experiments_24_item.svg", "alt": "Experiment" },
+    "DataPipeline": { "file": "pipeline_24_item.svg", "alt": "Pipeline" },
+    "SemanticModel": { "file": "semantic_model_24_item.svg", "alt": "Semantic model" },
+    "Report": { "file": "report_24_item.svg", "alt": "Report" },
+    "GraphQLApi": { "file": "generic_placeholder_24_item.svg", "alt": "API for GraphQL" },
+    "Ontology": { "file": "ontology_24_item.svg", "alt": "Ontology" },
+    "DataAgent": { "file": "data_agent_24_item.svg", "alt": "Data agent" },
+    "Reflex": { "file": "generic_placeholder_24_item.svg", "alt": "Activator" },
+    "AppBackend": { "file": "fabric_apps_24_item.svg", "alt": "App" }
+  },
+  "fallback": {
+    "file": "generic_placeholder_24_item.svg",
+    "why": "@fabric-msft/svg-icons 12.0.0 has no item icon for an API for GraphQL or for an Activator (its CHANGELOG records Reflex renamed to Activator, dated 26 June 2025, but 12.0.0 ships no activator file); those show the package's generic item icon, always beside the type's name in text. A type not listed here shows its name with no icon."
   }
 }

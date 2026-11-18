@@ -803,6 +803,46 @@ the model refreshed by Create). Checked by `app/items/ModelItem/createWords.test
    `demo_lh_api`. Create counts "n of 9 created" while it runs, ends with the banner, marks, *Next* and *Keep it up to
    date*, and shows them again when the item is reopened.
 
+**Round WB11 (18 November 2026): the same icons beside every Fabric item type the editor names.** Gustav: "kan vi
+lägga in fler Microsoft-loggor för de items man kan välja att skapa?" Checked by `app/items/ModelItem/wb11Icons.test.tsx`
+(`npm test`, with snapshots), `tests/test_wb11_item_icons.py` and flows 8 and 22 of `workload/scripts/e2e/run.js`
+(Chromium on the doubles); nothing ran in Fabric.
+
+- **Where they are now.** Before WB11: *Choose what to build* (the checkbox list) and the dry run's and Create's cards.
+  WB11 adds: the next steps' cards (*Next, with other Fabric workloads*, after Create and on the Data product page),
+  at the card's top left, with the workload and the item types in words: Data Science · Notebook, Experiment;
+  Power BI · Semantic model, Report (Report alone once the model is built); Data agent; Data Factory · Pipeline,
+  Notebook; Data Engineering · API for GraphQL; Fabric IQ · Ontology; Real-Time Intelligence · Activator; Apps · App.
+  The Data product page's Built list and the product summary; Retire's dry run and result; the catalog's *What would
+  be written as you* (each card: icon, type, name; the engine's diff rows now carry the item's Fabric type,
+  `catalog_publish/writes.py`); the source button (Lakehouse, Warehouse, SQL database, Mirrored database) and the
+  target lakehouse button. There is no *Recommended analyses* section in the editor, so nothing to change there.
+- **The source**, unchanged from n184: the npm package `@fabric-msft/svg-icons` **12.0.0** (published 4 November 2026
+  per its CHANGELOG; integrity in `package-lock.json`), which Microsoft Learn's *Microsoft Fabric product, experience,
+  and item icons* (<https://learn.microsoft.com/fabric/fundamentals/icons>) offers "for use in Microsoft Fabric
+  platform extension development"; Microsoft reserves all other rights. Five more files, unmodified, with their
+  SHA-256 in `fabricIcons.json`: `lakehouse_24_item.svg`, `data_warehouse_24_item.svg`, `sql_database_24_item.svg`,
+  `mirrored_generic_database_24_item.svg`, `experiments_24_item.svg` (thirteen in all). `THIRD_PARTY_NOTICES.md` and
+  *About and notices* say so; no new NOTICE file is needed (the package has no licence or notice file of its own).
+- **Item icons only.** Every file is a `_24_item.svg` (an item type's icon). No Microsoft logo, no Power BI or Fabric
+  product logo and no experience (workload) icon is used, so a card names its workload in words and shows the icons of
+  the items it makes. Each icon stands next to its type's name in text and never next to the Krusgraph logo.
+- **Fallback.** Version 12.0.0 has no item icon for an API for GraphQL (as in n184) or for an Activator (its CHANGELOG
+  records Reflex renamed to Activator, but the version ships no such file): both show the package's
+  `generic_placeholder_24_item.svg` beside their name. A type not in `fabricIcons.json` shows its name with no icon.
+  `ICON_TYPES` lists every type the editor can name; the tests fail if one has no icon.
+- **Accessibility.** `alt=""` wherever the text beside the icon names the type (all of the places above); the type as
+  alt only where the words beside it do not name it (`altBeside`); a source of unknown type shows no icon. States keep their
+  words and marks, never colour alone. `width` and `height` are set, so nothing moves when an icon loads: flow 22 holds
+  the icons back for 2 s and checks that no type name moves when they arrive, at 390 px, in light and dark, with no
+  horizontal scroll. Screenshots: `08-next-steps.png`, `22-next-steps-phone-{light,dark}.png`,
+  `22-choose-phone-{light,dark}.png`, `22-product-phone-{light,dark}.png`.
+- **Size.** The editor's JavaScript grows by about 1.2 KB gzipped (measured on the e2e bundle); the five new SVGs are
+  15 KB together, fetched only where shown and cached.
+- **For the founder.** No package upload: the manifest is unchanged, and the editor is part of the image that the
+  Deploy workflow builds. In Fabric, open a Krusgraph Model after the deploy and look at *Next, with other Fabric
+  workloads*, the Data product page and *Choose source*.
+
 ### 14. Round n185: Run once and Schedule on the pipeline, the data agent's layer and publishing
 
 Round n185 (9 November 2026). The founder's live Create made all nine outputs; he then ran demo_lh_pipeline by hand

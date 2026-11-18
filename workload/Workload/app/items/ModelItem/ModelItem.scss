@@ -380,6 +380,11 @@
   flex: none;
 }
 
+// WB11: the icon inside a Fluent button (the source and the target lakehouse) keeps its own size
+.fui-Button__icon > .krusgraph-item-icon {
+  display: block;
+}
+
 .krusgraph-notices {
   margin-top: 16px;
 
@@ -617,8 +622,8 @@
   background: var(--colorNeutralBackground1); border: 1px solid var(--colorNeutralStroke2); box-shadow: var(--shadow2);
   h3 { margin: 0; }
 }
-.kg-next-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.kg-next-workload { color: var(--colorNeutralForeground2); font-weight: var(--fontWeightSemibold); }
+.kg-next-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+.kg-next-workload { color: var(--colorNeutralForeground2); font-weight: var(--fontWeightSemibold); gap: 6px; min-width: 0; }
 .kg-next-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 4px; }
 .kg-next-code pre {
   max-height: 240px; overflow: auto; padding: 8px; font-size: var(--fontSizeBase200); white-space: pre;

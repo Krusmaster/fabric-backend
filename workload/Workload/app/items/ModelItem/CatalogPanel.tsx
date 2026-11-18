@@ -15,6 +15,8 @@ import React, { createContext, useContext, useId, useState } from "react";
 import { Badge, Body1, Button, Caption1, Checkbox, Field, Input, Subtitle2 } from "@fluentui/react-components";
 import { BookDatabase20Regular, Edit20Regular } from "@fluentui/react-icons";
 import { FileActions } from "./fileOffer";
+import { typeWord } from "./fabricIcons";
+import { TypeIcon, TypeName } from "./itemIcons";
 import {
   CatalogAnswer, CatalogCard, CatalogDiffRow, ENDORSE_LINE, OwnerPerson, STEP_INTRO, STEP_TITLE, approvals, canWrite, diffLine,
   fileMime, fileName, ownerProblem, personValue, ruleCounts, shown, writeCount,
@@ -56,6 +58,13 @@ function Card(props: { card: CatalogCard }) {
   );
 }
 
+/** WB11: "the lakehouse demo_lh", or the name alone for a type without a word. */
+function typedItem(r: CatalogDiffRow): string {
+  const w = typeWord(r.type ?? undefined);
+  // a type that starts with an acronym (SQL database, API for GraphQL) keeps its capitals
+  return w ? `the ${/^.[A-Z]/.test(w) ? w : w[0].toLowerCase() + w.slice(1)} ${r.item}` : r.item;
+}
+
 function Change(props: { row: CatalogDiffRow; included?: boolean; onInclude?: (id: string, on: boolean) => void; busy?: boolean }) {
   const r = props.row;
   if (r.action === "optional") {
@@ -64,7 +73,7 @@ function Change(props: { row: CatalogDiffRow; included?: boolean; onInclude?: (i
       <li className="kg-catalog-change" data-action="optional" aria-label={diffLine(r)}>
         <Checkbox checked={!!props.included} disabled={props.busy || !r.item_id}
           onChange={(_, d) => r.item_id && props.onInclude?.(r.item_id, !!d.checked)}
-          label={`Also write the ${r.field} of ${r.item}`} />
+          label={<TypeName type={r.type} text={`Also write the ${r.field} of ${typedItem(r)}`} />} />
         <Caption1>{r.why}.</Caption1>
         {r.after ? <Caption1> If ticked, the description would be: {shown(r.after)}</Caption1> : null}
       </li>
@@ -73,7 +82,11 @@ function Change(props: { row: CatalogDiffRow; included?: boolean; onInclude?: (i
   return (
     <li className="kg-catalog-change" data-action={r.action} aria-label={diffLine(r)}>
       <div className="kg-catalog-change-head">
-        <strong>{r.item}</strong>
+        <span className="krusgraph-item-title">
+          <TypeIcon type={r.type} beside={typeWord(r.type ?? undefined)} />
+          {typeWord(r.type ?? undefined) && <span>{typeWord(r.type ?? undefined)}</span>}
+          <strong>{r.item}</strong>
+        </span>
         <Badge appearance="tint" color={r.action === "write" ? "brand" : "subtle"}>
           {r.action === "write" ? `Writes ${r.field}` : `Keeps ${r.field}`}
         </Badge>

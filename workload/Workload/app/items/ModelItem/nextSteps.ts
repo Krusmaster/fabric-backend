@@ -16,6 +16,7 @@
  */
 import type { CreatedItem, ReviewFile, ReviewItem } from "./ModelItemDefinition";
 import type { OutputKind } from "./engineClient";
+import { KIND_TYPE, typeWord } from "./fabricIcons";
 
 /** Fabric's workloads, as Fabric names them (the Workload hub). */
 export type Workload =
@@ -39,6 +40,21 @@ export interface NextStep {
   status: "builds" | "starter" | "in Claude" | "guide only";
   /** a second, short line: what it does not do */
   note?: string;
+  /** WB11: the Fabric item types this step makes or names (REST names: Notebook, SemanticModel, ...), each shown with its
+   * icon beside the workload's name at the card's top left (fabricIcons.ts) */
+  items: string[];
+}
+
+/** WB11: the item types of the outputs a build step ticks, once each, in the outputs' order. */
+export function typesOf(outputs: OutputKind[]): string[] {
+  return [...new Set(outputs.map((k) => KIND_TYPE[k]).filter(Boolean))];
+}
+
+/** WB11: the card's top-left line: the workload, then the item types it makes ("Data Science · Notebook, Experiment");
+ * the workload alone when it is the item type's own name ("Data agent"). */
+export function workloadLine(step: Pick<NextStep, "workload" | "items">): string {
+  const words = step.items.map((t) => typeWord(t) ?? t).filter((w) => w.toLowerCase() !== step.workload.toLowerCase());
+  return words.length ? `${step.workload} · ${words.join(", ")}` : step.workload;
 }
 
 /** A link proven on the rows whose source has more rows than its target: summing over it repeats the target's rows. */
@@ -271,7 +287,7 @@ export function nextSteps(input: NextInput): { proof: Proof; steps: NextStep[]; 
         `${g.parent} row first: one row per ${g.parent} row, no total counted ${g.ratio}×.`,
       how: { kind: "starter", label: "Download notebook (.ipynb)", filename: `${ident(g.parent)}_features.ipynb`, mime: "application/x-ipynb+json",
         content: toIpynb(cells), code: cells.join("\n\n# ----\n\n"), name: nbName, cells },
-      status: "starter",
+      status: "starter", items: ["Notebook", "MLExperiment"],
       note: nbBuilt
         ? `The notebook is in your workspace: open it and run it. Krusgraph does not run it and trains no model.`
         : "Dry run, then Create puts the notebook in your workspace, attached to the lakehouse; or download it. Krusgraph never runs it and trains no model.",
@@ -282,7 +298,7 @@ export function nextSteps(input: NextInput): { proof: Proof; steps: NextStep[]; 
     steps.push({
       id: "pbi", workload: "Power BI", title: built.has("semantic_model") ? "A report on the semantic model" : "Semantic model and report",
       why: `${held}, so every relationship in the model is many-to-one onto a key proven unique.`,
-      how: { kind: "build", outputs, label: "Dry run" }, status: "builds",
+      how: { kind: "build", outputs, label: "Dry run" }, status: "builds", items: typesOf(outputs),
     });
   }
   if (!built.has("data_agent")) {
@@ -290,7 +306,7 @@ export function nextSteps(input: NextInput): { proof: Proof; steps: NextStep[]; 
       id: "agent", workload: "Data agent", title: "A data agent that answers in words",
       why: `Its instructions are written from the ${plural(proof.keysPassed, "key")} and ${plural(proof.linksPassed, "link")} you proved, ` +
         "with example questions to try before anyone relies on it.",
-      how: { kind: "build", outputs: ["data_agent"], label: "Dry run" }, status: "builds",
+      how: { kind: "build", outputs: ["data_agent"], label: "Dry run" }, status: "builds", items: ["DataAgent"],
       note: "Left unpublished, a draft only you see, unless you tick Publish.",
     });
   }
@@ -302,20 +318,21 @@ export function nextSteps(input: NextInput): { proof: Proof; steps: NextStep[]; 
       id: "factory", workload: "Data Factory", title: factoryTitle(outputs, factory.filter((k) => built.has(k))),
       why: `The keys are unique in all ${plural(proof.rows, "row")} today; the pipeline's check fails a run the day one stops being unique or a link breaks.`,
       how: { kind: "build", outputs, label: "Dry run" }, status: "builds", note: "Not run or scheduled unless you tick it.",
+      items: ["DataPipeline", ...typesOf(outputs).filter((t) => t !== "DataPipeline")],
     });
   }
   if (!built.has("graphql")) {
     steps.push({
       id: "api", workload: "Data Engineering", title: "An API for GraphQL",
       why: `Apps can read the tables with the ${plural(proof.linksPassed, "proven link")} as relationships, one query per screen.`,
-      how: { kind: "build", outputs: ["graphql"], label: "Dry run" }, status: "builds",
+      how: { kind: "build", outputs: ["graphql"], label: "Dry run" }, status: "builds", items: ["GraphQLApi"],
     });
   }
   if (!built.has("ontology") && proof.keysPassed >= 2 && proof.linksPassed >= 1) {
     steps.push({
       id: "iq", workload: "Fabric IQ", title: "An ontology (preview)",
       why: `${plural(proof.keysPassed, "table")} with a proven key become entity types, and the ${plural(proof.linksPassed, "proven link")} the relationships between them.`,
-      how: { kind: "build", outputs: ["ontology"], label: "Dry run" }, status: "builds",
+      how: { kind: "build", outputs: ["ontology"], label: "Dry run" }, status: "builds", items: ["Ontology"],
     });
   }
   if (lakehouse) {
@@ -324,7 +341,7 @@ export function nextSteps(input: NextInput): { proof: Proof; steps: NextStep[]; 
       why: "What is proven today can change: a nightly monitor reports when a key or link no longer matches the source.",
       how: { kind: "ask", label: "Copy the request for Claude",
         text: `Show a drift monitor for ${src.displayName}${src.schema ? ` (schema ${src.schema})` : ""} as a dry run: run create_drift_monitor with dry_run=true.` },
-      status: "in Claude",
+      status: "in Claude", items: ["Reflex"],
       note: "The monitor is a Krusgraph tool in Claude, not in this item. An Activator alert on its result is guide only.",
     });
   }
@@ -332,7 +349,7 @@ export function nextSteps(input: NextInput): { proof: Proof; steps: NextStep[]; 
     steps.push({
       id: "app", workload: "Apps", title: "A Rayfin App (preview)",
       why: `Its list pages and key figures are built over a read-only connector with the ${plural(proof.linksPassed, "proven link")}.`,
-      how: { kind: "build", outputs: ["rayfin_app"], label: "Dry run" }, status: "builds",
+      how: { kind: "build", outputs: ["rayfin_app"], label: "Dry run" }, status: "builds", items: ["AppBackend"],
       note: "Create makes an empty App item and a package with one command; the App opens inside Fabric only.",
     });
   }

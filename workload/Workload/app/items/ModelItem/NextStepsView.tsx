@@ -7,7 +7,8 @@ import React, { createContext, useContext, useState } from "react";
 import { Badge, Body1, Button, Caption1, Subtitle2 } from "@fluentui/react-components";
 import { Open20Regular, Play20Regular } from "@fluentui/react-icons";
 import { CopyText, FileActions, OutLink } from "./fileOffer";
-import { NextInput, NextStep, grainLine, nextSteps, proofLine, proofOf } from "./nextSteps";
+import { NextInput, NextStep, grainLine, nextSteps, proofLine, proofOf, workloadLine } from "./nextSteps";
+import { TypeIcon } from "./itemIcons";
 import type { OutputKind } from "./engineClient";
 import type { CreatedItem } from "./ModelItemDefinition";
 
@@ -73,7 +74,11 @@ function StepCard(props: { step: NextStep; onBuild: (outputs: OutputKind[]) => v
   return (
     <li className="kg-next-card" data-step={step.id}>
       <div className="kg-next-head">
-        <Caption1 className="kg-next-workload">{step.workload}</Caption1>
+        {/* WB11: the icons of the item types this step makes, at the card's top left, beside their names in text */}
+        <span className="krusgraph-item-title kg-next-workload">
+          {step.items.map((t) => <TypeIcon key={t} type={t} beside={workloadLine(step)} />)}
+          <Caption1>{workloadLine(step)}</Caption1>
+        </span>
         <Badge appearance="tint" color={STATUS_COLOR[step.status]}>{STATUS_WORD[step.status]}</Badge>
       </div>
       <Subtitle2 as="h3">{step.title}</Subtitle2>

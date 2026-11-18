@@ -36,7 +36,7 @@ describe("the Fabric item icons", () => {
     expect(pkg.version).toBe(ICONS.version);
     const lock = JSON.parse(readFileSync(join(ROOT, "package-lock.json"), "utf8"));
     expect(lock.packages[`node_modules/${ICONS.package}`]).toMatchObject({ version: ICONS.version, integrity: ICONS.integrity });
-    const used = new Set(Object.values(ICONS.kinds).map((k) => k.file));
+    const used = new Set([...Object.values(ICONS.kinds), ...Object.values(ICONS.types)].map((k) => k.file));
     expect([...used].sort()).toEqual(Object.keys(ICONS.files).sort());
     for (const [file, sha] of Object.entries(ICONS.files)) {
       const bytes = readFileSync(join(ROOT, ICONS.sourceDir, file));

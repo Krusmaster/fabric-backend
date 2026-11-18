@@ -137,8 +137,17 @@ async function main() {
       expectTrue(cards >= 5, `only ${cards} cards`);
       expectTrue(t.includes("Data Science") && t.includes("Download notebook (.ipynb)"), "no Data Science starter");
       const dl = await panel.locator(".kg-file[data-file$='.ipynb']").first().getAttribute("data-file");   // WB10: fileOffer.tsx
+      // WB11: each card's top left has the Fabric icon of the item types it makes, loaded, decorative beside their names
+      const heads = await panel.locator(".kg-next-card .kg-next-workload").evaluateAll((els) => els.map((e) => ({
+        text: e.innerText.trim(),
+        icons: [...e.querySelectorAll("img.krusgraph-item-icon")].map((i) => ({ src: i.getAttribute("src"), alt: i.getAttribute("alt"), w: i.naturalWidth, box: Math.round(i.getBoundingClientRect().width) })),
+      })));
+      for (const h of heads) {
+        expectTrue(h.icons.length >= 1, `no icon on ${h.text}`);
+        for (const i of h.icons) expectTrue(i.alt === "" && i.w > 0 && i.box === 20 && /^\/assets\/fabric-icons\/[a-z_]+_24_item\.svg$/.test(i.src), `icon on ${h.text}: ${JSON.stringify(i)}`);
+      }
       await panel.screenshot({ path: path.join(OUT, "08-next-steps.png") });
-      return `08-next-steps.png; ${cards} cards; starter file ${dl}`;
+      return `08-next-steps.png; ${cards} cards; starter file ${dl}; icons: ${heads.map((h) => `${h.text} (${h.icons.length})`).join(" | ")}`;
     });
     await step("21 The Data Science starter: Dry run, then Create (never run)", async () => {
       const card = p.locator(".kg-next-card[data-step='ds-features']");
@@ -157,6 +166,51 @@ async function main() {
       const checked = await p.getByRole("checkbox", { checked: true }).evaluateAll((els) => els.map((e) => (e.closest("section") || e).getAttribute("aria-label")));
       expectTrue(checked.includes("Ontology") && !checked.includes("Semantic model"), `ticked: ${checked.join(", ")}`);
       return `on Choose what to build with ${checked.filter(Boolean).join(", ")} ticked`;
+    });
+    await step("22 WB11: the Fabric item icons on Choose and the next steps at 390 px, light and dark", async () => {
+      // Choose what to build: every output's icon is loaded, 20 px, at the left of its name; nothing moves as they load
+      const icons = (pg) => pg.locator("img.krusgraph-item-icon").evaluateAll((els) => els.map((i) => ({
+        src: i.getAttribute("src"), alt: i.getAttribute("alt"), w: i.naturalWidth, box: Math.round(i.getBoundingClientRect().width),
+        label: ((i.closest("button, .krusgraph-item-title") || i.parentElement).textContent || "").trim().slice(0, 40) })));
+      const out = [];
+      for (const dark of [false, true]) {
+        const r = await open({ keep: true });
+        await r.setViewportSize({ width: 390, height: 844 });
+        await r.emulateMedia({ colorScheme: dark ? "dark" : "light" });
+        // no layout shift: the icons are held back for 2 s; every item type's name stays where it was when they arrive
+        let release; const held = new Promise((res) => { release = res; });
+        await r.route("**/assets/fabric-icons/**", async (route) => { await held; await route.continue(); });
+        await r.reload({ waitUntil: "domcontentloaded" }); await settle(r, 2500);
+        const boxes = () => r.locator(".krusgraph-item-title").evaluateAll((els) => els.map((e) => { const b = e.getBoundingClientRect(); return [Math.round(b.x), Math.round(b.y + window.scrollY), Math.round(b.width), Math.round(b.height)].join(","); }));
+        const pending = await r.locator("img.krusgraph-item-icon").evaluateAll((els) => els.filter((i) => !i.complete || !i.naturalWidth).length);
+        const before = await boxes();
+        release(); await settle(r, 1500);
+        const after = await boxes();
+        const moved = before.filter((b, i) => b !== after[i]).length;
+        expectTrue(before.length >= 5 && pending > 0, `nothing held back (${pending} pending of ${before.length})`);
+        expectTrue(moved === 0 && before.length === after.length, `${moved} of ${before.length} type names moved when the icons loaded`);
+        const mode = dark ? "dark" : "light";
+        // the reopened item lands on the Data product page: its Built list and next steps carry the icons
+        await shot(r, `22-product-phone-${mode}`, true);
+        const next = r.locator("section.kg-next").first();
+        expectTrue(await next.count() > 0, "no next steps on the Data product page");
+        await next.scrollIntoViewIfNeeded();
+        await next.screenshot({ path: path.join(OUT, `22-next-steps-phone-${mode}.png`) });
+        let seen = await icons(r);
+        // a next step's Dry run opens Choose what to build: every output with its icon
+        await r.locator(".kg-next-card[data-step='iq'] button").first().click(); await settle(r);
+        expectTrue((await text(r)).includes("Choose what to build"), "not on Choose");
+        await shot(r, `22-choose-phone-${mode}`, true);
+        seen = seen.concat(await icons(r));
+        const overflow = await r.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+        expectTrue(seen.length >= 5, `only ${seen.length} icons`);
+        for (const i of seen) expectTrue(i.w > 0 && i.box === 20 && /_24_item\.svg$/.test(i.src), `icon not loaded or resized: ${JSON.stringify(i)}`);
+        { const bare = seen.filter((i) => !i.label.length); expectTrue(!bare.length, `an icon without its type's name beside it: ${JSON.stringify(bare.slice(0, 3))}`); }
+        expectTrue(overflow <= 0, `horizontal overflow ${overflow} px`);
+        out.push(`${dark ? "dark" : "light"}: ${seen.length} icons, overflow ${overflow} px, ${before.length} type names unmoved when ${pending} held-back icons loaded`);
+        await r.close();
+      }
+      return out.join("; ");
     });
   }
   await step("10 Reopen the item (saved definition)", async () => {
