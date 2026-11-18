@@ -704,3 +704,9 @@
 @media (max-width: 600px) {
   .kg-autosave-again { min-height: 44px; }
 }
+
+/* WB10: downloads inside Fabric's frame (fileOffer.tsx): the button, what happened, and the copy fallback */
+.kg-file { display: inline-flex; flex-wrap: wrap; gap: 8px; align-items: center; max-width: 100%; }
+.kg-file-said, .kg-file-link, .kg-file-fallback { flex: 1 1 100%; }
+.kg-file-fallback { display: flex; flex-direction: column; gap: 4px; }
+.kg-file-text { width: 100%; box-sizing: border-box; font-family: monospace; font-size: 12px; }

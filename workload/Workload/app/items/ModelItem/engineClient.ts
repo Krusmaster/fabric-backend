@@ -606,7 +606,7 @@ export function engineScope(
 
 export type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
-type Route = "review" | "check" | "build" | "schemas" | "pipeline-run" | "operation" | "product" | "health" | "access" | "drawio" | "verify" | "catalog";
+type Route = "review" | "check" | "build" | "schemas" | "pipeline-run" | "operation" | "product" | "health" | "access" | "drawio" | "verify" | "catalog" | "file";
 
 /** n197: send the request in the background (202 and an operation id) and read the operation until it ends; an engine
  * that answers at once (200, an older server, or no store for operations) is taken as it answers. */
@@ -978,6 +978,12 @@ export function verify<T>(workloadClient: WorkloadClientAPI, body: object, fetch
  * confirm is sent back; the engine writes only in a workspace its operator allows. Counting may take a while. */
 export function catalog<T>(workloadClient: WorkloadClientAPI, body: object, fetchImpl?: Fetch, opts: CallOptions = {}): Promise<T> {
   return call<T>(workloadClient, "catalog", body, REQUEST_WAIT_MS, fetchImpl, opts);
+}
+
+/** WB10 (#57): a file the editor offers, kept by the engine ten minutes behind a signed single-use link
+ * (POST /workload/v1/file, fabric_backend/file_links.py); the editor opens the link with the host's openBrowserTab. */
+export function file<T>(workloadClient: WorkloadClientAPI, body: object, fetchImpl?: Fetch): Promise<T> {
+  return callOnce<T>(workloadClient, "file", body, REQUEST_WAIT_MS, fetchImpl ?? ((u, i) => fetch(u, i)), false);
 }
 
 /** n213: the organisation's trial or subscription (POST /workload/v1/access, fabric_backend/billing.py). Opening the item

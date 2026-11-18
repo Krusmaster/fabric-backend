@@ -79,6 +79,7 @@ import { accessLine } from "./accessWords";
 import { DrawioContext, DrawioFile, DrawioSource } from "./drawioDownload";
 import { VerifyAnswer, VerifyContext, VerifySource } from "./verifyBuilt";
 import { CatalogContext, CatalogPanel, CatalogSource } from "./CatalogPanel";
+import { FileContext, FileLink, FileSource } from "./fileOffer";
 import type { CatalogAnswer } from "./catalogWords";
 import {
   LeftoversAnswer, OutOfDate, ProductRow, RetireAnswer, StatusAnswer, createdAtOf, healthFor, outOfDate, planOf, withAdopted, withOwner,
@@ -1349,7 +1350,22 @@ export function ModelItemEditor(props: PageProps) {
     [workloadClient, catalogOwner]
   );
 
+  // WB10 (#57): every download goes through the engine's single-use link, opened by the Fabric host in a new tab
+  const fileSource = useMemo<FileSource>(
+    () => ({
+      offer: (f) => engine.file<FileLink>(workloadClient, { filename: f.filename, mime: f.mime,
+        ...(f.base64 !== undefined ? { content_base64: f.base64 } : { content: f.text ?? "" }) }),
+      open: async (url) => {
+        const got = (await workloadClient.navigation.openBrowserTab({ url })) as { success?: boolean } | undefined;
+        if (got && got.success === false) throw new Error("not opened");
+      },
+      base: (process.env.KRUSGRAPH_ENGINE_URL || "").replace(/\/$/, "") || (typeof window === "undefined" ? "" : window.location.origin),
+    }),
+    [workloadClient]
+  );
+
   return (
+    <FileContext.Provider value={fileSource}>
     <DrawioContext.Provider value={drawioSource}>
     <VerifyContext.Provider value={verifySource}>
     <CatalogContext.Provider value={catalogSource}>
@@ -1367,5 +1383,6 @@ export function ModelItemEditor(props: PageProps) {
     </CatalogContext.Provider>
     </VerifyContext.Provider>
     </DrawioContext.Provider>
+    </FileContext.Provider>
   );
 }

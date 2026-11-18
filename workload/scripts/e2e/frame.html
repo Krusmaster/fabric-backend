@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Krusgraph Model in a sandboxed frame (e2e)</title></head>
+<body style="margin:0">
+<!-- WB10 (#57): Fabric's default sandbox for a workload's editor (Microsoft Learn, "How to relax the iFrame",
+     ms.date 12/15/2025): allow-same-origin allow-scripts. No allow-downloads, no allow-popups. This page stands in for
+     Fabric's own top frame: it opens the tab the editor asks for (workloadClient.navigation.openBrowserTab). -->
+<iframe id="editor" title="Krusgraph Model" sandbox="allow-same-origin allow-scripts" src="index.html?fresh=1&framed=1"
+  style="width:100%;height:100vh;border:0"></iframe>
+<script>
+  window.__opened = [];
+  window.addEventListener("message", function (e) {
+    if (e.data && typeof e.data.kgOpenTab === "string") {
+      window.__opened.push(e.data.kgOpenTab);
+      window.open(e.data.kgOpenTab, "_blank", "noopener");
+    }
+  });
+</script>
+</body>
+</html>

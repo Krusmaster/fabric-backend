@@ -2705,6 +2705,8 @@ def routes(cfg, validator=None, obo=None) -> list:
             Route(f"{PREFIX}/product", endpoint(product_request, run_product, "product"), methods=["POST", "OPTIONS"]),
             Route(f"{PREFIX}/health", endpoint(health_request, run_health, "health"), methods=["POST", "OPTIONS"]),
             Route(f"{PREFIX}/drawio", endpoint(drawio_request, run_drawio, "drawio"), methods=["POST", "OPTIONS"]),   # n228
+            Route(f"{PREFIX}/file", endpoint(file_request, run_file, "file"), methods=["POST", "OPTIONS"]),   # WB10
+            Route(f"{PREFIX}/file/{{token}}", serve_file, methods=["GET"]),   # WB10: the link opened in a new tab
             Route(f"{PREFIX}/verify", endpoint(verify_request, run_verify, "verify"), methods=["POST", "OPTIONS"]),   # n229
             Route(f"{PREFIX}/catalog", endpoint(catalog_request, run_catalog, "catalog"), methods=["POST", "OPTIONS"]),   # CA1
             Route(f"{PREFIX}/access", endpoint(access_request, None, "access"), methods=["POST", "OPTIONS"])]
@@ -2812,6 +2814,64 @@ def run_verify(req: dict) -> dict:
     log("verify", items=c.get("items"), verified=c.get("verified"), differs=c.get("differs"), not_checked=c.get("not_checked"))
     out["note"] = NOTHING_CHANGED + " The verifier only reads: definitions, counts and run history; never a row value."
     return _with_schema(out, req)
+
+
+# ------------------------------------------------------------------ WB10: downloads inside Fabric's frame -----------
+# POST /workload/v1/file {filename, mime, content | content_base64}: keeps the file ten minutes and answers a signed,
+# single-use path; the editor opens it with workloadClient.navigation.openBrowserTab (file_links.py says why). GET
+# /workload/v1/file/<token> serves it once with Content-Disposition: attachment. The token is the only key: the new tab
+# carries no bearer token. Logged: sizes and outcomes, never the name or the content.
+
+def file_request(body) -> dict:
+    from . import file_links as fl
+    if not isinstance(body, dict):
+        raise BadRequest("the body must be a JSON object")
+    name, mime = body.get("filename"), body.get("mime")
+    if not isinstance(name, str) or not name.strip() or len(name) > 200:
+        raise BadRequest("'filename' is the file's name, at most 200 characters")
+    if mime not in fl.MIMES:
+        raise BadRequest(f"'mime' is one of {', '.join(sorted(fl.MIMES))}")
+    text, b64 = body.get("content"), body.get("content_base64")
+    if (text is None) == (b64 is None):
+        raise BadRequest("send the file as 'content' (text) or as 'content_base64', one of them")
+    if text is not None:
+        if not isinstance(text, str):
+            raise BadRequest("'content' is the file's text")
+        data = text.encode("utf-8")
+    else:
+        import base64 as _b64
+        import binascii
+        try:
+            data = _b64.b64decode(str(b64), validate=True)
+        except (binascii.Error, ValueError):
+            raise BadRequest("'content_base64' is not base64") from None
+    if not data or len(data) > fl.MAX_BYTES:
+        raise BadRequest(f"the file is empty or larger than {fl.MAX_BYTES // (1024 * 1024)} MB")
+    return {"filename": name, "mime": mime, "data": data}
+
+
+def run_file(req: dict) -> dict:
+    from . import file_links as fl
+    got = fl.offer(req["data"], req["filename"], req["mime"])
+    log("file", offered=True, bytes=got["bytes"])
+    return {**got, "note": "The link works once, for ten minutes. Nothing was written in Fabric."}
+
+
+async def serve_file(request):
+    from starlette.concurrency import run_in_threadpool
+    from starlette.responses import PlainTextResponse, Response
+    from . import file_links as fl
+    got = await run_in_threadpool(fl.take, request.path_params.get("token", ""))
+    headers = {**SECURITY_HEADERS, "Referrer-Policy": "no-referrer"}
+    if isinstance(got, str):
+        log("file", served=False, why=got)
+        words = {"bad": "This download link is not valid.",
+                 "expired": "This download link has expired (links work for ten minutes). Choose Download again in the item.",
+                 "gone": "This download link was already used or has expired (each link works once). Choose Download again in the item."}[got]
+        return PlainTextResponse(words, status_code=404 if got == "bad" else 410, headers=headers)
+    data, name, mime = got
+    log("file", served=True, bytes=len(data))
+    return Response(data, media_type=mime, headers={**headers, "Content-Disposition": fl.disposition(name)})
 
 
 def drawio_request(body) -> dict:

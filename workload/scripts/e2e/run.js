@@ -136,7 +136,7 @@ async function main() {
       const t = await panel.innerText();
       expectTrue(cards >= 5, `only ${cards} cards`);
       expectTrue(t.includes("Data Science") && t.includes("Download notebook (.ipynb)"), "no Data Science starter");
-      const dl = await panel.locator("a[download$='.ipynb']").first().getAttribute("download");
+      const dl = await panel.locator(".kg-file[data-file$='.ipynb']").first().getAttribute("data-file");   // WB10: fileOffer.tsx
       await panel.screenshot({ path: path.join(OUT, "08-next-steps.png") });
       return `08-next-steps.png; ${cards} cards; starter file ${dl}`;
     });
@@ -325,6 +325,51 @@ async function main() {
       return r;
     });
     await phone.close();
+  }
+
+  // ---------------------------------------------------------------- WB10: downloads inside Fabric's sandboxed frame
+  if (!BEFORE) {
+    await step("20 Downloads inside a sandboxed frame that blocks downloads (Fabric's default)", async () => {
+      await scenario("shop");
+      const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1, acceptDownloads: true });
+      const downloads = [];
+      ctx.on("page", (pg) => pg.on("download", (d) => { if (!downloads.includes(d)) downloads.push(d); }));   // every page, the top one too
+      const top = await ctx.newPage();
+      top.on("pageerror", (e) => errors.push(e.message));
+      await top.goto(`${BASE}/frame.html`);
+      const frame = top.frameLocator("#editor");
+      const inner = top.frame({ url: /index\.html/ });
+      expectTrue(!!inner, "no editor frame");
+      expectTrue((await top.locator("#editor").getAttribute("sandbox")) === "allow-same-origin allow-scripts", "the frame is not sandboxed as Fabric's");
+      // the old way: a data: link with download, clicked inside the frame, saves nothing
+      await inner.evaluate(() => {
+        const a = document.createElement("a");
+        a.href = "data:text/plain;charset=utf-8,blocked"; a.download = "old-way.txt"; document.body.appendChild(a); a.click();
+      });
+      await top.waitForTimeout(1500);
+      expectTrue(downloads.length === 0, `the sandbox let a data: download through: ${downloads.map((d) => d.suggestedFilename())}`);
+      // the new way: Download as draw.io under the map
+      await frame.getByRole("button", { name: "Choose a source" }).first().click(); await top.waitForTimeout(1500);
+      await frame.getByRole("button", { name: "Find keys and relationships" }).first().click();
+      await frame.getByRole("button", { name: /Check against the rows/ }).first().waitFor({ timeout: 30000 });
+      await top.waitForTimeout(1500);
+      await frame.getByRole("button", { name: "Download as draw.io" }).first().click();
+      for (let i = 0; i < 40 && !downloads.length; i++) await top.waitForTimeout(250);
+      expectTrue(downloads.length === 1, `${downloads.length} downloads`);
+      const d = downloads[0];
+      const file = await d.path();
+      const body = fs.readFileSync(file, "utf8");
+      expectTrue(d.suggestedFilename().endsWith(".drawio") && body.startsWith("<mxfile"), `got ${d.suggestedFilename()}: ${body.slice(0, 40)}`);
+      const opened = await top.evaluate(() => window.__opened);
+      expectTrue(opened.length === 1 && /\/workload\/v1\/file\/[A-Za-z0-9_-]{24}\.\d+\.[A-Za-z0-9_-]{22}$/.test(opened[0]), `opened ${opened}`);
+      const again = await fetch(opened[0]);
+      expectTrue(again.status === 410, `a second GET answered ${again.status}`);
+      const said = await frame.locator(".kg-file-said").first().innerText();
+      fs.copyFileSync(file, path.join(OUT, `20-${d.suggestedFilename()}`));
+      const r = `${await shot(top, "20-sandboxed-download")}; data: link in the frame: no download; Download as draw.io: ${d.suggestedFilename()} (${body.length} characters) through the host's tab; second GET ${again.status}; said: ${said}`;
+      await ctx.close();
+      return r;
+    });
   }
 
   await browser.close();

@@ -7,11 +7,11 @@
  * read from Fabric for it and nothing is written. The editor (ModelItemEditor.tsx) provides the call through
  * DrawioContext; where nothing provides it (a test of the map alone, an older host) the button is not shown.
  *
- * The file is offered as a link with the `download` attribute, the way the App card offers its package: a click on
- * the button fetches the file and then clicks that link once, and the link stays for a browser that wants the click
- * to be the person's own.
+ * WB10: the `data:` link with `download` did nothing inside Fabric's sandboxed frame (Gustav's live test, 18 Nov 2026);
+ * the file now goes through fileOffer.tsx.
  */
-import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import React, { createContext, useContext } from "react";
+import { FileActions, OfferedFile } from "./fileOffer";
 import type { MapData } from "./cardMap";
 import type { DataFlow } from "./engineClient";
 
@@ -52,41 +52,22 @@ export function fileHref(file: DrawioFile): string {
 
 export function DrawioButton(props: { request: () => DrawioRequest; what: string }) {
   const source = useContext(DrawioContext);
-  const [state, setState] = useState<{ busy?: boolean; file?: DrawioFile; error?: string }>({});
-  const link = useRef<HTMLAnchorElement>(null);
-  const clicked = useRef<string>();
-  useEffect(() => {
-    // one click of the link for each file fetched; the link stays for a browser that ignores it
-    if (state.file?.content && link.current && clicked.current !== state.file.content) {
-      clicked.current = state.file.content;
-      try {
-        link.current.click();
-      } catch {
-        /* the link is there to click */
-      }
-    }
-  }, [state.file]);
   if (!source) return null;
-  const fetchFile = async () => {
-    setState({ busy: true });
+  // WB10 (#57): the file is made on the click, then offered through the engine's single-use link (fileOffer.tsx), which
+  // works inside Fabric's sandboxed frame; Copy and the text area are offered if the download cannot be opened
+  const make = async (): Promise<OfferedFile> => {
+    let file: DrawioFile;
     try {
-      const file = await source.get({ ...props.request(), name: source.name });
-      setState(file.content ? { file } : { error: file.too_large ?? "The engine answered without a file." });
+      file = await source.get({ ...props.request(), name: source.name });
     } catch {
-      setState({ error: `The ${props.what} could not be made into a draw.io file just now. Nothing changed; try again.` });
+      throw new Error(`The ${props.what} could not be made into a draw.io file just now. Nothing changed; try again.`);
     }
+    if (!file.content) throw new Error(file.too_large ?? "The engine answered without a file.");
+    return { filename: file.filename, mime: file.mime_type, text: file.content };
   };
   return (
     <p className="krusgraph-drawio">
-      <button type="button" className="kg-toggle" disabled={state.busy} onClick={() => void fetchFile()}>
-        {state.busy ? "Making the file…" : "Download as draw.io"}
-      </button>{" "}
-      {state.file?.content && (
-        <a ref={link} href={fileHref(state.file)} download={state.file.filename}>
-          Save {state.file.filename}
-        </a>
-      )}
-      {state.error && <span role="status">{state.error}</span>}
+      <FileActions file={make} label="Download as draw.io" appearance="subtle" />
     </p>
   );
 }
