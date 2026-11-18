@@ -37,7 +37,7 @@ def key_sql(schema: str, table: str, cols: list[str], dialect: Dialect = TSQL) -
 
 
 def _rel_parts(schema: str, source_cols: list[str], target: str, target_cols: list[str], dialect: Dialect,
-               blank_is_none: bool, target_unique: bool, t: str = "t") -> tuple[str, str, str, str]:
+               blank_is_none: bool, target_unique: bool, t: str = "t", initial: list[str] | None = None) -> tuple[str, str, str, str]:
     """The pieces of one relationship's count, with the target side under alias `t`: (has_value, joined target, ON,
     the target column that is NULL when nothing matched). relationship_sql and combined_relationship_sql share them."""
     q = dialect.quote
@@ -45,6 +45,7 @@ def _rel_parts(schema: str, source_cols: list[str], target: str, target_cols: li
     has_value = " AND ".join(f"s.{q(a)} IS NOT NULL" for a in source_cols)
     if blank_is_none:
         has_value += "".join(f" AND LTRIM(RTRIM(s.{q(a)})) <> ''" for a in source_cols if a.upper() not in ("MANDT", "RCLNT", "CLIENT"))
+    has_value += initial_sql(initial, "s", q)
     tcs = ", ".join(q(c) for c in target_cols)
     # DISTINCT on the target side: a duplicated target key must not multiply the source rows being counted. A target key
     # counted unique with no NULLs cannot multiply them, and its NULL-free rows are the DISTINCT rows: join it directly
@@ -53,14 +54,22 @@ def _rel_parts(schema: str, source_cols: list[str], target: str, target_cols: li
     return has_value, joined, on, f"{t}.{q(target_cols[0])}"
 
 
+def initial_sql(columns: list[str] | None, alias: str, q) -> str:
+    """AP2: " AND" conditions that leave out a value of zeros only in `columns` (SAP's initial value of an optional
+    partner field, sap_pack.initial_columns). REPLACE and LTRIM/RTRIM read the same in T-SQL, Spark SQL and SQLite."""
+    return "".join(f" AND REPLACE(LTRIM(RTRIM({alias}.{q(a)})), '0', '') <> ''" for a in (columns or []))
+
+
 def relationship_sql(schema: str, source: str, source_cols: list[str], target: str, target_cols: list[str],
-                     dialect: Dialect = TSQL, blank_is_none: bool = False, target_unique: bool = False) -> str:
+                     dialect: Dialect = TSQL, blank_is_none: bool = False, target_unique: bool = False,
+                     initial: list[str] | None = None) -> str:
     """blank_is_none: a blank reference ('' or spaces) counts as no value, as SAP writes "none" (the SAP pack's joins).
     target_unique (round n104): the same run has counted exactly these target columns as unique with no NULLs
     (target_key_unique), so the target table is joined directly; otherwise through SELECT DISTINCT. The counts are the
     same either way; the default is the DISTINCT form."""
     count = dialect.count
-    has_value, joined, on, first = _rel_parts(schema, source_cols, target, target_cols, dialect, blank_is_none, target_unique)
+    has_value, joined, on, first = _rel_parts(schema, source_cols, target, target_cols, dialect, blank_is_none, target_unique,
+                                              initial=initial)
     return (f"SELECT {count}(*) AS with_value, SUM(CASE WHEN {first} IS NULL THEN 1 ELSE 0 END) AS orphans "
             f"FROM {_t(schema, source, dialect)} AS s LEFT JOIN {joined} AS t ON {on} "
             f"WHERE {has_value}")
@@ -81,7 +90,8 @@ def combined_relationship_sql(schema: str, source: str, rels: list[dict], dialec
     cols, joins = [], []
     for i, r in enumerate(rels, 1):
         has_value, joined, on, first = _rel_parts(schema, r["source_cols"], r["target"], r["target_cols"], dialect,
-                                                  r.get("blank_is_none", False), r.get("target_unique", False), t=f"t{i}")
+                                                  r.get("blank_is_none", False), r.get("target_unique", False), t=f"t{i}",
+                                                  initial=r.get("initial"))
         cols.append(f"{count}(CASE WHEN {has_value} THEN 1 END) AS with_value_{i}, "
                     f"SUM(CASE WHEN {has_value} AND {first} IS NULL THEN 1 ELSE 0 END) AS orphans_{i}")
         joins.append(f"LEFT JOIN {joined} AS t{i} ON {on}")
@@ -140,6 +150,9 @@ def extended_sql(schema: str, r, dialect: Dialect = TSQL) -> str:
     has_value = [f"s.{q(a)} IS NOT NULL" for a in r.source_cols]
     # SAP writes "no value" as a blank, not NULL: a blank source column is no reference (VBPA.ADRNR without an own address)
     has_value += [f"COALESCE(LTRIM(RTRIM(s.{q(a)})), '') <> ''" for a in r.source_cols if a.upper() not in ("MANDT", "RCLNT", "CLIENT")]
+    if r.rule == "SAP pack":                       # AP2: zeros only in an optional partner field (the pack's "optional")
+        from .sap_pack import initial_columns
+        has_value += [x[5:] for x in [initial_sql(initial_columns(r.source, r.source_cols, r.target), "s", q)] if x]
     if r.kind == "valid_on" and r.valid_on:
         cond.append(r.period_sql("s", "t", q))
         if r.valid_on.get("source_date"):
@@ -365,8 +378,11 @@ def validate(plan: Plan, execute, max_items: int = 60, on_step=None, tables=None
         stepped()
 
     def args_of(r) -> dict:
-        return dict(source_cols=r.source_cols, target=r.target, target_cols=r.target_cols, blank_is_none=r.rule == "SAP pack",
-                    target_unique=target_key_unique(list(key_out.values()), r.target, r.target_cols))
+        from .sap_pack import initial_columns
+        out = dict(source_cols=r.source_cols, target=r.target, target_cols=r.target_cols, blank_is_none=r.rule == "SAP pack",
+                   target_unique=target_key_unique(list(key_out.values()), r.target, r.target_cols))
+        initial = initial_columns(r.source, r.source_cols, r.target) if r.rule == "SAP pack" else []
+        return {**out, "initial": initial} if initial else out
 
     def rel_entry(r, with_value: int, orphans: int) -> dict:
         verdict = relationship_verdict(with_value, orphans)
@@ -401,7 +417,7 @@ def validate(plan: Plan, execute, max_items: int = 60, on_step=None, tables=None
         sql = combined_relationship_sql(schema, source, [args[i] for i in idx], dialect)
         entry = {"source": source, "sql": sql, "relationships": [
             {"id": _rel_id(rels_all[i]), "sql": relationship_sql(schema, rels_all[i].source, rels_all[i].source_cols, rels_all[i].target,
-                                                                 rels_all[i].target_cols, dialect, **{k: args[i][k] for k in ("blank_is_none", "target_unique")})}
+                                                                 rels_all[i].target_cols, dialect, **{k: args[i][k] for k in ("blank_is_none", "target_unique", "initial") if k in args[i]})}
             for i in idx]}
         try:
             row = execute(sql)[0]
@@ -436,7 +452,8 @@ def validate(plan: Plan, execute, max_items: int = 60, on_step=None, tables=None
         a = args_of(r)
         try:
             row = execute(relationship_sql(schema, r.source, r.source_cols, r.target, r.target_cols, dialect,
-                                           blank_is_none=a["blank_is_none"], target_unique=a["target_unique"]))[0]
+                                           blank_is_none=a["blank_is_none"], target_unique=a["target_unique"],
+                                           initial=a.get("initial")))[0]
         except Exception as e:                                       # noqa: BLE001 - n226: this item, not the call
             failed(item, e)
             return
@@ -489,7 +506,8 @@ def validate(plan: Plan, execute, max_items: int = 60, on_step=None, tables=None
             continue
         from . import propose
         r = rels_all[i]
-        rc = propose.recount(schema, r.source, r.source_cols, r.target, r.target_cols, execute, args_of(r)["blank_is_none"])
+        rc = propose.recount(schema, r.source, r.source_cols, r.target, r.target_cols, execute, args_of(r)["blank_is_none"],
+                             args_of(r).get("initial"))
         recounts += 1
         e["recount"] = rc.get("sentence") or rc.get("not_counted")
         if rc.get("helps"):

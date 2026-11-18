@@ -9,6 +9,14 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round AP2: **a blank SAP partner field is no reference, not an orphan** (found 18 November 2026 in the live demo run of
+  `sap_lt1_pipeline`, where the silver notebook quarantined 5 `sap_vbpa` rows whose `KUNNR` or `PARNR` was blank). The
+  silver notebook (and `silver.simulate`) and the pipeline's check notebook now count a NULL, a blank (`''` or spaces) or,
+  where the SAP pack marks the relationship `optional` (VBPA -> KNA1, VBPA -> KNVK, KNVK -> KNA1/LFA1, the `ADRNR` links
+  to ADRC), a value of zeros only as "no link" for SAP pack relationships, as `validate_plan` already did for blanks; it
+  counts the zeros the same way now. Only a set value without a parent row is quarantined: the item of order 0000000009
+  without a `sap_vbak` header still is. `tests/test_ap2_blank_partner.py` and a PySpark case in
+  `tests/test_spark_notebooks.py`.
 - Round WB11: **more Fabric item icons in the Model editor** (Gustav, 18 November 2026). The icons n184 put on the
   output cards, from Microsoft's `@fabric-msft/svg-icons@12.0.0`, now stand beside every Fabric item type the editor
   names: the next steps' cards (workload and item types at the top left), the Data product page's Built list, Retire,

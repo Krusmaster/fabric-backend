@@ -172,7 +172,7 @@ def normal_forms(expr: str, dialect: Dialect = TSQL) -> dict[str, str]:
 
 
 def recount_sql(schema: str, source: str, source_cols: list[str], target: str, target_cols: list[str],
-                dialect: Dialect = TSQL, blank_is_none: bool = False) -> str:
+                dialect: Dialect = TSQL, blank_is_none: bool = False, initial: list[str] | None = None) -> str:
     """One statement: the rows of `source` with a value, and how many of them find a row of `target` under each of
     STEPS. Each step joins a SELECT DISTINCT of the target's converted key columns, so no row is counted twice."""
     q, count = dialect.quote, dialect.count
@@ -188,6 +188,7 @@ def recount_sql(schema: str, source: str, source_cols: list[str], target: str, t
     has = " AND ".join(f"s.{q(c)} IS NOT NULL" for c in source_cols)
     if blank_is_none:
         has += "".join(f" AND LTRIM(RTRIM(s.{q(c)})) <> ''" for c in source_cols if c.upper() not in ("MANDT", "RCLNT", "CLIENT"))
+    has += "".join(f" AND REPLACE(LTRIM(RTRIM(s.{q(c)})), '0', '') <> ''" for c in (initial or []))   # AP2: an optional SAP field's zeros
     return f"SELECT {count}(*) AS with_value{sums} FROM {src} AS s{joins} WHERE {has}"
 
 
@@ -209,13 +210,13 @@ def recount_sentence(with_value: int, match: dict[str, int], what: str = "rows w
 
 
 def recount(schema: str, source: str, source_cols: list[str], target: str, target_cols: list[str], execute,
-            blank_is_none: bool = False) -> dict:
+            blank_is_none: bool = False, initial: list[str] | None = None) -> dict:
     """The re-count of a link with orphans: {"rows_with_value", "match": {step: rows}, "sentence"}, or
     {"not_counted": reason} when the statement could not run or the call's time is up. Never raises."""
     if _time.expired():
         return {"not_counted": _time.NOT_CHECKED}
     try:
-        row = (list(execute(recount_sql(schema, source, source_cols, target, target_cols, dialect_of(execute), blank_is_none))) or [{}])[0]
+        row = (list(execute(recount_sql(schema, source, source_cols, target, target_cols, dialect_of(execute), blank_is_none, initial))) or [{}])[0]
     except Exception as e:                                          # noqa: BLE001 - the class only: a message can quote a value
         if isinstance(e, _time.TimeUp) or _time.expired():
             return {"not_counted": _time.NOT_CHECKED}

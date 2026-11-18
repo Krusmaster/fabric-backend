@@ -366,6 +366,10 @@
           "condition": {
             "type": "string"
           },
+          "optional": {
+            "type": "boolean",
+            "description": "The source columns may hold SAP's initial value, meaning no partner for this row (VBPA.KUNNR of a contact-person row, VBPA.ADRNR without a document address): blank (NULL, '' or spaces) always counts as no reference for a pack relationship; with optional true, a value of zeros only counts as none too. Only a non-blank value without a parent row is an orphan."
+          },
           "apply": {
             "type": "boolean"
           },
