@@ -104,3 +104,36 @@ ContainerAppConsoleLogs_CL
 | where ev == "krusgraph.check"
 | summarize ["events"] = count() by ["step"] = tostring(e.step)
 ```
+
+## Daily counts and /metrics
+
+Since round UM1 (18 November 2026) the server also keeps anonymous counts per UTC day (`fabric_backend/usage_metrics.py`),
+so usage can be read without Log Analytics. They are shown at `/metrics`, for the operator only.
+
+**What is counted, per UTC day.** Distinct organisations (the Entra tenant id as a salted hash: HMAC-SHA256 with
+`KRUSGRAPH_USAGE_SALT`, 16 hex characters, never the id); distinct signed-in users (a salted hash of tenant and object
+id, used only to count them); MCP sessions (the `initialize` requests to `/mcp`); the MCP client's name if the client
+sends one in `initialize` (`clientInfo.name`, such as `claude-ai` or `cursor`; anything else than a short plain name is
+counted as `(other)`); tool calls per tool name; errors per tool and error kind; Fabric workload API calls per route and
+how many answered with an error. Without `KRUSGRAPH_USAGE_SALT` no hash is made and organisations and users are not
+counted.
+
+**What is never kept.** User names, e-mail addresses, IP addresses, user agents, workspace, item, table or column names,
+row values, prompts, tool arguments or tool answers. The tool's answer is read only for its error kind; the MCP request
+body only for `method` and `clientInfo.name`.
+
+**Where and how long.** In the Azure table the client registration already uses (`KRUSGRAPH_REGISTRATION_STORE`, the
+container app's managed identity), under its own PartitionKey `usage`: no new Azure resource or role. Each replica
+writes one row per day with its own totals, at most once a minute, and the page adds the rows up, so restarts and a
+second replica are covered. Without that table the counts are in memory only and the page says "since the last
+restart". The salted hashes are kept 35 days (enough for a 30-day distinct count); then the day keeps only the numbers.
+Daily numbers are deleted after 400 days.
+
+**The page.** `GET /metrics` with `Authorization: Bearer <KRUSGRAPH_METRICS_TOKEN>`: HTML for a browser, JSON with
+`?format=json`, and for any other client usage.py's Prometheus text as before (`?format=prometheus` forces it). In a
+browser without the header, `/metrics` shows a form; the token typed there is sent in the POST body, never in the
+address. 404 when `KRUSGRAPH_METRICS_TOKEN` is unset (or shorter than 32 characters), 401 for a wrong token; the
+comparison is constant-time. The page loads no script and nothing from elsewhere, and no page of the site links to it.
+
+**Switching it off.** `KRUSGRAPH_METRICS=off` counts nothing and writes nothing (the per-call console line
+`krusgraph.tool_call` and the Prometheus totals stop too); the page still shows what was stored before.
