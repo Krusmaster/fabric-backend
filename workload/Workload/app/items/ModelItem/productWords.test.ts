@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { fromParts, toParts } from "./ModelItemDefinition";
 import { FRESH, IDS, OUTPUTS, STATUS, UPDATES, WS } from "./productPage.fixture";
 import {
+  NO_PIPELINE,
   NO_OWNER, NOT_CHECKED, STATE, healthWords, lastRunWords, outOfDateSummary, ownerWords, rowsOf, summary, typedNameOk, withAdopted, withOwner,
   withRemoved,
 } from "./productWords";
@@ -38,7 +39,8 @@ describe("the rows of the page", () => {
   it("counts in words, the run, the owner and the health", () => {
     expect(summary(rowsOf(OUTPUTS, STATUS))).toBe("4 built, 1 pending, 1 failed, 1 changed outside Krusgraph, 1 missing, 1 removed");
     expect(lastRunWords(OUTPUTS)).toBe("Last pipeline run: succeeded, demo_lh_pipeline, started 2026-11-10 09:06 UTC.");
-    expect(lastRunWords(FRESH)).toContain("none recorded");
+    // WB10 (#62): FRESH built no pipeline: that is said, with the Data Factory step
+    expect(lastRunWords(FRESH)).toBe(NO_PIPELINE);
     expect(ownerWords(OUTPUTS.product)).toBe("Owner: Anna Berg (anna@example.com) (chosen on 2026-11-10 10:00 UTC by Anna Berg).");
     expect(ownerWords(undefined)).toBe(NO_OWNER);
     expect(healthWords(undefined)).toBe(NOT_CHECKED);

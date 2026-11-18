@@ -73,7 +73,7 @@ import { DataProductPage, preloadParts } from "./lazyParts";   // n223: the Data
 import { OntoWait } from "./OntoWait";
 import { FlowSteps } from "./FlowSteps";
 import { flowSteps } from "./stepWords";
-import { NextStepsPanel } from "./NextStepsView";
+import { NextStepsPanel, StarterAnswer, StarterContext, StarterSource } from "./NextStepsView";
 import { Wait, WaitSignal, checkLabel, newWait, reviewLabel, withSignal } from "./waitWords";
 import { accessLine } from "./accessWords";
 import { DrawioContext, DrawioFile, DrawioSource } from "./drawioDownload";
@@ -1349,7 +1349,22 @@ export function ModelItemEditor(props: PageProps) {
     [workloadClient, catalogOwner]
   );
 
+  // WB10 (#64): the Data Science starter's Dry run and Create; what Create made joins outputs.json like any output
+  const starterSource = useMemo<StarterSource>(
+    () => ({
+      run: ({ name, cells, dryRun, confirm }) =>
+        engine.starter<StarterAnswer>(workloadClient, { ...sourceRequest(defRef.current), name, cells, dry_run: dryRun, confirm: confirm ?? null }),
+      onCreated: (item) => {
+        void update((d) => ({ ...d, outputs: { ...d.outputs, created: [...d.outputs.created.filter((c) => c.id !== item.id), item] } }));
+        callNotificationOpen(workloadClient, "Notebook created", `${item.name} is in your workspace. Krusgraph did not run it.`);
+      },
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [workloadClient]
+  );
+
   return (
+    <StarterContext.Provider value={starterSource}>
     <DrawioContext.Provider value={drawioSource}>
     <VerifyContext.Provider value={verifySource}>
     <CatalogContext.Provider value={catalogSource}>
@@ -1367,5 +1382,6 @@ export function ModelItemEditor(props: PageProps) {
     </CatalogContext.Provider>
     </VerifyContext.Provider>
     </DrawioContext.Provider>
+    </StarterContext.Provider>
   );
 }
