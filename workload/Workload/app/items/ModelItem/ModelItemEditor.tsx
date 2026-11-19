@@ -85,10 +85,10 @@ import {
   LeftoversAnswer, OutOfDate, ProductRow, RetireAnswer, StatusAnswer, createdAtOf, healthFor, outOfDate, planOf, withAdopted, withOwner,
   withPlan, withRemoved,
 } from "./productWords";
-import { SaveStatus, saveWithRetry } from "./saveState";
+import { SAVE_WAITS_MS, SaveStatus, saveWithRetry } from "./saveState";
 // W14: autosave (autosave.ts, SaveIndicator.tsx)
 import {
-  AUTOSAVE_DELAY_MS, AutosaveState, Decisions, Recovery, browserStore, clearDraft, conflictWords, decisionsOf, newSession,
+  AUTOSAVE_DELAY_MS, AUTOSAVE_WAITS_MS, AutosaveState, Decisions, Recovery, browserStore, clearDraft, conflictWords, decisionsOf, newSession,
   readDraft, recover, recoveredWords, resolve, revisionOf, stamp, writeDraft,
 } from "./autosave";
 import { SaveIndicator } from "./SaveIndicator";
@@ -552,7 +552,7 @@ export function ModelItemEditor(props: PageProps) {
    * n225: callUpdateItemDefinition answers undefined when Fabric refuses a save, which used to pass for saved; now a save
    * Fabric did not confirm is tried again (saveState.saveWithRetry), a copy a newer one supersedes is not sent, and the
    * outcome is shown (Saved, Saving, Not saved with Save again). */
-  function persist(next: ModelDefinition, baseRev?: number): Promise<"saved" | "superseded" | "failed" | undefined> {
+  function persist(next: ModelDefinition, baseRev?: number, waits: number[] = SAVE_WAITS_MS): Promise<"saved" | "superseded" | "failed" | undefined> {
     defRef.current = next;
     setDef(next);
     const meta = metaRef.current;
@@ -565,7 +565,7 @@ export function ModelItemEditor(props: PageProps) {
         if (!newest()) return "superseded" as const;             // a newer copy is queued behind this one and carries it
         // W14: the next revision, stamped when this copy is sent (after any save before it has moved the base)
         const sent = stamp(next, Math.max(baseRev ?? 0, base.current.rev), session.current);
-        const got = await saveWithRetry(() => callUpdateItemDefinition(workloadClient, meta.id, toParts(sent) as never, false), newest);
+        const got = await saveWithRetry(() => callUpdateItemDefinition(workloadClient, meta.id, toParts(sent) as never, false), newest, waits);
         if (got.outcome === "saved") {
           base.current = { rev: revisionOf(sent), decisions: decisionsOf(sent.review) };
           if (defRef.current === next) clearDraft(browserStore(), meta.id);   // nothing changed since: the draft is in Fabric
@@ -609,7 +609,9 @@ export function ModelItemEditor(props: PageProps) {
         setDirty(true);
         return;
       }
-      await persist(r.def, r.baseRev);
+      // WB3 (F6): tried once more, then one sentence; the decisions stay in defRef and the draft, so Save still saves them.
+      // Only the item's definition is written here: never Create, never anything in the workspace.
+      await persist(r.def, r.baseRev, AUTOSAVE_WAITS_MS);
     } finally {
       autosaving.current = false;
     }

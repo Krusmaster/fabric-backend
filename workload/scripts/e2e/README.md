@@ -25,6 +25,11 @@ horizontal scroll), and **19** a decision made in a tab that is closed while its
 autosave itself is `Workload/app/items/ModelItem/autosave.ts` (unit tests in `autosave.test.ts` and, in the real editor,
 `autosave.editor.test.tsx`, which also covers another session's save in the meantime and a save Fabric refuses).
 
+WB3 adds flow **23** at phone width (F6, the founder's yes of 18 November 2026): **Accept all**, the line goes from
+`• Saving…` to `✓ Saved hh:mm UTC` with one more `updateItemDefinition`; the tab is closed without Save and with no
+draft left in this browser; the next opening shows every decision from Fabric's copy (`Accept all (0)`, no "Recovered
+changes" note). No `/workload/v1/` route is called for the decisions and the doubles receive no item.
+
 WB10 adds flow **20**: the editor inside `frame.html`, an iframe with Fabric's default sandbox (`allow-same-origin
 allow-scripts`: no `allow-downloads`, no `allow-popups`; Microsoft Learn, "How to relax the iFrame", ms.date 12/15/2025).
 A `data:` link with `download` clicked in the frame saves nothing there, as in Fabric (Gustav's live test, 18 Nov 2026).

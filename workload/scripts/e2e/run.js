@@ -390,6 +390,45 @@ async function main() {
       await c.close();
       return r;
     });
+    // WB3 (F6, the founder's yes of 18 Nov 2026): Accept all, the line says Saved, the item is closed without Save and
+    // with no draft left in this browser; reopening shows every decision from Fabric's copy. No engine route is called
+    // for the decisions, so nothing is created
+    await step("23 Close without Save, reopen: every decision is there (phone width)", async () => {
+      const d = await firstPage("");
+      await d.getByRole("button", { name: /Check against the rows/ }).first().waitFor({ timeout: 30000 });
+      await settle(d, 2500);                                     // the review read again on opening is saved first
+      const createdBefore = (await (await fetch(`${BASE}/e2e/log`)).json()).created.length;
+      const engineCalls = [];
+      d.on("request", (q) => { if (q.url().includes("/workload/v1/")) engineCalls.push(`${q.method()} ${new URL(q.url()).pathname}`); });
+      const savesBefore = await d.evaluate(() => window.__host.saves);
+      await d.getByRole("button", { name: /^Accept all \(\d+\)$/ }).first().click();
+      const quick = (await d.locator(".kg-autosave-line").innerText()).trim();
+      await d.locator(".kg-autosave-line", { hasText: /Saved/ }).waitFor({ timeout: 10000 });
+      const line = (await d.locator(".kg-autosave-line").innerText()).trim();
+      const savesAfter = await d.evaluate(() => window.__host.saves);
+      const drafts = await d.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("krusgraph-model-draft:")).length);
+      const overflow = await d.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      await d.close();                                           // closed: Save was never chosen
+      const e = await firstPage("");
+      await e.getByRole("button", { name: /Check against the rows/ }).first().waitFor({ timeout: 30000 });
+      await settle(e, 2500);
+      const now = await decisions(e);
+      const allLeft = await e.getByRole("button", { name: /^Accept all \(\d+\)$/ }).first().innerText();
+      const recovered = await e.getByText(/Recovered changes from/).count();
+      const createdAfter = (await (await fetch(`${BASE}/e2e/log`)).json()).created.length;
+      expectTrue(savesAfter === savesBefore + 1, `saves ${savesBefore} -> ${savesAfter}, expected one more`);
+      expectTrue(/^\S\s*Saving…$/.test(quick) || /Saved/.test(quick), `line right after Accept all: ${quick}`);
+      expectTrue(drafts === 0, `${drafts} drafts left in this browser: reopening would be a recovery`);
+      expectTrue(engineCalls.length === 0, `engine calls for the decisions: ${engineCalls.join(", ")}`);
+      expectTrue(createdAfter === createdBefore, `created ${createdBefore} -> ${createdAfter}`);
+      expectTrue(!now.proposed && !now.open && (now.accepted || 0) > 0, `Fabric's copy after reopening: ${JSON.stringify(now)}`);
+      expectTrue(/\(0\)/.test(allLeft) && recovered === 0, `reopened: "${allLeft}", recovered notes ${recovered}`);
+      expectTrue(overflow <= 0, `horizontal overflow ${overflow} px`);
+      const r = `${await shot(e, "23-reopened-without-save")}; "${quick}" then "${line}"; saves ${savesBefore} -> ${savesAfter}; ` +
+        `no engine call, nothing created; reopened from Fabric's copy ${JSON.stringify(now)}, "${allLeft.trim()}"; overflow ${overflow} px`;
+      await e.close();
+      return r;
+    });
     await phone.close();
   }
 

@@ -24,7 +24,8 @@ vi.mock("./engineClient", async (orig) => {
 
 import { ModelItemEditor } from "./ModelItemEditor";
 import { EditorErrorBoundary } from "./EditorErrorBoundary";
-import { AUTOSAVE_DELAY_MS, DRAFT_PREFIX } from "./autosave";
+import { AUTOSAVE_DELAY_MS, AUTOSAVE_WAITS_MS, DRAFT_PREFIX } from "./autosave";
+import * as engine from "./engineClient";
 import { DefinitionPart, ModelDefinition, ReviewFile, emptyDefinition, fromParts, toParts } from "./ModelItemDefinition";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -121,7 +122,7 @@ describe("W14: autosave in the Model editor", () => {
     const before = h.wc.itemCrud.updateItemDefinition.mock.calls.length;
     accept(0);
     await flush();
-    expect(line()?.textContent).toMatch(/Unsaved changes/);
+    expect(line()?.textContent).toMatch(/Saving…/);                              // WB3: quiet, never a question
     expect(localStorage.getItem(DRAFT_PREFIX + ITEM)).toContain("accepted");   // kept in this browser at once
     await flush(AUTOSAVE_DELAY_MS + 200);
     expect(h.wc.itemCrud.updateItemDefinition.mock.calls.length).toBe(before + 1);
@@ -182,20 +183,98 @@ describe("W14: autosave in the Model editor", () => {
     expect(el.querySelector(".kg-autosave-note")?.textContent).toMatch(/On 1 item you both changed, your decision was saved over theirs\./);
   });
 
-  it("Fabric refuses the save: Not saved, Save again, and the draft stays", async () => {
+  it("WB3: Fabric refuses the autosave: tried once more, one sentence, and Save again still saves the decision", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       const h = host(stored());
+      const real = h.wc.itemCrud.updateItemDefinition.getMockImplementation()!;
       h.wc.itemCrud.updateItemDefinition.mockImplementation(async () => undefined as never);
       await open(h.wc);
+      const before = h.wc.itemCrud.updateItemDefinition.mock.calls.length;
       accept(0);
-      await act(async () => { await vi.advanceTimersByTimeAsync(AUTOSAVE_DELAY_MS + 20000); });
+      await act(async () => { await vi.advanceTimersByTimeAsync(AUTOSAVE_DELAY_MS + AUTOSAVE_WAITS_MS[0] + 20000); });
       await flush();
-      expect(line()?.textContent).toMatch(/✕ Not saved/);
-      expect(Array.from(el.querySelectorAll("button")).some((b) => b.textContent === "Save again")).toBe(true);
+      expect(h.wc.itemCrud.updateItemDefinition.mock.calls.length - before).toBe(2);   // the save and one more try
+      expect(line()?.textContent).toBe("✕ Not saved yet: your decisions are kept here, and Save tries again.Save again");
       expect(localStorage.getItem(DRAFT_PREFIX + ITEM)).toContain("accepted");
+      // the decision is still in the editor: it is not lost, and the person can go on deciding meanwhile
+      expect(status(h.saved(), "k1")).toBe("proposed");
+      h.wc.itemCrud.updateItemDefinition.mockImplementation(real);
+      const again = Array.from(el.querySelectorAll("button")).find((b) => b.textContent === "Save again") as HTMLButtonElement;
+      act(() => { again.click(); });
+      await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+      await flush();
+      expect(status(h.saved(), "k1")).toBe("accepted");
+      expect(line()?.textContent).toMatch(/✓ Saved \d\d:\d\d UTC/);
     } finally {
       vi.useRealTimers();
+    }
+  });
+});
+
+describe("WB3 (F6): every review decision is saved without Save, and only to the item's definition", () => {
+  const pressed = () => Array.from(el.querySelectorAll("button[aria-pressed=true]")).map((b) => b.textContent);
+
+  it("Accept all, then the item is closed without Save: reopening shows every decision", async () => {
+    const h = host(stored());
+    await open(h.wc);
+    const acceptAll = Array.from(el.querySelectorAll("button")).find((b) => /^Accept all/.test(b.textContent ?? "")) as HTMLButtonElement;
+    act(() => { acceptAll.click(); });
+    await flush(AUTOSAVE_DELAY_MS + 200);
+    act(() => root.unmount());                                   // closed: Save was never chosen
+    localStorage.clear();                                        // and no draft in this browser to recover from
+    expect([status(h.saved(), "k1"), status(h.saved(), "k2")]).toEqual(["accepted", "accepted"]);
+    root = createRoot(el);
+    await open(h.wc);
+    expect(el.textContent).not.toMatch(/Recovered changes/);     // from Fabric's copy, not from a draft
+    const list = Array.from(el.querySelectorAll("button, [role=tab]")).find((x) => /^(List)+$/.test(x.textContent ?? "")) as HTMLElement | undefined;
+    if (list) act(() => { list.click(); });
+    await flush();
+    expect(pressed().filter((t) => t === "Accept")).toHaveLength(2);
+  });
+
+  it("an accept and a reject in quick succession are one save (throttled), with both decisions", async () => {
+    const h = host(stored());
+    await open(h.wc);
+    const before = h.wc.itemCrud.updateItemDefinition.mock.calls.length;
+    accept(0);
+    await flush(100);
+    const reject = Array.from(el.querySelectorAll("button")).filter((x) => x.textContent === "Reject")[0] as HTMLButtonElement;   // undecided first: k2
+    act(() => { reject.click(); });
+    await flush(100);
+    expect(h.wc.itemCrud.updateItemDefinition.mock.calls.length).toBe(before);   // nothing sent during the pause
+    await flush(AUTOSAVE_DELAY_MS + 200);
+    expect(h.wc.itemCrud.updateItemDefinition.mock.calls.length).toBe(before + 1);
+    const d = h.saved();
+    expect([status(d, "k1"), status(d, "k2")].sort()).toEqual(["accepted", "rejected"]);
+  });
+
+  it("an autosave never starts Create, never calls the engine, and writes nothing but the item's definition", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    try {
+      const h = host(stored());
+      await open(h.wc);
+      vi.mocked(engine.review).mockClear();
+      fetchSpy.mockClear();
+      const crud = h.wc.itemCrud;
+      const reads = crud.getItem.mock.calls.length;
+      accept(0);
+      const acceptAll = Array.from(el.querySelectorAll("button")).find((b) => /^Accept all/.test(b.textContent ?? "")) as HTMLButtonElement;
+      act(() => { acceptAll.click(); });
+      await flush(AUTOSAVE_DELAY_MS + 200);
+      expect(fetchSpy).not.toHaveBeenCalled();                  // no engine route: no build, no Create, no workspace write
+      expect(engine.review).not.toHaveBeenCalled();
+      expect(crud.getItem.mock.calls.length).toBe(reads);
+      expect(h.wc.datahub.openDialog).not.toHaveBeenCalled();
+      expect(h.wc.navigation.navigate).not.toHaveBeenCalled();
+      for (const c of crud.updateItemDefinition.mock.calls) {
+        const parts = (c[0] as { payload?: { definition?: { parts?: DefinitionPart[] } } }).payload?.definition?.parts ?? [];
+        expect(parts.map((p) => p.path).sort()).toEqual(toParts(h.saved()).map((p) => p.path).sort());
+      }
+      expect(h.saved().outputs.created).toEqual([]);
+      expect(status(h.saved(), "k1")).toBe("accepted");
+    } finally {
+      fetchSpy.mockRestore();
     }
   });
 });

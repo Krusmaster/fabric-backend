@@ -1,7 +1,7 @@
 // W14: autosave's pure parts: the revision, the three-way merge of decisions, the draft in this browser, the words.
 import { describe, expect, it } from "vitest";
 import {
-  DRAFT_MAX_AGE_MS, DRAFT_PREFIX, DraftStore, clearDraft, conflictWords, decisionsOf, indicatorWords, mergeDecisions,
+  AUTOSAVE_WAITS_MS, DRAFT_MAX_AGE_MS, DRAFT_PREFIX, DraftStore, clearDraft, conflictWords, decisionsOf, indicatorWords, mergeDecisions,
   readDraft, recover, recoveredWords, resolve, revisionOf, stamp, writeDraft,
 } from "./autosave";
 import { ModelDefinition, ReviewFile, ReviewStatus, emptyDefinition, fromParts, toParts } from "./ModelItemDefinition";
@@ -152,12 +152,20 @@ describe("the draft in this browser", () => {
   });
 });
 
+describe("WB3: an autosave Fabric does not confirm is tried once more", () => {
+  it("one wait, so two tries in all", () => {
+    expect(AUTOSAVE_WAITS_MS).toHaveLength(1);
+  });
+});
+
 describe("the indicator's words", () => {
   it("every state has a mark that is not a colour", () => {
-    expect(indicatorWords("pending")).toMatchObject({ mark: "•", tone: "wait" });
+    expect(indicatorWords("pending")).toEqual({ mark: "•", tone: "wait", words: "Saving…" });   // WB3: quiet
     expect(indicatorWords("saving")).toEqual({ mark: "…", tone: "wait", words: "Saving…" });
     expect(indicatorWords("saved", "2026-11-17T14:05:09Z")).toEqual({ mark: "✓", tone: "ok", words: "Saved 14:05 UTC" });
-    expect(indicatorWords("failed", undefined, 4).words).toMatch(/after 4 tries\. Your changes are kept in this browser; Save again\./);
+    // WB3: one plain sentence, whatever the number of tries
+    expect(indicatorWords("failed", undefined, 2).words).toBe("Not saved yet: your decisions are kept here, and Save tries again.");
+    expect(indicatorWords("failed", undefined, 2).words.split(/[.!?](\s|$)/).filter((x) => x && x.trim()).length).toBe(1);
     expect(indicatorWords("idle").words).toBe("Saved");
   });
 });
