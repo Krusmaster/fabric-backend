@@ -209,6 +209,23 @@ curl -s -H "Authorization: Bearer $TOKEN" https://$DOMAIN/metrics | head -20
 
 With two replicas each one has its own totals; the Log Analytics query above is the complete picture.
 
+**Weekly digest to Teams (UM2, optional).** With the container-app secret `founder-webhook` set, the server posts a
+short summary of last week's counts to the founder's Teams channel every Monday at 07:00 UTC, once across replicas
+and restarts, with a link to `/metrics` (never the token). On 19 November 2026 the app has no such secret, so nothing
+is sent. To set it up, create the workflow in Teams (the channel's **⋯** → **Workflows** → **Post to a channel when a
+webhook request is received** → **Add workflow**, copy the address), then in Cloud Shell:
+
+```bash
+read -rsp "Webhookadressen från Teams-arbetsflödet (döljs): " FW; echo
+az containerapp secret set -n $APP -g $RG --secrets founder-webhook="$FW" --output none; unset FW
+az containerapp update -n $APP -g $RG --set-env-vars KRUSGRAPH_FOUNDER_WEBHOOK_URL=secretref:founder-webhook --output none
+```
+
+`docs/USAGE.md` ("Weekly digest to the founder's webhook") has what is sent, an optional test card to send before
+`unset FW`, the switch `KRUSGRAPH_USAGE_DIGEST=off`, and what has not been tried against a real Teams channel. A full
+deploy run (without `--update`) removes `usage-salt`, `metrics-token` and `founder-webhook`; it says so and prints the
+commands that restore them.
+
 ## 4. Health and alerts
 
 `/health` answers `{"status":"ok"}` without sign-in and says nothing else about the server (no version, no build, no
@@ -654,13 +671,15 @@ each line says where one lives.
 | `KRUSGRAPH_USAGE_LOG` | on | `0` turns the usage line off |
 | `KRUSGRAPH_USAGE_SALT` | unset | counts organisations as salted hashes |
 | `KRUSGRAPH_METRICS_TOKEN` | unset (404) | enables `/metrics` for this bearer token (32+ characters) |
+| `KRUSGRAPH_METRICS` | on | `off` stops the daily counts (and the weekly digest) |
+| `KRUSGRAPH_USAGE_DIGEST` | on | UM2: `off` stops the weekly digest to `KRUSGRAPH_FOUNDER_WEBHOOK_URL` (nothing runs without that address) |
 | `KRUSGRAPH_LOG_RETENTION_DAYS` | unset | tells `/privacy` that console logs are kept that many days |
 | `KRUSGRAPH_ACCESS_LOG` | on | `0` drops uvicorn's per-request line with the client IP |
 | `KRUSGRAPH_ENTITLEMENTS` | `0` | the dormant paid-plan check, see `docs/ENTITLEMENTS.md` |
 | `KRUSGRAPH_TRIAL` | `0` | n213: the 30-day trial per organisation, then a Marketplace subscription (`docs/BILLING-MODEL.md`) |
 | `KRUSGRAPH_PUBLISHER_TENANT_ID`, `KRUSGRAPH_TRIAL_EXEMPT_TENANTS` | `KRUSGRAPH_MARKETPLACE_TENANT_ID`, unset | the tenants the trial never gates |
 | `KRUSGRAPH_PLAN_USER_CAPS` | unset | `{"<plan id>": <users>}`: the warning over a plan's users |
-| `KRUSGRAPH_USER_HASH_SALT`, `KRUSGRAPH_FOUNDER_WEBHOOK_URL` | unset | container-app secrets: the user count's salt; the founder's Teams/Power Automate address |
+| `KRUSGRAPH_USER_HASH_SALT`, `KRUSGRAPH_FOUNDER_WEBHOOK_URL` | unset | container-app secrets: the user count's salt; the founder's Teams/Power Automate address (the trial's notices and UM2's weekly digest) |
 | `KRUSGRAPH_CLIENT_REGISTRATION` | `0` | sign-in at `/mcp/connect` for MCP clients other than Claude (section 6) |
 | `KRUSGRAPH_CLIENT_REGISTRATION_DCR` | `0` | also dynamic client registration at `/oauth/register` |
 | `KRUSGRAPH_REGISTRATION_STORE` | unset | `memory` (one replica) or `https://<account>.table.core.windows.net/<table>` |

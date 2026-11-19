@@ -4740,6 +4740,10 @@ def build_app(host: str = "0.0.0.0"):
     # founder's "trial ends in 7 days" notice runs every 6 hours.
     from . import billing as _billing_mod
     _billing_mod.start_sweeper()
+    # UM2: the weekly usage digest to the founder's webhook (usage_digest.py). No thread without the webhook, or with
+    # KRUSGRAPH_USAGE_DIGEST=off or KRUSGRAPH_METRICS=off; one replica sends, once per ISO week.
+    from . import usage_digest as _usage_digest
+    _usage_digest.start()
 
     # n168: on KRUSGRAPH_WORKLOAD_HOST (workload.krusgraph.com) only the hosted editor, /close and /workload/v1;
     # every other host name reaches the app below unchanged (workload_host.py). Unset, nothing is wrapped.

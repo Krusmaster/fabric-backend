@@ -54,6 +54,7 @@ NONE, OTHER = "(none)", "(other)"
 _CLIENT_OK = re.compile(r"[a-z0-9][a-z0-9 ._\-]{0,39}")
 _KIND_OK = re.compile(r"[a-z0-9_\-]{1,40}")
 _NAME_OK = re.compile(r"[a-z0-9_\-]{1,64}")
+_DAY_KEY = re.compile(r"\d{4}-\d{2}-\d{2}_")    # a day row's RowKey; UM2's "digest-<week>" rows are not day rows
 
 
 def enabled() -> bool:
@@ -142,15 +143,35 @@ class TableRows:
         if r.status_code not in (200, 204, 404):
             raise self.t._fail("a usage delete", r)
 
+    def add(self, key: str, data: dict) -> bool:
+        """UM2: Insert Entity, which the Table service refuses with 409 when the row exists. True for the one caller
+        whose insert made the row, False for every other replica or a later restart."""
+        body = json.dumps({"PartitionKey": PARTITION, "RowKey": key, "data": json.dumps(data, separators=(",", ":"))}).encode()
+        r = self.t._request("POST", self.t.base, self.t._headers(**{"Content-Type": "application/json",
+                                                                     "Prefer": "return-no-content"}), body)
+        if r.status_code == 409:
+            return False
+        if r.status_code not in (201, 204):
+            raise self.t._fail("a usage insert", r)
+        return True
+
 
 class MemoryRows:
     """The same three operations on a dict: tests, and the fallback when there is no table."""
 
     def __init__(self) -> None:
         self.data: dict[str, dict] = {}
+        self._lock = threading.Lock()
 
     def put(self, key, data):
         self.data[key] = json.loads(json.dumps(data))
+
+    def add(self, key, data) -> bool:
+        with self._lock:
+            if key in self.data:
+                return False
+            self.data[key] = json.loads(json.dumps(data))
+            return True
 
     def rows(self, since):
         return {k: json.loads(json.dumps(v)) for k, v in self.data.items() if k >= since}
@@ -303,6 +324,8 @@ class Counts:
         rows = self.rows.rows("0000")
         by_day: dict[str, list[str]] = {}
         for key in rows:
+            if not _DAY_KEY.match(key):           # UM2's digest-<week> rows: one tiny row per week, left alone
+                continue
             by_day.setdefault(key[:10], []).append(key)
         for day, keys in by_day.items():
             if day < oldest:
@@ -329,6 +352,8 @@ class Counts:
         if self.durable:
             try:
                 for key, data in self.rows.rows(since).items():
+                    if not _DAY_KEY.match(key):       # UM2's digest-<week> rows are not counts
+                        continue
                     if not (key.endswith("_" + self.replica) and key[:10] in own):
                         stored.setdefault(key[:10], []).append(data)
                 self.last_error = ""

@@ -398,6 +398,33 @@ def signin_checklist(config, env: dict, has_secret: bool) -> list[str]:
 # hashes with, and the optional Teams / Power Automate address for the founder's notices.
 SALT_ENV, SALT_SECRET = "KRUSGRAPH_USER_HASH_SALT", "user-hash-salt"
 FOUNDER_WEBHOOK_ENV, FOUNDER_WEBHOOK_SECRET = "KRUSGRAPH_FOUNDER_WEBHOOK_URL", "founder-webhook"
+# UM1/UM2: the operator's secrets set by hand (docs/OPERATIONS.md section 3): the usage counts' salt, the /metrics token
+# and the founder's webhook (the weekly digest, and the trial's notices). A full run's manifest replaces the secret list
+# with entra-secret alone and drops the variables that point at them, so it says so and prints what to run; --update
+# points each variable at its secret again whenever the app has the secret.
+OPERATOR_SECRETS = {"usage-salt": "KRUSGRAPH_USAGE_SALT", "metrics-token": "KRUSGRAPH_METRICS_TOKEN",
+                    FOUNDER_WEBHOOK_SECRET: FOUNDER_WEBHOOK_ENV}
+
+
+def operator_secret_commands(config, names) -> str:
+    """The commands that store the dropped operator secrets again (generated values never shown; the webhook typed
+    hidden) and point their variables at them."""
+    app, rg = config["app"], config["resource_group"]
+    lines = []
+    for name in names:
+        if name == FOUNDER_WEBHOOK_SECRET:
+            lines += ['  read -rsp "Teams-arbetsflödets webhookadress (VÄRDE, döljs): " FW; echo',
+                      f'  az containerapp secret set -n {app} -g {rg} --secrets {name}="$FW" --output none; unset FW']
+        else:
+            lines.append(f'  az containerapp secret set -n {app} -g {rg} --secrets {name}="$(openssl rand -hex 32)" --output none')
+    pairs = " ".join(f"{OPERATOR_SECRETS[n]}=secretref:{n}" for n in names)
+    lines.append(f"  az containerapp update -n {app} -g {rg} --set-env-vars {pairs} --output none")
+    return "\n".join(lines) + "\n"
+
+
+def dropped_operator_secrets(existing) -> list[str]:
+    """The operator secrets the existing app has (by name; Azure never returns the values here)."""
+    return [name for name in OPERATOR_SECRETS if existing and has_marketplace_secret(existing, name)]
 
 
 def trial_secret_commands(config) -> str:
@@ -604,6 +631,17 @@ def make_manifest(config, env_id, identity_id, login_server, image, secret, exis
         # events only) until --update attaches them again.
         print(f"En full körning tar bort container-apphemligheterna {SALT_SECRET} och {FOUNDER_WEBHOOK_SECRET}: provperioden "
               "fungerar, men användare räknas inte förrän du kört --update (som kopplar dem igen).", flush=True)
+    dropped = dropped_operator_secrets(existing)
+    if dropped:
+        # UM2: the same for the operator's hand-set secrets. Their variables were not carried (secretRef), so the new
+        # revision starts; /metrics answers 404, the counts lose the salt and the digest stays silent until restored.
+        effects = {"usage-salt": "organisationer och användare räknas inte (ett nytt salt gör att veckan räknar samma "
+                                 "organisation två gånger över bytet)",
+                   "metrics-token": "/metrics svarar 404 (en ny metrics-token ersätter den gamla)",
+                   FOUNDER_WEBHOOK_SECRET: "grundarens notiser och veckosammanfattningen skickas inte"}
+        print(f"En full körning tar bort container-apphemligheterna {', '.join(dropped)} (och variablerna som pekar på dem): "
+              + "; ".join(effects[n] for n in dropped) + ", tills du kört dessa:\n" + operator_secret_commands(config, dropped),
+              flush=True)
     if names & {"KRUSGRAPH_WORKLOAD_CLIENT_ID", "KRUSGRAPH_WORKLOAD_APP_ID_URI"}:
         # The manifest replaces the secret list with entra-secret alone, so workload-secret is gone after a full run; the
         # server refuses to start with a workload id but no secret. Keep only the host (the editor's files) and say so.
@@ -909,6 +947,9 @@ def update(az, config, keep_settings=False, workload_host=None, dry_run=False):
         if webhook:
             env[FOUNDER_WEBHOOK_ENV] = f"secretref:{FOUNDER_WEBHOOK_SECRET}"
         print_trial_checklist(config, {**after, **env}, salt, webhook)
+    if not keep_settings:                     # UM2: each operator secret the app has, with its variable pointing at it
+        for name in dropped_operator_secrets(existing):
+            env.setdefault(OPERATOR_SECRETS[name], f"secretref:{name}")
     engine = ("KRUSGRAPH_WORKLOAD_CLIENT_ID", "KRUSGRAPH_WORKLOAD_APP_ID_URI")
     if any(env.get(v) or old_env.get(v) for v in engine):
         if not all(env.get(v) or old_env.get(v) for v in engine):
