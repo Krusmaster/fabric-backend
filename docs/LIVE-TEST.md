@@ -381,6 +381,39 @@ the data pipeline `sap_lt1_pipeline`, the semantic model `sap_lt1_model` and the
    pipeline writes `sap_silver`, the model differs (rightly). `create_semantic_model` now reads the pipeline's
    `SILVER_SCHEMA` by itself (or `silver_schema=`); its dry run says where the schema came from (`summary.reads.schema_from`).
 
+## 19-20 Nov 2026 AP3: analysis_plan
+
+The first live run of the analysis pack of round AP2 (PR #86), through the hosted Krusgraph connector in Claude, against
+the workspace `demo` and its lakehouse `demo_lh` (synthetic data only). Before the run: `docs/ANALYSIS-PLAN.md` is on
+`main`, the Deploy runs after the AP2 merge and after the latest commit on `main` succeeded, and the connector lists
+`analysis_plan` and `analysis_notebook_draft`. The run could not read `/healthz` itself (the session's network does not
+reach krusgraph.com), so the build id was not compared by hand; Deploy's own health check compares it. Facts observed,
+nothing else; no speed or accuracy is claimed.
+
+**What was there.** The 17 synthetic SAP tables of LT1 in `dbo` were reused; nothing was loaded. `demo_lh` now also has
+`sap_silver` (18 tables) and `sap_gold` (5). The 36-month demo of AP2 (`sap_demo36`) is not in the lakehouse: loading
+it means importing a notebook in the Fabric portal (`docs/ANALYSIS-PLAN.md`, section 6), and the connector has no tool
+for that.
+
+| # | Tool and inputs | What a user sees | Result |
+| --- | --- | --- | --- |
+| 1 | `analysis_plan demo_lh dbo` (profile on, `max_items` 20) | "0 of 10 analyses ready (none), 0 partial, 10 missing; top: A1 Margin by customer and product (missing, score 0.0)". Each analysis has "Not recommended yet because: …": A1 no cost (VBRP.WAVWR, KONV/PRCD_ELEMENTS or ACDOCA); A2 and A9 no BSID/BSAD or ACDOCA; A3 "Only 2 materials sold; below 20 an ABC split is a list"; A4 "at least 12 months of history (1 now)"; A5 no LIKP.WADAT_IST; A6 no KONV/PRCD_ELEMENTS; A7 "Only 1 month(s) of billing documents history; forecasting needs at least 12 and about 24"; A8 "Only 0 customers with documents; RFM needs at least 50"; A10 not applicable (no G2/RE in `sap_vbrk.FKART`). `land_next`: BSID + BSAD or ACDOCA (unlocks A2, A9), more months of history (A4, A7), a cost (A1), the requested and goods issue dates (A5), conditions (A6). The dataset found is billing (`sap_vbrk` + `sap_vbrp`, joined on MANDT, VBELN by the SAP pack). Counts: billing 2 rows, 1 month, 1 document, 1 customer, 2 materials, 0 orphans on its three joins; orders `sap_vbap` → `sap_vbak` 1 orphan of 6 | as the AP2 golden for the small demo expects, except A8. **Bug:** `not_counted` says `per_customer: the count could not run (ProgrammingError)` for both datasets, and A8's "Only 0 customers" contradicts the totals' 1 customer. Cause: the per-customer statement named a column `top`, a reserved word in T-SQL that SQLite (the tests) accepts. Fixed in the AP3 pull request (the column renamed; a count that did not run is no longer read as zero) |
+| 2 | `analysis_plan demo_lh sap_silver` | the same ranking and reasons; orders `sap_vbap` → `sap_vbak` 0 orphans of 5 (silver dropped the planted orphan item) | same per-customer `ProgrammingError` |
+| 3 | `analysis_notebook_draft` A7, A8, A3 on `dbo` | refused, kind `bad_input`, with the analysis's missing line (for example "A7 is not ready on this data: Only 1 month(s) …") | as designed: no notebook for a missing analysis. **Bug:** the hint was "Check the keys and confirmed you passed …", which is not the cause; fixed in the AP3 pull request (the hint points at `analysis_plan` and `land_next`) |
+
+**Not done in this run.** No phase-1 analysis is ready on this data, so no notebook was drafted, and none was created:
+`analysis_notebook_draft` creates and runs nothing, and no Krusgraph tool creates an analysis notebook in a workspace.
+Nothing was written to the workspace. The notebooks have still not run in Fabric.
+
+**Left in the workspace `demo`:** nothing new. The LT1 items are unchanged.
+
+**For the maintainer, about 15 minutes.**
+1. After the AP3 fix is deployed, in Claude: *"Which SAP analyses does demo_lh, schema dbo, support?"* Expected: no
+   `per_customer` in `not_counted`, and A8 "Only 1 customers with documents".
+2. To see a ready analysis: load `sap_demo36` as in `docs/ANALYSIS-PLAN.md`, section 6 (import the notebook, run with
+   `DRY_RUN = False`), then `analysis_plan` with `schema="sap_demo36"`. The unit tests expect A7, A8, A3 and A4 ready.
+3. Then `analysis_notebook_draft` for A7, import its `notebook-content.py` in Fabric and run it.
+
 ## Databricks
 
 For a trial workspace of your own (Databricks Free Edition or a trial account), from the **local** stdio server with
