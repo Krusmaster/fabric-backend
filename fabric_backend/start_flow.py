@@ -245,9 +245,11 @@ def _choices(now: str, c: dict, options: dict | None) -> tuple[list[dict], dict]
 
 def guide(workspace: str | None = None, source: str | None = None, schema: str | None = None, step: str | None = None,
           keys: dict | None = None, confirmed: list | None = None, decisions: list | None = None,
-          create: list | None = None, confirm: bool = False, sample: bool = False, options: dict | None = None) -> dict:
+          create: list | None = None, confirm: bool = False, sample: bool = False, options: dict | None = None,
+          review: dict | None = None) -> dict:
     """The stepper's answer (see the module docstring). Pure: no Fabric, no SQL. `options` (WB12, #76) is what the
-    start tool read for steps 1-3: {step, items: [{name, hint?, tables?}]} or {step, error}."""
+    start tool read for steps 1-3: {step, items: [{name, hint?, tables?}]} or {step, error}. `review` (WB13, #66) is
+    review_plan's file for step 6 on your own data, built by the start tool with the checks counted, or {error}."""
     c = {"workspace": (workspace or "").strip() or None, "source": (source or "").strip() or None,
          "schema": (schema or "").strip() or None, "keys": keys or None, "confirmed": confirmed or None,
          "decisions": decisions or None, "sample": bool(sample)}
@@ -321,8 +323,37 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
         if sent:
             args["decisions"] = sent
         if c.get("decisions"):
-            out["decided"] = [_decided_line(d) for d in c["decisions"] if isinstance(d, dict)]
-        actions.append(_call("Record my decisions", "review_plan", args))
+            out["decided"] = [_decided_line(d, False) for d in c["decisions"] if isinstance(d, dict)]
+        if isinstance(review, dict) and isinstance(review.get("items"), list):        # WB13 (#66): per decision
+            decisions = review_decisions(review, c)
+            waiting = [x for x in decisions if x["state"] == "open"]
+            out["found"] = {"tool": "review_plan", "summary": _review_summary(review).split(" The check also")[0], "decisions":
+                            [{k: v for k, v in x.items() if k != "actions"} for x in decisions]}
+            for x in decisions:
+                if x["state"] == "open":
+                    actions += x["actions"]
+                else:                                    # answered: one button to change it
+                    other = [a for a in x["actions"] if a["decision"] != x["state"] and a["decision"] != "skipped"]
+                    actions += [{**a, "label": "Change to " + ("Reject" if a["decision"] == "rejected" else "Accept")}
+                                for a in other[:1]]
+            if not decisions:
+                out["say"] = ("Nothing needs a decision: every link is proven by its names and holds in the rows. "
+                              "Go on to the doubled totals.")
+            elif waiting:
+                first = waiting[0]
+                out["say"] = (f"{len(waiting)} {'decision' if len(waiting) == 1 else 'decisions'} open. "
+                              f"{first['question']} Accept, reject or skip.")
+            else:
+                out["say"] = "Every decision is answered. Go on to the doubled totals."
+            out["then"] = ("Each button calls start with the decision in plan.decisions; an accepted link goes into "
+                           "plan.confirmed for the next steps. Deciding writes nothing to Fabric.")
+            out["open_decisions"] = len(waiting)
+            if sent:                                     # the file to keep, once something is decided
+                actions.append({**_call("Keep my decisions as a review file", "review_plan", args), "secondary": True})
+        else:
+            if isinstance(review, dict) and review.get("error"):
+                out["review_error"] = str(review["error"])[:200]
+            actions.append(_call("Record my decisions", "review_plan", args))
     elif now == "totals":
         out["say"] = ("Where does a total double? Each amount is summed over the joined rows and once per row of its own "
                       "table, and you are asked at which level it belongs. This proposes; it changes nothing.")
@@ -344,18 +375,31 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
     elif now == "create":
         out.update(_create(c, create, confirm))
         actions = out.pop("actions")
+    if isinstance(review, dict) and isinstance(review.get("items"), list) and now in ("map", "decide"):
+        from . import mcp_apps_pictures as pictures, review as _review       # WB13 (#71): the small map
+        m = pictures.map_from_review({"review": review}) or {}
+        taken = {str(d.get("item")): str(d.get("review")) for d in c.get("decisions") or [] if isinstance(d, dict)}
+        opened = {it["id"] for it in _review.open_decisions(review)}
+        if m.get("tables"):
+            out.update(start_map(m["tables"], m.get("relationships") or [], opened, taken))
+            if now == "map":
+                out["found"] = {"tool": "plan_backend", "summary": _review_summary(review).split(";")[0] + ".",
+                                "rules": rule_words(r.get("rule") for r in m.get("relationships") or [])}
     asked = (step or "").strip()
     if asked and asked.lower() not in KEYS:              # F1 B13: an unknown step keeps the place and says so
         out["unknown_step"] = {"asked": asked, "steps": list(KEYS)}
         out["say"] = (f"I don't know a step called “{asked[:40]}”, so this is where you are. " + out.get("say", ""))
     out["actions"] = actions
     if c.get("decisions") and now in ("totals", "dry_run", "create"):        # WB12 (#66): the decisions travel on
-        out["decided"] = [_decided_line(d) for d in c["decisions"] if isinstance(d, dict)]
+        out["decided"] = [_decided_line(d, False) for d in c["decisions"] if isinstance(d, dict)]
     if nxt and now in CHOOSE:                                                # WB12 (#77): no Next before the choice
         out["next_waits"] = {"label": f"Next: {BY_KEY[nxt][1]}", "why": CHOOSE[now]}
     elif nxt and now != "create":
         out["after"] = {"tool": TOOL, "arguments": _start_args(c, nxt), "label": f"Next: {BY_KEY[nxt][1]}",
                         "say": f"Next step: run start with {_shown(_start_args(c, nxt))}.", "ask": f"Next: {BY_KEY[nxt][1]}."}
+        if now == "decide" and out.get("open_decisions"):    # WB13 (#66): secondary until each is answered or skipped
+            out["after"]["secondary"] = True
+            out["after"]["why"] = "Answer or skip each open decision first; Next leaves them open."
     _honest(out, now == "workspace")
     out["summary"] = (f"Step {n} of {len(STEPS)}: {title} ({does}). "
                       + ("Run the button's tool, show its answer, then continue with `after`." if actions else ""))
@@ -397,13 +441,18 @@ def _create(c: dict, create: list | None, confirm: bool) -> dict:
 
 # ------------------------------------------------------------------ decisions (WB12, #66) -----------------------------
 
-def _decided_line(d: dict) -> str:
+def _decided_line(d: dict, sample: bool = True) -> str:
     item = str(d.get("item") or "")
     m = item[4:] if item.startswith("rel:") else item
     m = m.replace(">", f" {ARROW} ")
     how = {"accepted": "accepted", "rejected": "rejected", "skipped": "skipped for now"}.get(str(d.get("review")), str(d.get("review")))
     use = {"accepted": ": the next steps use this link", "rejected": ": the next steps leave it out",
            "skipped": ": the next steps leave it out until you decide"}.get(str(d.get("review")), "")
+    if not sample and d.get("review") in ("rejected", "skipped"):
+        # WB13: on your own data the other tools still find a link their rules propose; the decision is kept, and the
+        # card says so rather than promise that it is left out
+        use = (": kept as your decision; the other tools' rules may still propose it, so leave it out of what you build"
+               if d.get("review") == "rejected" else ": kept open; decide it before you build")
     return f"{m}: {how}{use}."
 
 
@@ -455,6 +504,60 @@ def open_decisions(suggestions: list[dict], c: dict) -> list[dict]:
                          if review == "accepted" else f"{label}: {s['table']}.{s['column']} {ARROW} {s['target']}."})
         out.append({"item": item, "question": q, "evidence": _evidence_lines(s), "state": taken.get(item, "open"),
                     "actions": acts})
+    return out
+
+
+def start_map(tables: list[dict], rels: list[dict], open_ids: set[str], taken: dict[str, str]) -> dict:
+    """WB13 (#71): the start card's map: every table with its key, every link with its rule and its state for the
+    person: accepted (a decision, or a link the names prove), open (it waits for a decision) or rejected. Drawn small
+    first (mcp_apps_pictures.mini_map) when there are more than six tables."""
+    from . import mcp_apps_pictures as pictures
+    out_rels = []
+    for r in rels:
+        rid = "rel:" + r["id"]
+        state = taken.get(rid) or ("open" if rid in open_ids else r.get("review") or "proposed")
+        out_rels.append({**r, "review": {"skipped": "open"}.get(state, state)})
+    m = {"tables": tables, "relationships": out_rels, "checked": any(r.get("state") not in (None, "not_checked") for r in rels),
+         "reviewed": True, "rules": rule_words(r.get("rule") for r in rels)}
+    small = pictures.mini_map(m)
+    return {"map": m, **({"map_mini": small} if small else {})}
+
+
+def _review_summary(review: dict) -> str:
+    from . import review as _review
+    return _review.summary(review)
+
+
+def review_decisions(review: dict, c: dict) -> list[dict]:
+    """WB13 (#66): step 6 on your own data. The items review_plan's rule says wait for a person (review.needs_decision:
+    a failed or stale check, a weaker rule, an item left open), each with review_plan's own evidence (the item's
+    check counts) and its Accept, Reject and Skip buttons. A link with rows that point at nothing is accepted "with
+    quarantine": the silver notebook puts those rows in krusgraph_quarantine with the reason. Each button calls start
+    again with the decision in plan.decisions (and an accepted link in plan.confirmed); nothing is written to Fabric."""
+    from . import review as _review
+    taken = {str(d.get("item")): str(d.get("review")) for d in c.get("decisions") or [] if isinstance(d, dict)}
+    out = []
+    for it in _review.open_decisions(review, include=set(taken)):
+        item = it["id"]
+        failed = (it.get("check") or {}).get("status") == "failed"
+        link = {"source": it["source"], "source_cols": list(it["columns"]), "target": it["target"],
+                "target_cols": list(it.get("target_columns") or [])}
+        what = f"{it['source']}.{'+'.join(it['columns'])} {ARROW} {it['target']}"
+        q = f"Is {what} right? {_review.why_decide(it)}"
+        acts = []
+        labels = (("accepted", "Accept with quarantine" if failed else "Accept"), ("rejected", "Reject"), ("skipped", "Skip for now"))
+        for review_, label in labels:
+            args = _with_decision(c, item, review_, link)
+            acts.append({"kind": "decide", "decision": review_, "label": label, "who": "thinker", "tool": TOOL,
+                         "arguments": args, "item": item,
+                         "say": f"{label} {what}: run start with {_shown(args)}.",
+                         "ask": f"{label}: {what}."})
+        ev = _review.decision_evidence(it)
+        if failed:
+            ev.append("Accept with quarantine keeps the link; the silver step puts the rows that point at nothing in "
+                      "quarantine with the reason, so nothing is lost.")
+        out.append({"item": item, "question": q, "evidence": ev, "state": taken.get(item, "open"), "actions": acts,
+                    "rule": it.get("rule"), "check": (it.get("check") or {}).get("status", "not_checked")})
     return out
 
 
@@ -581,11 +684,26 @@ def _sample(step: str | None, c: dict | None = None) -> dict:
                         "say": f"Show the dry run again: run start with {_shown(back)}.", "ask": "Show the dry run again."})
     if c.get("decisions") and now in ("totals", "dry_run", "create"):
         found["decided"] = [_decided_line(x) for x in c["decisions"] if isinstance(x, dict)]
+    pic = {}
+    if now in ("map", "decide"):                         # WB13 (#71): the small map of the shop
+        taken = {str(x.get("item")): str(x.get("review")) for x in c.get("decisions") or [] if isinstance(x, dict)}
+        tables = [{"name": t["name"], "key": list(t.get("key") or []), "key_rule": t.get("key_rule") or "K3",
+                   "columns": len(t.get("columns") or [])} for t in p["tables"]]
+        rels = [{"id": f"{r['source']}.{'+'.join(r['source_cols'])}>{r['target']}", "source": r["source"],
+                 "source_cols": list(r["source_cols"]), "target": r["target"], "target_cols": list(r["target_cols"]),
+                 "rule": r["rule"], "review": "accepted"} for r in p["relationships"]]
+        for x in decisions:                              # the open suggestion is a link too, dashed until accepted
+            src, _, tgt = x["item"][4:].partition(">")
+            t, _, col = src.partition(".")
+            sug = next((s_ for s_ in p["suggestions"] if s_["table"] == t and s_["column"] == col), {})
+            rels.append({"id": f"{t}.{col}>{tgt}", "source": t, "source_cols": [col], "target": tgt,
+                         "target_cols": list(sug.get("target_cols") or []), "rule": "R5", "review": "proposed"})
+        pic = start_map(tables, rels, {x["item"] for x in decisions if x["state"] == "open"}, taken)
     nxt = _next_key(now)
     out = {"flow": PROMPT_TITLE, "sample": True, "step": {"n": n, "of": len(STEPS), "key": key, "title": title, "does": does},
            "path": _path(now, sample=True), "found": found,
            "note": "Synthetic shop sample (fabric_backend/seed.py): no Fabric is read and nothing is created.",
-           "actions": actions}
+           "actions": actions, **pic}
     out["done_line"] = _finished(out["path"])
     if now == "decide" and decisions:
         out["say"] = ((f"{len(waiting)} decision open. " if len(waiting) == 1 else f"{len(waiting)} decisions open. ")

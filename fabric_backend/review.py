@@ -233,6 +233,9 @@ def build(plan: Plan, base: Plan, source: dict, *, decisions: list[dict] | None 
                 for i, o in sorted(prev_items.items()) if i not in by_id and o["review"] != "proposed"]
         out["since_previous"] = {"previous_plan_id": previous.get("plan_id"), "changes": _diff(previous["snapshot"], snap),
                                  "decisions_no_longer_in_plan": gone, "source_differs": differs}
+    other = other_checks(checks) if checks else (previous or {}).get("other_checks") or {}
+    if other:                                                         # WB13 (#90): what the check counted beyond the items
+        out["other_checks"] = other
     out["arguments"] = carried_arguments(out)
     return out
 
@@ -252,6 +255,79 @@ def _questions(plan: Plan, items: list[dict], snap: dict) -> list[dict]:
         if it["review"] == "open":
             qs.append({"about": it["id"], "question": it["reason"] or f"Open: {it['id']}"})
     return qs
+
+
+# ------------------------------------------------------------------ WB13: what needs a person's decision ------------
+# Gustav's phone test of 19 November 2026 (#66): the start card's step 6 asks about the same items review_plan's card
+# does, with the same evidence. One rule decides which items need a person, here, for both cards and for the next steps
+# (next_rules.py): a link whose check failed or went stale, a link found by a weaker rule (a synonym, a code column or
+# the values alone, NEEDS_PERSON_RULES), and an item a person left open. A link the names prove (R0-R3, the SAP pack)
+# and passed its check does not wait for anyone; neither does a key.
+NEEDS_PERSON_RULES = ("R4", "R5", "R6")
+
+
+def needs_decision(it: dict) -> bool:
+    """True when this item waits for a person's accept or reject (see above)."""
+    if it.get("type") != "relationship" or it.get("review") not in ("proposed", "open"):
+        return False
+    status = (it.get("check") or {}).get("status")
+    return it.get("review") == "open" or status in ("failed", "stale") or it.get("rule") in NEEDS_PERSON_RULES
+
+
+def why_decide(it: dict) -> str:
+    """One plain sentence: why this link waits for a person."""
+    c = it.get("check") or {}
+    if c.get("status") == "failed":
+        return "Some rows point at nothing, so a person decides whether the link is right."
+    if c.get("status") == "stale":
+        return "The tables changed since the check, so the old count no longer counts."
+    return {"R4": "Only a synonym of the name links it, so a person confirms it.",
+            "R5": "A code column, linked by counting its values in the rows, so a person confirms it.",
+            "R6": "Linked by its values alone (every value was found), so a person confirms it."}.get(
+        str(it.get("rule")), "A person left it open.")
+
+
+def decision_evidence(it: dict) -> list[str]:
+    """The counted evidence under a decision, from the item's own check: never a row value."""
+    c = it.get("check") or {}
+    r = c.get("result") or {}
+    if c.get("status") not in ("passed", "failed", "stale") or "rows_with_value" not in r:
+        return ["Not counted yet: Check against the rows counts it."]
+    n, o = int(r.get("rows_with_value") or 0), int(r.get("orphans") or 0)
+    tgt = f"{it['target']}.{'+'.join(it.get('target_columns') or [])}"
+    pct = round(100 * (n - o) / n) if n else 0
+    out = [f"{n - o} of {n} {it['source']}.{'+'.join(it['columns'])} values found in {tgt} ({pct}%)."]
+    if o:
+        out.append(f"{o} {'row points' if o == 1 else 'rows point'} at nothing.")
+    if c.get("status") == "stale":
+        out.append(f"Counted before a change ({c.get('stale_because')}).")
+    return out
+
+
+def open_decisions(review: dict, include: set[str] | None = None) -> list[dict]:
+    """The items that need a person (needs_decision), plus any in `include` (decided on the card, shown with their
+    state): a failed check first, then the rest by id."""
+    keep = set(include or ())
+    out = [it for it in review.get("items") or [] if needs_decision(it) or it.get("id") in keep]
+    return sorted(out, key=lambda it: ((it.get("check") or {}).get("status") != "failed", it["id"].lower()))
+
+
+def other_checks(checks: dict | None) -> dict:
+    """WB13 (#90): what validate_plan counted that the review's items do not list: the other joins (plan.extended: on a
+    non-key column, valid on a date, or filtered) and the header amounts. Counts only."""
+    if not checks:
+        return {}
+    from .evidence import _amount_items, _amount_status, _rel_status
+    ext = [r for r in checks.get("relationships") or [] if r.get("kind")]
+    amounts = [_amount_status(a) for a in _amount_items(checks)]
+    out = {}
+    if ext:
+        st = [_rel_status(r) for r in ext]
+        out["other_joins"] = {"checked": len(ext), "passed": st.count("passed"),
+                              "failed": st.count("failed") + st.count("warning"), "not_counted": st.count("not_counted")}
+    if amounts:
+        out["header_amounts"] = {"checked": len(amounts), "repeat_on_every_line": amounts.count("failed")}
+    return out
 
 
 # ------------------------------------------------------------------ what needs attention, and the report -------------
@@ -334,7 +410,26 @@ def summary(review: dict) -> str:
     return (f"{n(lambda it: it['type'], 'key')} keys and {n(lambda it: it['type'], 'relationship')} relationships: "
             f"{n(rv, 'accepted')} accepted, {n(rv, 'rejected')} rejected, {n(rv, 'open')} open, {n(rv, 'proposed')} still "
             f"proposed; checks: {n(ck, 'passed')} passed, {n(ck, 'failed')} failed, {n(ck, 'stale')} stale, "
-            f"{n(ck, 'not_checked')} not checked.")
+            f"{n(ck, 'not_checked')} not checked." + _other_words(review.get("other_checks")))
+
+
+def _other_words(other: dict | None) -> str:
+    """WB13 (#90): the check card counts links as the key links plus the other joins, and the header amounts; the
+    review lists the key links. Said in words so the two cards' numbers can be put side by side."""
+    if not other:
+        return ""
+    parts = []
+    j = other.get("other_joins") or {}
+    if j.get("checked"):
+        parts.append(f"{j['checked']} other {'join' if j['checked'] == 1 else 'joins'} (on a non-key column, valid on a "
+                     f"date, or filtered): {j.get('passed', 0)} passed, {j.get('failed', 0)} failed"
+                     + (f", {j['not_counted']} not counted (no row has a value)" if j.get("not_counted") else ""))
+    a = other.get("header_amounts") or {}
+    if a.get("checked"):
+        bad = int(a.get("repeat_on_every_line") or 0)
+        parts.append(f"{a['checked']} header {'amount' if a['checked'] == 1 else 'amounts'}: {bad} "
+                     f"{'repeats' if bad == 1 else 'repeat'} on every line")
+    return (" The check also counted " + "; ".join(parts) + ", which the review does not list as items.") if parts else ""
 
 
 def answer(review: dict, limit: int) -> str:

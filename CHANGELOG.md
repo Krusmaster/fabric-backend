@@ -9,6 +9,13 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round WB13: **the chat cards after Gustav's phone test of 19 November 2026** (`docs/CHAT-TEST-2026-11-19.md`, issues
+  #66, #71, #76 and #89-#93). Every card reports the height of its content, also after a section opens or closes
+  (`mcp_apps_size.py`); the check results travel into the review and each card says what its numbers count; every
+  card ends with the one most useful next step first, chosen by fixed rules from the plan state (`next_rules.py`);
+  step 6 of the start card asks about each open link on your own data, with review_plan's evidence; a map of more
+  than eight tables is drawn small first with "Show the map"; the Turtle file sits behind "Show the ontology file";
+  the next-step buttons come right after the summary; step 1 says what each workspace holds where documented APIs say it.
 - Round DA2: **data agent topics and example-query templates from checked joins.** `create_data_agent` now also writes
   one topic file per business area (Fabric preview, SQL sources on the preview runtime; Staging - Upload Datasource
   Topic) with the tables, what their fields point at, the joins validate_plan counted with their match rates, and the

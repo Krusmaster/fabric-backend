@@ -151,13 +151,21 @@ def structured(fn, name: str | None = None):
             pass
         lead = None
         if isinstance(answer, dict) and name not in STRUCTURED:      # n227: every other tool gets its kg_card, nothing else
+            from . import mcp_apps_next as _nxt, next_rules          # WB13 (#91): a draft on the path gets its next steps
+            if name in next_rules.TOOLS and not answer.get("error"):
+                try:
+                    todo = _nxt.steps(name, call, answer)
+                    if todo:
+                        extra["next"] = todo
+                except Exception:                                    # noqa: BLE001 - the answer stands without them
+                    pass
             return call_result(out, extra or None)
         if isinstance(answer, dict):                                 # n218: next steps as buttons, the result first
             from . import mcp_apps_next as nxt
             try:
                 import inspect as _inspect
                 call = _inspect.signature(fn).bind_partial(*args, **kwargs).arguments
-                todo = nxt.steps(name, call, answer)
+                todo = nxt.steps(name, call, answer, stash.get("checks") if name == "validate_plan" else None)
                 if todo:
                     extra["next"] = todo
                 if name == "validate_plan" and stash.get("checks"):
@@ -215,7 +223,8 @@ def card_html() -> str:
     from . import mcp_apps_pictures as pictures              # n170: the map, drawn the way the chat demo draws it
     pic = pictures.html_parts()
     from . import mcp_apps_next as nxt                       # n218: next steps as buttons, every key and link's state
-    return (_HTML.replace("__ALLOWED__", allowed).replace("__PROTOCOL__", PROTOCOL_VERSION)
+    from .mcp_apps_size import SIZE_JS                   # WB13 (#89): the content's height, every card
+    return (_HTML.replace("__SIZE_JS__", SIZE_JS).replace("__ALLOWED__", allowed).replace("__PROTOCOL__", PROTOCOL_VERSION)
             .replace("__STEP_LABEL__", json.dumps({t: STEP_LABEL[t] for t in NEXT_STEP_TOOLS}, separators=(",", ":"))).replace("__PICTURES__", pic["section"])
             .replace("__READ_JS__", READ_JS + CALL_JS + RESULT_JS + nxt.js() + mcp_apps_build.actions_js() + pic["js"])
             .replace("__MASCOT_CSS__", mascots.CSS).replace("__RESULT_CSS__", RESULT_CSS + nxt.NEXT_CSS + mcp_apps_build.ACTIONS_CSS + pic["css"]).replace("__MASCOT_TOGGLE__", mascots.TOGGLE)
@@ -312,6 +321,9 @@ CALL_JS = r"""
 # shape, not by the tool's name, so the review card names no tool but review_plan. resultView(tool, result) gives the
 # element; both cards use it.
 RESULT_CSS = """
+.res-file > summary { cursor: pointer; color: var(--kg-muted); font-size: 13.5px }
+details.res-file pre.res-file-pre { white-space: pre; overflow-wrap: normal; word-break: normal; overflow: auto; max-height: 320px; max-width: 100%;
+  margin-top: 4px; font-size: 12px }
 .res-box { display: grid; gap: 4px; min-width: 0 }
 .res-box .res { margin: 0; padding-left: 18px }
 .res-box .res li { overflow-wrap: anywhere }
@@ -427,7 +439,17 @@ RESULT_JS = r"""
     } else {
       box.appendChild(el("p", readable(text) ? (text.length > 400 ? text.slice(0, 400) + "…" : text) : "It answered; the answer is under Show details."));
     }
-    if (isObj(d) && isObj(d.ontology)) { var fig = ontoSvg(d.ontology); if (fig) box.appendChild(fig); }
+    if (isObj(d) && isObj(d.ontology)) {                       // WB13 (#71): a big ontology is drawn small first
+      var fig = ontoSvg(isObj(d.ontology_mini) ? d.ontology_mini : d.ontology);
+      if (fig) box.appendChild(fig);
+      if (fig && isObj(d.ontology_mini) && typeof kgFull === "function") kgFull(box, d.ontology_mini, d.ontology, function (into, o) { return ontoSvg(o); }, "entity types");
+    }
+    if (isObj(d) && typeof d.ttl === "string" && d.ttl.trim()) {  // WB13 (#92): the Turtle file closed, scrolling sideways
+      var tf = el("details", null, "res-file"), nl = d.ttl.split("\n").length;
+      tf.appendChild(el("summary", "Show the ontology file (Turtle, " + nl + " lines)"));
+      tf.appendChild(el("pre", d.ttl, "res-file-pre"));
+      box.appendChild(tf);
+    }
     if (text || d) box.appendChild(detailsView(tool, d, text));
     return box;
   }
@@ -488,9 +510,9 @@ __RESULT_CSS__
 <main>
   <div class="kg-head"><h1>Plan check</h1>__MASCOT_TOGGLE__</div>
   <p class="muted" role="status"><span id="verdict">Checking the plan against the rows…</span><span id="result" hidden></span></p>
+  <section id="nextsteps" hidden></section>
   __MASCOTS__
   <dl id="counts" class="counts" hidden></dl>
-  <section id="nextsteps" hidden></section>
   __PICTURES__
   <section id="checks" hidden></section>
   <section id="attention" hidden><h2 class="muted">Needs attention</h2><ul id="attention-list"></ul><p id="attention-none" hidden>Nothing needs attention.</p></section>
@@ -593,7 +615,8 @@ __READ_JS__
     document.getElementById("next").hidden = !steps.children.length;
     // n172: folded under "More" when the card has its own words and the Builder's builds; an answer without them (a
     // text result, an older server) keeps the drafts open, so the Builder's sentence stays on the card.
-    document.getElementById("next").open = !readable(words.builder);
+    // WB13 (#91): folded too when the card leads with its rule-based next steps
+    document.getElementById("next").open = !readable(words.builder) && !(Array.isArray(data.next) && data.next.length);
 
     // n169: the Builder's buttons from the answer's `actions`: each build is a dry run first, Create only on its card
     var build = document.getElementById("build"); build.textContent = "";
@@ -638,11 +661,7 @@ __READ_JS__
     else if (m.method === "ping" && m.id != null) send({ jsonrpc: "2.0", id: m.id, result: {} });
   });
 
-  var last = 0;
-  function reportSize() {
-    var h = Math.ceil(document.documentElement.scrollHeight), w = Math.ceil(document.documentElement.scrollWidth);
-    if (h !== last) { last = h; notify("ui/notifications/size-changed", { width: w, height: h }); }
-  }
+__SIZE_JS__
   request("ui/initialize", {
     appInfo: { name: "Krusgraph plan check", version: "1" },
     appCapabilities: { availableDisplayModes: ["inline"] },
@@ -650,8 +669,7 @@ __READ_JS__
   }).then(function (r) {
     hostStarted(r);
     notify("ui/notifications/initialized");
-    reportSize();
-    if (window.ResizeObserver) new ResizeObserver(reportSize).observe(document.body);
+    watchSize();
   }, function () { document.getElementById("verdict").textContent = "The host did not start the card; the answer is in the text of the tool result."; });
 })();
 </script>

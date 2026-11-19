@@ -687,7 +687,8 @@ def card_html() -> str:
     from . import mcp_apps_pictures as pictures
     pic = pictures.html_parts()
     from . import mcp_apps_next as nxt                       # n218: next steps as buttons
-    return (_HTML.replace("__PROTOCOL__", mcp_apps.PROTOCOL_VERSION)
+    from .mcp_apps_size import SIZE_JS                   # WB13 (#89)
+    return (_HTML.replace("__SIZE_JS__", SIZE_JS).replace("__PROTOCOL__", mcp_apps.PROTOCOL_VERSION)
             .replace("__PICTURES__", pic["section"])
             .replace("__READ_JS__", mcp_apps.READ_JS + mcp_apps.CALL_JS + mcp_apps.RESULT_JS + nxt.js() + actions_js() + pic["js"] + dbt_flow_js())
             .replace("__MASCOT_CSS__", mascots.CSS).replace("__RESULT_CSS__", mcp_apps.RESULT_CSS + nxt.NEXT_CSS + ACTIONS_CSS + pic["css"])
@@ -734,10 +735,10 @@ __RESULT_CSS__
 <main>
   <div class="kg-head"><h1 id="title">Plan and build</h1>__MASCOT_TOGGLE__</div>
   <p class="muted" role="status" id="verdict">Waiting for the tool's answer.</p>
-  __MASCOTS__
-  __PICTURES__
-  <div id="answer"></div>
   <div id="next"></div>
+  __MASCOTS__
+  <div id="answer"></div>
+  __PICTURES__
   <p class="muted">The same answer is in the text of the tool result. A button asks the host to run that step, and the host may ask you first; a build always shows its dry run before Create.</p>
 </main>
 <script>
@@ -866,11 +867,7 @@ __READ_JS__
     else if (m.method === "ping" && m.id != null) send({ jsonrpc: "2.0", id: m.id, result: {} });
   });
 
-  var last = 0;
-  function reportSize() {
-    var h = Math.ceil(document.documentElement.scrollHeight), w = Math.ceil(document.documentElement.scrollWidth);
-    if (h !== last) { last = h; notify("ui/notifications/size-changed", { width: w, height: h }); }
-  }
+__SIZE_JS__
   request("ui/initialize", {
     appInfo: { name: "Krusgraph plan and build", version: "1" },
     appCapabilities: { availableDisplayModes: ["inline"] },
@@ -879,8 +876,7 @@ __READ_JS__
     hostStarted(r);
     if (isObj(r) && isObj(r.hostContext) && isObj(r.hostContext.toolInfo) && isObj(r.hostContext.toolInfo.tool)) tool = r.hostContext.toolInfo.tool.name || "";
     notify("ui/notifications/initialized");
-    reportSize();
-    if (window.ResizeObserver) new ResizeObserver(reportSize).observe(document.body);
+    watchSize();
   }, function () { document.getElementById("verdict").textContent = "The host did not start the card; the answer is in the text of the tool result."; });
 })();
 </script>

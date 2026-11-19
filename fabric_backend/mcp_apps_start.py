@@ -76,10 +76,13 @@ def add_to(apps) -> None:
 
 def card_html() -> str:
     from . import mcp_apps_next as nxt
-    return (_HTML.replace("__PROTOCOL__", mcp_apps.PROTOCOL_VERSION)
-            .replace("__ALLOWED__", json.dumps(ALLOWED, separators=(",", ":")))
-            .replace("__READ_JS__", mcp_apps.READ_JS + mcp_apps.CALL_JS + mcp_apps.RESULT_JS + nxt.js())
-            .replace("__MASCOT_CSS__", mascots.CSS).replace("__RESULT_CSS__", mcp_apps.RESULT_CSS + nxt.NEXT_CSS + START_CSS)
+    from . import mcp_apps_pictures as pictures           # WB13 (#71): the small map, the review card's drawing
+    from .mcp_apps_size import SIZE_JS                   # WB13 (#89)
+    pic = pictures.html_parts()
+    return (_HTML.replace("__SIZE_JS__", SIZE_JS).replace("__PROTOCOL__", mcp_apps.PROTOCOL_VERSION)
+            .replace("__ALLOWED__", json.dumps(ALLOWED, separators=(",", ":"))).replace("__PICTURES__", pic["section"])
+            .replace("__READ_JS__", mcp_apps.READ_JS + mcp_apps.CALL_JS + mcp_apps.RESULT_JS + nxt.js() + pic["js"])
+            .replace("__MASCOT_CSS__", mascots.CSS).replace("__RESULT_CSS__", mcp_apps.RESULT_CSS + nxt.NEXT_CSS + pic["css"] + START_CSS)
             .replace("__MASCOT_TOGGLE__", mascots.TOGGLE).replace("__MASCOTS__", mascots.section())
             .replace("__MASCOT_JS__", mascots.JS))
 
@@ -158,10 +161,11 @@ __RESULT_CSS__
 <main id="main">
   <div class="kg-head"><h1 id="title">Start Krusgraph</h1>__MASCOT_TOGGLE__</div>
   <p class="muted" role="status" id="verdict">Waiting for the tool's answer.</p>
+  <div id="next"></div>
+  <div id="answer"></div>
+  __PICTURES__
   __MASCOTS__
   <ol class="st-path" id="path" aria-label="The steps"></ol>
-  <div id="answer"></div>
-  <div id="next"></div>
   <div class="muted" id="honest"></div>
 </main>
 <script>
@@ -357,6 +361,7 @@ __READ_JS__
     }
     if (strings(d.decided).length) { answer.appendChild(el("p", "Your decisions", "muted")); answer.appendChild(listOf(strings(d.decided))); }
     if (Array.isArray(d.would_build)) answer.appendChild(listOf(d.would_build.filter(isObj).map(function (w) { return w.name + ": " + w.what; })));
+    if (typeof drawPictures === "function") drawPictures({ map: d.map, map_mini: d.map_mini }, {});   // WB13 (#71)
     var flow = Array.isArray(d.data_flow) ? d.data_flow : (isObj(d.found) && Array.isArray(d.found.data_flow) ? d.found.data_flow : null);
     if (flow) { answer.appendChild(el("p", "The data flow", "muted")); answer.appendChild(listOf(flow)); }
     var acts = el("section", null, "st-acts"); acts.setAttribute("aria-label", "This step");
@@ -370,6 +375,10 @@ __READ_JS__
       w.appendChild(nb); if (readable(d.next_waits.why)) w.appendChild(el("span", d.next_waits.why, "muted")); acts.appendChild(w);
     }
     if (acts.childNodes.length) next.appendChild(acts);
+    // WB13 (#93): the step's buttons come right after its sentence; on step 6 the decisions (each with its own buttons)
+    // come first and Next, secondary until they are answered, after them
+    var decides = isObj(d.found) && Array.isArray(d.found.decisions) && d.found.decisions.length;
+    if (decides) next.parentNode.insertBefore(answer, next); else answer.parentNode.insertBefore(next, answer);
     if (readable(d.honest)) {                                             // WB12 (#72): in full once, then one line
       if (d.honest_open || !readable(d.honest_short)) honest.textContent = d.honest;
       else {
@@ -396,13 +405,7 @@ __READ_JS__
     else if (m.method === "ping" && m.id != null) send({ jsonrpc: "2.0", id: m.id, result: {} });
   });
 
-  var last = 0;
-  // WB12 (#68): the height of the content (main), never the frame's: documentElement.scrollHeight is at least the
-  // frame's own height, so a frame made tall once never shrank
-  function reportSize() {
-    var m = document.getElementById("main"), h = Math.ceil(m.getBoundingClientRect().height), w = Math.ceil(m.getBoundingClientRect().width);
-    if (h !== last) { last = h; notify("ui/notifications/size-changed", { width: w, height: h }); }
-  }
+__SIZE_JS__
   request("ui/initialize", {
     appInfo: { name: "Krusgraph start", version: "1" },
     appCapabilities: { availableDisplayModes: ["inline"] },
@@ -411,9 +414,7 @@ __READ_JS__
     hostStarted(r);
     if (isObj(r) && isObj(r.hostContext) && isObj(r.hostContext.toolInfo) && isObj(r.hostContext.toolInfo.tool)) tool = r.hostContext.toolInfo.tool.name || "";
     notify("ui/notifications/initialized");
-    reportSize();
-    if (window.ResizeObserver) new ResizeObserver(reportSize).observe(document.getElementById("main"));
-    document.addEventListener("toggle", reportSize, true);
+    watchSize();
   }, function () { document.getElementById("verdict").textContent = "The host did not start the card; the answer is in the text of the tool result."; });
 })();
 </script>
