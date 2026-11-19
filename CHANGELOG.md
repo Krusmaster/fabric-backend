@@ -9,6 +9,17 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round AP2: **the analysis pack, phase 1** (Gustav's yes of 18 November 2026 to the design's phase 1). Two new tools,
+  local and hosted: `analysis_plan` ranks ten SAP order-to-cash analyses by deterministic rules over the plan and counts
+  of the rows (never a value; no AI), each with readiness ready/partial/missing, a score, "Recommended because …", what
+  is missing, the tables and columns used and the next step, plus `land_next`; `analysis_notebook_draft` writes the
+  Fabric notebook for A7 forecasting, A8 RFM segmentation or A3 ABC/XYZ, wired to those tables, with a data check and
+  every run logged to an ML experiment (MLflow; AutoML for A7, k-means for A8); it creates and runs nothing. Rules as
+  data in `fabric_backend/analysis/o2c.json`. New `fabric_backend/sap_demo36.py`: a seeded synthetic SAP demo with the
+  same 17 tables over 36 months (300 customers, 500 materials), as a Fabric notebook (dry run by default, writes only
+  its own schema, default `sap_demo36`) and a small CSV sample in `examples/sap_demo36/`. Read-only listing cap raised
+  from 75 900 to 81 000 characters for the two tools. `docs/ANALYSIS-PLAN.md`; tests `tests/test_ap2_*.py`, goldens
+  `tests/golden/ap2_*.json`, a PySpark case in `tests/test_spark_notebooks.py`. Not yet run in Fabric.
 - Round AP2: **a blank partner field in SAP data is no reference, not an orphan** (found 18 November 2026 in the live demo run of
   `sap_lt1_pipeline`, where the silver notebook quarantined 5 `sap_vbpa` rows whose `KUNNR` or `PARNR` was blank). The
   silver notebook (and `silver.simulate`) and the pipeline's check notebook now count a NULL, a blank (`''` or spaces) or,

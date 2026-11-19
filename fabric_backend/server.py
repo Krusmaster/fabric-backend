@@ -15,7 +15,7 @@ Authentication, in order:
      "custom connection" model Lovable's Fabric connector uses: one principal, no per-user identity.
 The server stores nothing: no tokens beyond their lifetime, no data, no query results.
 
-Tools (all annotated for the Claude directory): forty-five, from start to qlik_reconcile_draft; docs page
+Tools (all annotated for the Claude directory): forty-seven, from start to analysis_notebook_draft; docs page
 /docs lists them. Around every tool: fair-use limits (limits.py), anonymous usage counts (usage.py) and the dormant paid-plan
 check (entitlements.py).
 """
@@ -2468,6 +2468,41 @@ def _lakehouse_only(info: dict, tool: str) -> str | None:
                                 f"{info.get('item_kind')}.", "kind": "unsupported",
                        "hint": "Add the tables to a lakehouse as OneLake shortcuts (Get data -> New shortcut) and plan that lakehouse; "
                                "the notebook then reads them through the shortcuts and writes the silver tables beside them."}, indent=2)
+
+
+@mcp.tool(title="Which SAP analyses this data supports, by rules", annotations=RO)
+@safe
+def analysis_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", keys: _p.Keys = None,
+                  confirmed: _p.Confirmed = None, profile: _p.AnalysisProfile = True, weights: _p.AnalysisWeights = None,
+                  document_types: _p.DocumentTypes = None, max_items: _p.AnalysisMaxItems = 20, ctx: Context = None) -> str:
+    """Ranks ten SAP order-to-cash analyses by rules over the plan and row counts (no AI). Returns JSON: readiness,
+    score, reasons, what is missing, tables used, next step. Read-only. Errors: {error, kind, hint}."""
+    from . import analysis_plan as _ap
+    s, execute = _connected(workspace, source, schema, ctx)
+    try:
+        p = _hosted_plan(s, keys, confirmed, execute)
+        out = _ap.recommend(p, execute if profile else None, weights, document_types, max(1, min(int(max_items), 60)), "o2c", bool(profile))
+    finally:
+        getattr(execute, "close", lambda: None)()
+    return _compact.bounded(out, MAX_RESULT_CHARS)
+
+
+@mcp.tool(title="Draft a Fabric Data Science notebook for a recommended analysis (nothing created)", annotations=RO)
+@safe
+def analysis_notebook_draft(workspace: _p.Workspace, source: _p.Source, analysis: _p.Analysis, schema: _p.Schema = "dbo",
+                            output_schema: _p.OutputSchema = "krusgraph_analysis", keys: _p.Keys = None, confirmed: _p.Confirmed = None,
+                            weights: _p.AnalysisWeights = None, document_types: _p.DocumentTypes = None, ctx: Context = None) -> str:
+    """Drafts the notebook for A7, A8 or A3 wired to the SAP tables (MLflow, data check). Returns JSON with the
+    steps and the notebook. Creates and runs nothing. Errors: {error, kind, hint}."""
+    from . import analysis_notebook as _an, analysis_plan as _ap
+    _, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
+    s, execute = _connected(workspace, source, schema, ctx)
+    try:
+        p = _hosted_plan(s, keys, confirmed, execute)
+        result = _ap.recommend(p, execute, weights, document_types)
+    finally:
+        getattr(execute, "close", lambda: None)()
+    return json.dumps(_an.draft(result, analysis, info, output_schema), indent=2)
 
 
 def _silver(workspace, source, schema, silver_schema, order_by, keys, confirmed, tables, ctx, show_personal_data=False, fixes=None):

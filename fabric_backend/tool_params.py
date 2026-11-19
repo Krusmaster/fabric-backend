@@ -235,3 +235,11 @@ CatalogItems = Annotated[list[str] | None, _d(
 CatalogOwner = Annotated[str | None, _d('The data products\' owner, a person\'s name or e-mail. Default: not chosen yet.')]
 CatalogConfirm = Annotated[str | None, _d('With dry_run=false: the confirm value the dry run returned.')]
 CatalogCheckRows = Annotated[bool, _d('true (default): counts keys and orphans for the evidence line and the rules.')]
+
+# ------------------------------------------------------------------ AP2: analysis_plan, analysis_notebook_draft -------
+AnalysisProfile = Annotated[bool, _d('true (default) counts the rows (never a value); false: names only.')]
+AnalysisWeights = Annotated[dict[str, float] | None, _d('Your value per analysis, e.g. {"A2": 5}; 0-5.')]
+DocumentTypes = Annotated[dict[str, list[str]] | None, _d('Return/credit types, e.g. {"credit_billing_types": ["G2"]}.')]
+AnalysisMaxItems = Annotated[int, _d('Cap on counting queries, 1-60. Default 20.')]
+Analysis = Annotated[str, _d('A7 (forecasting), A8 (RFM) or A3 (ABC/XYZ).')]
+OutputSchema = Annotated[str, _d('Schema the notebook writes its one result table to.')]

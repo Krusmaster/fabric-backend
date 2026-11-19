@@ -564,3 +564,47 @@ def test_ap2_blank_sap_partners_stay_in_silver_and_the_real_orphan_is_quarantine
             assert out["holds"] and out["orphans"] == 0, out
     finally:
         spark.stop()
+
+
+def test_ap2_demo36_notebook_and_the_three_analysis_notebooks_run_in_pyspark(tmp_path, capsys):
+    """AP2: the 36-month synthetic SAP demo notebook writes nothing on its default dry run, refuses dbo, then writes the
+    17 tables in its own schema; on those tables the notebooks for A7, A8 and A3 run every cell, pass the data check
+    against analysis_plan's counts and write their one marked table each. MLflow, statsmodels, FLAML and scikit-learn
+    are not installed here, so each says it was skipped (never silently); Fabric's runtime has them."""
+    pytest.importorskip("pyspark")
+    from fabric_backend import analysis_notebook, analysis_plan, sap_demo36
+    spark = _spark(tmp_path, "krusgraph-ap2-analysis")
+    try:
+        cells = sap_demo36.notebook_cells(target_schema="sap")
+        _run_cells(spark, cells, 'TABLE_FORMAT = "parquet"')                       # DRY_RUN = True: nothing written
+        assert not spark.catalog.tableExists("sap.sap_vbrk")
+        with pytest.raises(ValueError, match="is refused"):
+            _run_cells(spark, cells, 'TABLE_FORMAT = "parquet"; DRY_RUN = False; TARGET_SCHEMA = "dbo"')
+        _run_cells(spark, cells, 'TABLE_FORMAT = "parquet"; DRY_RUN = False')
+        assert spark.read.table("sap.sap_vbrp").count() == len(sap_demo36.tables()["VBRP"][2])
+        s, execute = sap_demo36.sqlite()
+        result = analysis_plan.recommend(plan(s), execute)
+        info = dict(workspace_id="w", item_id="lh-1", item_name="demo_lh", schema="sap", schemas_enabled=True)
+        expected = {"A7": None, "A8": 293, "A3": 492}
+        capsys.readouterr()
+        for a in analysis_notebook.ANALYSES:
+            _run_cells(spark, analysis_notebook.cells(analysis_notebook.spec(result, a, info)), 'TABLE_FORMAT = "parquet"')
+            out = spark.read.table(f"krusgraph_analysis.{analysis_notebook.OUTPUT[a]}")
+            if expected[a] is not None:
+                assert out.count() == expected[a], a
+            printed = capsys.readouterr().out
+            assert "MLflow is not installed here" in printed and "differs" not in printed, a
+            skipped = {"A7": "FLAML (AutoML) is not installed here", "A8": "scikit-learn is not installed here", "A3": "not logged (no MLflow)"}
+            assert skipped[a] in printed, a
+        forecast = spark.read.table("krusgraph_analysis.forecast_monthly")
+        assert {r["kind"] for r in forecast.collect()} == {"backtest", "forecast"}
+        classes = {r["abc"] for r in spark.read.table("krusgraph_analysis.abc_xyz").collect()}
+        assert classes == {"A", "B", "C"}
+        # a second run replaces only its own marked table; a foreign table of that name stops the notebook
+        spark.sql("CREATE SCHEMA IF NOT EXISTS other")
+        spark.createDataFrame([(1,)], "x int").write.format("parquet").saveAsTable("other.rfm_segments")
+        with pytest.raises(ValueError, match="was not written by this notebook"):
+            _run_cells(spark, analysis_notebook.cells(analysis_notebook.spec(result, "A8", info, output_schema="other")),
+                       'TABLE_FORMAT = "parquet"')
+    finally:
+        spark.stop()
