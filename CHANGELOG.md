@@ -9,6 +9,12 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round FA1: **`app_readiness` for a semantic model**, before an app is built from it in Power BI Desktop for Apps
+  (preview). With `semantic_model` (read with getDefinition, TMDL), the tool checks tables, measures, format
+  strings, relationships, keys and the date table, and names what Fabric's API cannot read (Build and Read permission,
+  three tenant settings, a workspace on Fabric capacity). Each check says whether it rests on a Microsoft Learn page
+  (linked), on Krusgraph's own rule, or on nothing Microsoft documents. The Model editor's next steps add "Build an app
+  in Power BI Desktop for Apps" (guide only) once a semantic model is built. Sources: `docs/APP-READINESS-MODEL.md`.
 - Round AP2: **the analysis pack, phase 1** (Gustav's yes of 18 November 2026 to the design's phase 1). Two new tools,
   local and hosted: `analysis_plan` ranks ten SAP order-to-cash analyses by deterministic rules over the plan and counts
   of the rows (never a value; no AI), each with readiness ready/partial/missing, a score, "Recommended because …", what
