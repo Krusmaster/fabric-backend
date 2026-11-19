@@ -188,7 +188,9 @@ def test_the_drawing_is_the_chat_demos_and_a_change_there_is_caught(tmp_path, mo
 
 def test_the_cards_stay_self_contained_and_small():
     for html in (mcp_apps.card_html(), mcp_apps_review.card_html(), build.card_html()):
-        assert len(html) < 126_000                       # n227: the shared result script (progress, words, the static ontology)
+        # n227: the shared result script (progress, words, the static ontology); WB13: + the content-height reporter, the
+        # small map with Show the map, the ontology file behind Show and the next step's reason (#71, #89, #91, #92)
+        assert len(html) < 130_000
         assert 'id="pictures"' in html and "kgDemoPicture" in html
         for bad in ("fetch(", "XMLHttpRequest", " src=", "@import", "url("):
             assert bad not in html

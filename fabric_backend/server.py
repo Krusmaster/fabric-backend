@@ -572,9 +572,16 @@ def _start_options(workspace: str, source: str, schema: str, sample: bool, ctx) 
         return None
     try:
         if now == "workspace":
-            items = [{"name": w["name"], "hint": "" if w.get("capacity_id") else "no capacity: nothing can run here"}
-                     for w in _workspaces(_headers(ctx)) if w.get("name")]
+            headers = _headers(ctx)
+            listed = [w for w in _workspaces(headers) if w.get("name")]
+            items = [{"name": w["name"], "hint": "" if w.get("capacity_id") else "no capacity: nothing can run here",
+                      "id": w.get("id")} for w in listed]
             items.sort(key=lambda x: (bool(x["hint"]), str(x["name"]).lower()))
+            hints = _workspace_hints([x["id"] for x in items if not x["hint"] and x.get("id")][:HINT_MAX], headers)
+            for x in items:                                      # WB13 (#76): "1 lakehouse, 17 tables" where known
+                wid = x.pop("id", None)
+                if not x["hint"] and hints.get(wid):
+                    x["hint"] = hints[wid]
         elif now == "source":
             listed = json.loads(list_sources(workspace, ctx=ctx))
             if not isinstance(listed, dict) or listed.get("error"):
@@ -591,6 +598,81 @@ def _start_options(workspace: str, source: str, schema: str, sample: bool, ctx) 
     return {"step": now, "items": items}
 
 
+# WB13 (#76): what each workspace holds, said under its name on step 1 ("1 lakehouse, 17 tables"). Only documented Fabric
+# REST APIs: Core "Items - List Items" (GET /v1/workspaces/{workspaceId}/items) and Lakehouse "Tables - List Tables"
+# (GET /v1/workspaces/{workspaceId}/lakehouses/{lakehouseId}/tables). Microsoft Learn says List Tables does not support
+# a lakehouse with schemas, and no documented REST call lists a warehouse's tables: there the hint names the items only,
+# never a guessed table count. At most HINT_MAX workspaces, HINT_WORKERS calls at a time, HINT_BUDGET seconds in all;
+# what is not answered by then gets no hint. Kept HINT_TTL seconds per sign-in (a digest of the token, in memory only).
+HINT_MAX, HINT_WORKERS, HINT_BUDGET, HINT_TTL = 12, 4, 4.0, 120
+_HINTS: dict = {}
+_HINT_WORDS = {"Lakehouse": ("lakehouse", "lakehouses"), "Warehouse": ("warehouse", "warehouses"),
+               "SQLDatabase": ("SQL database", "SQL databases"), "MirroredDatabase": ("mirrored database", "mirrored databases"),
+               "MirroredAzureDatabricksCatalog": ("mirrored catalog", "mirrored catalogs")}
+
+
+def _workspace_hint(wid: str, headers: dict) -> str:
+    """One workspace's hint, or "" when it cannot be said for sure."""
+    import requests
+    r = requests.get(f"{FABRIC}/v1/workspaces/{wid}/items", headers=headers, timeout=3)
+    if r.status_code != 200:
+        return ""
+    body = r.json() if r.content else {}
+    if body.get("continuationUri"):                       # a long workspace: one page only, so no count is promised
+        return ""
+    items = [it for it in body.get("value") or [] if it.get("type") in _HINT_WORDS]
+    if not items:
+        return "no lakehouse or warehouse"
+    counts: dict[str, int] = {}
+    for it in items:
+        counts[it["type"]] = counts.get(it["type"], 0) + 1
+    words = [f"{counts[t]} {_HINT_WORDS[t][0 if counts[t] == 1 else 1]}" for t in _HINT_WORDS if t in counts]
+    tables = 0
+    if set(counts) == {"Lakehouse"} and counts["Lakehouse"] <= 3:
+        for it in items:
+            t = requests.get(f"{FABRIC}/v1/workspaces/{wid}/lakehouses/{it['id']}/tables", headers=headers, timeout=3)
+            data = t.json() if t.status_code == 200 and t.content else None
+            if not isinstance(data, dict) or not isinstance(data.get("data"), list) or data.get("continuationUri"):
+                tables = None                               # schemas, an error or a long list: no number
+                break
+            tables += len(data["data"])
+    else:
+        tables = None
+    return ", ".join(words) + (f", {tables} {'table' if tables == 1 else 'tables'}" if tables is not None else "")
+
+
+def _workspace_hints(ids: list[str], headers: dict) -> dict[str, str]:
+    """{workspace id: hint} for the ids answered within HINT_BUDGET; nothing for the others."""
+    import hashlib
+    import time
+    from concurrent.futures import ThreadPoolExecutor, wait
+    who = hashlib.sha256(str(headers.get("Authorization", "")).encode()).hexdigest()[:16]
+    now, out, todo = time.monotonic(), {}, []
+    for wid in ids:
+        hit = _HINTS.get((who, wid))
+        if hit and now - hit[0] < HINT_TTL:
+            out[wid] = hit[1]
+        else:
+            todo.append(wid)
+    if not todo:
+        return out
+    pool = ThreadPoolExecutor(max_workers=HINT_WORKERS)
+    futures = {pool.submit(_workspace_hint, wid, headers): wid for wid in todo}
+    done, _ = wait(futures, timeout=HINT_BUDGET)
+    pool.shutdown(wait=False, cancel_futures=True)
+    for f in done:
+        try:
+            hint = f.result()
+        except Exception:                                    # noqa: BLE001 - no hint rather than a wrong one
+            continue
+        _HINTS[(who, futures[f])] = (time.monotonic(), hint)
+        if hint:
+            out[futures[f]] = hint
+    if len(_HINTS) > 2000:
+        _HINTS.clear()
+    return out
+
+
 @mcp.tool(title="Start Krusgraph: a guided path", annotations=START, structured_output=False)
 @safe
 def start(workspace: _p.StartPick = "", source: _p.StartPick = "", schema: _p.StartPick = "", step: _p.StartStep = "",
@@ -602,10 +684,30 @@ def start(workspace: _p.StartPick = "", source: _p.StartPick = "", schema: _p.St
     after}: each action is an existing tool; after is the next start call. Changes nothing. Errors: {error, kind, hint}."""
     plan = plan if isinstance(plan, dict) else {}
     options = _start_options(workspace, source, schema, bool(sample), ctx)
+    review = _start_review(workspace, source, schema, step, plan, bool(sample), ctx)
     return json.dumps(_start_flow.guide(workspace=workspace, source=source, schema=schema, step=step,
                                         keys=plan.get("keys"), confirmed=plan.get("confirmed"),
                                         decisions=plan.get("decisions"), create=create, confirm=confirm,
-                                        sample=sample, options=options), indent=2)
+                                        sample=sample, options=options, review=review), indent=2)
+
+
+def _start_review(workspace: str, source: str, schema: str, step: str, plan: dict, sample: bool, ctx) -> dict | None:
+    """WB13 (#66, #71): step 6 on your own data reads review_plan's file with the checks counted (counts only, no row
+    values), so the card can ask about each open link with its evidence; step 4 reads it without counting, for the small
+    map. None elsewhere; {error} when it cannot be read (the step
+    then keeps its Record my decisions button)."""
+    if sample:
+        return None
+    c = {"workspace": (workspace or "").strip() or None, "source": (source or "").strip() or None,
+         "schema": (schema or "").strip() or None}
+    now = _start_flow.current((step or "").strip().lower() or None, c)
+    if now not in ("map", "decide"):                        # step 4 draws the map, step 6 asks with the counts
+        return None
+    try:
+        return _review_file(c["workspace"], c["source"], c["schema"], plan.get("keys"), plan.get("confirmed"), None, None,
+                            now == "decide", None, 60, ctx)
+    except Exception as e:                                       # noqa: BLE001 - the step keeps its review_plan button
+        return {"error": (str(e) or type(e).__name__).splitlines()[0][:200]}
 
 
 @mcp.prompt(name=_start_flow.PROMPT, title=_start_flow.PROMPT_TITLE,
@@ -914,6 +1016,14 @@ def review_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = 
     """Builds a review file of the plan: each key and relationship with a review status and a check status, plus a
     Markdown report. Requires workspace and source. Returns JSON with the file, the report and what needs attention
     first, no row values. Changes nothing. Errors: {error, kind, hint}."""
+    from . import review as _review
+    rv = _review_file(workspace, source, schema, keys, confirmed, decisions, previous, validate, tables, max_items, ctx)
+    return _review.answer(rv, MAX_RESULT_CHARS)
+
+
+def _review_file(workspace, source, schema, keys, confirmed, decisions, previous, validate, tables, max_items, ctx) -> dict:
+    """review_plan's file (review.build), the one way it is made: review_plan's answer and, since WB13 (#66), the start
+    card's step 6 on your own data, which asks about the same items with the same evidence."""
     from datetime import datetime, timezone
     from . import review as _review
     prev = _review.read(previous) if previous else None
@@ -927,10 +1037,9 @@ def review_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = 
         checks = _evidence.validate(p, execute, max_items=max(1, min(int(max_items), 200))) if validate else None
     finally:
         getattr(execute, "close", lambda: None)()
-    rv = _review.build(p, base, {"platform": "fabric", "workspace": workspace, "source": source, "schema": schema},
-                       decisions=decisions, checks=checks, previous=prev, tables=sorted(keep) if keep is not None else None,
-                       checked_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%MZ"))
-    return _review.answer(rv, MAX_RESULT_CHARS)
+    return _review.build(p, base, {"platform": "fabric", "workspace": workspace, "source": source, "schema": schema},
+                         decisions=decisions, checks=checks, previous=prev, tables=sorted(keep) if keep is not None else None,
+                         checked_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%MZ"))
 
 
 @mcp.tool(title="Show a few rows of a table", annotations=RO)

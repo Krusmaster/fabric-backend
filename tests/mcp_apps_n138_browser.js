@@ -103,6 +103,11 @@ view.srcdoc = ${JSON.stringify(card).replace(/<\//g, "<\\/")};
       docWidth: document.documentElement.scrollWidth, viewWidth: document.documentElement.clientWidth,
       background: getComputedStyle(document.body).backgroundColor, text: document.body.innerText };
   });
+  // WB13 (#93): a big schema's column diagram and list of every key and link are folded on the card; opened here
+  if (await frame.locator("details.kg-fold").count()) {
+    await frame.locator("details.kg-fold").evaluateAll((ds) => ds.forEach((d) => { d.open = true; }));
+    await page.waitForTimeout(400);
+  }
   const before = await read();
   if (shot) await page.screenshot({ path: shot, fullPage: true });
   let after = null;

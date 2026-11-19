@@ -192,9 +192,12 @@ def plan_lines(f: dict) -> list[str]:
     return out
 
 
-def check_lines(answer: dict) -> list[str]:
-    """validate_plan's summary as short sentences, from its totals."""
+def check_lines(answer: dict, checks: dict | None = None) -> list[str]:
+    """validate_plan's summary as short sentences, from its totals. WB13 (#90): with the card's check rows (`checks`,
+    mcp_apps_next.check_rows) the links are split into key links and other joins, and the last line adds every check up
+    by kind, so the numbers can be put next to the review's."""
     t = answer.get("totals") if isinstance(answer.get("totals"), dict) else {}
+    rows = [x for x in (checks or {}).get("rows") or [] if isinstance(x, dict)] if isinstance(checks, dict) else []
     out = []
     k = t.get("keys") if isinstance(t.get("keys"), dict) else {}
     if k.get("checked"):
@@ -202,7 +205,10 @@ def check_lines(answer: dict) -> list[str]:
     r = t.get("relationships") if isinstance(t.get("relationships"), dict) else {}
     if r.get("checked"):
         failed = int(r.get("failed") or 0)
-        out.append(f"{r.get('passed', 0)} of {_plural(r['checked'], 'link')} hold"
+        other = sum(1 for x in rows if x.get("kind") == "link" and x.get("other"))
+        split = (f" ({r['checked'] - other} key {'link' if r['checked'] - other == 1 else 'links'} and {other} other "
+                 f"{'join' if other == 1 else 'joins'}: on a non-key column, valid on a date, or filtered)") if other else ""
+        out.append(f"{r.get('passed', 0)} of {_plural(r['checked'], 'link')} hold{split}"
                    + (", with no orphans." if not failed else f"; {failed} {'has' if failed == 1 else 'have'} rows that point at nothing."))
     a = t.get("amount_levels") if isinstance(t.get("amount_levels"), dict) else {}
     if a.get("checked"):
@@ -212,6 +218,19 @@ def check_lines(answer: dict) -> list[str]:
                    f"{'it' if bad == 1 else 'they'} must not be summed over the lines.")
     n = int(answer.get("needs_attention") or 0)
     out.append("Nothing needs attention." if not n else f"{_plural(n, 'thing needs', 'things need')} attention.")
+    if rows:                                                     # WB13 (#90): every check, added up by kind
+        def by(state):
+            kinds = {"key": ("key", "keys"), "link": ("link", "links"), "amount": ("header amount", "header amounts")}
+            parts = []
+            for kind, (one, many) in kinds.items():
+                m = sum(1 for x in rows if x.get("state") == state and x.get("kind") == kind)
+                if m:
+                    parts.append(f"{m} {one if m == 1 else many}")
+            return ", ".join(parts)
+        c = {s: sum(1 for x in rows if x.get("state") == s) for s in ("passed", "failed", "not_checked")}
+        line = f"In all: {c['passed']} passed, {c['failed']} failed" + (f" ({by('failed')})" if c["failed"] else "")
+        line += f", {c['not_checked']} not checked" + (f" ({by('not_checked')})." if c["not_checked"] else ".")
+        out.append(line)
     return out
 
 
@@ -620,7 +639,7 @@ def card(tool: str, answer: dict, stash: dict | None = None, call: dict | None =
         out["lines"] = plan_lines(f)
     elif tool == "validate_plan" and isinstance(answer.get("totals"), dict):
         out["title"] = "Plan check"
-        out["lines"] = check_lines(answer)
+        out["lines"] = check_lines(answer, stash.get("checks"))
     else:                                            # n227: every other answer, in one form
         try:
             out.update(summary_card(tool, answer, call))
