@@ -500,14 +500,21 @@
     "destructive_hint": false,
     "open_world_hint": true,
     "read_only_hint": true,
-    "title": "What an app still needs on a GraphQL API"
+    "title": "What an app still needs on an API or a model"
    },
-   "description": "Checks what an API for GraphQL item still needs before an app can use it: keys, relationships, write access,\nintrospection, permissions. Only for an API the user names; a schema's check is validate_plan. Requires workspace\nand an API. Returns JSON {api, endpoint, checks, missing, unknown, verdict}, each with its next step. Changes\nnothing. Errors: {error, kind, hint}.",
+   "description": "Checks what an app still needs. Only for an API the user names (keys, relationships, write access, introspection,\npermissions) or a semantic model an app will be built from in Power BI Desktop for Apps; a schema's check is\nvalidate_plan. Returns JSON {checks, missing, unknown, verdict}, each with its next step. Changes nothing.\nErrors: {error, kind, hint}.",
    "input_schema": {
     "properties": {
      "api": {
-      "description": "API for GraphQL item created by create_backend, by name or id.",
+      "default": "",
+      "description": "API for GraphQL item created by create_backend, by name or id. Default \"\".",
       "title": "Api",
+      "type": "string"
+     },
+     "semantic_model": {
+      "default": "",
+      "description": "Power BI semantic model, by name or id, instead of api. Default \"\".",
+      "title": "Semantic Model",
       "type": "string"
      },
      "workspace": {
@@ -517,8 +524,7 @@
      }
     },
     "required": [
-     "workspace",
-     "api"
+     "workspace"
     ],
     "title": "app_readinessArguments",
     "type": "object"
@@ -537,7 +543,7 @@
     "title": "app_readinessOutput",
     "type": "object"
    },
-   "title": "What an app still needs on a GraphQL API"
+   "title": "What an app still needs on an API or a model"
   },
   {
    "annotations": {

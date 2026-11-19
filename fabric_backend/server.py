@@ -3570,13 +3570,19 @@ def app_starter(workspace: _p.Workspace, api: _p.StarterApi, ctx: Context = None
     return json.dumps(_app_starter.starter(description, endpoint_url(workspace_id, api_id), api, workspace_id), indent=2)
 
 
-@mcp.tool(title="What an app still needs on a GraphQL API", annotations=RO)
+@mcp.tool(title="What an app still needs on an API or a model", annotations=RO)
 @safe
-def app_readiness(workspace: _p.Workspace, api: _p.StarterApi, ctx: Context = None) -> str:
-    """Checks what an API for GraphQL item still needs before an app can use it: keys, relationships, write access,
-    introspection, permissions. Only for an API the user names; a schema's check is validate_plan. Requires workspace
-    and an API. Returns JSON {api, endpoint, checks, missing, unknown, verdict}, each with its next step. Changes
-    nothing. Errors: {error, kind, hint}."""
+def app_readiness(workspace: _p.Workspace, api: _p.ReadinessApi = "", semantic_model: _p.ReadinessModel = "", ctx: Context = None) -> str:
+    """Checks what an app still needs. Only for an API the user names (keys, relationships, write access, introspection,
+    permissions) or a semantic model an app will be built from in Power BI Desktop for Apps; a schema's check is
+    validate_plan. Returns JSON {checks, missing, unknown, verdict}, each with its next step. Changes nothing.
+    Errors: {error, kind, hint}."""
+    if semantic_model:
+        return json.dumps(_model_app_readiness(workspace, semantic_model, ctx), indent=2)
+    if not api:
+        return json.dumps({"error": "Name the API for GraphQL (`api`) or the semantic model (`semantic_model`) the app is built on.",
+                           "kind": "bad_input", "hint": "list_sources lists the GraphQL APIs in a workspace; the Fabric portal shows its "
+                                                        "semantic models."}, indent=2)
     headers = _headers(ctx)
     workspace_id = _workspace_id(workspace, headers)
     api_id = _api_id(workspace_id, api, headers)
@@ -3596,6 +3602,30 @@ def app_readiness(workspace: _p.Workspace, api: _p.StarterApi, ctx: Context = No
     except ValueError:
         body = {}
     return json.dumps(_readiness.assess(description, _readiness.classify_probe(status, body), endpoint, api), indent=2)
+
+
+def _model_app_readiness(workspace: str, model: str, ctx) -> dict:
+    """FA1: app_readiness for a semantic model (model_readiness.py), read with getDefinition (TMDL)."""
+    from . import model_readiness as _mr
+    headers = _headers(ctx)
+    workspace_id = _workspace_id(workspace, headers)
+    item = {"id": model} if _GUID.match(model.strip()) else find_item_by_name(workspace_id, model, headers, ("SemanticModel",))
+    if not item:
+        return {"error": f"no semantic model named {model!r} in workspace {workspace}", "kind": "not_found",
+                "hint": "Check the name in the Fabric portal (the model's own name, not its report's), or pass its id."}
+    try:
+        parts = _item_definition_parts(workspace_id, "semanticModels", item["id"], headers, fmt="TMDL")
+    except requests.HTTPError as e:
+        status = int(getattr(e.response, "status_code", 0) or 0)
+        if status in (401, 403):
+            return {"error": f"Fabric refused reading the definition of {model!r} (HTTP {status}): it needs the delegated permission "
+                             f"{MODEL_READ_SCOPE} and write permission on the model.", "kind": "consent", "scope": MODEL_READ_SCOPE,
+                    "hint": "The operator adds the permission to the Entra app and an administrator consents (docs/SCOPES.md); it is "
+                            "the same one create_semantic_model needs."}
+        raise
+    out = _mr.assess(parts, model)
+    out["read_with"] = "Fabric getDefinition (TMDL)"
+    return out
 
 
 def _which_one(workspace_id: str, word: str, headers: dict) -> dict | None:

@@ -179,6 +179,8 @@ ExportNames = Annotated[dict[str, str] | None, _d(
     'drift_monitor_<schema>, gold_<schema>, pipeline_<schema> (its check notebook: <name>_check). '
     'Example: {"create_backend": "shop_api"}.')]
 StarterApi = Annotated[str, _d('API for GraphQL item created by create_backend, by name or id.')]
+ReadinessApi = Annotated[str, _d('API for GraphQL item created by create_backend, by name or id. Default "".')]
+ReadinessModel = Annotated[str, _d('Power BI semantic model, by name or id, instead of api. Default "".')]
 LineageTable = Annotated[str | None, _d('One table to trace: the answer adds what a change to it reaches. Default: none. '
                                         'Example: "orders".')]
 LineageFormat = Annotated[Literal["graph", "openlineage"], _d('"graph" (default) or "openlineage": one OpenLineage '
