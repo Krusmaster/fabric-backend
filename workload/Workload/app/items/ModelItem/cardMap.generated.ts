@@ -227,7 +227,7 @@
     return t;
   }
   function kgLabelLines(r) {
-    var top = r.rule || "";
+    var top = document.documentElement.getAttribute("data-coach") === "1" ? "" : r.rule || "";   // CO1: codes under Details
     if (r.state === "failed") top += " \u2715 " + kgPlural(Number(r.orphans) || 0, "orphan");
     else if (r.state === "passed") top += " \u2713";
     else if (r.state === "warning") top += " !";
@@ -235,7 +235,8 @@
     if (r.review === "rejected") top += " rejected";
     else if (r.review === "accepted") top += " accepted";
     else if (r.review === "open") top += " open";
-    return [top, kgPair(r)];
+    top = top.trim();
+    return top ? [top, kgPair(r)] : [kgPair(r)];
   }
   // svgText: the picture's inner SVG from the chat demo's picture(); labels: [{id, lines, cls, a, b}] drawn on top.
   // n172: each label sits on its own line: at the middle of the drawn segment (between the two tables' edges), else

@@ -41,7 +41,8 @@ import json
 TOOL = "start"
 PROMPT = "start"
 PROMPT_TITLE = "Start Krusgraph"
-VAGUE = ("start", "start Krusgraph", "help", "what can you do", "check my data")
+VAGUE = ("start", "start Krusgraph", "help", "what can you do", "check my data",
+         "help me with my SAP data in Fabric")                  # CO1: a plain sentence starts the path too
 
 # (key, title, reads or writes, the tool that runs it)
 STEPS = (

@@ -1,0 +1,5 @@
+Coach (step 2 of 8: Krusgraph reads the tables)
+Say in one or two short sentences, in plain words: Finding the keys and the links between your tables. I only read; nothing is changed.
+Offer one next step: Check against the rows = validate_plan(workspace="demo", source="demo_lh", schema="sap_silver").
+Only if asked, also: Create the ontology (dry run first); Create the semantic model (dry run first).
+No rule codes, key strings or file text unless the user asks; end with the one next step.

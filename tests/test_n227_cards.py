@@ -174,7 +174,9 @@ def test_every_tool_answers_with_its_words_when_the_flag_is_on_and_as_before_whe
     assert mcp_apps.registration("list_workspaces", on=False) == {} and mcp_apps.registration("validate_plan", on=False) == {}
     r = mcp_apps.structured(server.list_workspaces, "list_workspaces")()
     assert r.structured_content[words.KEY]["result"] == "1 workspace: demo."
-    assert len(r.content) == 1 and json.loads(r.content[0].text) == {k: v for k, v in r.structured_content.items() if k != words.KEY}
+    # CO1: the Coach block for the host model comes first, the JSON answer last, unchanged
+    assert len(r.content) == 2 and r.content[0].text.startswith("Coach (step 1 of 8: Choose data)")
+    assert json.loads(r.content[-1].text) == {k: v for k, v in r.structured_content.items() if k not in (words.KEY, "coach")}
     assert "next" not in r.structured_content                     # a card that ran it draws the words; nothing else is added
     s = mcp_apps.structured(server.list_sources, "list_sources")(workspace="demo")
     assert s.structured_content[words.KEY]["result"] == "2 sources: demo_lh (Lakehouse) and demo_wh (Warehouse)."

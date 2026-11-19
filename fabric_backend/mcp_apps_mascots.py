@@ -169,7 +169,7 @@ JS = r"""
       any = any || !row.hidden;
     });
     box.setAttribute("data-filled", any ? "1" : "");
-    box.hidden = !any || !mascotsOn;
+    box.hidden = !any || !mascotsOn || document.documentElement.getAttribute("data-coach") === "1";   // CO1: one line
     mascotsEcho();
   }
   // n172: what Onto says is not said twice. An element with data-echo="onto" holds the same sentences as Onto's bubble;
@@ -187,7 +187,8 @@ JS = r"""
       b.setAttribute("aria-pressed", mascotsOn ? "true" : "false");
       b.textContent = mascotsOn ? "Mascots: on" : "Mascots: off";
       var box = document.getElementById("kg-mascots");
-      box.hidden = !mascotsOn || !box.getAttribute("data-filled");
+      document.documentElement.setAttribute("data-mascots", mascotsOn ? "on" : "off");      // CO1: the coach's figure
+      box.hidden = !mascotsOn || !box.getAttribute("data-filled") || document.documentElement.getAttribute("data-coach") === "1";
       mascotsEcho();
     });
   })();

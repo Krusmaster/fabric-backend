@@ -189,8 +189,9 @@ def test_the_drawing_is_the_chat_demos_and_a_change_there_is_caught(tmp_path, mo
 def test_the_cards_stay_self_contained_and_small():
     for html in (mcp_apps.card_html(), mcp_apps_review.card_html(), build.card_html()):
         # n227: the shared result script (progress, words, the static ontology); WB13: + the content-height reporter, the
-        # small map with Show the map, the ontology file behind Show and the next step's reason (#71, #89, #91, #92)
-        assert len(html) < 130_000
+        # small map with Show the map, the ontology file behind Show and the next step's reason (#71, #89, #91, #92);
+        # CO1: + the coach's "Step N of 8" and its one mascot line (coachHead, about 2 kB)
+        assert len(html) < 134_000
         assert 'id="pictures"' in html and "kgDemoPicture" in html
         for bad in ("fetch(", "XMLHttpRequest", " src=", "@import", "url("):
             assert bad not in html
@@ -226,7 +227,8 @@ def test_the_validate_card_draws_the_map_with_states(fabric, tmp_path, theme):
     assert "st-failed" in cls[m["relationships"][0]["id"]] and "st-not_checked" in cls[m["relationships"][1]["id"]]
     assert sum("st-passed" in c for c in cls.values()) == len(m["relationships"]) - 2
     labels = {l["id"]: l["text"] for l in out["labels"]}
-    assert "3 orphans" in labels[m["relationships"][0]["id"]][0] and labels[m["relationships"][0]["id"]][0].startswith(m["relationships"][0]["rule"])
+    # CO1: with the coach on the card the map's labels leave the rule code out (it is under Details)
+    assert "3 orphans" in labels[m["relationships"][0]["id"]][0] and not labels[m["relationships"][0]["id"]][0].startswith(m["relationships"][0]["rule"])
     assert out["overlaps"] == 0 and out["keyMarks"] == 6 and out["noKeyTags"] == 1
     assert len(out["list"]) == 7 + 7 and any("3 orphans" in li for li in out["list"])
     assert out["svgWidth"] <= 720 and "7 tables" in out["svgLabel"]
