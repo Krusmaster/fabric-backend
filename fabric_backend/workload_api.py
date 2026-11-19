@@ -511,6 +511,18 @@ def pipeline_run_request(body) -> dict:
     return out
 
 
+_PRODUCT_DOING = {"status": "check this data product", "retire": "retire this data product",
+                  "leftovers": "look for leftovers", "adopt": "adopt items into this data product"}
+
+
+def _not_guid_words(action: str, bad: int, total: int) -> str:
+    """WB3 (finding F5 of docs/WORKLOAD-TEST-2026-11-17.md): a sentence for a person, not the field's name, when items
+    this Model recorded have no Fabric id. Real Fabric ids are GUIDs, so a person should not normally see it."""
+    which = "the item" if total == 1 else (f"all {total} items" if bad == total else f"{bad} of the {total} items")
+    return (f"Krusgraph cannot {_PRODUCT_DOING.get(action, 'do this')}: {which} this Model recorded "
+            f"{'has' if which == 'the item' else 'have'} no Fabric id it can look up, so nothing was checked or changed.")
+
+
 def product_request(body) -> dict:
     """n198: POST /workload/v1/product {action, workspace, item_id, outputs, product, plan_id, ...} (product_life.py):
     status, retire (scope soft or delete; dry_run true by default; confirm and typed_name for the real call), leftovers
@@ -534,9 +546,10 @@ def product_request(body) -> dict:
         if not isinstance(v, list) or len(v) > 500 or not all(isinstance(x, dict) for x in v):
             raise BadRequest(f"outputs.{k} must be a list of items")
         lists[k] = v
-    for c in lists["created"]:
-        if not isinstance(c.get("id"), str) or not _GUID.match(c["id"]) or not isinstance(c.get("workspace"), str) or not _GUID.match(c["workspace"]):
-            raise BadRequest("each of outputs.created has the Fabric id and workspace (GUIDs) Create recorded")
+    bad = [c for c in lists["created"]
+           if not isinstance(c.get("id"), str) or not _GUID.match(c["id"]) or not isinstance(c.get("workspace"), str) or not _GUID.match(c["workspace"])]
+    if bad:
+        raise BadRequest(_not_guid_words(action, len(bad), len(lists["created"])))
     jobs = o.get("pipeline_jobs") if isinstance(o.get("pipeline_jobs"), dict) else {}
     # n210: a schedule's id goes into a DELETE path, so one that is not a GUID is never used (it is left out, not followed)
     schedules = [s for s in jobs.get("schedules") or [] if isinstance(s, dict)

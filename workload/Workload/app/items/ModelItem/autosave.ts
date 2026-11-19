@@ -12,6 +12,11 @@
  *     session's decision wins (last write wins) and a warning says how many;
  *   - one line says Saving, Saved or Not saved, with a mark that is not only a colour (SaveIndicator.tsx).
  *
+ * WB3 (finding F6 of docs/WORKLOAD-TEST-2026-11-17.md, the founder's yes of 18 November 2026): each review decision
+ * (accept, reject, a key or link, Accept all) is saved this way; the line is quiet (Saving…, Saved); an autosave Fabric
+ * does not confirm is tried once more (AUTOSAVE_WAITS_MS), then one sentence says so and the decisions stay in the editor
+ * and in this browser, so Save still saves them. An autosave writes only the item's definition: it never starts Create.
+ *
  * Pure functions, no React and no Fabric client (autosave.test.ts). The draft holds what item.json and review.json hold:
  * names, rules and decisions, never a row value, a token or a secret.
  */
@@ -21,6 +26,9 @@ export type { SavedMark };
 
 /** The pause after the last change before the autosave is sent. */
 export const AUTOSAVE_DELAY_MS = 1200;
+/** WB3 (F6, the founder's decision of 18 November 2026): an autosave Fabric does not confirm is tried once more after
+ * this wait, then the line says so in one sentence. Save (and Save again) keeps saveState's longer series of tries. */
+export const AUTOSAVE_WAITS_MS = [1500];
 /** Drafts older than this are not recovered (and are removed). */
 export const DRAFT_MAX_AGE_MS = 7 * 24 * 3600 * 1000;
 /** The browser storage key prefix of a draft; the key is the prefix and the item's id. */
@@ -233,12 +241,15 @@ export type AutosaveState = "idle" | "pending" | "saving" | "saved" | "failed";
 /** One short line for the indicator: a mark that is not a colour, a tone and the words. */
 export function indicatorWords(state: AutosaveState, at?: string, tries?: number):
   { mark: string; tone: "ok" | "wait" | "bad"; words: string } {
-  if (state === "pending") return { mark: "•", tone: "wait", words: "Unsaved changes: saving in a moment…" };
+  // WB3: quiet. A decision is saved a moment after it is made, so the line says Saving… at once
+  if (state === "pending") return { mark: "•", tone: "wait", words: "Saving…" };
   if (state === "saving") return { mark: "…", tone: "wait", words: "Saving…" };
   if (state === "saved") return { mark: "✓", tone: "ok", words: at ? `Saved ${hhmm(at)}` : "Saved" };
   if (state === "failed") {
+    // WB3: one plain sentence; `tries` stays in the signature for the callers that pass it
+    void tries;
     return { mark: "✕", tone: "bad",
-      words: `Not saved: Fabric did not confirm${tries ? ` after ${tries} ${tries === 1 ? "try" : "tries"}` : ""}. Your changes are kept in this browser; Save again.` };
+      words: "Not saved yet: your decisions are kept here, and Save tries again." };
   }
   return { mark: "✓", tone: "ok", words: "Saved" };
 }

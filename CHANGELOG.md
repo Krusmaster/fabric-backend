@@ -9,6 +9,11 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round WB3: **every review decision in the Model item is saved without Save** (F6 in
+  `docs/WORKLOAD-TEST-2026-11-17.md`, the founder's yes of 18 November 2026). Accept, reject, a key or a link and Accept
+  all are saved to the item's definition a moment later; the line says Saving… and Saved; a save Fabric does not confirm
+  is tried once more, then one sentence says so and Save still saves the decisions. An autosave never starts Create.
+  **Look for leftovers** words ids that are not GUIDs for a person (F5). PR #99; e2e flow 23.
 - Round WB1: **gold keeps one row per silver row on the SAP path, on Spark 3.5 and 4.0** (F8 in
   `docs/WORKLOAD-TEST-2026-11-17.md`). A gold view's join rule now counts SAP's initial value (a blank, and zeros only in
   an optional field) as no reference, as silver has since AP2: `sap_gold.sap_vbpa` dropped every partner row with a blank
