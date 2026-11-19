@@ -235,8 +235,15 @@ def explain(exc: BaseException, where: str = "the request") -> dict:
         return _answer("schema_not_found", text)
     if isinstance(exc, PlatformError):
         return {"error": scrub(exc.error), "kind": exc.kind, "hint": scrub(exc.hint, 600)}
-    if type(exc).__name__ == "PlanInputError":
-        return _answer("bad_input", text)
+    if type(exc).__name__ in ("PlanInputError", "LayerSchemaError"):
+        out = _answer("bad_input", text)
+        if low.startswith("tables:") and "not in the schema" not in low:  # WB2 (#55): a table in the wrong role, not keys
+            out["hint"] = ("Check tables=: name tables of the plan, in the role the tool needs (analyze_schema shows each "
+                           "table's role, for example which are fact tables). Leave tables out to use them all.")
+        elif low.startswith(("silver_schema", "gold_schema")):          # WB2 (#54)
+            out["hint"] = ("Check silver_schema and gold_schema: a lakehouse schema name (letters, digits, underscores), "
+                           "or leave them out to use the pipeline's, else silver and gold.")
+        return out
     if type(exc).__name__ == "SchemaAmbiguous":                       # n175: two schemas that differ only by case
         return {"error": text, "kind": "schema_ambiguous", "schemas": list(getattr(exc, "names", [])),
                 "hint": "Ask the user which schema they mean, then call again with schema spelled exactly as one of these. "

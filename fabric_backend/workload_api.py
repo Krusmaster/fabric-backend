@@ -352,12 +352,56 @@ def build_request(body) -> dict:
     flags["pending"] = [{"type": x["type"][:40], "name": x["name"][:123], "output": str(x.get("output") or "")[:40],
                          "at": str(x.get("at") or "")[:40]} for x in pending]   # n207: when the step was sent
     flags["target"] = target_request(body.get("target"))         # n201, n221
+    flags.update(layers_request(body))                             # WB2 (#54): the silver and gold schema, dry run and Create alike
     flags["products"] = _ticked_products(body.get("products"))     # n222: the suggested data products the person ticked
     flags.update(_ids(body))
     chosen.sort(key=lambda c: ORDER.index(c["kind"]))
     return {**req, "outputs": chosen, "dry_run": dry_run, "review": body["review"], "product": product,
             "created": [{k: c.get(k) for k in ("type", "id", "name", "workspace", "output", "plan") if k != "plan" or isinstance(c.get(k), dict)}
                         for c in created], "form": 2, **flags}
+
+
+def layers_request(body: dict) -> dict:
+    """WB2 (#54): silver_schema and gold_schema of the build request, "" when not given. The editor sends the same request
+    to the dry run and to Create, so both build and read the same schemas (layer_args)."""
+    from . import layer_schemas as _ls
+    out = {}
+    for key in ("silver_schema", "gold_schema"):
+        v = body.get(key)
+        if v in (None, ""):
+            out[key] = ""
+            continue
+        if not isinstance(v, str):
+            raise BadRequest(f"'{key}' must be a lakehouse schema name or empty")
+        try:
+            out[key] = _ls.check(v, key)
+        except _ls.LayerSchemaError as e:
+            raise BadRequest(str(e)) from None
+    if out["silver_schema"] and out["silver_schema"].lower() == out["gold_schema"].lower():
+        raise BadRequest("silver_schema and gold_schema must be two different schemas")
+    return out
+
+
+WRITES_LAYERS = ("silver_notebook", "gold_views", "pipeline")
+
+
+def layer_args(kind: str, chosen: dict, req: dict) -> dict:
+    """WB2 (#54): the silver and gold schema each output's tool gets. A build that writes silver or gold (or names the
+    schemas) passes them to every output, the defaults included, so the model reads where this same build writes; a
+    build that only reads passes the request's own (or "", and the tool reads them from this source's pipeline)."""
+    from . import layer_schemas as _ls
+    silver, gold = req.get("silver_schema") or "", req.get("gold_schema") or ""
+    if any(k in chosen for k in WRITES_LAYERS) or kind in WRITES_LAYERS:
+        silver, gold = silver or _ls.DEFAULT_SILVER, gold or _ls.DEFAULT_GOLD
+    if kind == "silver_notebook":
+        return {"silver_schema": silver or _ls.DEFAULT_SILVER}
+    if kind in ("gold_views", "pipeline"):
+        return {"silver_schema": silver or _ls.DEFAULT_SILVER, "gold_schema": gold or _ls.DEFAULT_GOLD}
+    if kind in ("semantic_model", "ontology", "verify"):
+        return {"silver_schema": silver}
+    if kind == "data_agent":
+        return {"silver_schema": silver, "gold_schema": gold}
+    return {}
 
 
 _GUID = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
@@ -1991,10 +2035,11 @@ def _call(kind: str, o: dict, chosen: dict, req: dict, keys, confirmed, dry_run:
     from . import server as S
     common = {"workspace": req["workspace"], "source": req["source"], "schema": req["schema"], "keys": keys,
               "confirmed": confirmed, "dry_run": dry_run}
+    layers = layer_args(kind, chosen, req)                         # WB2 (#54)
     if kind == "silver_notebook":
-        text = S.create_silver_notebook(name=o["name"], **common)
+        text = S.create_silver_notebook(name=o["name"], **layers, **common)
     elif kind == "gold_views":
-        text = S.create_gold_views(name=o["name"], **common)
+        text = S.create_gold_views(name=o["name"], **layers, **common)
     elif kind == "pipeline":
         jobs = o.get("jobs") or {}
         allowed = jobs_permission(token_scopes(), None)["granted"] is not False     # n185: without the scope, neither runs
@@ -2003,15 +2048,15 @@ def _call(kind: str, o: dict, chosen: dict, req: dict, keys, confirmed, dry_run:
         try:
             text = S.create_pipeline(name=o["name"], silver_name=chosen.get("silver_notebook", ""), gold_name=chosen.get("gold_views", ""),
                                      run_once=bool(jobs.get("run_once")) and allowed,
-                                     schedule=(jobs.get("schedule") if allowed else None), **common)
+                                     schedule=(jobs.get("schedule") if allowed else None), **layers, **common)
         finally:
             S.PIPELINE_JOBS.reset(token)
     elif kind == "semantic_model":
-        text = S.create_semantic_model(name=o["name"], **common)
+        text = S.create_semantic_model(name=o["name"], **layers, **common)
     elif kind == "ontology":
-        text = S.create_ontology(name=o["name"], **common)
+        text = S.create_ontology(name=o["name"], **layers, **common)
     elif kind == "data_agent":                                     # n185: one layer; publishing is decided after (agent_card)
-        text = S.create_data_agent(name=o["name"], publish=False, layer=(o.get("agent") or {}).get("layer", "silver"), **common)
+        text = S.create_data_agent(name=o["name"], publish=False, layer=(o.get("agent") or {}).get("layer", "silver"), **layers, **common)
     elif kind == "rayfin_app":                                     # n181: preflight first, then the package (rayfin_app.py)
         from . import rayfin_app
         from .deploy import write_and_wait, find_item
@@ -2860,6 +2905,7 @@ def verify_request(body) -> dict:
     out = {**req, "review": body["review"],
            "created": [{k: str(c.get(k) or "")[:200] for k in ("type", "id", "name", "workspace", "output")} for c in created]}
     out.update(_ids(body))
+    out.update(layers_request(body))                               # WB2 (#54): as the build was sent
     return out
 
 
@@ -2896,7 +2942,8 @@ def run_verify(req: dict) -> dict:
         with S.plan_scope(adjust):
             from . import budget
             with budget.call():
-                out = S._verify_built(req["workspace"], req["source"], items, req["schema"], keys, confirmed, None, None, skip=skip)
+                out = S._verify_built(req["workspace"], req["source"], items, req["schema"], keys, confirmed, None, None, skip=skip,
+                                      silver_schema=req.get("silver_schema") or "")
     finally:
         S.BUILD_IN.reset(build_in)
     out.pop("review_by_ai", None)                                  # the editor has no AI client beside it

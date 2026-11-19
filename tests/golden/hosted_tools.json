@@ -10809,7 +10809,7 @@
        }
       ]
      },
-     "description": "Created by Krusgraph from demo_lh (shop)",
+     "description": "Created by Krusgraph from demo_lh (shop) [Krusgraph plan plan-dc47808ed933, schema shop (sha256:f9488893c117d8c7), 7 links]",
      "displayName": "shop_model_v2"
     },
     "route": "semanticModels"

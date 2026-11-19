@@ -82,4 +82,6 @@ def test_read_only_listing_stays_small():
     # 75 900 when Q2 met CSN2 and CA1 on main (M39): both together, 75 783
     # 81 000 since AP2: analysis_plan and analysis_notebook_draft (descriptions cut to two sentences, parameters to one short
     # sentence each first): 75 783 before, about 80 700 after
-    assert size <= 81_000, f"read-only tools/list is {size} characters"
+    # 81 500 since WB2 (#54): silver_schema on semantic_model_draft, ontology_draft and verify_build (about 450
+    # characters; one short sentence each, and the pipeline= parameter left to the creating tools)
+    assert size <= 81_500, f"read-only tools/list is {size} characters"
