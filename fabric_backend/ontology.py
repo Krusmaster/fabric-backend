@@ -89,13 +89,14 @@ def _ident(s: str) -> str:
     return s if s[0].isalpha() else "x_" + s
 
 
-def _carry(plan: Plan, tables: list[str] | None, schema: str = "dbo", item_kind: str = "Lakehouse"):
+def _carry(plan: Plan, tables: list[str] | None, schema: str = "dbo", item_kind: str = "Lakehouse", silver_schema: str | None = None):
     """n226: (plan, layer, schema, prefix) as the ontology reads it. When a relationship needs a composite key
     (combined_keys.py), the plan with one combined key column per composite key and link, read from the silver layer
-    the silver step writes them into; otherwise the plan itself, the source schema and no prefix, exactly as before."""
+    the silver step writes them into (silver_schema, WB2: the pipeline's, else "silver"); otherwise the plan itself, the
+    source schema and no prefix, exactly as before."""
     from . import combined_keys as _combined
     carried, combined = _combined.carry(plan, tables)
-    lay = _combined.layer({"schema": schema, "item_kind": item_kind}, combined)
+    lay = _combined.layer({"schema": schema, "item_kind": item_kind, "silver_schema": silver_schema}, combined)
     if not lay:
         return plan, None, schema, ""
     lay["columns"] = _combined.describe(combined)
@@ -121,9 +122,9 @@ def _type_of(t, col: str) -> str:
     return "string"
 
 
-def summary(plan: Plan, tables: list[str] | None = None, schema: str | None = None) -> dict:
+def summary(plan: Plan, tables: list[str] | None = None, schema: str | None = None, silver_schema: str | None = None) -> dict:
     """What the ontology will contain and what needs a hand in the portal."""
-    plan, lay, _, _ = _carry(plan, tables, schema or plan.schema.schema or "dbo")
+    plan, lay, _, _ = _carry(plan, tables, schema or plan.schema.schema or "dbo", silver_schema=silver_schema)
     wanted = {x.lower() for x in tables} if tables else None
     model = _model(plan, wanted)
     names = {t.name for t, *_ in model}
@@ -153,9 +154,10 @@ def summary(plan: Plan, tables: list[str] | None = None, schema: str | None = No
     return out
 
 
-def bindings(plan: Plan, source_name: str, schema: str = "dbo", tables: list[str] | None = None) -> list[dict]:
+def bindings(plan: Plan, source_name: str, schema: str = "dbo", tables: list[str] | None = None,
+             silver_schema: str | None = None) -> list[dict]:
     """The checklist for binding in the portal (or for reading the definition): one entry per entity type."""
-    plan, _, schema, prefix = _carry(plan, tables, schema)
+    plan, _, schema, prefix = _carry(plan, tables, schema, silver_schema=silver_schema)
     wanted = {x.lower() for x in tables} if tables else None
     model = _model(plan, wanted)
     names = {t.name for t, *_ in model}
@@ -173,7 +175,8 @@ def bindings(plan: Plan, source_name: str, schema: str = "dbo", tables: list[str
 
 
 def ontology_parts(plan: Plan, name: str, *, workspace_id: str, item_id: str, item_name: str, item_kind: str = "Lakehouse",
-                   schema: str = "dbo", sql_endpoint: str = "", tables: list[str] | None = None, namespace: str = "default") -> dict[str, str]:
+                   schema: str = "dbo", sql_endpoint: str = "", tables: list[str] | None = None, namespace: str = "default",
+                   silver_schema: str | None = None) -> dict[str, str]:
     """The item definition as {part path: text}. Generation 2 (TMDL)."""
     if namespace != "default":
         # B2: Learn's ontology definition (read 15 November 2026) says namespaces/default.tmdl is required and referenced
@@ -181,7 +184,7 @@ def ontology_parts(plan: Plan, name: str, *, workspace_id: str, item_id: str, it
         # which is what this writer makes. Another namespace would need `{namespace}#{name}` paths; not written yet.
         raise ValueError(f"only the default namespace is written (asked: {namespace!r})")
     check_tables(plan.schema, tables)
-    plan, _, schema, prefix = _carry(plan, tables, schema, item_kind)
+    plan, _, schema, prefix = _carry(plan, tables, schema, item_kind, silver_schema)
     wanted = {x.lower() for x in tables} if tables else None
     model = _model(plan, wanted)
     if not model:
@@ -267,11 +270,12 @@ def _ttl_str(s: str) -> str:
 _XSD = {"int64": "xsd:integer", "double": "xsd:double", "dateTime": "xsd:dateTime", "boolean": "xsd:boolean", "string": "xsd:string"}
 
 
-def ontology_ttl(plan: Plan, name: str, schema: str = "dbo", tables: list[str] | None = None, base: str = "") -> str:
+def ontology_ttl(plan: Plan, name: str, schema: str = "dbo", tables: list[str] | None = None, base: str = "",
+                 silver_schema: str | None = None) -> str:
     """Turtle for the portal's Import ontology (an empty item): classes, datatype properties, object properties, with
     the rule in every description and the table in the class description. Bindings are not part of a TTL import."""
     check_tables(plan.schema, tables)
-    plan, _, schema, prefix = _carry(plan, tables, schema)
+    plan, _, schema, prefix = _carry(plan, tables, schema, silver_schema=silver_schema)
     wanted = {x.lower() for x in tables} if tables else None
     model = _model(plan, wanted)
     names = {t.name for t, *_ in model}

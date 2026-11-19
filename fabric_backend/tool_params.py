@@ -57,6 +57,10 @@ Writable = Annotated[bool, _d('true includes create, update and delete mutations
 SilverSchema = Annotated[str, _d('Lakehouse schema with the silver tables create_silver_notebook writes. Default '
                                  '"silver".')]
 GoldSchema = Annotated[str, _d('Lakehouse schema for the gold views. Default "gold". Example: "gold".')]
+# WB2 (#54): where an output that reads silver or gold reads them; empty means "not given" (layer_schemas.resolve)
+ReadSilverSchema = Annotated[str, _d('Schema of the silver tables read. Default "": the pipeline\'s, else "silver".')]
+ReadGoldSchema = Annotated[str, _d('Schema of the gold views read. Default "": the pipeline\'s, else "gold".')]
+LayerPipeline = Annotated[str, _d('Pipeline whose schemas to use. Default "": this source\'s Krusgraph pipeline.')]
 ViewsSchema = Annotated[str, _d('Schema the T-SQL views go into; created if missing. Default "krusgraph". Example: '
                                 '"reporting".')]
 OrderBy = Annotated[dict[str, str] | None, _d(

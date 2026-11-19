@@ -466,6 +466,11 @@ export interface SourceRequest {
    * null for the default (the first lakehouse of the workspace); review and check ignore it. n221: workspace, where the
    * outputs go (this item's by default), and create_lakehouse, a lakehouse Create may make there */
   target?: { lakehouse: string | null; workspace?: string; where?: "item" | "source"; create_lakehouse?: string };
+  /** WB2 (#54): the lakehouse schemas of the silver tables and the gold views; left out for silver and gold. The same
+   * request goes to the dry run and to Create, so the semantic model, ontology and data agent read where the silver
+   * notebook, gold views and pipeline write. */
+  silver_schema?: string;
+  gold_schema?: string;
 }
 
 export class EngineCallError extends Error {

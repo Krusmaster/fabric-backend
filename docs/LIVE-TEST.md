@@ -355,7 +355,8 @@ CSN links were not counted against the rows in Fabric. The pipeline was not run 
 nothing here shows the notebooks run in Fabric. No speed is claimed.
 
 **Smaller observations, no change made.** The `next_steps` after `create_pipeline` proposed to verify `demo_lh_model_3`, an
-older model in the workspace that this plan did not build. In `sap_lt1_model` the link `sap_vbap` → `sap_vbak` is inactive
+older model in the workspace that this plan did not build (fixed in WB2: after a pipeline, a model counts only when its
+description carries this plan's marker, which `create_semantic_model` now writes). In `sap_lt1_model` the link `sap_vbap` → `sap_vbak` is inactive
 (it would close a cycle through `sap_vbrp`, `sap_vbrk` and `sap_kna1`). `validate_plan`'s check card gave three amount
 checks the same id `amount:sap_vbap` (fixed in the LT1 pull request).
 
@@ -370,8 +371,15 @@ the data pipeline `sap_lt1_pipeline`, the semantic model `sap_lt1_model` and the
    appear and are counted.
 4. In Fabric: open `sap_lt1_pipeline` and Run. Then refresh `sap_lt1_model` once, open `sap_lt1_report`.
 5. In Claude: *"Verify sap_lt1_model, sap_lt1_report and sap_lt1_pipeline."* With the LT1 fix deployed the notebooks
-   should no longer differ on every line; the gold notebook still differs because `verify_build` compares with the
-   default gold schema `gold` and it was built with `sap_gold`.
+   should no longer differ on every line. Since WB2 (issues #54, #55) `verify_build` reads the schemas from the
+   notebooks' parameter cells (`SILVER_SCHEMA`, `GOLD_SCHEMA`) and rebuilds the dry run with them, so a pipeline built
+   with `sap_silver`/`sap_gold` is no longer "differs" for its schemas alone. The call:
+   `verify_build(workspace="demo", source="demo_lh", schema="dbo",
+   items={"pipeline": "sap_lt1_pipeline"})`, with the same `tables`, `keys` and `confirmed` the `create_pipeline` call
+   had, if it had any. Expected: `sap_lt1_pipeline`, `sap_lt1_silver`, `sap_lt1_gold` and `sap_lt1_pipeline_check`
+   verified; the pipeline's line says which schemas it compared with. `sap_lt1_model` was built reading `silver`: if the
+   pipeline writes `sap_silver`, the model differs (rightly). `create_semantic_model` now reads the pipeline's
+   `SILVER_SCHEMA` by itself (or `silver_schema=`); its dry run says where the schema came from (`summary.reads.schema_from`).
 
 ## Databricks
 

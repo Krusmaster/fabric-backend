@@ -1126,7 +1126,9 @@ def _lifecycle(kind: str):
                     return text                                            # the Model editor has its own list (workload_api.run_verify)
                 call = sig.bind_partial(*args, **kwargs).arguments
                 found = re.search(r"/workspaces/([0-9a-fA-F-]{36})", text)   # the Create's own answer names the workspace's id
-                data.update(_next_after(kind, dict(call), found.group(1) if found else None))
+                health = data.get("health") if isinstance(data.get("health"), dict) else {}
+                mark = {k: health[k] for k in ("plan_id", "schema_fingerprint") if health.get(k)} or None   # WB2 (#55)
+                data.update(_next_after(kind, dict(call), found.group(1) if found else None, mark))
                 return json.dumps(data, indent=2, default=str)
             except Exception:                                              # noqa: BLE001 - the Create's answer stands
                 return text
@@ -1134,7 +1136,7 @@ def _lifecycle(kind: str):
     return wrap
 
 
-def _next_after(kind: str, call: dict, workspace_id: str | None = None) -> dict:
+def _next_after(kind: str, call: dict, workspace_id: str | None = None, mark: dict | None = None) -> dict:
     ctx = call.get("ctx")
     args = {k: call.get(k) for k in ("workspace", "source", "schema", "keys", "confirmed")}
     name = call.get("name")
@@ -1158,7 +1160,8 @@ def _next_after(kind: str, call: dict, workspace_id: str | None = None) -> dict:
                     and i.get("type") in SOURCE_ITEM_TYPES), None)
         if src:
             source_name, lakehouse = src.get("displayName"), src.get("type") == "Lakehouse"
-    built = _after_create.built_from_plan(items, str(args.get("source") or ""), str(args.get("schema") or ""), source_name) if items is not None else None
+    built = (_after_create.built_from_plan(items, str(args.get("source") or ""), str(args.get("schema") or ""), source_name, mark)
+             if items is not None else None)
     if kind == "report" and call.get("model") and built is not None and not _GUID.match(str(call["model"])):
         built.setdefault("semantic_model", [])
         if str(call["model"]).lower() not in {n.lower() for n in built["semantic_model"]}:
@@ -1325,6 +1328,47 @@ def _source_inputs(workspace, source, schema, keys, confirmed, ctx):
                    onelake_tables_path=item.get("onelake_tables_path") or "")
 
 
+def _layers(info: dict, silver_schema: str = "", gold_schema: str = "", pipeline: str = "", ctx=None, need: bool = True,
+            which=("silver", "gold")) -> dict:
+    """WB2 (#54): where the silver tables and gold views this output reads are (layer_schemas.py): the call's arguments,
+    else the pipeline named by `pipeline`, else this source's one Krusgraph pipeline in the build's workspace, else
+    silver and gold. `need` false (nothing here reads silver or gold) skips reading Fabric. Never raises for a read."""
+    from . import layer_schemas as _ls
+    found, found_from, note = {}, "", ""
+    given = all(bool((x or "").strip()) for k, x in (("silver", silver_schema), ("gold", gold_schema)) if k in which)
+    if (pipeline or "").strip() or (need and not given and info.get("item_kind", "Lakehouse") == "Lakehouse"):
+        try:
+            headers = _headers(ctx)
+            ws = _out_ws(info["workspace_id"])
+            label = f"{(info.get('read_from') or {}).get('item_name') or info['item_name']}.{info['schema']}"
+            found, found_from, note = _ls.discover(_workspace_items(ws, headers), label,
+                                                   lambda route, i: _item_definition_parts(ws, route, i, headers),
+                                                   (pipeline or "").strip())
+        except Exception as e:                                             # noqa: BLE001 - not known: the defaults, said
+            note = (f"The workspace's pipelines could not be read ({type(e).__name__}), so the default schemas are used; "
+                    "pass silver_schema and gold_schema to be sure.")
+    out = _ls.resolve(silver_schema, gold_schema, found=found, found_from=found_from)
+    if note:
+        out["note"] = note
+    return out
+
+
+def _layers_shown(lay: dict, which=("silver", "gold")) -> dict:
+    """The answer's `layers`: the schemas used, where each came from, and a note when a pipeline could not be used."""
+    return {**{k: lay[k] for k in which}, "from": {k: lay["from"][k] for k in which},
+            "said": lay["said"] if len(which) == 2 else f"Silver tables in {lay['silver']} (from {lay['from']['silver']}).",
+            **({"note": lay["note"]} if lay.get("note") else {})}
+
+
+def _combines(p, tables) -> bool:
+    """Whether an output over these tables carries combined key columns, so reads the silver layer (n226)."""
+    from . import combined_keys as _combined
+    try:
+        return bool(_combined.columns(p, tables))
+    except Exception:                                                     # noqa: BLE001 - then nothing is read for it
+        return False
+
+
 def _ontology_inputs(workspace, source, schema, keys, confirmed, ctx):
     """The subset ontology.envelope takes as keyword arguments."""
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
@@ -1332,10 +1376,19 @@ def _ontology_inputs(workspace, source, schema, keys, confirmed, ctx):
     return p, {k: info[k] for k in ("workspace_id", "item_id", "item_name", "item_kind", "schema", "sql_endpoint")}
 
 
+def _ontology_summary(p, tables, lay: dict) -> dict:
+    """The ontology's summary; WB2 (#54): when it reads the silver layer, which schema and where that came from."""
+    out = _ontology.summary(p, tables, silver_schema=lay["silver"])
+    if out.get("reads"):
+        out["reads_schema"] = {"silver": lay["silver"], "from": lay["from"]["silver"], **({"note": lay["note"]} if lay.get("note") else {})}
+    return out
+
+
 @mcp.tool(title="Draft a Fabric IQ ontology from the plan (nothing deployed)", annotations=RO)
 @safe
 def ontology_draft(workspace: _p.Workspace, source: _p.Source, name: _p.OntologyDraftName = "ontology", schema: _p.Schema = "dbo", keys: _p.Keys = None,
-                   confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, ctx: Context = None) -> str:
+                   confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, silver_schema: _p.ReadSilverSchema = "",
+                   ctx: Context = None) -> str:
     """Drafts a Fabric IQ ontology (preview) from the plan: entity types with keys, relationship types and bindings.
     Requires workspace and source. Returns JSON with a summary (the rule behind each key and link), the binding
     checklist, a Turtle file for Import ontology and the item definition parts. Changes nothing; create_ontology
@@ -1343,13 +1396,15 @@ def ontology_draft(workspace: _p.Workspace, source: _p.Source, name: _p.Ontology
     p, args = _ontology_inputs(workspace, source, schema, keys, confirmed, ctx)
     schema = p.schema.schema                                   # n175: the name the metadata returns
     check_tables(p.schema, tables)
-    parts = _ontology.ontology_parts(p, name, tables=tables, **args)
-    _pictures.keep("ontology", lambda: _pictures.ontology_from(_ontology.bindings(p, args["item_name"], schema, tables),
-                                                               _ontology.summary(p, tables)))   # n170: the proposal on the card
+    lay = _layers(args, silver_schema, "", "", ctx, need=_combines(p, tables), which=("silver",))   # WB2 (#54)
+    silver = lay["silver"]
+    parts = _ontology.ontology_parts(p, name, tables=tables, silver_schema=silver, **args)
+    _pictures.keep("ontology", lambda: _pictures.ontology_from(_ontology.bindings(p, args["item_name"], schema, tables, silver),
+                                                               _ontology.summary(p, tables, silver_schema=silver)))   # n170: the proposal on the card
     out = {
-        "summary": _ontology.summary(p, tables),
-        "bindings": _ontology.bindings(p, args["item_name"], schema, tables),
-        "ttl": _ontology.ontology_ttl(p, name, schema, tables),
+        "summary": _ontology_summary(p, tables, lay),
+        "bindings": _ontology.bindings(p, args["item_name"], schema, tables, silver),
+        "ttl": _ontology.ontology_ttl(p, name, schema, tables, silver_schema=silver),
         "definition_parts": parts,
         "rest": {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{args['workspace_id']}/ontologies",
                  "delegated_scope": "Item.ReadWrite.All", "body": _ontology.envelope(name, parts)},
@@ -1377,7 +1432,8 @@ def ontology_draft(workspace: _p.Workspace, source: _p.Source, name: _p.Ontology
 @_lifecycle("ontology")
 def create_ontology(workspace: _p.Workspace, source: _p.Source, name: _p.OntologyName, schema: _p.Schema = "dbo", keys: _p.Keys = None,
                     confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, dry_run: _p.DryRun = True,
-                    check: _p.CreateCheck = "", ctx: Context = None) -> str:
+                    check: _p.CreateCheck = "", silver_schema: _p.ReadSilverSchema = "", pipeline: _p.LayerPipeline = "",
+                    ctx: Context = None) -> str:
     """Creates a Fabric IQ ontology (preview) item from the plan, or updates the item of that name in place. Requires
     workspace, source and name; the delegated permission Item.ReadWrite.All, Contributor on the workspace and a
     Fabric capacity. Returns JSON with the definition parts and the REST call; with dry_run=false also the result,
@@ -1389,11 +1445,13 @@ def create_ontology(workspace: _p.Workspace, source: _p.Source, name: _p.Ontolog
     p, args = _ontology_inputs(workspace, source, schema, keys, confirmed, ctx)
     schema = p.schema.schema                                   # n175: the name the metadata returns
     check_tables(p.schema, tables)
-    parts = _ontology.ontology_parts(p, name, tables=tables, **args)
+    lay = _layers(args, silver_schema, "", pipeline, ctx, need=_combines(p, tables), which=("silver",))   # WB2 (#54)
+    silver = lay["silver"]
+    parts = _ontology.ontology_parts(p, name, tables=tables, silver_schema=silver, **args)
     body = _ontology.envelope(name, parts, description=f"Created by Krusgraph from {source} ({schema})")
-    _pictures.keep("ontology", lambda: _pictures.ontology_from(_ontology.bindings(p, args["item_name"], schema, tables),
-                                                               _ontology.summary(p, tables)))   # n170: the dry run's picture
-    out = {"summary": _ontology.summary(p, tables), "dry_run": dry_run,
+    _pictures.keep("ontology", lambda: _pictures.ontology_from(_ontology.bindings(p, args["item_name"], schema, tables, silver),
+                                                               _ontology.summary(p, tables, silver_schema=silver)))   # n170: the dry run's picture
+    out = {"summary": _ontology_summary(p, tables, lay), "dry_run": dry_run,
            "rest": {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{_out_ws(args['workspace_id'])}/ontologies",
                     "update": f"{FABRIC}/v1/workspaces/{_out_ws(args['workspace_id'])}/ontologies/{{id}}/updateDefinition",
                     "delegated_scope": "Item.ReadWrite.All", "workspace_role": "Contributor", "parts": list(parts),
@@ -1440,7 +1498,8 @@ def _api_id(workspace: str, api: str, headers: dict) -> str | None:
 @safe
 def semantic_model_draft(workspace: _p.Workspace, source: _p.Source, name: _p.ModelDraftName = "semantic_model", schema: _p.Schema = "dbo",
                          keys: _p.Keys = None, confirmed: _p.Confirmed = None,
-                         tables: _p.TablesShown = None, validate: _p.Validate = False, ctx: Context = None) -> str:
+                         tables: _p.TablesShown = None, validate: _p.Validate = False, silver_schema: _p.ReadSilverSchema = "",
+                         ctx: Context = None) -> str:
     """Drafts the plan as a Power BI semantic model in TMDL (Direct Lake on the source's SQL analytics endpoint):
     relationships with cardinality and filter direction, one active path per table pair, suggested measures that sum
     at the right level (validate=true also counts header amounts repeated in a flat table). Requires workspace and
@@ -1459,7 +1518,9 @@ def semantic_model_draft(workspace: _p.Workspace, source: _p.Source, name: _p.Mo
             getattr(execute, "close", lambda: None)()
     keep = _compact.match_tables(p.schema, tables)
     tables = sorted(keep, key=str.lower) if keep is not None else None
-    out = _semantic_model.draft(p, info, name, tables, validation=checked)
+    lay = _layers(info, silver_schema, "", "", ctx, need=_combines(p, tables), which=("silver",))   # WB2 (#54): the silver it reads
+    out = _semantic_model.draft(p, {**info, "silver_schema": lay["silver"]}, name, tables, validation=checked)
+    _model_layers(out, lay)
     out["note"] = ("Unit-tested against Microsoft's published TMDL samples. " + _tool_status.answer_note("semantic_model_draft")
                    + " create_semantic_model creates the item from it (" + _tool_status.short("create_semantic_model") + "). Open the "
                    "folder in Power BI Desktop (TMDL view) or create the item with the Fabric REST API; README.generated.md "
@@ -2099,6 +2160,25 @@ def _refresh_once(workspace_id: str, model_id: str, ctx) -> dict:
         return {"status": "failed", "reason": type(e).__name__, "hint": portal}
 
 
+def _marked(description: str, p, schema: str) -> str:
+    """WB2 (#55): the description with Krusgraph's plan marker (workload_api.MARK), so the next steps after a pipeline
+    of the same plan know this model is one of it. Unchanged when the mark cannot be computed."""
+    try:
+        from . import pipeline as _pipeline, workload_api as _w
+        return _w.with_mark(description, {**_pipeline.plan_mark_of(p), "schema": schema, "links": len(p.relationships)})
+    except Exception:                                                     # noqa: BLE001 - the description stands
+        return description
+
+
+def _model_layers(draft: dict, lay: dict) -> None:
+    """WB2 (#54): a model that reads the silver layer says which schema and where that came from (summary.reads)."""
+    reads = (draft.get("summary") or {}).get("reads")
+    if isinstance(reads, dict) and reads.get("layer") == "silver":
+        reads["schema_from"] = lay["from"]["silver"]
+        if lay.get("note"):
+            reads["note"] = lay["note"]
+
+
 def _silver_there(workspace: str, source: str, summary: dict, ctx) -> bool | None:
     """n229: whether the silver tables a model would read exist (its dry run reads the silver layer when composite keys
     are carried, n226). None when the model reads the source tables, or when the source's schemas could not be listed."""
@@ -2116,7 +2196,8 @@ def _silver_there(workspace: str, source: str, summary: dict, ctx) -> bool | Non
 @_lifecycle("semantic_model")
 def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.ModelName, schema: _p.Schema = "dbo", keys: _p.Keys = None,
                           confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, dry_run: _p.DryRun = True,
-                          refresh: _p.RefreshOnce = False, check: _p.CreateCheck = "", ctx: Context = None) -> str:
+                          refresh: _p.RefreshOnce = False, check: _p.CreateCheck = "", silver_schema: _p.ReadSilverSchema = "",
+                          pipeline: _p.LayerPipeline = "", ctx: Context = None) -> str:
     """Creates a Fabric semantic model item from semantic_model_draft's TMDL (Direct Lake), or updates the item of that
     name in place. Requires workspace, source and name; SemanticModel.ReadWrite.All or Item.ReadWrite.All and
     Contributor on the workspace. Returns JSON with the parts and the REST call; with dry_run=false also the result,
@@ -2130,8 +2211,11 @@ def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.M
     schema = p.schema.schema                                   # n175: the name the metadata returns
     check_tables(p.schema, tables)
     read = _model_reads(workspace, source, schema, p, tables, ctx)          # n151: the calendar's range, whole-number quantities
+    lay = _layers(info, silver_schema, "", pipeline, ctx, need=_combines(p, tables), which=("silver",))   # WB2 (#54): the dry run's and Create's
+    info = {**info, "silver_schema": lay["silver"]}
     draft = _semantic_model.draft(p, info, name, tables, date_range=read["date_range"], whole_quantities=read["whole"])
-    body = _semantic_model.envelope(draft["parts"], name, description=f"Created by Krusgraph from {source} ({schema})")
+    _model_layers(draft, lay)
+    body = _semantic_model.envelope(draft["parts"], name, description=_marked(f"Created by Krusgraph from {source} ({schema})", p, schema))
     replaces = _model_replacement(_out_ws(info["workspace_id"]), name, draft["parts"], _headers(ctx))   # n221: where it is built
     out = {"replaces": replaces} if replaces else {}
     out |= {"summary": draft["summary"], "read_from_rows": read["said"], "dry_run": dry_run,
@@ -2386,15 +2470,17 @@ def _views_personal(stmts: dict) -> dict:
                       "the keys stay. create_views has no show_personal_data: add such a column to a view by hand where you need it."}
 
 
-def _agent_layers(p, info: dict, layer: str, show_personal_data: bool) -> list[dict] | None:
-    """n185: the layers the agent may read, preferred first; the source is always the last fallback (data_agent.draft)."""
+def _agent_layers(p, info: dict, layer: str, show_personal_data: bool, lay: dict | None = None) -> list[dict] | None:
+    """n185: the layers the agent may read, preferred first; the source is always the last fallback (data_agent.draft).
+    WB2 (#54): in the schemas `lay` names (_layers: the call's, the pipeline's, else silver and gold)."""
     if layer == "source" or not info.get("schemas_enabled", True):   # without schemas silver is a prefix: the source stays
         return None
+    silver, gold = (lay or {}).get("silver") or "silver", (lay or {}).get("gold") or "gold"
     if layer == "silver":
-        return [{"layer": "silver", "schema": "silver"}]
+        return [{"layer": "silver", "schema": silver}]
     from . import gold as _gold_mod
-    views = _gold_mod.spec(p, info, "silver", "gold", None, show_personal_data)["views"]
-    return [{"layer": "gold", "schema": "gold", "tables": [v["name"].split(".", 1)[-1] for v in views], "views": views}]
+    views = _gold_mod.spec(p, info, silver, gold, None, show_personal_data)["views"]
+    return [{"layer": "gold", "schema": gold, "tables": [v["name"].split(".", 1)[-1] for v in views], "views": views}]
 
 
 def _layer_words(spec: dict, layer: str) -> str:
@@ -2420,7 +2506,8 @@ _DATA_AGENT_REUSE = ("Krusgraph checks the joins once, with evidence and your ap
 def create_data_agent(workspace: _p.Workspace, source: _p.Source, name: _p.AgentName, schema: _p.Schema = "dbo", keys: _p.Keys = None,
                       confirmed: _p.Confirmed = None, publish: _p.Publish = True, show_personal_data: _p.ShowPersonalData = False,
                       validate: _p.Validate = False, dry_run: _p.DryRun = True, test_questions: _p.AgentTests = False,
-                      layer: _p.AgentLayer = "source", ctx: Context = None) -> str:
+                      layer: _p.AgentLayer = "source", silver_schema: _p.ReadSilverSchema = "", gold_schema: _p.ReadGoldSchema = "",
+                      pipeline: _p.LayerPipeline = "", ctx: Context = None) -> str:
     """Creates a Fabric data agent over the source, with the plan as its instructions (business names, the joins that
     are safe and those that are not, header amounts not to sum over lines), the plan's tables selected and 3–5 example
     question/T-SQL pairs over safe joins, or updates the agent of that name in place. Krusgraph checks the joins once,
@@ -2446,7 +2533,9 @@ def create_data_agent(workspace: _p.Workspace, source: _p.Source, name: _p.Agent
     if layer not in ("source", "silver", "gold"):
         return json.dumps({"error": f"layer is \"source\", \"silver\" or \"gold\"; got {layer!r}.", "kind": "bad_request",
                            "hint": "Leave it out for the source tables."})
-    layers = _agent_layers(p, info, layer, show_personal_data)
+    lay = _layers(info, silver_schema, gold_schema, pipeline, ctx, need=layer != "source",
+                  which=("silver",) if layer == "silver" else ("silver", "gold"))   # WB2 (#54): the schemas the layer is in
+    layers = _agent_layers(p, info, layer, show_personal_data, lay)
     reads = info
     if layers and _cross(info):                       # n221: silver and gold are in the build's lakehouse, not the source's
         winfo, _refusal = _write_info(info, "The data agent's layer", ctx)
@@ -2462,6 +2551,7 @@ def create_data_agent(workspace: _p.Workspace, source: _p.Source, name: _p.Agent
            "context": spec["context"],
            "rest": spec["rest"], "delegated_scope": spec["delegated_scope"],
            "layer": _layer_words(spec, layer),
+           **({"layers": _layers_shown(lay, ("silver",) if layer == "silver" else ("silver", "gold"))} if layers else {}),
            "note": "Unit-tested with the REST calls mocked. " + _tool_status.answer_note("create_data_agent") + " Without the permission the create "
                    "answers kind=consent naming it, see docs/SCOPES.md. The portal shows the agent's data source, "
                    "selected tables and example queries under its staging configuration; publish makes them live."}
@@ -3333,7 +3423,7 @@ def export_item_definitions(workspace: _p.Workspace, source: _p.Source, schema: 
             env = definition(api_plan, names[tool], info["workspace_id"], source_id, source_type, writable=writable, tables=tables)
             add(tool, "GraphQLApi", env, f"the API for GraphQL over {info['item_name']}.{schema} with the plan's relationships")
         elif tool == "create_semantic_model":
-            draft = _semantic_model.draft(p, info, names[tool], tables)
+            draft = _semantic_model.draft(p, {**info, "silver_schema": silver_schema}, names[tool], tables)   # WB2: the export's silver
             add(tool, "SemanticModel", _semantic_model.envelope(draft["parts"], names[tool], f"Created by Krusgraph from {source} ({schema})"),
                 "the Direct Lake semantic model with the plan's relationships, the suggested measures and the calendar")
             notes.append(f"The semantic model's README.generated.md is not part of its definition and is left out; semantic_model_draft returns it.")
@@ -3512,7 +3602,17 @@ def _verify_checks(result: dict) -> dict:
             "label": _verify.LABEL}
 
 
-def _verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx, skip: dict | None = None) -> dict:
+def _pipeline_schemas_from(lay: dict) -> str:
+    """Where verify_build took a pipeline's schemas from, in words."""
+    if lay["from"]["silver"] == lay["from"]["gold"] == "the default":
+        return "the defaults: the notebooks' parameters could not be read"
+    if "the default" in lay["from"].values():
+        return "as the notebooks' parameters set them, the default for the one they do not set"
+    return "as the notebooks' parameters set them"
+
+
+def _verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx, skip: dict | None = None,
+                  silver_schema: str = "") -> dict:
     from . import budget as _budget, model_compare as _mc
     from .infer import PlanInputError
     if not isinstance(items, dict) or not items:
@@ -3530,6 +3630,11 @@ def _verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx
     listing = _workspace_items(ws, headers)
     lakehouse = info.get("item_kind") == "Lakehouse"
     conn: dict = {}
+    # WB2 (#54): the silver schema the model and the ontology read: the call's, else the verified pipeline's, else this
+    # source's one Krusgraph pipeline, else silver. Only read when one of them carries combined key columns.
+    lay = _layers(info, silver_schema, "", items.get("pipeline", ""), ctx, which=("silver",),
+                  need=bool({"semantic_model", "ontology"} & set(items)) and _combines(p, tables))
+    info = {**info, "silver_schema": lay["silver"]}
 
     def execute(sql):                                              # the source's SQL endpoint, opened once, on first use
         if "run" not in conn:
@@ -3609,8 +3714,9 @@ def _verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx
                     figs, doubles = figures_for(model, shape if shape["visuals"] else None, m_item["id"])
                     lines.append(_verify.line(kind, shown, cmp, figs=figs, doubles=doubles, notes=notes))
                 elif kind == "ontology":
-                    parts = _ontology.ontology_parts(p, shown, tables=tables, **{k: info[k] for k in ("workspace_id", "item_id", "item_name",
-                                                                                                        "item_kind", "schema", "sql_endpoint")})
+                    parts = _ontology.ontology_parts(p, shown, tables=tables, silver_schema=lay["silver"],
+                                                     **{k: info[k] for k in ("workspace_id", "item_id", "item_name",
+                                                                             "item_kind", "schema", "sql_endpoint")})
                     cmp = _verify.compare_ontology(parts, _item_definition_parts(ws, "ontologies", item["id"], headers))
                     lines.append(_verify.line(kind, shown, cmp, state_check=_verify.ontology_state(shown, listing)))
                 elif kind == "api":
@@ -3631,19 +3737,40 @@ def _verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx
                     names = {i: n.get("displayName") for i, n in by_id.items()}
                     ran = [s["notebook"] for s in _verify.pipeline_steps(content, names)]
                     known = len(ran) == 3 and all(n in names.values() for n in ran)
-                    build = _pipeline_build(p, info, schema, "silver", "gold", tables, False, shown, ran[0] if known else "", ran[1] if known else "")
+                    # WB2 (#55): the notebooks are read first, and the dry run is rebuilt with the schemas their parameter
+                    # cells set (SILVER_SCHEMA, GOLD_SCHEMA), so a pipeline built with sap_silver/sap_gold is not "differs"
+                    # for its schemas alone
+                    sources: dict = {}
+                    for n in ([*ran[:2], f"{shown}_check"] if known else []):
+                        try:
+                            reading(f"reading the notebook {n}")
+                            nb = next((i for i in by_id.values() if str(i.get("displayName") or "").lower() == n.lower()), None)
+                            if nb:
+                                sources[n.lower()] = _item_definition_parts(ws, "notebooks", nb["id"], headers).get("notebook-content.py") or ""
+                        except Exception as e:                             # noqa: BLE001 - said on the notebook's own line
+                            sources[n.lower()] = e
+                    from . import layer_schemas as _ls
+                    set_by = _ls.from_notebooks(v for v in sources.values() if isinstance(v, str))
+                    p_lay = _ls.resolve("", "", found=set_by, found_from=f"the parameters of {shown}'s notebooks")
+                    build = _pipeline_build(p, info, schema, p_lay["silver"], p_lay["gold"], tables, False, shown,
+                                            ran[0] if known else "", ran[1] if known else "")
                     expected = _pipeline_content(build, {n["name"]: n["name"] for n in build["notebooks"]}, ws)
                     cmp = _verify.compare_pipeline(expected, content, None, names, notebooks_known=known)
                     lines.append(_verify.line(kind, shown, cmp, state_check=_verify.pipeline_state(state_of(lambda: _job_instances(ws, item["id"], headers))),
-                                              notes=["Compared with silver and gold in the schemas silver and gold (the defaults) and no schedule in the check."]))
+                                              notes=[f"Compared with silver tables in {p_lay['silver']} and gold views in {p_lay['gold']} "
+                                                     f"({_pipeline_schemas_from(p_lay)}) and no schedule in the check."]))
                     for n in build["notebooks"]:                           # the three notebooks, each a line of its own
                         try:
-                            reading(f"reading the notebook {n['name']}")
-                            nb = next((i for i in by_id.values() if str(i.get("displayName") or "").lower() == n["name"].lower()), None)
-                            if not nb:
-                                lines.append(missing("notebook", n["name"]))
-                                continue
-                            src = _item_definition_parts(ws, "notebooks", nb["id"], headers).get("notebook-content.py") or ""
+                            src = sources.get(n["name"].lower())
+                            if src is None:
+                                reading(f"reading the notebook {n['name']}")
+                                nb = next((i for i in by_id.values() if str(i.get("displayName") or "").lower() == n["name"].lower()), None)
+                                if not nb:
+                                    lines.append(missing("notebook", n["name"]))
+                                    continue
+                                src = _item_definition_parts(ws, "notebooks", nb["id"], headers).get("notebook-content.py") or ""
+                            if isinstance(src, BaseException):
+                                raise src
                             lines.append(_verify.line("notebook", n["name"], _verify.compare_notebook(n["content"], src)))
                         except Exception as e:                             # noqa: BLE001
                             lines.append(_verify.line("notebook", n["name"], not_checked=not_read(e)))
@@ -3667,12 +3794,14 @@ def _verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx
 @mcp.tool(title="Verify what was built (by rules, no AI)", annotations=RO)
 @safe
 def verify_build(workspace: _p.Workspace, source: _p.Source, items: _p.VerifyItems, schema: _p.Schema = "dbo", keys: _p.Keys = None,
-                 confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, ctx: Context = None) -> str:
+                 confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, silver_schema: _p.ReadSilverSchema = "",
+                 ctx: Context = None) -> str:
     """After a Create: verifies built items by rules, not by AI. Reads each back and compares it with its dry run,
     counts a report's cards again from the rows with SQL, flags doubled totals and what was never refreshed or run.
     Requires workspace, source and items. Returns JSON: one line per item (verified, differs, or not checked and
     why), counts and the SQL. Changes nothing. Errors: {error, kind, hint}."""
-    return json.dumps(_verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx), indent=2, default=str)
+    return json.dumps(_verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx, silver_schema=silver_schema),
+                      indent=2, default=str)
 
 
 @mcp.tool(title="Starter pack for an app on a GraphQL API", annotations=RO)

@@ -14,6 +14,17 @@ next deploy.
   all are saved to the item's definition a moment later; the line says Saving… and Saved; a save Fabric does not confirm
   is tried once more, then one sentence says so and Save still saves the decisions. An autosave never starts Create.
   **Look for leftovers** words ids that are not GUIDs for a person (F5). PR #99; e2e flow 23.
+- Round WB2: **every output that reads silver or gold reads the schemas the pipeline wrote** (issues #54 and #55, from
+  LT1 in `docs/LIVE-TEST.md`). The semantic model, the ontology and the data agent take `silver_schema` (the agent also
+  `gold_schema`), else the schemas the source's Krusgraph pipeline sets in its notebooks' parameter cells (`pipeline=`
+  names one; pipelines that disagree are never guessed between), else `silver` and `gold`; the answer says where the
+  schema came from. `verify_build` reads a pipeline's notebooks first and rebuilds the dry run with their
+  `SILVER_SCHEMA` and `GOLD_SCHEMA`, so `sap_silver`/`sap_gold` no longer make every notebook "differs"; it also takes
+  `silver_schema` for the model. The Model editor's build and verify requests take `silver_schema` and `gold_schema`
+  and pass them to the dry run and to Create alike (no field in the editor yet). After `create_pipeline` the next steps
+  name a semantic model only when its description carries this plan's marker, which `create_semantic_model` now
+  writes. A wrong `tables=` gets a hint about `tables=` instead of keys. New module `fabric_backend/layer_schemas.py`
+  (rules only); tests in `tests/test_wb2_layer_schemas.py` with `sap_silver`/`sap_gold` and with the defaults.
 - Round WB1: **gold keeps one row per silver row on the SAP path, on Spark 3.5 and 4.0** (F8 in
   `docs/WORKLOAD-TEST-2026-11-17.md`). A gold view's join rule now counts SAP's initial value (a blank, and zeros only in
   an optional field) as no reference, as silver has since AP2: `sap_gold.sap_vbpa` dropped every partner row with a blank

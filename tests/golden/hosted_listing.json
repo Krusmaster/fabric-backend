@@ -876,6 +876,12 @@
       "title": "Dry Run",
       "type": "boolean"
      },
+     "gold_schema": {
+      "default": "",
+      "description": "Schema of the gold views read. Default \"\": the pipeline's, else \"gold\".",
+      "title": "Gold Schema",
+      "type": "string"
+     },
      "keys": {
       "anyOf": [
        {
@@ -906,6 +912,12 @@
       "title": "Name",
       "type": "string"
      },
+     "pipeline": {
+      "default": "",
+      "description": "Pipeline whose schemas to use. Default \"\": this source's Krusgraph pipeline.",
+      "title": "Pipeline",
+      "type": "string"
+     },
      "publish": {
       "default": true,
       "description": "true (default) publishes the agent after creating or updating it; false leaves a draft. Example: false.",
@@ -923,6 +935,12 @@
       "description": "true includes columns named like personal data; false (default) masks or omits them.",
       "title": "Show Personal Data",
       "type": "boolean"
+     },
+     "silver_schema": {
+      "default": "",
+      "description": "Schema of the silver tables read. Default \"\": the pipeline's, else \"silver\".",
+      "title": "Silver Schema",
+      "type": "string"
      },
      "source": {
       "description": "Lakehouse, warehouse or SQL database, name or id.",
@@ -1262,10 +1280,22 @@
       "title": "Name",
       "type": "string"
      },
+     "pipeline": {
+      "default": "",
+      "description": "Pipeline whose schemas to use. Default \"\": this source's Krusgraph pipeline.",
+      "title": "Pipeline",
+      "type": "string"
+     },
      "schema": {
       "default": "dbo",
       "description": "Schema in the source. Default \"dbo\".",
       "title": "Schema",
+      "type": "string"
+     },
+     "silver_schema": {
+      "default": "",
+      "description": "Schema of the silver tables read. Default \"\": the pipeline's, else \"silver\".",
+      "title": "Silver Schema",
       "type": "string"
      },
      "source": {
@@ -1623,6 +1653,12 @@
       "title": "Name",
       "type": "string"
      },
+     "pipeline": {
+      "default": "",
+      "description": "Pipeline whose schemas to use. Default \"\": this source's Krusgraph pipeline.",
+      "title": "Pipeline",
+      "type": "string"
+     },
      "refresh": {
       "default": false,
       "description": "true: refresh the model once (dry_run=false). Default false.",
@@ -1633,6 +1669,12 @@
       "default": "dbo",
       "description": "Schema in the source. Default \"dbo\".",
       "title": "Schema",
+      "type": "string"
+     },
+     "silver_schema": {
+      "default": "",
+      "description": "Schema of the silver tables read. Default \"\": the pipeline's, else \"silver\".",
+      "title": "Silver Schema",
       "type": "string"
      },
      "source": {
@@ -3091,6 +3133,12 @@
       "title": "Schema",
       "type": "string"
      },
+     "silver_schema": {
+      "default": "",
+      "description": "Schema of the silver tables read. Default \"\": the pipeline's, else \"silver\".",
+      "title": "Silver Schema",
+      "type": "string"
+     },
      "source": {
       "description": "Lakehouse, warehouse or SQL database, name or id.",
       "title": "Source",
@@ -4394,6 +4442,12 @@
       "title": "Schema",
       "type": "string"
      },
+     "silver_schema": {
+      "default": "",
+      "description": "Schema of the silver tables read. Default \"\": the pipeline's, else \"silver\".",
+      "title": "Silver Schema",
+      "type": "string"
+     },
      "source": {
       "description": "Lakehouse, warehouse or SQL database, name or id.",
       "title": "Source",
@@ -5004,6 +5058,12 @@
       "default": "dbo",
       "description": "Schema in the source. Default \"dbo\".",
       "title": "Schema",
+      "type": "string"
+     },
+     "silver_schema": {
+      "default": "",
+      "description": "Schema of the silver tables read. Default \"\": the pipeline's, else \"silver\".",
+      "title": "Silver Schema",
       "type": "string"
      },
      "source": {

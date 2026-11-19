@@ -70,7 +70,24 @@ BUILDS = {"pipeline": "pipeline", "report": "report", "data_agent": "data_agent"
 VERIFY_KINDS = ("semantic_model", "report", "ontology", "api", "pipeline", "app")
 
 
-def built_from_plan(items, source: str, schema: str, source_name: str | None = None) -> dict[str, list[str]]:
+# WB2 (#55): LT1, 18 November 2026: after create_pipeline sap_lt1_pipeline the next steps proposed verify_build with
+# "semantic_model": "demo_lh_model_3", an older model of the same lakehouse and schema without one SAP table. With the
+# plan's mark known (the pipeline's health step), a semantic model counts as built from this plan only when its
+# description carries Krusgraph's marker of the same plan or of the same tables (schema fingerprint); a report follows
+# its model. Without a mark nothing changes.
+MARK = re.compile(r"\[Krusgraph plan (plan-[0-9a-f]+), schema (.+?) \((sha256:[0-9a-f]+)\), (\d+) links?\]")
+FOLLOWS_PLAN = ("semantic_model",)
+
+
+def same_plan(description, mark: dict | None) -> bool:
+    """Whether a description's marker names this plan (its id) or the same tables (its schema fingerprint)."""
+    m = MARK.search(str(description or ""))
+    if not m or not mark:
+        return False
+    return m.group(1) == mark.get("plan_id") or m.group(3) == mark.get("schema_fingerprint")
+
+
+def built_from_plan(items, source: str, schema: str, source_name: str | None = None, mark: dict | None = None) -> dict[str, list[str]]:
     """{kind: [names]} of the workspace's items that Krusgraph built from this source and schema, read from the item
     type and the description Krusgraph writes ("Created by Krusgraph from demo_lh (shop)", "Krusgraph pipeline for
     demo_lh.shop", ...). A report names its model, not the source, so it counts when its model is one of these. An item
@@ -89,6 +106,8 @@ def built_from_plan(items, source: str, schema: str, source_name: str | None = N
         for i in rows:
             d = str(i.get("description") or "")
             if str(i.get("type")) == typ and re.search(words, d.lower()) and mine(d):
+                if mark and kind in FOLLOWS_PLAN and not same_plan(d, mark):
+                    continue                                       # built from this lakehouse, not from this plan
                 out.setdefault(kind, []).append(i["displayName"])
     models = {m.lower() for m in out.get("semantic_model", [])}
     for i in rows:
