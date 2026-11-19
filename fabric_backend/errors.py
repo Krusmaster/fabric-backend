@@ -240,6 +240,10 @@ def explain(exc: BaseException, where: str = "the request") -> dict:
         if low.startswith("tables:") and "not in the schema" not in low:  # WB2 (#55): a table in the wrong role, not keys
             out["hint"] = ("Check tables=: name tables of the plan, in the role the tool needs (analyze_schema shows each "
                            "table's role, for example which are fact tables). Leave tables out to use them all.")
+        elif " is not ready on this data" in low:                       # AP3: the data, not the keys
+            out["hint"] = ("The data does not support this analysis yet; the error names what is missing. analysis_plan "
+                           "ranks the analyses and lists in land_next what to land; draft a notebook for one it calls ready "
+                           "or partial.")
         elif low.startswith(("silver_schema", "gold_schema")):          # WB2 (#54)
             out["hint"] = ("Check silver_schema and gold_schema: a lakehouse schema name (letters, digits, underscores), "
                            "or leave them out to use the pipeline's, else silver and gold.")

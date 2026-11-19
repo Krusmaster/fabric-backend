@@ -9,6 +9,7 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round AP3: **`analysis_plan` counts customers on Fabric** (19-20 November 2026, the first live run of the analysis pack, `docs/LIVE-TEST.md`). The per-customer count named a column `top`, a reserved word in T-SQL, so it failed on the SQL analytics endpoint and A8 said "Only 0 customers"; the column is renamed, and a count that did not run is no longer read as zero (A8, A4 and A3 say which count did not run). `analysis_notebook_draft`'s "not ready" error now hints at `analysis_plan` and `land_next` instead of the keys. Tests: `tests/test_ap3_analysis_live.py`.
 - Round RQ1: **`requirements_draft`, a pasted requirements list matched to the checked SAP data by rules** (19 November
   2026). A list the business wrote (for example one Copilot summarised in a Copilot Workspace; nothing is read from the
   Workspace, whose content Microsoft Learn documents no API for) is read one requirement per line (R1, R2 ...) and

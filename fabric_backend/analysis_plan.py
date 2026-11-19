@@ -187,10 +187,10 @@ def count_sql(plan, ds: dict, dialect=TSQL, returns: list[str] | None = None) ->
               f"{c}(DISTINCT x.doc) AS documents, {c}(DISTINCT x.cust) AS customers, {c}(DISTINCT x.mat) AS materials, "
               f"{c}(DISTINCT x.cur) AS currencies, {c}(DISTINCT CASE WHEN x.ret = 1 THEN x.doc END) AS return_documents FROM {x}")
     per_customer = (f"SELECT {c}(*) AS customers, SUM(CASE WHEN g.n >= 2 THEN 1 ELSE 0 END) AS repeat_customers, "
-                    f"SUM(CASE WHEN g.n >= 3 AND g.lm <= t.top - 6 THEN 1 ELSE 0 END) AS churned, "
+                    f"SUM(CASE WHEN g.n >= 3 AND g.lm <= t.last_mi - 6 THEN 1 ELSE 0 END) AS churned, "
                     f"{c}(DISTINCT g.fm) AS first_months FROM (SELECT x.cust, {c}(DISTINCT x.doc) AS n, MIN(x.mi) AS fm, "
                     f"MAX(x.mi) AS lm FROM {x} WHERE {filled.format('cust')} GROUP BY x.cust) AS g CROSS JOIN "
-                    f"(SELECT MAX(y.mi) AS top FROM ({base_sql(plan, ds, dialect, returns)}) AS y) AS t")
+                    f"(SELECT MAX(y.mi) AS last_mi FROM ({base_sql(plan, ds, dialect, returns)}) AS y) AS t")
     per_material = (f"SELECT {c}(*) AS materials, SUM(CASE WHEN g.m >= 6 THEN 1 ELSE 0 END) AS six_months, "
                     f"SUM(CASE WHEN g.m >= 18 THEN 1 ELSE 0 END) AS eighteen_months, "
                     f"SUM(CASE WHEN g.k >= 2 THEN 1 ELSE 0 END) AS several_customers FROM (SELECT x.mat, "
@@ -284,6 +284,7 @@ class _Rule:
         self.columns: list[str] = []
         self.quality = 1.0
         self.counted = True
+        self.not_counted_why: str | None = None
         self.not_applicable = False
 
     def need(self, ok, missing: str, unlock: str | None = None):
@@ -333,6 +334,7 @@ def _rules(roles: dict, counts: dict | None, th: dict, values: dict, doc_types: 
     key, ds = _dataset(roles)
     c = (counts or {}).get(key, {}) if key else {}
     tot, cus, mat = c.get("totals", {}), c.get("per_customer", {}), c.get("per_material", {})
+    cus_ok, mat_ok = "per_customer" in c, "per_material" in c   # AP3: a count that did not run is not a zero
     counted = counts is not None
     cat = {a["id"]: a for a in catalogue()["analyses"]}
     f = ds["fields"] if ds else {}
@@ -387,7 +389,14 @@ def _rules(roles: dict, counts: dict | None, th: dict, values: dict, doc_types: 
             r.need(f.get("amount"), "an amount on the items (e.g. VBRP.NETWR) for M, the monetary score", "sales")
             r.reasons.append(f"{_ref(cust)} -> {roles['masters']['customer']} is the customer (plan, rule {ds['customer_link'].rule}), "
                              f"{_ref(f.get('date'))} the date and {_ref(f.get('amount'))} the amount: R, F and M can be derived")
-            if counted:
+            if counted and not cus_ok:
+                n = tot.get("customers", 0)
+                if n < th["customers"][0]:
+                    r.parts.append(("customers", part(n, *th["customers"])))
+                    r.missing.append(f"Only {n} customers with documents; RFM needs at least {th['customers'][0]}.")
+                else:
+                    r.counted, r.not_counted_why = False, "the per-customer count did not run (repeat share not known)"
+            elif counted:
                 n, rep = cus.get("customers", 0), cus.get("repeat_customers", 0)
                 share = round(rep / n, 3) if n else 0.0
                 r.reasons.append(f"{n} customers with documents, {round(100 * share, 1)} % of them with 2 or more (profile)")
@@ -414,7 +423,9 @@ def _rules(roles: dict, counts: dict | None, th: dict, values: dict, doc_types: 
             r.reasons.append(f"{_ref(m)} -> {roles['masters']['material']} is the material (plan, rule {ds['material_link'].rule}); "
                              f"{_ref(f.get('amount') or f.get('quantity'))} gives the value for ABC"
                              + (f" and {_ref(f.get('quantity'))} the demand for XYZ" if f.get("quantity") else ""))
-            if counted:
+            if counted and not mat_ok:
+                r.counted, r.not_counted_why = False, "the per-material count did not run"
+            elif counted:
                 n = mat.get("materials", 0)
                 r.reasons.append(f"{n} materials sold (profile)")
                 r.parts.append(("materials", part(n, *th["materials"])))
@@ -437,7 +448,9 @@ def _rules(roles: dict, counts: dict | None, th: dict, values: dict, doc_types: 
             if counted:
                 ok = r.need(months >= th["cohort_months"][0], f"at least {th['cohort_months'][0]} months of history "
                             f"({months} now)", "history")
-                if ok:
+                if ok and not cus_ok:
+                    r.counted, r.not_counted_why = False, "the per-customer count did not run (first months and churn not known)"
+                elif ok:
                     fm = cus.get("first_months", 0)
                     r.reasons.append(f"first-document month derivable for {cus.get('customers', 0)} customers, in {fm} different months")
                     r.parts += [("months", part(months, *th["cohort_months"])), ("first_months", part(fm, *th["cohort_first_months"]))]
@@ -538,8 +551,11 @@ def _score(r: _Rule, th: dict) -> dict:
         status, readiness = "missing", 0.0
     elif not r.counted:
         status, readiness = "partial", th["not_counted_readiness"]
-        r.caveats.append(f"rows not counted (profile=false or no connection): readiness taken as {readiness} to rank; run with "
-                         "profile=true for the counts")
+        if r.not_counted_why:
+            r.caveats.append(f"{r.not_counted_why}: readiness taken as {readiness} to rank; see signals.counts not_counted")
+        else:
+            r.caveats.append(f"rows not counted (profile=false or no connection): readiness taken as {readiness} to rank; run with "
+                             "profile=true for the counts")
     else:
         readiness = round(sum(v for _, v in r.parts) / len(r.parts), 3) if r.parts else 1.0
         weak = [n for n, v in r.parts if v < th["weak_part"]]
