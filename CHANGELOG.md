@@ -9,6 +9,15 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round UM2: **a weekly usage digest to the founder's Teams channel** (19 November 2026, the maintainer's yes of the
+  same day). Monday 07:00 UTC, the last ISO week next to the week before (organisations, users, MCP sessions, tool
+  calls, tool errors, workload API calls; top 5 tools, top 3 error kinds, MCP clients) and a link to `/metrics`, built
+  from the stored daily rows, counts only. Sent from the running server through the existing founder-webhook sender,
+  once across replicas and restarts (an Insert Entity of `digest-<week>` in the usage table). Off without
+  `KRUSGRAPH_FOUNDER_WEBHOOK_URL` (the hosted app has none yet), with `KRUSGRAPH_USAGE_DIGEST=off` or
+  `KRUSGRAPH_METRICS=off`. A full deploy run now says it drops `usage-salt`, `metrics-token` and `founder-webhook` and
+  prints how to restore them; `--update` points their variables at them. Docs: `docs/USAGE.md`, `docs/OPERATIONS.md`.
+  Tests: `tests/test_um2_usage_digest.py`. Not yet posted to a real Teams channel.
 - Round RQ1: **`requirements_draft`, a pasted requirements list matched to the checked SAP data by rules** (19 November
   2026). A list the business wrote (for example one Copilot summarised in a Copilot Workspace; nothing is read from the
   Workspace, whose content Microsoft Learn documents no API for) is read one requirement per line (R1, R2 ...) and

@@ -130,8 +130,8 @@ def date_words(iso: str) -> str:
 def _default_emit(event: dict) -> None:
     sys.stdout.write(json.dumps({"krusgraph": "billing", **event}, separators=(",", ":")) + "\n")   # starts {"krusgraph":"billing"
     sys.stdout.flush()
-    url = os.environ.get("KRUSGRAPH_FOUNDER_WEBHOOK_URL", "").strip()
-    if url.lower().startswith("https://"):
+    url = founder_webhook_url()
+    if url:
         threading.Thread(target=_post_card, args=(url, event), daemon=True).start()
 
 
@@ -143,20 +143,42 @@ def founder_card(event: dict) -> dict:
     lines = [f"{k}: {v}" for k, v in sorted(event.items()) if k != "event"]
     body = [{"type": "TextBlock", "text": titles.get(event.get("event"), str(event.get("event"))), "weight": "Bolder",
              "size": "Medium", "wrap": True}] + [{"type": "TextBlock", "text": x, "wrap": True, "spacing": "Small"} for x in lines]
+    return card_message(body)
+
+
+def card_message(body: list) -> dict:
+    """An Adaptive Card in the message envelope that a Teams "Workflows" webhook (Power Automate's "Post to a channel
+    when a webhook request is received") and the n200 Power Automate HTTP trigger accept."""
     return {"type": "message", "attachments": [{"contentType": "application/vnd.microsoft.card.adaptive", "contentUrl": None,
                                                 "content": {"$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
                                                             "type": "AdaptiveCard", "version": "1.4", "body": body}}]}
 
 
-def _post_card(url: str, event: dict) -> None:
+def founder_webhook_url() -> str:
+    """KRUSGRAPH_FOUNDER_WEBHOOK_URL when it is an https address, else "". Never logged."""
+    url = os.environ.get("KRUSGRAPH_FOUNDER_WEBHOOK_URL", "").strip()
+    return url if url.lower().startswith("https://") else ""
+
+
+def post_founder_card(card: dict, url: str | None = None, timeout: float = 15) -> bool:
+    """POST one card to the founder's webhook; True on a 2xx answer. Failures are logged by type only, never the address
+    (it carries its own signature). UM2's weekly digest uses this too."""
     import urllib.request
+    url = founder_webhook_url() if url is None else url
+    if not url:
+        return False
     try:
-        req = urllib.request.Request(url, data=json.dumps(founder_card(event)).encode("utf-8"), method="POST",
+        req = urllib.request.Request(url, data=json.dumps(card).encode("utf-8"), method="POST",
                                      headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req, timeout=15):
-            pass
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return 200 <= int(getattr(r, "status", 200) or 200) < 300
     except Exception as e:  # noqa: BLE001 — the address carries its own signature and is never shown
         log.warning("founder webhook not sent (%s)", type(e).__name__)
+        return False
+
+
+def _post_card(url: str, event: dict) -> None:
+    post_founder_card(founder_card(event), url=url)
 
 
 # ------------------------------------------------------------------ the trial rows --------------------------------------

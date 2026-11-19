@@ -137,3 +137,74 @@ comparison is constant-time. The page loads no script and nothing from elsewhere
 
 **Switching it off.** `KRUSGRAPH_METRICS=off` counts nothing and writes nothing (the per-call console line
 `krusgraph.tool_call` and the Prometheus totals stop too); the page still shows what was stored before.
+
+## Weekly digest to the founder's webhook
+
+Since round UM2 (19 November 2026) the server can post a short weekly summary of the same daily counts to the founder's
+Teams channel, so the numbers arrive without opening `/metrics` and without the metrics token ever leaving Azure
+(`fabric_backend/usage_digest.py`).
+
+**What it says.** The last complete ISO week (Monday to Sunday, UTC) next to the week before it: organisations, users,
+MCP sessions, tool calls, tool errors and workload API calls; the 5 most used tools, the 3 most common error kinds, the
+MCP client names, and the line "Se /metrics för detaljer: https://krusgraph.com/metrics" (the address only, never the
+token). It is built from the stored daily rows `/metrics` reads, so the two always agree. Counts and the names the
+counters already hold (tool names, error kinds, client names) only: no hash, tenant or object id, name, e-mail, IP
+address, workspace, table or column name. A test checks the payload for the token, the salt, the hashes, the ids and
+the webhook address.
+
+**When.** Once per ISO week: Monday 07:00 UTC, or the first check after that (each replica checks every 15 minutes, in
+a background thread of the running server; no new Azure resource, no Azure Functions, no new role). A server that is
+down the whole week does not send the old week late into the next one.
+
+**Exactly once.** Before sending, a replica inserts the row `digest-<YYYY>-W<ww>` (the week and the time, nothing
+else) under PartitionKey `usage` in the same table as the daily counts, with Insert Entity, which the Table service
+refuses when the row already exists. Only the replica whose insert made the row sends; the other replica and a later
+restart see the row and do nothing. No table (`KRUSGRAPH_REGISTRATION_STORE` unset or `memory`), a failed insert or
+rows that cannot be read: nothing is sent. `/metrics` and the retention sweep leave these rows alone (one small row a
+week).
+
+**Sending.** Through the same sender the trial's founder notices use (`billing.post_founder_card`): one POST of an
+Adaptive Card message with a 10-second timeout, one retry 30 seconds later at most, and then nothing more that week.
+A failure is logged as `{"krusgraph": "usage_digest", "event": "send_failed", ...}` with the error type only, never the
+address (the address carries its own signature).
+
+**Switches.** `KRUSGRAPH_USAGE_DIGEST=off` turns the digest off; `KRUSGRAPH_METRICS=off` turns it off too. Without
+`KRUSGRAPH_FOUNDER_WEBHOOK_URL` nothing runs and the console says so once (`"event": "no_webhook"`). On 19 November
+2026 the hosted app has no `founder-webhook` secret yet, so the digest is off there until the steps below are done.
+
+**Setting up the webhook (Teams Workflows, done once by the maintainer).**
+
+1. In Teams, open the channel the digest should go to, choose **⋯** (more options) next to the channel name, then
+   **Workflows**. Pick the template **Post to a channel when a webhook request is received**, give it a name (for
+   example "Krusgraph"), check that the team and channel are right and choose **Add workflow**. Copy the address
+   Teams shows (the workflow's HTTP POST URL). Treat it like a password: anyone who has it can post to the channel.
+2. In Azure Cloud Shell (Bash), with `RG` and `APP` as in `docs/OPERATIONS.md` section 3:
+
+   ```bash
+   read -rsp "Webhookadressen från Teams-arbetsflödet (döljs): " FW; echo
+   # optional: one test card without any data, to see that the channel receives it
+   curl -sS -o /dev/null -w "%{http_code}\n" -X POST -H "Content-Type: application/json" "$FW" -d '{"type":"message","attachments":[{"contentType":"application/vnd.microsoft.card.adaptive","contentUrl":null,"content":{"$schema":"http://adaptivecards.io/schemas/adaptive-card.json","type":"AdaptiveCard","version":"1.4","body":[{"type":"TextBlock","text":"Krusgraph: test av veckosammanfattningen","wrap":true}]}}]}'
+   az containerapp secret set -n $APP -g $RG --secrets founder-webhook="$FW" --output none; unset FW
+   az containerapp update -n $APP -g $RG --set-env-vars KRUSGRAPH_FOUNDER_WEBHOOK_URL=secretref:founder-webhook --output none
+   ```
+
+   The test should print a 2xx code (the Workflows trigger usually answers `202` and posts a moment later) and the card
+   should appear in the channel. The update starts a new revision; the first digest arrives on the next Monday at 07:00 UTC (08:00 Swedish winter time) or, if
+   that has passed this week and no replica has sent this week's yet, within about 15 minutes.
+3. To stop it: `az containerapp update -n $APP -g $RG --set-env-vars KRUSGRAPH_USAGE_DIGEST=off`, or turn the workflow
+   off in Teams.
+
+The same secret also carries the trial's founder notices (`docs/BILLING-MODEL.md`) when `KRUSGRAPH_TRIAL=1`.
+
+**What is untested.** The card was checked in tests against the envelope the trial notices already send and against
+the format Microsoft documents for the Workflows template (a `message` with one
+`application/vnd.microsoft.card.adaptive` attachment; Adaptive Card 1.4, which Teams renders). It has not been posted to
+a real Teams channel: no Teams, Azure or krusgraph.com call was made from the round's sandbox. The step 2 test card is
+the first real check. The exactly-once insert was tested against a faked Table service (201/204 for the first insert,
+409 for the second), not against the real table.
+
+**A full deploy run.** `bash deploy/krusgraph.sh` without `--update` replaces the container app's secret list with
+`entra-secret` alone, which removes `usage-salt`, `metrics-token` and `founder-webhook` and the variables that point at
+them. The run now says so and prints the commands that store them again; `--update` points `KRUSGRAPH_USAGE_SALT`,
+`KRUSGRAPH_METRICS_TOKEN` and `KRUSGRAPH_FOUNDER_WEBHOOK_URL` at their secrets whenever the app has them. The automatic
+deploy (`--from-azure --update`) never changes them.
