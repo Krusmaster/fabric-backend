@@ -76,6 +76,8 @@ OAuth token; nothing is stored by Krusgraph. Tools take the schema without the c
 | `create_backend` | Not on Databricks | the API for GraphQL is a Fabric item; mirror the catalog into Fabric (Mirrored Azure Databricks catalog) and use the hosted server |
 | `semantic_model_draft` | Not on Databricks | Direct Lake is Fabric's; `databricks_metric_view_draft` is the Databricks semantic layer |
 | `silver_notebook_draft` | Not on Databricks | a Fabric notebook; `databricks_pipeline_draft` carries the same rules |
+| `analysis_plan` | Not on Databricks | its counting statements have not run on Databricks SQL; mirror the catalog into Fabric |
+| `analysis_notebook_draft` | Not on Databricks | a Fabric notebook for a lakehouse |
 | `ontology_draft`, `rayfin_connector` | Not on Databricks | Fabric IQ and Rayfin read Fabric items |
 | `answer_query_draft` | Planned | the drafted query is T-SQL; `join_path` gives the joins in Databricks SQL |
 | `plan_migration` | Not on Databricks | with `fabric_schema` only: its after-landing counts read Fabric; without it the tool reads only the exported metadata files ([MIGRATE-DATABRICKS-SNOWFLAKE.md](MIGRATE-DATABRICKS-SNOWFLAKE.md)) |

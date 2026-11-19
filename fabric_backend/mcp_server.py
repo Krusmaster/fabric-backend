@@ -14,6 +14,8 @@ Same functions as the library, over the one SQL connection in FABRIC_ODBC:
   create_views(dry_run=True)                CREATE OR ALTER VIEW in a schema of its own (SQL, no Fabric REST)
   answer_query_draft                        a question (Swedish or English) as T-SQL over the safest join path
   silver_notebook_draft                     a PySpark notebook that builds silver tables (lakehouse; nothing created)
+  analysis_plan, analysis_notebook_draft    which SAP order-to-cash analyses the data supports, by rules (AP2);
+                                            a Fabric Data Science notebook for A7, A8 or A3 (nothing created or run)
 
 The tools that need Fabric item ids (describe_backend, plan_drift, app_starter, create_semantic_model,
 create_data_agent, the drift monitor, the creating notebook tools, GraphQL answers) live in the remote server only. Set FABRIC_SOURCE_KIND (Lakehouse, Warehouse, SQLDatabase, or
@@ -737,6 +739,48 @@ def silver_notebook_draft(schema: str = "dbo", silver_schema: str = "silver", or
                    f"Lakehouse with schemas: {spec['source']['schemas_enabled']} (FABRIC_SCHEMAS_ENABLED; a schema other than dbo implies yes)."],
            "note": "Unit-tested; the generated notebook ran on a local PySpark 4.0.1 against the shop seed; not yet run in Fabric."}
     return _compact.bounded(out, MAX_RESULT_CHARS)
+
+
+@_tool("Which SAP analyses this data supports, by rules (read-only)", RO)
+@safe
+def analysis_plan(schema: str = "dbo", keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None,
+                  profile: bool = True, weights: dict[str, float] | None = None, document_types: dict[str, list[str]] | None = None,
+                  max_items: int = 20, area: str = "o2c") -> str:
+    """Ranks ten SAP order-to-cash analyses (forecasting, RFM, ABC/XYZ, cohorts, margin, DSO, OTIF, price, credit risk,
+    returns) by deterministic rules over the plan and counts of the rows (never a value; no AI). Each has readiness
+    ready/partial/missing, a score, "Recommended because ...", what is missing, the tables and columns it uses and the
+    next step; land_next says which tables unlock the most. profile=false: names only. weights {A1..A10: 0-5} replace
+    Krusgraph's values. Read-only. docs/ANALYSIS-PLAN.md."""
+    from . import analysis_plan as _ap
+    refused = _fabric_only("analysis_plan", schema)
+    if refused:
+        return refused
+    with _connection(schema) as execute:
+        p = _plan_on(execute, schema, keys, confirmed)
+        out = _ap.recommend(p, execute if profile else None, weights, document_types, max(1, min(int(max_items), 60)), area, bool(profile))
+    return _compact.bounded(out, MAX_RESULT_CHARS)
+
+
+@_tool("Draft a Fabric Data Science notebook for a recommended analysis (nothing created)", RO)
+@safe
+def analysis_notebook_draft(analysis: str, schema: str = "dbo", output_schema: str = "krusgraph_analysis",
+                            keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None,
+                            weights: dict[str, float] | None = None, document_types: dict[str, list[str]] | None = None) -> str:
+    """The PySpark notebook for A7 (forecasting), A8 (RFM segmentation) or A3 (ABC/XYZ), wired to this schema's SAP
+    tables by analysis_plan: its reason, a data check against the plan's counts, and the analysis with Fabric's MLflow
+    experiments (AutoML for A7, k-means for A8); writes one table in output_schema when you run it. Returns the steps
+    and the notebook source; creates nothing and runs nothing. FABRIC_SOURCE_KIND must be Lakehouse."""
+    from . import analysis_notebook as _an, analysis_plan as _ap
+    refused = _fabric_only("analysis_notebook_draft", schema) or _fabric_only("silver_notebook_draft", schema)
+    if refused:
+        return refused
+    info = _source_info(schema)
+    if info["schemas_enabled"] is None:
+        info["schemas_enabled"] = schema.lower() != "dbo"
+    with _connection(schema) as execute:
+        p = _plan_on(execute, schema, keys, confirmed)
+        result = _ap.recommend(p, execute, weights, document_types)
+    return _compact.bounded(_an.draft(result, analysis, info, output_schema), MAX_RESULT_CHARS)
 
 
 # ------------------------------------------------------------------ Databricks (KRUSGRAPH_PLATFORM=databricks) ------

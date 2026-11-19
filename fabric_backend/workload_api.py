@@ -2719,6 +2719,8 @@ def routes(cfg, validator=None, obo=None) -> list:
                 return reply(tenant_refusal(e.tenant), 403, origin)
             except TokenError as e:
                 return reply({"error": str(e), "kind": "sign_in"}, 401, origin, {"WWW-Authenticate": 'Bearer error="invalid_token"'})
+            from .usage_metrics import counts as _usage_counts          # UM1: the organisation and user, as salted hashes only
+            _usage_counts.identity(claims.get("tid"), claims.get("oid") or claims.get("sub"))
             try:
                 req = parse(json.loads(await request.body() or b"null"))
             except (ValueError, BadRequest) as e:

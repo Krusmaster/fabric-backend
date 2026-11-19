@@ -9,6 +9,31 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round FA1: **`app_readiness` for a semantic model**, before an app is built from it in Power BI Desktop for Apps
+  (preview). With `semantic_model` (read with getDefinition, TMDL), the tool checks tables, measures, format
+  strings, relationships, keys and the date table, and names what Fabric's API cannot read (Build and Read permission,
+  three tenant settings, a workspace on Fabric capacity). Each check says whether it rests on a Microsoft Learn page
+  (linked), on Krusgraph's own rule, or on nothing Microsoft documents. The Model editor's next steps add "Build an app
+  in Power BI Desktop for Apps" (guide only) once a semantic model is built. Sources: `docs/APP-READINESS-MODEL.md`.
+- Round AP2: **the analysis pack, phase 1** (Gustav's yes of 18 November 2026 to the design's phase 1). Two new tools,
+  local and hosted: `analysis_plan` ranks ten SAP order-to-cash analyses by deterministic rules over the plan and counts
+  of the rows (never a value; no AI), each with readiness ready/partial/missing, a score, "Recommended because …", what
+  is missing, the tables and columns used and the next step, plus `land_next`; `analysis_notebook_draft` writes the
+  Fabric notebook for A7 forecasting, A8 RFM segmentation or A3 ABC/XYZ, wired to those tables, with a data check and
+  every run logged to an ML experiment (MLflow; AutoML for A7, k-means for A8); it creates and runs nothing. Rules as
+  data in `fabric_backend/analysis/o2c.json`. New `fabric_backend/sap_demo36.py`: a seeded synthetic SAP demo with the
+  same 17 tables over 36 months (300 customers, 500 materials), as a Fabric notebook (dry run by default, writes only
+  its own schema, default `sap_demo36`) and a small CSV sample in `examples/sap_demo36/`. Read-only listing cap raised
+  from 75 900 to 81 000 characters for the two tools. `docs/ANALYSIS-PLAN.md`; tests `tests/test_ap2_*.py`, goldens
+  `tests/golden/ap2_*.json`, a PySpark case in `tests/test_spark_notebooks.py`. Not yet run in Fabric.
+- Round AP2: **a blank partner field in SAP data is no reference, not an orphan** (found 18 November 2026 in the live demo run of
+  `sap_lt1_pipeline`, where the silver notebook quarantined 5 `sap_vbpa` rows whose `KUNNR` or `PARNR` was blank). The
+  silver notebook (and `silver.simulate`) and the pipeline's check notebook now count a NULL, a blank (`''` or spaces) or,
+  where the SAP pack marks the relationship `optional` (VBPA -> KNA1, VBPA -> KNVK, KNVK -> KNA1/LFA1, the `ADRNR` links
+  to ADRC), a value of zeros only as "no link" for SAP pack relationships, as `validate_plan` already did for blanks; it
+  counts the zeros the same way now. Only a set value without a parent row is quarantined: the item of order 0000000009
+  without a `sap_vbak` header still is. `tests/test_ap2_blank_partner.py` and a PySpark case in
+  `tests/test_spark_notebooks.py`.
 - Round WB11: **more Fabric item icons in the Model editor** (Gustav, 18 November 2026). The icons n184 put on the
   output cards, from Microsoft's `@fabric-msft/svg-icons@12.0.0`, now stand beside every Fabric item type the editor
   names: the next steps' cards (workload and item types at the top left), the Data product page's Built list, Retire,

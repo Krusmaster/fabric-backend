@@ -71,7 +71,7 @@ dbo"*, *"Check the plan against the data"*, *"How do orders connect to products?
 
 ## 4. What works locally, and what answers with an explanation
 
-The local server has 30 tools (`fabric_backend/mcp_server.py`; `tests/test_f1_findings_fixes.py` holds this section to
+The local server has 32 tools (`fabric_backend/mcp_server.py`; `tests/test_f1_findings_fixes.py` holds this section to
 the code). `fabric-backend-mcp --help` lists the settings and returns; without arguments the command waits for an MCP
 client on stdin and prints nothing, which is how a client starts it.
 
@@ -96,6 +96,11 @@ server), `qlik_measures_draft` (Qlik expressions as DAX drafts where a fixed rul
 This is the local-only path of [QLIK-MIGRATION-PRODUCT.md](QLIK-MIGRATION-PRODUCT.md): the load script, the
 expressions and the exported values stay on this machine, and the answers are the same as the hosted connector's.
 Experimental: unit-tested on synthetic and public load scripts, not on a customer's Qlik installation.
+
+Two tools are the analysis pack (round AP2, [ANALYSIS-PLAN.md](ANALYSIS-PLAN.md)): `analysis_plan` (which of ten SAP
+order-to-cash analyses the data supports, by deterministic rules over the plan and counts of the rows; read-only) and,
+with `Lakehouse`, `analysis_notebook_draft` (a Fabric Data Science notebook for A7, A8 or A3 wired to the tables; nothing
+is created or run).
 
 Seven tools belong to the Databricks adapter (Draft only, `KRUSGRAPH_PLATFORM=databricks`, [DATABRICKS.md](DATABRICKS.md)):
 `databricks_constraints_draft`, `create_databricks_constraints`, `databricks_pipeline_draft`,

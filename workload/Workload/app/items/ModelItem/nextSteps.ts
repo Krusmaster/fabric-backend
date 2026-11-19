@@ -258,6 +258,8 @@ export function factoryTitle(left: OutputKind[], done: OutputKind[]): string {
 export const LEARN = {
   activator: "https://learn.microsoft.com/fabric/real-time-intelligence/data-activator/activator-introduction",
   experiment: "https://learn.microsoft.com/fabric/data-science/machine-learning-experiment",
+  /** FA1: Microsoft's page on Power BI Desktop for Apps (preview), read 19 November 2026 (docs/APP-READINESS-MODEL.md) */
+  desktopForApps: "https://learn.microsoft.com/power-bi/create-reports/desktop-for-apps/overview",
 };
 
 /**
@@ -351,6 +353,16 @@ export function nextSteps(input: NextInput): { proof: Proof; steps: NextStep[]; 
       why: `Its list pages and key figures are built over a read-only connector with the ${plural(proof.linksPassed, "proven link")}.`,
       how: { kind: "build", outputs: ["rayfin_app"], label: "Dry run" }, status: "builds", items: ["AppBackend"],
       note: "Create makes an empty App item and a package with one command; the App opens inside Fabric only.",
+    });
+  }
+  if (built.has("semantic_model")) {
+    // FA1: Microsoft's app builder starts from a semantic model hosted in the service; Krusgraph builds nothing here
+    steps.push({
+      id: "desktop-apps", workload: "Apps", title: "Build an app in Power BI Desktop for Apps",
+      why: `Every app built there starts from a semantic model; this one's ${plural(proof.linksPassed, "relationship")} rest on links proven on the rows.`,
+      how: { kind: "guide", label: "Open Microsoft's guide", url: LEARN.desktopForApps }, status: "guide only", items: ["AppBackend"],
+      note: "Microsoft's tool, in preview: it needs a GitHub Copilot licence, Build permission on the model and a workspace on Fabric capacity. " +
+        "Ask Krusgraph in Claude for app_readiness on the model first.",
     });
   }
   return { proof, steps, built: [...built] };

@@ -225,6 +225,32 @@ def pack_table(name: str, pack: str = "sap") -> str | None:
     return found[0] if found else None
 
 
+_BLANK_EXEMPT = ("MANDT", "RCLNT", "CLIENT")   # the client: validate_plan never counted its blank as no reference
+
+
+@lru_cache(maxsize=None)
+def _optional_links(pack: str) -> frozenset:
+    return frozenset((r["source"], tuple(_norm(c) for c in r["source_cols"]), r["target"])
+                     for r in load(pack)["relationships"] if r.get("optional"))
+
+
+def initial_columns(source: str, source_cols: list[str], target: str, pack: str = "sap") -> list[str]:
+    """AP2: the source columns of a pack relationship marked "optional" whose value of zeros only is SAP's initial value
+    ("no partner for this row", like a blank): VBPA.KUNNR of a contact-person row, VBPA.ADRNR without a document address.
+    The client column is left out. [] when the pack does not mark the relationship (or does not know the tables): then
+    only NULL and blank count as no reference, and a value of zeros is a value that must find its row."""
+    s, t = pack_table(source, pack), pack_table(target, pack)
+    if not s or not t or (s, tuple(_norm(c) for c in source_cols), t) not in _optional_links(pack):
+        return []
+    return [c for c in source_cols if c.upper() not in _BLANK_EXEMPT]
+
+
+def blank_columns(source_cols: list[str]) -> list[str]:
+    """AP2: the columns of a reference whose blank ('' or spaces, SAP's initial value) means no reference, as validate_plan
+    has counted SAP pack links since it began: every column but the client."""
+    return [c for c in source_cols if c.upper() not in _BLANK_EXEMPT]
+
+
 @dataclass
 class Match:
     pack: str

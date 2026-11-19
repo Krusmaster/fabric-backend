@@ -15,7 +15,7 @@ Authentication, in order:
      "custom connection" model Lovable's Fabric connector uses: one principal, no per-user identity.
 The server stores nothing: no tokens beyond their lifetime, no data, no query results.
 
-Tools (all annotated for the Claude directory): forty-five, from start to qlik_reconcile_draft; docs page
+Tools (all annotated for the Claude directory): forty-seven, from start to analysis_notebook_draft; docs page
 /docs lists them. Around every tool: fair-use limits (limits.py), anonymous usage counts (usage.py) and the dormant paid-plan
 check (entitlements.py).
 """
@@ -46,6 +46,7 @@ from . import lineage as _lineage, compact as _compact, sap_pack as _sap_pack
 from . import coverage as _coverage
 from . import domains as _domains
 from . import limits as _limits, usage as _usage, entitlements as _entitlements
+from . import usage_metrics as _usage_metrics  # UM1: anonymous daily counts for /metrics
 from . import billing as _billing
 from .deploy import create_semantic_model as _create_semantic_model
 from .deploy import answer_by as _answer_by  # noqa: E402  (n227: a Create answers before the host stops waiting)
@@ -510,7 +511,10 @@ def _instrumented(fn, name: str):
             refusal = _entitlements.check(name, dry_run, (who or {}).get("tid"))
         text = json.dumps(refusal, indent=2) if refusal is not None else _billing.with_notice(fn(*args, **kwargs), notice)
         try:
-            _usage.usage.record(name, _usage.outcome_of(text), time.monotonic() - start, dry_run, (who or {}).get("tid"))
+            if _usage_metrics.enabled():                   # UM1: KRUSGRAPH_METRICS=off counts nothing at all
+                outcome = _usage.outcome_of(text)
+                _usage.usage.record(name, outcome, time.monotonic() - start, dry_run, (who or {}).get("tid"))
+                _usage_metrics.counts.tool_call(name, outcome, (who or {}).get("tid"), (who or {}).get("oid"))
         except Exception:  # noqa: BLE001 — counting must never break a call
             pass
         return text
@@ -2466,6 +2470,41 @@ def _lakehouse_only(info: dict, tool: str) -> str | None:
                                "the notebook then reads them through the shortcuts and writes the silver tables beside them."}, indent=2)
 
 
+@mcp.tool(title="Which SAP analyses this data supports, by rules", annotations=RO)
+@safe
+def analysis_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", keys: _p.Keys = None,
+                  confirmed: _p.Confirmed = None, profile: _p.AnalysisProfile = True, weights: _p.AnalysisWeights = None,
+                  document_types: _p.DocumentTypes = None, max_items: _p.AnalysisMaxItems = 20, ctx: Context = None) -> str:
+    """Ranks ten SAP order-to-cash analyses by rules over the plan and row counts (no AI). Returns JSON: readiness,
+    score, reasons, what is missing, tables used, next step. Read-only. Errors: {error, kind, hint}."""
+    from . import analysis_plan as _ap
+    s, execute = _connected(workspace, source, schema, ctx)
+    try:
+        p = _hosted_plan(s, keys, confirmed, execute)
+        out = _ap.recommend(p, execute if profile else None, weights, document_types, max(1, min(int(max_items), 60)), "o2c", bool(profile))
+    finally:
+        getattr(execute, "close", lambda: None)()
+    return _compact.bounded(out, MAX_RESULT_CHARS)
+
+
+@mcp.tool(title="Draft a Fabric Data Science notebook for a recommended analysis (nothing created)", annotations=RO)
+@safe
+def analysis_notebook_draft(workspace: _p.Workspace, source: _p.Source, analysis: _p.Analysis, schema: _p.Schema = "dbo",
+                            output_schema: _p.OutputSchema = "krusgraph_analysis", keys: _p.Keys = None, confirmed: _p.Confirmed = None,
+                            weights: _p.AnalysisWeights = None, document_types: _p.DocumentTypes = None, ctx: Context = None) -> str:
+    """Drafts the notebook for A7, A8 or A3 wired to the SAP tables (MLflow, data check). Returns JSON with the
+    steps and the notebook. Creates and runs nothing. Errors: {error, kind, hint}."""
+    from . import analysis_notebook as _an, analysis_plan as _ap
+    _, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
+    s, execute = _connected(workspace, source, schema, ctx)
+    try:
+        p = _hosted_plan(s, keys, confirmed, execute)
+        result = _ap.recommend(p, execute, weights, document_types)
+    finally:
+        getattr(execute, "close", lambda: None)()
+    return json.dumps(_an.draft(result, analysis, info, output_schema), indent=2)
+
+
 def _silver(workspace, source, schema, silver_schema, order_by, keys, confirmed, tables, ctx, show_personal_data=False, fixes=None):
     from . import silver as _silver_mod
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
@@ -3531,13 +3570,19 @@ def app_starter(workspace: _p.Workspace, api: _p.StarterApi, ctx: Context = None
     return json.dumps(_app_starter.starter(description, endpoint_url(workspace_id, api_id), api, workspace_id), indent=2)
 
 
-@mcp.tool(title="What an app still needs on a GraphQL API", annotations=RO)
+@mcp.tool(title="What an app still needs on an API or a model", annotations=RO)
 @safe
-def app_readiness(workspace: _p.Workspace, api: _p.StarterApi, ctx: Context = None) -> str:
-    """Checks what an API for GraphQL item still needs before an app can use it: keys, relationships, write access,
-    introspection, permissions. Only for an API the user names; a schema's check is validate_plan. Requires workspace
-    and an API. Returns JSON {api, endpoint, checks, missing, unknown, verdict}, each with its next step. Changes
-    nothing. Errors: {error, kind, hint}."""
+def app_readiness(workspace: _p.Workspace, api: _p.ReadinessApi = "", semantic_model: _p.ReadinessModel = "", ctx: Context = None) -> str:
+    """Checks what an app still needs. Only for an API the user names (keys, relationships, write access, introspection,
+    permissions) or a semantic model an app will be built from in Power BI Desktop for Apps; a schema's check is
+    validate_plan. Returns JSON {checks, missing, unknown, verdict}, each with its next step. Changes nothing.
+    Errors: {error, kind, hint}."""
+    if semantic_model:
+        return json.dumps(_model_app_readiness(workspace, semantic_model, ctx), indent=2)
+    if not api:
+        return json.dumps({"error": "Name the API for GraphQL (`api`) or the semantic model (`semantic_model`) the app is built on.",
+                           "kind": "bad_input", "hint": "list_sources lists the GraphQL APIs in a workspace; the Fabric portal shows its "
+                                                        "semantic models."}, indent=2)
     headers = _headers(ctx)
     workspace_id = _workspace_id(workspace, headers)
     api_id = _api_id(workspace_id, api, headers)
@@ -3557,6 +3602,30 @@ def app_readiness(workspace: _p.Workspace, api: _p.StarterApi, ctx: Context = No
     except ValueError:
         body = {}
     return json.dumps(_readiness.assess(description, _readiness.classify_probe(status, body), endpoint, api), indent=2)
+
+
+def _model_app_readiness(workspace: str, model: str, ctx) -> dict:
+    """FA1: app_readiness for a semantic model (model_readiness.py), read with getDefinition (TMDL)."""
+    from . import model_readiness as _mr
+    headers = _headers(ctx)
+    workspace_id = _workspace_id(workspace, headers)
+    item = {"id": model} if _GUID.match(model.strip()) else find_item_by_name(workspace_id, model, headers, ("SemanticModel",))
+    if not item:
+        return {"error": f"no semantic model named {model!r} in workspace {workspace}", "kind": "not_found",
+                "hint": "Check the name in the Fabric portal (the model's own name, not its report's), or pass its id."}
+    try:
+        parts = _item_definition_parts(workspace_id, "semanticModels", item["id"], headers, fmt="TMDL")
+    except requests.HTTPError as e:
+        status = int(getattr(e.response, "status_code", 0) or 0)
+        if status in (401, 403):
+            return {"error": f"Fabric refused reading the definition of {model!r} (HTTP {status}): it needs the delegated permission "
+                             f"{MODEL_READ_SCOPE} and write permission on the model.", "kind": "consent", "scope": MODEL_READ_SCOPE,
+                    "hint": "The operator adds the permission to the Entra app and an administrator consents (docs/SCOPES.md); it is "
+                            "the same one create_semantic_model needs."}
+        raise
+    out = _mr.assess(parts, model)
+    out["read_with"] = "Fabric getDefinition (TMDL)"
+    return out
 
 
 def _which_one(workspace_id: str, word: str, headers: dict) -> dict | None:
@@ -4058,12 +4127,42 @@ def build_app(host: str = "0.0.0.0"):
         return None
 
     async def metrics(request):
-        """Usage totals (usage.py) in the Prometheus text format, for the operator (operator_refusal); a 404 otherwise."""
-        refused = operator_refusal(request)
-        if refused is not None:
-            return refused
-        return PlainTextResponse(_usage.usage.prometheus(), media_type="text/plain; version=0.0.4", headers={"Cache-Control": "no-store"})
-    app.router.routes.append(Route("/metrics", metrics))
+        """UM1: the operator's usage page (usage_metrics.py): the last 7 and 30 days as HTML for a browser, or JSON with
+        ?format=json; usage.py's totals in the Prometheus text format for anything else (or ?format=prometheus). The
+        token as a bearer token, or (a browser, which cannot send one from the address bar) typed into the form, which
+        POSTs it in the body, never in the address. 404 without the token setting, 401 for a wrong token."""
+        from starlette.responses import HTMLResponse
+        from urllib.parse import parse_qs
+        import hmac
+        fmt = request.query_params.get("format", "")
+        browser = "text/html" in request.headers.get("accept", "")
+        nostore = {"Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow"}
+        page_headers = {**nostore, "Content-Security-Policy": _usage_metrics.PAGE_CSP, "Referrer-Policy": "no-referrer",
+                        "X-Frame-Options": "DENY"}
+        if request.method == "POST":
+            expected = os.environ.get("KRUSGRAPH_METRICS_TOKEN", "").strip()
+            if len(expected) < 32:
+                return PlainTextResponse("not found", status_code=404)
+            body = await request.body()
+            form = parse_qs(body[:4096].decode("utf-8", "replace")) if len(body) <= 4096 else {}
+            given = (form.get("token") or [""])[0].strip()
+            if not given or not hmac.compare_digest(given.encode(), expected.encode()):
+                return HTMLResponse(_usage_metrics.login_html(wrong=True), status_code=401, headers=page_headers)
+            fmt = (form.get("format") or [fmt])[0]
+        else:
+            refused = operator_refusal(request)
+            if refused is not None:
+                if refused.status_code == 401 and browser and not fmt:
+                    return HTMLResponse(_usage_metrics.login_html(), status_code=401, headers=page_headers)
+                return refused
+        if fmt == "prometheus" or (not fmt and not browser and request.method == "GET"):
+            return PlainTextResponse(_usage.usage.prometheus(), media_type="text/plain; version=0.0.4", headers=nostore)
+        from starlette.concurrency import run_in_threadpool
+        rep = await run_in_threadpool(_usage_metrics.report, _usage_metrics.counts)
+        if fmt == "json":
+            return JSONResponse(rep, headers=nostore)
+        return HTMLResponse(_usage_metrics.report_html(rep), headers=page_headers)
+    app.router.routes.append(Route("/metrics", metrics, methods=["GET", "POST"]))
 
     # n240: /check's visits and checks per UTC day and utm_source/medium/campaign (usage.Campaigns), read-only, JSON,
     # behind the same token as /metrics. Counts only: no cookie, IP address or identifier is behind any of them.
@@ -4347,7 +4446,7 @@ def build_app(host: str = "0.0.0.0"):
     from . import workload_host
 
     if not cfg:
-        return _with_security_headers(workload_host.wrap(app))
+        return _with_security_headers(_usage_metrics.asgi(workload_host.wrap(app)))
 
     from .entra import protected_resource_metadata, challenge, TokenError
 
@@ -4396,7 +4495,7 @@ def build_app(host: str = "0.0.0.0"):
             return await resp(scope, receive, send)
         return await inner(scope, receive, send)
 
-    return _with_security_headers(workload_host.wrap(guarded))
+    return _with_security_headers(_usage_metrics.asgi(workload_host.wrap(guarded)))   # UM1: sessions and workload routes counted
 
 
 def main() -> None:

@@ -114,7 +114,7 @@ docker build -t fabric-backend-server . && docker run -p 8000:8000 \
   -e FABRIC_TENANT_ID=... -e FABRIC_CLIENT_ID=... -e FABRIC_CLIENT_SECRET=... fabric-backend-server
 ```
 
-Streamable HTTP at `/mcp`, forty-five tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
+Streamable HTTP at `/mcp`, forty-seven tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
 (the directory requires it): `list_workspaces`, `list_sources`, `list_tables`, `plan_backend` (nothing deployed; suggests
 composite keys), `sample_rows`, `validate_plan` (keys and relationships checked against the rows; by default a summary with every failing check in full, `detail="full"` for every check), `create_backend`
 (creates or updates one item, never deletes), `describe_backend`, `query_graphql` (read-only; mutations refused),
@@ -150,6 +150,18 @@ on public load scripts (`tests/fixtures/qlik/SOURCES.md`), not on a customer's Q
 
 The same three are in the local stdio server, where the script stays on your machine ([docs/LOCAL.md](docs/LOCAL.md)).
 Qlik is a trademark of QlikTech International AB; Krusgraph is not affiliated with it.
+
+Two tools are the analysis pack for SAP order-to-cash data (round AP2, [docs/ANALYSIS-PLAN.md](docs/ANALYSIS-PLAN.md)).
+They complement Fabric Data Science: Krusgraph says which analysis the data supports and writes the first notebook with
+the SAP joins right; the modelling and tracking run on Fabric's own features, started by you:
+
+- `analysis_plan` — which of ten analyses (forecasting, RFM segmentation, ABC/XYZ, cohorts, margin, DSO, OTIF, price
+  realisation, credit risk, returns) the schema's data supports, by deterministic rules over the plan and counts of the
+  rows (never a value; no AI): readiness ready, partial or missing, a score, "Recommended because …", what is missing,
+  the tables and columns used, the next step, and which tables to land next. Read-only.
+- `analysis_notebook_draft` — the PySpark notebook for A7 (forecasting), A8 (RFM) or A3 (ABC/XYZ), wired to those
+  tables, with a data check against the plan's counts and every run logged to an ML experiment (MLflow); creates and
+  runs nothing. Both are in the local stdio server too.
 
 Four more tools create things from the same plan, each `dry_run=true` by default so the first answer is exactly what
 would be created, each creating or updating in place under a name and never deleting (`create_report` only creates); all unit-tested with Fabric
@@ -598,6 +610,8 @@ nor "created live" has "(experimental)" at the end of its title in the tool list
 | `qlik_plan` | draft only | ends in (experimental) |
 | `qlik_measures_draft` | draft only | ends in (experimental) |
 | `qlik_reconcile_draft` | draft only | ends in (experimental) |
+| `analysis_plan` | experimental | ends in (experimental) |
+| `analysis_notebook_draft` | draft only | ends in (experimental) |
 <!-- tool-status:end -->
 
 **25 October 2026, evening: the hosted connector's first connection.** Claude → Entra (a work account in the
