@@ -199,6 +199,8 @@ _RAW = {
     # AP2: the analysis pack, phase 1. Rules over metadata and counts; the notebook runs in Fabric, started by the analyst.
     "analysis_plan": (HOSTED, READS, "nothing (counting queries)", "unit tests on the synthetic SAP samples (SQLite)"),
     "analysis_notebook_draft": (HOSTED, DRAFT, _NO, "unit tests; the notebooks ran on a local PySpark 4.0.1 against synthetic SAP data"),
+    # RQ1: a pasted requirements list matched to the checked SAP data by rules; reads names and counts, never a value
+    "requirements_draft": (HOSTED, READS, "nothing (counting queries)", "unit tests and goldens on the synthetic SAP demo (SQLite)"),
 }
 STATUS: dict[str, ToolStatus] = {name: ToolStatus(*v, name=name) for name, v in _RAW.items()}
 

@@ -166,6 +166,9 @@ def steps(tool: str, args: dict, answer: dict, checks: dict | None = None) -> li
         return error_steps(tool, args, answer)
     if not isinstance(answer, dict) or answer.get("choose_schema") or answer.get("ask"):
         return []
+    if tool == "requirements_draft":                                 # RQ1: its steps name the requirement ids they serve
+        from .requirements_draft import next_steps
+        return next_steps(args, answer)
     args = {k: v for k, v in (args or {}).items() if k != "ctx"}
     if "workspace" not in args or "source" not in args:
         return []

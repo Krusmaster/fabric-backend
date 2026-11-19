@@ -84,7 +84,7 @@ TOOL_STAGE = {
     "list_workspaces": "data", "list_sources": "data", "list_tables": "data", "sample_rows": "data",
     "plan_backend": "read", "ontology_draft": "read", "domain_draft": "read", "dbt_schema": "read",
     "data_dictionary": "read", "graph_analysis": "read", "join_path": "read", "sap_tables": "read",
-    "validate_plan": "check", "suggest_relationships": "check",
+    "validate_plan": "check", "suggest_relationships": "check", "requirements_draft": "check",   # RQ1: it counts the joins
     "review_plan": "decide", "save_review": "decide",
     "gold_views_draft": "build", "create_pipeline": "build", "create_views": "build", "create_backend": "build",
     "create_ontology": "build",

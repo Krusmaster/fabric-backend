@@ -84,4 +84,6 @@ def test_read_only_listing_stays_small():
     # sentence each first): 75 783 before, about 80 700 after
     # 81 500 since WB2 (#54): silver_schema on semantic_model_draft, ontology_draft and verify_build (about 450
     # characters; one short sentence each, and the pipeline= parameter left to the creating tools)
-    assert size <= 81_500, f"read-only tools/list is {size} characters"
+    # 83 000 since RQ1: requirements_draft (description cut to two sentences, parameters to one short sentence each, keys
+    # and confirmed left out): 81 500 before, about 82 900 after
+    assert size <= 83_000, f"read-only tools/list is {size} characters"

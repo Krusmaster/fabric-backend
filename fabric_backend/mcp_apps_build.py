@@ -60,6 +60,8 @@ CARD_TOOLS = ("plan_backend", "create_semantic_model", "create_ontology", "creat
 PICTURE_CARD_TOOLS = ("ontology_draft", "domain_draft")
 # n177: dbt_schema's project drawn as its flow (dbt_flow.py), with the chat demo's renderer (chat-demo.js, dbt-flow block)
 FLOW_CARD_TOOLS = ("dbt_schema",)
+# RQ1: requirements_draft's answer: its own words (kg_card) and its next steps, on the build card
+REQUIREMENT_CARD_TOOLS = ("requirements_draft",)
 # The tools whose answer gets `actions` (validate_plan's card draws them under its own next steps; n170: domain_draft's
 # per data product).
 ACTION_TOOLS = CARD_TOOLS + ("validate_plan", "domain_draft")

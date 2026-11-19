@@ -1,0 +1,183 @@
+{
+ "approval": "A person approves: read each requirement's state and evidence, answer the questions, then run the next steps as dry runs. Nothing here writes to Fabric.",
+ "checked": true,
+ "counts": {
+  "answerable": 1,
+  "missing": 2,
+  "trap": 1,
+  "unclear": 1
+ },
+ "feeds": {
+  "create_data_agent": {
+   "example_queries": [
+    {
+     "query": "-- R1: Revenue per customer and month\n-- invoiced net value (billing documents); rules RQ-M1 (RQ1-1 (19 November 2026)); no row value here\nSELECT SUM(h.[NETWR]) AS net_value, h.[MANDT] AS client, h.[KUNAG] AS customer, SUBSTRING(REPLACE(CAST(h.[FKDAT] AS VARCHAR(30)), '-', ''), 1, 6) AS month, h.[WAERK] AS currency\nFROM [sap].[sap_vbrk] AS h\nGROUP BY h.[MANDT], h.[KUNAG], SUBSTRING(REPLACE(CAST(h.[FKDAT] AS VARCHAR(30)), '-', ''), 1, 6), h.[WAERK]",
+     "question": "Revenue per customer and month",
+     "requirement": "R1"
+    },
+    {
+     "query": "-- R2: Order value per material and month\n-- net value of the sales orders; rules RQ-M2 (RQ1-1 (19 November 2026)); no row value here\nSELECT SUM(i.[NETWR]) AS net_value, h.[MANDT] AS client, i.[MATNR] AS material, SUBSTRING(REPLACE(CAST(h.[ERDAT] AS VARCHAR(30)), '-', ''), 1, 6) AS month, h.[WAERK] AS currency\nFROM [sap].[sap_vbap] AS i\nJOIN [sap].[sap_vbak] AS h ON i.[MANDT] = h.[MANDT] AND i.[VBELN] = h.[VBELN]\nGROUP BY h.[MANDT], i.[MATNR], SUBSTRING(REPLACE(CAST(h.[ERDAT] AS VARCHAR(30)), '-', ''), 1, 6), h.[WAERK]",
+     "question": "Order value per material and month",
+     "requirement": "R2"
+    }
+   ]
+  },
+  "gold_views_draft": {
+   "requirements": [
+    "R1",
+    "R2"
+   ],
+   "tables": [
+    "sap_vbak",
+    "sap_vbap",
+    "sap_vbrk"
+   ]
+  },
+  "semantic_model_draft": {
+   "measures": [
+    {
+     "measure": "invoiced net value (billing documents)",
+     "requirement": "R1",
+     "rule": "sum once per document"
+    },
+    {
+     "measure": "net value of the sales orders",
+     "requirement": "R2",
+     "rule": "sum the item amount"
+    }
+   ],
+   "tables": [
+    "sap_vbak",
+    "sap_vbap",
+    "sap_vbrk"
+   ]
+  }
+ },
+ "never": "No row value is read or returned: the evidence is counts from validate_plan; the queries name columns only. No AI: fixed word lists and the SAP pack's names decide.",
+ "questions": [
+  {
+   "question": "Best or top by which measure: revenue, order value, number of orders or quantity? And over which period?",
+   "requirement": "R5"
+  }
+ ],
+ "requirements": [
+  {
+   "checked": true,
+   "columns": [
+    "VBRK.NETWR (net value of the billing document (header))",
+    "VBRK.KUNAG (sold-to party)",
+    "VBRK.FKDAT (billing date)"
+   ],
+   "id": "R1",
+   "joins": [],
+   "key": {
+    "key": [
+     "MANDT",
+     "VBELN"
+    ],
+    "state": "checked",
+    "table": "sap_vbrk",
+    "verdict": "unique in all 1 rows"
+   },
+   "measure": "invoiced net value (billing documents)",
+   "notes": [
+    "Customer here is the sold-to party (VBRK.KUNAG); the payer (VBRK.KUNRG) can be another customer. Write 'payer' in the requirement to use the payer."
+   ],
+   "query": "-- R1: Revenue per customer and month\n-- invoiced net value (billing documents); rules RQ-M1 (RQ1-1 (19 November 2026)); no row value here\nSELECT SUM(h.[NETWR]) AS net_value, h.[MANDT] AS client, h.[KUNAG] AS customer, SUBSTRING(REPLACE(CAST(h.[FKDAT] AS VARCHAR(30)), '-', ''), 1, 6) AS month, h.[WAERK] AS currency\nFROM [sap].[sap_vbrk] AS h\nGROUP BY h.[MANDT], h.[KUNAG], SUBSTRING(REPLACE(CAST(h.[FKDAT] AS VARCHAR(30)), '-', ''), 1, 6), h.[WAERK]",
+   "rule": "RQ-M1",
+   "state": "answerable",
+   "tables": [
+    "sap_vbrk"
+   ],
+   "text": "Revenue per customer and month",
+   "traps": [],
+   "understood": "revenue by customer per month"
+  },
+  {
+   "checked": true,
+   "columns": [
+    "VBAP.NETWR (net value of the order item)",
+    "VBAP.MATNR (material)",
+    "VBAK.ERDAT (order creation date)"
+   ],
+   "id": "R2",
+   "joins": [
+    {
+     "join": "sap_vbap → sap_vbak",
+     "on": "sap_vbap.MANDT = sap_vbak.MANDT AND sap_vbap.VBELN = sap_vbak.VBELN",
+     "orphans": 1,
+     "rows": 6,
+     "rule": "SAP pack",
+     "state": "failed",
+     "verdict": "1 of 6 rows (16.7%) point at nothing"
+    }
+   ],
+   "key": {
+    "key": [
+     "MANDT",
+     "VBELN",
+     "POSNR"
+    ],
+    "state": "checked",
+    "table": "sap_vbap",
+    "verdict": "unique in all 6 rows"
+   },
+   "measure": "net value of the sales orders",
+   "notes": [],
+   "query": "-- R2: Order value per material and month\n-- net value of the sales orders; rules RQ-M2 (RQ1-1 (19 November 2026)); no row value here\nSELECT SUM(i.[NETWR]) AS net_value, h.[MANDT] AS client, i.[MATNR] AS material, SUBSTRING(REPLACE(CAST(h.[ERDAT] AS VARCHAR(30)), '-', ''), 1, 6) AS month, h.[WAERK] AS currency\nFROM [sap].[sap_vbap] AS i\nJOIN [sap].[sap_vbak] AS h ON i.[MANDT] = h.[MANDT] AND i.[VBELN] = h.[VBELN]\nGROUP BY h.[MANDT], i.[MATNR], SUBSTRING(REPLACE(CAST(h.[ERDAT] AS VARCHAR(30)), '-', ''), 1, 6), h.[WAERK]",
+   "rule": "RQ-M2",
+   "state": "trap",
+   "tables": [
+    "sap_vbak",
+    "sap_vbap"
+   ],
+   "text": "Order value per material and month",
+   "traps": [
+    "VBAK.NETWR is the whole document's value and repeats on every VBAP row: summing it per material counts each document once per line. Sum VBAP.NETWR instead (done in the query below). In the data, VBAP has 1.67 rows per VBAK row on average and up to 3.",
+    "1 VBAP row(s) point at no VBAK row (1 of 6 rows (16.7%) point at nothing): the join leaves them out. In silver they go to quarantine with the reason; decide in the review whether that is right."
+   ],
+   "understood": "order_value by material per month"
+  },
+  {
+   "id": "R3",
+   "missing": [
+    {
+     "field": "LIKP.WADAT_IST",
+     "or": "LIKP.LFDAT (planned delivery date) says when it was due, not when it left",
+     "what": "actual goods issue date",
+     "why": "when the goods actually left; LIKP.ERDAT is when the delivery was created"
+    }
+   ],
+   "rule": "RQ-X2",
+   "say": "A late delivery compares the date the customer asked for with the date the goods left.",
+   "state": "missing",
+   "text": "Late deliveries per customer",
+   "understood": "late_delivery by customer"
+  },
+  {
+   "id": "R4",
+   "missing": [
+    {
+     "field": "BSID",
+     "or": "BSAD (cleared items) with BSEG.AUGDT, or ACDOCA with its clearing date; in S/4HANA the open items are in ACDOCA",
+     "what": "Customer open items",
+     "why": "open customer items say which invoices are unpaid"
+    }
+   ],
+   "rule": "RQ-X1",
+   "say": "Billing documents say what was invoiced, not what was paid: the payments are in accounting.",
+   "state": "missing",
+   "text": "Unpaid invoices per customer",
+   "understood": "open_items by customer"
+  },
+  {
+   "id": "R5",
+   "question": "Best or top by which measure: revenue, order value, number of orders or quantity? And over which period?",
+   "rule": "RQ-U3",
+   "state": "unclear",
+   "text": "Show our best customers",
+   "understood": "no measure by customer"
+  }
+ ],
+ "rule_version": "RQ1-1 (19 November 2026)"
+}

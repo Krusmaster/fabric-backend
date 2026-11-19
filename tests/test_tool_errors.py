@@ -243,7 +243,8 @@ def test_tools_still_describe_themselves_to_mcp_clients():
                                     "review_plan", "sap_pack_draft", "domain_draft", "create_report", "create_pipeline",
                                     "verify_build", "publish_catalog",      # n229, CA1
                                     "qlik_plan", "qlik_measures_draft", "qlik_reconcile_draft",     # Q2
-                                    "analysis_plan", "analysis_notebook_draft"}                       # AP2
+                                    "analysis_plan", "analysis_notebook_draft",                       # AP2
+                                    "requirements_draft"}                                               # RQ1
         assert "workspace" in tools["list_sources"]["inputSchema"]["properties"]
         assert set(tools["create_backend"]["inputSchema"]["properties"]) >= {"workspace", "source", "name", "schema", "writable", "keys", "confirmed", "tables"}
         assert "ctx" not in tools["plan_backend"]["inputSchema"]["properties"]

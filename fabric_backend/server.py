@@ -15,7 +15,7 @@ Authentication, in order:
      "custom connection" model Lovable's Fabric connector uses: one principal, no per-user identity.
 The server stores nothing: no tokens beyond their lifetime, no data, no query results.
 
-Tools (all annotated for the Claude directory): forty-seven, from start to analysis_notebook_draft; docs page
+Tools (all annotated for the Claude directory): forty-eight, from start to requirements_draft; docs page
 /docs lists them. Around every tool: fair-use limits (limits.py), anonymous usage counts (usage.py) and the dormant paid-plan
 check (entitlements.py).
 """
@@ -2507,7 +2507,7 @@ def create_data_agent(workspace: _p.Workspace, source: _p.Source, name: _p.Agent
                       confirmed: _p.Confirmed = None, publish: _p.Publish = True, show_personal_data: _p.ShowPersonalData = False,
                       validate: _p.Validate = False, dry_run: _p.DryRun = True, test_questions: _p.AgentTests = False,
                       layer: _p.AgentLayer = "source", silver_schema: _p.ReadSilverSchema = "", gold_schema: _p.ReadGoldSchema = "",
-                      pipeline: _p.LayerPipeline = "", ctx: Context = None) -> str:
+                      pipeline: _p.LayerPipeline = "", requirements: _p.AgentRequirements = None, ctx: Context = None) -> str:
     """Creates a Fabric data agent over the source, with the plan as its instructions (business names, the joins that
     are safe and those that are not, header amounts not to sum over lines), the plan's tables selected and 3–5 example
     question/T-SQL pairs over safe joins, or updates the agent of that name in place. Krusgraph checks the joins once,
@@ -2544,6 +2544,15 @@ def create_data_agent(workspace: _p.Workspace, source: _p.Source, name: _p.Agent
     spec = _data_agent.draft(p, reads, name, schema, show_personal_data, counted, layers=layers)
     if reads is not info:                             # the source's tables are not in that lakehouse: no fallback to them
         spec["layers"] = [x for x in spec["layers"] if x["layer"] != "source"]
+    traced = None
+    if requirements:                                  # RQ1: each answerable requirement as an example query, with its id
+        from . import requirements_draft as _rq
+        traced = _rq.draft(p, requirements, counted, schema)
+        extra = _rq.example_queries(traced) if layer == "source" else []
+        spec["fewshots"] = list(spec["fewshots"]) + extra
+        for v in spec.get("layers") or []:
+            if v.get("layer") == "source":
+                v["fewshots"] = list(v.get("fewshots") or []) + extra
     out = {"summary": p.summary(), "dry_run": dry_run, "agent": {k: spec[k] for k in ("name", "instructions", "datasource", "datasource_instructions",
                                                                                       "datasource_description", "tables_to_select", "fewshots",
                                                                                       "topics", "templates", "topics_note")},
@@ -2555,6 +2564,14 @@ def create_data_agent(workspace: _p.Workspace, source: _p.Source, name: _p.Agent
            "note": "Unit-tested with the REST calls mocked. " + _tool_status.answer_note("create_data_agent") + " Without the permission the create "
                    "answers kind=consent naming it, see docs/SCOPES.md. The portal shows the agent's data source, "
                    "selected tables and example queries under its staging configuration; publish makes them live."}
+    if traced is not None:
+        out["requirements"] = {"counts": traced["counts"], "added": [x["requirement"] for x in
+                               traced["feeds"]["create_data_agent"]["example_queries"]] if layer == "source" else [],
+                               "states": {x["id"]: x["state"] for x in traced["requirements"]},
+                               "note": "Each added example query starts with its requirement id (-- R1: ...). "
+                                       + ("" if layer == "source" else "Only on layer=\"source\": the queries name the source tables. ")
+                                       + ("Counted with validate=true." if counted is not None else
+                                          "Not counted: pass validate=true so the joins behind them are checked.")}
     flagged = spec["personal_left_out"] or ([] if not show_personal_data else _privacy.findings(_privacy.personal_columns(p.schema)))
     if spec["personal_left_out"]:
         out["personal_data"] = {"left_out": [f"{x['table']}.{x['column']} ({x['rule']}: {x['what']})" for x in flagged],
@@ -2716,6 +2733,37 @@ def analysis_notebook_draft(workspace: _p.Workspace, source: _p.Source, analysis
     finally:
         getattr(execute, "close", lambda: None)()
     return json.dumps(_an.draft(result, analysis, info, output_schema), indent=2)
+
+
+@mcp.tool(title="Match requirements to the checked SAP data (by rules)", annotations=RO)
+@safe
+def requirements_draft(requirements: _p.Requirements, workspace: _p.RequirementsWorkspace = "", source: _p.RequirementsSource = "",
+                       schema: _p.Schema = "dbo", validate: _p.RequirementsValidate = True, sample: _p.RequirementsSample = False, ctx: Context = None) -> str:
+    """Matches pasted requirements (one per line) to checked SAP order-to-cash data by rules, no AI. Returns JSON: per
+    requirement answerable, trap, missing or unclear, evidence, a T-SQL query, ids. Errors: {error, kind, hint}."""
+    from . import requirements_draft as _rq
+    if sample:
+        from . import sap_demo as _sap_demo
+        s, execute = _sap_demo.sqlite()
+        schema = "sap"
+    else:
+        if not workspace or not source:
+            return json.dumps({"error": "workspace and source are needed, or sample=true for the synthetic SAP demo.",
+                               "kind": "bad_input", "hint": "Name the lakehouse with the SAP tables, or pass sample=true."})
+        s, execute = _connected(workspace, source, schema, ctx)
+        schema = s.schema
+    try:
+        p = _hosted_plan(s, None, None, execute) if not sample else make_plan(s)
+        counted = _evidence.validate(p, execute, max_items=200) if validate else None
+    finally:
+        getattr(execute, "close", lambda: None)()
+    out = _rq.draft(p, requirements, counted, schema)
+    out["kg_card"] = _rq.card(out)
+    out["where"] = ("the synthetic SAP demo (fabric_backend/sap_demo.py, SQLite, offline)" if sample
+                    else f"{source} ({schema}), read-only")
+    out["note"] = ("Rules and word lists, no AI. " + _tool_status.answer_note("requirements_draft")
+                   + " The list is pasted: Microsoft Learn documents no API to read a Copilot Workspace (19 November 2026).")
+    return _compact.bounded(out, MAX_RESULT_CHARS)
 
 
 def _silver(workspace, source, schema, silver_schema, order_by, keys, confirmed, tables, ctx, show_personal_data=False, fixes=None):

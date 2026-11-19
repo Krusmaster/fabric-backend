@@ -9,6 +9,19 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round RQ1: **`requirements_draft`, a pasted requirements list matched to the checked SAP data by rules** (19 November
+  2026). A list the business wrote (for example one Copilot summarised in a Copilot Workspace; nothing is read from the
+  Workspace, whose content Microsoft Learn documents no API for) is read one requirement per line (R1, R2 ...) and
+  matched by fixed English and Swedish word lists, the SAP pack's table names and a small field glossary, with no AI:
+  answerable now, answerable with a trap (a header amount that repeats on every line, a join with rows that point at
+  nothing, quantities in several units), missing data (the table or field named: LIKP.WADAT_IST, BSID, VBAP.WAVWR) or
+  unclear (one question). Each answerable one gets a T-SQL query starting with its id, the counted evidence from
+  validate_plan and the tables for `gold_views_draft` and `semantic_model_draft`; `create_data_agent` takes the same list
+  as `requirements=` and adds the answerable ones as example queries. `sample=true` runs it offline on the synthetic
+  SAP demo. Read-only, never a row value (a test checks every answer against the demo's rows). On the build card with
+  the next steps as buttons (390 px, light and dark). 48 tools (37 read-only); the read-only listing cap 81 500 -> 83 000
+  characters, deliberately. Docs: `docs/REQUIREMENTS-TO-FABRIC.md`, `docs/demo/REQUIREMENTS-DEMO.md`. Tests:
+  `tests/test_rq1_requirements_draft.py`, golden `tests/golden/rq1_sap_demo.json`. Not yet run against a live workspace.
 - Round WB3: **every review decision in the Model item is saved without Save** (F6 in
   `docs/WORKLOAD-TEST-2026-11-17.md`, the founder's yes of 18 November 2026). Accept, reject, a key or a link and Accept
   all are saved to the item's definition a moment later; the line says Saving… and Saved; a save Fabric does not confirm
