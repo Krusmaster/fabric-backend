@@ -249,3 +249,10 @@ DocumentTypes = Annotated[dict[str, list[str]] | None, _d('Return/credit types, 
 AnalysisMaxItems = Annotated[int, _d('Cap on counting queries, 1-60. Default 20.')]
 Analysis = Annotated[str, _d('A7 (forecasting), A8 (RFM) or A3 (ABC/XYZ).')]
 OutputSchema = Annotated[str, _d('Schema the notebook writes its one result table to.')]
+# RQ1: requirements_draft, a pasted requirements list (for example a Copilot Workspace summary) matched by rules
+Requirements = Annotated[str, _d('Requirements, one per line (pasted). Up to 20.')]
+RequirementsWorkspace = Annotated[str, _d('Fabric workspace; empty with sample=true.')]
+RequirementsSource = Annotated[str, _d('Source; empty with sample=true.')]
+RequirementsValidate = Annotated[bool, _d('Count the joins used. Default true.')]
+RequirementsSample = Annotated[bool, _d('true: synthetic SAP demo, offline.')]
+AgentRequirements = Annotated[str | None, _d('Requirements list; answerable ones become example queries.')]
