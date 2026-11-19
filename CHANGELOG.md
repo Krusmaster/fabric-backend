@@ -9,6 +9,14 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round WB1: **gold keeps one row per silver row on the SAP path, on Spark 3.5 and 4.0** (F8 in
+  `docs/WORKLOAD-TEST-2026-11-17.md`). A gold view's join rule now counts SAP's initial value (a blank, and zeros only in
+  an optional field) as no reference, as silver has since AP2: `sap_gold.sap_vbpa` dropped every partner row with a blank
+  `KUNNR` or `PARNR` (all five of the demo's), on any Spark; the check notebook's row count caught it. The Salesforce
+  pack's views get the same rule. The failure F8 reported on PySpark 3.5.3 was the test's own `SELECT * EXCEPT`, which
+  only Spark 4 parses; no join repeated a row. New: the SAP demo through silver, gold and the check notebook on a local
+  Spark (the CI notebooks run on PySpark 3.5.3 follows in its own PR). SAP gold built before this needs a regenerated
+  gold notebook run again.
 - Round CO1: **the coach: one guided path, said like the home page's demo chat** (`docs/COACHING.md`). Every card shows
   "Step N of 8: <stage>" and one mascot line in plain words, one primary button and at most two others, with rule codes
   and the table of checks under Details; every tool result's text carries a short Coach block for the host model;

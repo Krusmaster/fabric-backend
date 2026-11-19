@@ -211,6 +211,13 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", gold_schema: str
                   "why": f"{s['from']}.{'+'.join(r.source_cols)} points at {s['to']}.{'+'.join(r.target_cols)} (rule {r.rule}: "
                          f"{_rule_text(r.rule)}" + (f"; {r.note}" if r.note else "") + "); a row whose reference finds no "
                          f"{s['to']} is dropped, a NULL reference is kept (it says unknown, not wrong)"}
+            # WB1 (F8): SAP's initial value is no reference, as in silver (AP2): a blank in a `blank` column, zeros only in an
+            # `initial` one. Without this a VBPA row with a blank KUNNR or PARNR found no partner and was dropped from gold.
+            from .silver import _blank_rule
+            blank_rule = _blank_rule(r)
+            for kind in ("blank", "initial"):
+                if blank_rule.get(kind):
+                    fl[kind] = [[alias[s["from"]], c] for c in blank_rule[kind]]
             fl["check"] = filter_sql(fl)
             filters.append(fl)
         views.append({"fact": fact, "name": target, "why": f"{fact} is a fact table ({roles[fact]['why'].split(';')[0]}); one row per {fact} "
@@ -230,8 +237,12 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", gold_schema: str
 
 
 def filter_sql(fl: dict, quote=q) -> str:
-    """n209: one join's rule as a predicate on the aliases of the SELECT: `(f.ref IS NULL) OR (d1.key IS NOT NULL)`."""
-    return ("(" + " OR ".join(f"{a}.{quote(c)} IS NULL" for a, c in fl["ref"]) + ") OR ("
+    """n209: one join's rule as a predicate on the aliases of the SELECT: `(f.ref IS NULL) OR (d1.key IS NOT NULL)`.
+    WB1: for a SAP pack join, SAP's blank (and an optional field's zeros) counts as no reference, like NULL (AP2)."""
+    none = [f"{a}.{quote(c)} IS NULL" for a, c in fl["ref"]]
+    none += [f"TRIM({a}.{quote(c)}) = ''" for a, c in fl.get("blank", [])]
+    none += [f"REPLACE(TRIM({a}.{quote(c)}), '0', '') = ''" for a, c in fl.get("initial", [])]
+    return ("(" + " OR ".join(none) + ") OR ("
             + " AND ".join(f"{a}.{quote(c)} IS NOT NULL" for a, c in fl["found"]) + ")")
 
 

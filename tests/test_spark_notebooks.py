@@ -413,8 +413,10 @@ def test_pipeline_check_notebook_runs_after_silver_and_gold_in_pyspark(tmp_path)
         spark.sql("DROP TABLE gold.order_items")
         items = next(v for v in g["views"] if v["fact"] == "order_items")
         spark.sql(f"SELECT * FROM ({gold.select_sql(items, g['silver_schema'])}) AS v").createOrReplaceTempView("items_v")
-        spark.sql("SELECT order_id, line_no, product_id, quantity + CASE WHEN line_no = 1 THEN 1 ELSE 0 END AS quantity, "
-                  "* EXCEPT (order_id, line_no, product_id, quantity) FROM items_v").write.format("parquet").saveAsTable("gold.order_items")
+        # WB1 (F8): the other columns by name; SELECT * EXCEPT (...) parses only on Spark 4, and Fabric Runtime 1.3 is 3.5
+        rest = "".join(f", `{c}`" for c in spark.table("items_v").columns if c not in ("order_id", "line_no", "product_id", "quantity"))
+        spark.sql("SELECT order_id, line_no, product_id, quantity + CASE WHEN line_no = 1 THEN 1 ELSE 0 END AS quantity"
+                  f"{rest} FROM items_v").write.format("parquet").saveAsTable("gold.order_items")
         spark.sql("INSERT INTO silver.order_items SELECT 4242, 1, product_id, 1.0 FROM silver.order_items LIMIT 1")
         with pytest.raises(Exception) as e:
             run()
@@ -606,5 +608,43 @@ def test_ap2_demo36_notebook_and_the_three_analysis_notebooks_run_in_pyspark(tmp
         with pytest.raises(ValueError, match="was not written by this notebook"):
             _run_cells(spark, analysis_notebook.cells(analysis_notebook.spec(result, "A8", info, output_schema="other")),
                        'TABLE_FORMAT = "parquet"')
+    finally:
+        spark.stop()
+
+
+def test_wb1_sap_gold_keeps_one_row_per_silver_row_in_pyspark(tmp_path):
+    """WB1 (F8 in docs/WORKLOAD-TEST-2026-11-17.md): the SAP path on a local Spark, on both CI lines (PySpark 3.5, the
+    Spark of Fabric Runtime 1.3, and 4.0). The synthetic SAP demo goes through the generated silver notebook into
+    sap_silver and the gold views' SELECTs into sap_gold; every gold view, sap_vbrp, sap_lips, sap_vbap, sap_vbpa and
+    sap_vbrk among them, has exactly the rows and sums of its silver fact table, and the generated check notebook says
+    so for each of them and passes."""
+    pytest.importorskip("pyspark")
+    from fabric_backend import gold, notebook, pipeline, sap_demo
+    spark = _spark(tmp_path, "krusgraph-wb1-sap-gold")
+    try:
+        spark.sql("CREATE SCHEMA IF NOT EXISTS sap")
+        spark.catalog.setCurrentDatabase("sap")
+        exec(compile(sap_demo.notebook_inline().replace('.format("delta")', '.format("parquet")'), "load_sap_demo.py", "exec"),
+             {"spark": spark})
+        spark.catalog.setCurrentDatabase("default")
+        p = plan(sap_demo.sqlite()[0])
+        info = dict(INFO, item_name="demo_lh", schema="sap")
+        s = silver.spec(p, info, silver_schema="sap_silver")
+        _run_cells(spark, silver.cells(s), 'TABLE_FORMAT = "parquet"')
+        g = gold.spec(p, info, silver_schema="sap_silver", gold_schema="sap_gold")
+        names = {v["name"] for v in g["views"]}
+        assert {"sap_gold.sap_vbrp", "sap_gold.sap_lips", "sap_gold.sap_vbap", "sap_gold.sap_vbpa", "sap_gold.sap_vbrk"} <= names
+        spark.sql("CREATE SCHEMA IF NOT EXISTS sap_gold")
+        for v in g["views"]:
+            spark.sql(f"SELECT * FROM ({gold.select_sql(v, g['silver_schema'])}) AS v WHERE "
+                      + (" AND ".join(f"({c['check']})" for c in v["constraints"]) or "1 = 1")).write.format("parquet").saveAsTable(v["name"])
+            assert spark.table(v["name"]).count() == spark.table(f"sap_silver.{v['fact']}").count() > 0, v["name"]
+        text = pipeline.check_source(pipeline.check_spec(p, s, g), "demo_lh.sap")
+        nb = _run_cells(spark, notebook.parse(text), 'SILVER_SCHEMA = "sap_silver"; GOLD_SCHEMA = "sap_gold"; '
+                                                     'TABLE_FORMAT = "parquet"; RUN_ID = "run-1"')
+        assert nb["result"]["passed"], nb["result"]["lines"]
+        views = {v["view"]: v for v in nb["result"]["joins"]}
+        assert set(views) == names
+        assert all(v["rows_before"] == v["rows_after"] > 0 and all(x["holds"] for x in v["sums"]) for v in views.values())
     finally:
         spark.stop()
