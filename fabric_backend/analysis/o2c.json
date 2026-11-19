@@ -1,0 +1,110 @@
+{
+  "catalogue": "o2c",
+  "rule_version": "ap-o2c-1",
+  "title": "SAP order to cash: which analyses this data supports",
+  "rule": "Deterministic rules over the plan's metadata (SAP pack tables, keys, relationships) and counts of the rows (never a value): no AI, no model, no LLM. Same input, same answer.",
+  "value_note": "value (1 to 5) is Krusgraph's own judgement of how much money or risk the answer usually touches; it is not measured. Pass weights to use your own.",
+  "thresholds": {
+    "months": [12, 24],
+    "per_item_regular_months": 18,
+    "customers": [50, 200],
+    "repeat_share": [0.3, 0.6],
+    "rfm_months": [6, 12],
+    "cohort_months": [12, 24],
+    "cohort_first_months": [3, 6],
+    "churned_for_model": 50,
+    "cluster_customers": 200,
+    "materials": [20, 100],
+    "xyz_months_per_item": 6,
+    "returns": [10, 30],
+    "ready": 0.8,
+    "partial": 0.4,
+    "weak_part": 0.5,
+    "quality_factor": 0.8,
+    "not_counted_readiness": 0.5
+  },
+  "document_types": {
+    "return_order_types": ["RE"],
+    "credit_billing_types": ["G2", "RE"],
+    "note": "SAP's standard codes, offered as defaults to confirm; every system can configure its own. Pass document_types to change them."
+  },
+  "analyses": [
+    {"id": "A1", "name": "Margin by customer and product", "value": 5, "rule": "R8", "notebook": "P2",
+     "fabric": ["Notebook", "Semantic link (SemPy)", "ML experiment (MLflow)"]},
+    {"id": "A2", "name": "DSO, payment behaviour and aging", "value": 5, "rule": "R6", "notebook": "P2",
+     "fabric": ["Notebook", "ML experiment (MLflow)"]},
+    {"id": "A3", "name": "ABC / XYZ classification", "value": 3, "rule": "R4", "notebook": "P1",
+     "fabric": ["Notebook", "Data Wrangler", "ML experiment (MLflow)"]},
+    {"id": "A4", "name": "Customer cohorts and churn", "value": 3, "rule": "R3", "notebook": "P2",
+     "fabric": ["Notebook", "AutoML (FLAML) classification", "ML experiment (MLflow)", "PREDICT"]},
+    {"id": "A5", "name": "On-time-in-full delivery", "value": 4, "rule": "R5", "notebook": "P2",
+     "fabric": ["Notebook", "Semantic link (SemPy)"]},
+    {"id": "A6", "name": "Price realisation and discount leakage", "value": 4, "rule": "R7", "notebook": "P2",
+     "fabric": ["Notebook", "Data Wrangler"]},
+    {"id": "A7", "name": "Demand and revenue forecasting", "value": 4, "rule": "R1", "notebook": "P1",
+     "fabric": ["AutoML (FLAML) forecasting", "ML experiment (MLflow)", "PREDICT"]},
+    {"id": "A8", "name": "RFM segmentation (and clustering)", "value": 4, "rule": "R2", "notebook": "P1",
+     "fabric": ["Notebook (scikit-learn k-means)", "ML experiment (MLflow)", "Data Wrangler"]},
+    {"id": "A9", "name": "Credit risk early warning", "value": 4, "rule": "R9", "notebook": "P2",
+     "fabric": ["AutoML (FLAML) classification", "ML experiment (MLflow)", "PREDICT"]},
+    {"id": "A10", "name": "Returns and credit memos", "value": 3, "rule": "R10", "notebook": "P2",
+     "fabric": ["Notebook", "Data Wrangler"]}
+  ],
+  "datasets": {
+    "billing": {
+      "what": "billing documents",
+      "header": ["VBRK", "I_BILLING_DOCUMENT"],
+      "item": ["VBRP", "I_BILLING_DOCUMENT_ITEM"],
+      "fields": {
+        "date": [["header", "FKDAT"], ["header", "BILLING_DOCUMENT_DATE"], ["header", "ERDAT"], ["header", "CREATION_DATE"], ["item", "ERDAT"], ["item", "CREATION_DATE"]],
+        "customer": [["header", "KUNRG"], ["header", "PAYER_PARTY"], ["header", "KUNAG"], ["header", "SOLD_TO_PARTY"]],
+        "material": [["item", "MATNR"], ["item", "PRODUCT"], ["item", "MATERIAL"]],
+        "amount": [["item", "NETWR"], ["item", "NET_AMOUNT"]],
+        "quantity": [["item", "FKIMG"], ["item", "BILLING_QUANTITY"]],
+        "currency": [["header", "WAERK"], ["header", "TRANSACTION_CURRENCY"], ["item", "WAERK"], ["item", "TRANSACTION_CURRENCY"]],
+        "doc_type": [["header", "FKART"], ["header", "BILLING_DOCUMENT_TYPE"]],
+        "cost": [["item", "WAVWR"]]
+      },
+      "return_types": "credit_billing_types"
+    },
+    "orders": {
+      "what": "sales orders",
+      "header": ["VBAK", "I_SALES_DOCUMENT", "I_SALES_ORDER"],
+      "item": ["VBAP", "I_SALES_DOCUMENT_ITEM", "I_SALES_ORDER_ITEM"],
+      "fields": {
+        "date": [["header", "AUDAT"], ["header", "ERDAT"], ["header", "CREATION_DATE"], ["header", "SALES_DOCUMENT_DATE"], ["item", "ERDAT"], ["item", "CREATION_DATE"]],
+        "customer": [["header", "KUNNR"], ["header", "SOLD_TO_PARTY"]],
+        "material": [["item", "MATNR"], ["item", "PRODUCT"], ["item", "MATERIAL"]],
+        "amount": [["item", "NETWR"], ["item", "NET_AMOUNT"]],
+        "quantity": [["item", "KWMENG"], ["item", "ORDER_QUANTITY"]],
+        "currency": [["header", "WAERK"], ["header", "TRANSACTION_CURRENCY"], ["item", "WAERK"], ["item", "TRANSACTION_CURRENCY"]],
+        "doc_type": [["header", "AUART"], ["header", "SALES_DOCUMENT_TYPE"]],
+        "requested_date": [["header", "VDATU"], ["header", "REQUESTED_DELIVERY_DATE"]]
+      },
+      "return_types": "return_order_types"
+    }
+  },
+  "masters": {
+    "customer": ["KNA1", "I_CUSTOMER"],
+    "material": ["MARA", "I_PRODUCT"]
+  },
+  "tables": {
+    "delivery": ["LIKP", "I_DELIVERY_DOCUMENT"],
+    "delivery_item": ["LIPS", "I_DELIVERY_DOCUMENT_ITEM"],
+    "schedule_line": ["VBEP", "I_SALES_DOCUMENT_SCHEDULE_LINE"],
+    "flow": ["VBFA"],
+    "receivables": ["BSID", "BSAD", "ACDOCA", "I_JOURNAL_ENTRY_ITEM", "I_OPERATIONAL_ACCTG_DOC_ITEM"],
+    "conditions": ["KONV", "PRCD_ELEMENTS"],
+    "credit": ["KNKK"]
+  },
+  "land": {
+    "receivables": {"text": "customer open and cleared items: BSID + BSAD (ECC) or ACDOCA customer lines (S/4HANA)", "unlocks": ["A2", "A9"]},
+    "conditions": {"text": "document conditions: KONV (ECC) or PRCD_ELEMENTS (S/4HANA), with KSCHL and KWERT", "unlocks": ["A6"]},
+    "cost": {"text": "a cost per billing item: VBRP.WAVWR, a cost condition in KONV/PRCD_ELEMENTS, or ACDOCA cost-of-goods lines", "unlocks": ["A1"]},
+    "otif_dates": {"text": "a requested date (VBEP.EDATU or VBAK.VDATU) and the actual goods issue date (LIKP.WADAT_IST), with LIPS linked to VBAP", "unlocks": ["A5"]},
+    "history": {"text": "more months of billing or order history (forecasting needs about 24, cohorts at least 12)", "unlocks": ["A7", "A4"]},
+    "customers": {"text": "the customer master (KNA1 or I_Customer) linked from the documents' customer column", "unlocks": ["A8", "A4", "A9"]},
+    "materials": {"text": "the material master (MARA or I_Product) linked from the items' material column", "unlocks": ["A3"]},
+    "sales": {"text": "billing documents (VBRK + VBRP) or sales orders (VBAK + VBAP) with a date, an amount and their item-to-header link", "unlocks": ["A7", "A8", "A3", "A4", "A1", "A10"]}
+  }
+}
