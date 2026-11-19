@@ -20,7 +20,7 @@ next deploy.
   `KUNNR` or `PARNR` (all five of the demo's), on any Spark; the check notebook's row count caught it. The Salesforce
   pack's views get the same rule. The failure F8 reported on PySpark 3.5.3 was the test's own `SELECT * EXCEPT`, which
   only Spark 4 parses; no join repeated a row. New: the SAP demo through silver, gold and the check notebook on a local
-  Spark, and CI's notebooks job on PySpark 3.5.3 next to 4.0.1 (a matrix; the two run side by side). SAP gold built
+  Spark, and CI's notebooks job on PySpark 3.5.3 with Python 3.11 (Fabric Runtime 1.3) next to 4.0.1. SAP gold built
   before this needs a regenerated gold notebook run again.
 - Round CO1: **the coach: one guided path, said like the home page's demo chat** (`docs/COACHING.md`). Every card shows
   "Step N of 8: <stage>" and one mascot line in plain words, one primary button and at most two others, with rule codes
