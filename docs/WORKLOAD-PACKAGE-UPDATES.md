@@ -4,11 +4,19 @@
 **manifest** reaches Fabric only when a Fabric administrator uploads a new `.nupkg` and activates it. The manifest
 holds the name, the item types, the icons, the Workload Hub texts, the version, and the Entra app with its frontend URL.
 
-This page covers three things:
+This page covers four things:
 - what Microsoft documents about doing that upload automatically;
 - the questions to ask Microsoft on 18 November;
 - how to run the new tool, `tools/workload_package.py`, which builds, checks and compares the package and uploads
-  nothing.
+  nothing;
+- the automatic build (round WP1, 18 November): when the manifest changes on `main`, CI builds the package and opens
+  an issue, so Gustav only downloads and uploads it.
+
+**Where we are (17 November 2026):** Gustav uploaded and activated `Org.Krusgraph` **1.0.1395** by hand (the previous
+active version was 1.0.1074). Fabric shows it as **Krusgraph (preview)**. The Workloads page in his tenant is OneLake
+catalog > Govern > Configurations > Workloads, direct link
+<https://app.fabric.microsoft.com/onelake/govern/org-config/workloads/publish?experience=fabric-developer> (a page for a
+person to open; nothing here calls it).
 
 ## 1. Findings (official Microsoft sources only)
 
@@ -65,22 +73,39 @@ python3 -m pip install --user pytest pillow             # for the manifest tests
 bash tools/workload-package.sh --frontend-app-id <the workload app's Application (client) ID>
 ```
 
+These three lines work in a clean Cloud Shell (Python 3.12) since round WP1. On 17 November they did not: the tool also
+ran workload tests that import the server (`starlette`, then the full server extras), and those stopped at collection
+("No module named 'starlette'"). Now the tool runs only the manifest tests that need pytest and pillow, and names the
+others as run in CI. To run those here too, install the server extras once from the repository root and add
+`--full-tests`:
+
+```sh
+python3 -m pip install --user -e '.[server,test]'
+bash tools/workload-package.sh --frontend-app-id <id> --full-tests
+```
+
 What it does, in order:
 
 1. **Builds** the `.nupkg` from `workload/Workload/Manifest` with `workload/scripts/build_package.py`, which is the
    same build as `workload/scripts/build-package` and CI's artifact. The tool does not change that script. The file goes to
    `workload/build/package/` (git-ignored), or to the folder given with `--out`.
 2. **Chooses the version.** It is one patch above the last package (`--bump minor|major` for the others, or
-   `--version 1.0.N`). It is never below `1.0.<commits on this checkout>`, the number the build has always used. So it
-   also grows on a fresh clone, with no earlier package to read. A shallow clone stops with a message; run `git fetch
-   --unshallow`.
+   `--version 1.0.N`). It is never below `1.0.<commits on this checkout>`, the number the build has always used, never
+   below one patch above the highest `workload-pkg/1.0.N` tag (the packages CI has offered; a plain `git clone`
+   fetches the tags), and never below **1.0.1396** (`--min-version`; 1.0.1395 is active). So it also grows on a fresh
+   clone, with no earlier package to read. A shallow clone stops with a message; run `git fetch --unshallow`.
 3. **Checks** the manifest:
    - first `build_package.check()`: the name, the frontend URL and app id, the image sizes, and the Workload Hub fields
      for `Krusgraph.Modeler`;
-   - then the repository's manifest tests: `tests/test_workload_manifest.py`, `test_n201_manifest.py`,
-     `test_workload_build.py` and `test_workload_publish.py`, which include the XSD validation;
+   - then the repository's manifest tests that need only pytest and pillow: `tests/test_workload_manifest.py` (with
+     the XSD validation when `xmllint` is installed), `test_n201_manifest.py` and `test_workload_package_names.py`. They
+     run with `--noconftest`, because `tests/conftest.py` imports the server;
+   - the server-dependent workload tests (`test_workload_build.py`, `test_workload_publish.py`,
+     `test_wp1_workload_server_pages.py`) run too when the server extras are installed. Otherwise the tool prints that
+     they were not run here and that CI runs them. `--full-tests` (used by CI) makes their absence a stop;
    - if the tests fail, the package is removed;
-   - without pytest the tool stops and says so. `--skip-tests` builds anyway and prints that the tests were not run.
+   - without pytest or pillow the tool stops and prints the one command to run: `python3 -m pip install --user pytest
+     pillow`. `--skip-tests` builds anyway and prints that the tests were not run.
 4. **Prints what changes for Fabric**, compared with the last package:
    - which package counts as the last one: the newest `<name>.<version>.nupkg` in the output folder, or
      `--previous <file>`, or `--previous-ref <git ref>` (the manifest at the commit you uploaded last, built the same
@@ -120,10 +145,70 @@ Nothing was uploaded. To add it in Fabric:
   5. Undo: activate the previous version again on the same page.
 ```
 
-## 4. CI design (not built in this round)
+## Automatic build
 
-Nothing below is wired into `.github/workflows/`. That is a protected path, and the deploy workflow belongs to DP1
-today.
+Round WP1, 18 November 2026: `.github/workflows/workload-package.yml`. It uploads nothing and calls neither Fabric nor
+any portal endpoint; there is no browser automation either.
+
+**When it runs:** on a push to `main` that changes `workload/Workload/Manifest/**`, the build script
+(`workload/scripts/build_package.py`, `build-package`), `tools/workload_package.py`, `tools/workload_package_ci.py`,
+`tools/workload-package.sh` or the workflow itself. It can also be started by hand: Actions > Workload package > Run
+workflow. The box "Open the issue even when only the version would change" is off by default.
+
+**What it does:**
+1. It builds `Org.Krusgraph` with `tools/workload_package.py --full-tests`, so every workload manifest test runs,
+   including the server-dependent ones.
+2. It compares the package with a baseline:
+   - before the first package, the manifest at `3610190`. That is `main` on 17 November with 1395 commits, most likely
+     what 1.0.1395 was built from;
+   - after that, the last package it offered (the tag `workload-pkg/1.0.N`);
+   - while an issue is open and not ticked, the same baseline as that issue, so the diff covers everything since the
+     last upload.
+3. It keeps the `.nupkg` and `diff.txt` as the run's artifact for 30 days.
+4. **If something changes for Fabric**, it tags the commit `workload-pkg/<version>` and opens one issue,
+   **New workload package ready: Org.Krusgraph 1.0.N**. If an open issue of its own exists and its box is not ticked,
+   it updates that issue instead (new title, new body, and a comment so you get a notification); it never opens a
+   second one. If the box is ticked, it closes that issue and opens a new one. If nothing changes but the version, it
+   offers nothing: no tag and no issue, only a line in the run's summary.
+
+**What Gustav sees:** one issue with:
+- what changes for Fabric, with a warning if the workload name or an item type changes;
+- a link to the artifact (a zip with the `.nupkg` and the diff);
+- the portal link <https://app.fabric.microsoft.com/onelake/govern/org-config/workloads/publish?experience=fabric-developer>;
+- the steps: **Upload workload** > choose the file > the dialog must name **Org.Krusgraph** > open
+  **Krusgraph (preview)** > select the new version > **Activate**. To undo, activate the previous version;
+- a checkbox, **uploaded**. Tick it (or close the issue) after the upload.
+
+**Versions** are unique and always increase. Each new version is the highest of three numbers:
+- `1.0.<commits on main>`;
+- one patch above the highest `workload-pkg/` tag;
+- 1.0.1396.
+
+A manual re-run on the same commit therefore gets the next number. Two runs never overlap (one `concurrency` group).
+The tag is pushed before the issue is written, so a version that is already taken stops the run before the issue
+changes. Tags are never moved or deleted. A package that was built but not offered (nothing changed) is not tagged, and
+its number may be used again; it was never offered for upload. If you build by hand in Cloud Shell, the same rules
+apply, because the clone has the tags. `tests/test_wp1_workload_package_ci.py` tests the rules.
+
+**Permissions:** `contents: write` (only to push the tag) and `issues: write`. No secrets, no OIDC, no Azure sign-in.
+The actions are pinned by commit.
+
+**The one setting Gustav makes (once).** The workflow needs the workload app's Application (client) ID. That is a
+public id, so it is a variable, not a secret:
+1. Open <https://github.com/Krusmaster/fabric-backend/settings/variables/actions>. Or go to the repository >
+   **Settings** > **Secrets and variables** > **Actions** > the **Variables** tab.
+2. Click **New repository variable**.
+3. Name: `KRUSGRAPH_WORKLOAD_APP_ID`. Value: the Application (client) ID you pass as `--frontend-app-id` in Cloud Shell
+   (Microsoft Entra admin center > App registrations > the workload app > Overview).
+4. Click **Add variable**. Then run it once: **Actions** > **Workload package** > **Run workflow** > `main`.
+
+Without the variable, every run ends green with one line: "Skipped: the repository variable KRUSGRAPH_WORKLOAD_APP_ID
+is not set". To switch the workflow off, delete the variable, or use **Actions** > **Workload package** > **...** >
+**Disable workflow**.
+
+## 4. CI design (W14's plan; the build part is now the automatic build above)
+
+The automatic build above implements the build part of this plan. The upload part still waits for a documented API.
 
 - **Build on every push to `main`.** A job runs `tools/workload_package.py` (without `--upload`): it builds, checks and
   diffs, with `--previous-ref` set to the commit of the last approved upload. It keeps the `.nupkg` and the diff as

@@ -191,16 +191,7 @@ def test_the_page_tells_it_which_hosts_to_allow():
 
 # ------------------------------------------------------------------ the IT page, the docs ---------------------------
 
-def test_the_it_page_lists_the_hosts(monkeypatch):
-    from starlette.testclient import TestClient
-    from fabric_backend import server
-    monkeypatch.setenv("PRODUCT_NAME", "Krusgraph")
-    with TestClient(server.build_app()) as client:
-        html = client.get("/it").text
-    section = html.split('id="network"')[1].split("<h2")[0]
-    for word in ("workload.krusgraph.com", "<code>krusgraph.com</code>", "443", "TLS 1.2", "keeps loading",
-                 "ERR_SSL_VERSION_OR_CIPHER_MISMATCH", "allow"):
-        assert word in section, word
+# The /it page's network section (it needs the server) is checked in tests/test_wp1_workload_server_pages.py (WP1).
 
 
 def test_the_docs_have_the_symptom():
