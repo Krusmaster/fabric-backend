@@ -57,7 +57,8 @@ WHY = {
     "refresh": "A new Direct Lake model shows no data until it is refreshed once; one refresh frames its tables.",
     "pipeline": "Nothing keeps the silver tables and the gold views up to date yet; the pipeline does, and its check fails the run when a key or a sum breaks.",
     "report": "The model has measures and no page that shows them; I draw one page from its own measures.",
-    "data_agent": "People can then ask the data in words; it is experimental and judged by its answers, so try its questions first.",
+    "data_agent": "Krusgraph checks the joins once, with evidence and your approval; your data agent then reuses them in "
+                  "topics and templates, so people can ask the data in words (experimental: try its questions first).",
     "app": "Honest: I make an empty App item and a package with one command; the App opens inside Fabric only.",
     "drift_monitor": "Tables and columns change; a nightly monitor tells you when the plan no longer matches the source.",
     "data_product": "It has items and no owner or contract yet; with those, others know whom to ask and what is promised.",

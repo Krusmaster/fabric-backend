@@ -2283,7 +2283,7 @@ def _agent_layers(p, info: dict, layer: str, show_personal_data: bool) -> list[d
         return [{"layer": "silver", "schema": "silver"}]
     from . import gold as _gold_mod
     views = _gold_mod.spec(p, info, "silver", "gold", None, show_personal_data)["views"]
-    return [{"layer": "gold", "schema": "gold", "tables": [v["name"].split(".", 1)[-1] for v in views]}]
+    return [{"layer": "gold", "schema": "gold", "tables": [v["name"].split(".", 1)[-1] for v in views], "views": views}]
 
 
 def _layer_words(spec: dict, layer: str) -> str:
@@ -2297,6 +2297,12 @@ def _layer_words(spec: dict, layer: str) -> str:
             f"when they are in the lakehouse; otherwise the source tables in {spec['schema']}. Never two layers at once.")
 
 
+# DA2: what a person reads in the dry run and after Create (docs/DATA-AGENT-TOPICS-TEMPLATES.md)
+_DATA_AGENT_REUSE = ("Krusgraph checks the joins once, with evidence and your approval; your data agent then reuses them in "
+                     "topics and templates. Read the topics and templates in this dry run; calling again with dry_run=false is "
+                     "your approval to write them.")
+
+
 @mcp.tool(title="Create or update a Fabric data agent from the plan (dry run by default)", annotations=WRITE)
 @safe
 @_lifecycle("data_agent")
@@ -2306,7 +2312,11 @@ def create_data_agent(workspace: _p.Workspace, source: _p.Source, name: _p.Agent
                       layer: _p.AgentLayer = "source", ctx: Context = None) -> str:
     """Creates a Fabric data agent over the source, with the plan as its instructions (business names, the joins that
     are safe and those that are not, header amounts not to sum over lines), the plan's tables selected and 3–5 example
-    question/T-SQL pairs over safe joins, or updates the agent of that name in place. Only joins validate=true counted
+    question/T-SQL pairs over safe joins, or updates the agent of that name in place. Krusgraph checks the joins once,
+    with evidence and your approval; your data agent then reuses them in topics and templates: one topic file per
+    business area (tables, what their fields point at, the checked joins with their counts, known traps; topics are a
+    Fabric preview for SQL sources) and one example query per checked join, with comments where a customer, a period
+    or another filter goes. Rules and templates only, no AI. Only joins validate=true counted
     are called safe. Requires workspace, source and name; Item.ReadWrite.All or DataAgent.ReadWrite.All. Returns JSON
     with the instructions, examples, sizes against the documented limits and the REST calls; with dry_run=false also
     the result, or kind consent. Changes Fabric only with dry_run=false: instructions, data source and examples are
@@ -2335,7 +2345,9 @@ def create_data_agent(workspace: _p.Workspace, source: _p.Source, name: _p.Agent
     if reads is not info:                             # the source's tables are not in that lakehouse: no fallback to them
         spec["layers"] = [x for x in spec["layers"] if x["layer"] != "source"]
     out = {"summary": p.summary(), "dry_run": dry_run, "agent": {k: spec[k] for k in ("name", "instructions", "datasource", "datasource_instructions",
-                                                                                      "datasource_description", "tables_to_select", "fewshots")},
+                                                                                      "datasource_description", "tables_to_select", "fewshots",
+                                                                                      "topics", "templates", "topics_note")},
+           "reuse": _DATA_AGENT_REUSE,
            "context": spec["context"],
            "rest": spec["rest"], "delegated_scope": spec["delegated_scope"],
            "layer": _layer_words(spec, layer),

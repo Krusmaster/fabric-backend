@@ -272,6 +272,7 @@ class FakeFabric:
         self.calls = []
         self.agents = {existing_agent: {"id": "da-1", "displayName": existing_agent, "type": "DataAgent"}} if existing_agent else {}
         self.settings, self.datasources, self.fewshots, self.published, self.selected = {}, [], [], [], []
+        self.topics = {}                                            # DA2: Staging - Upload Datasource Topic, by file name
         self.fail = fail or {}
 
     def _hit(self, method, url, **k):
@@ -317,6 +318,9 @@ class FakeFabric:
                 if f["id"] == fid:
                     f.update(k["json"])
             return Resp(200, {})
+        if method == "put" and url.endswith("/topics"):
+            self.topics[k["params"]["fileName"]] = k["data"].decode("utf-8")
+            return Resp(200, None, {"ETag": '"1"'})
         if method == "post" and url.endswith("/staging/publish"):
             self.published.append(k["json"])
             return Resp(200, k["json"])
@@ -327,7 +331,7 @@ class FakeFabric:
 def fake(monkeypatch):
     def install(**kw):
         f = FakeFabric(**kw)
-        for m in ("get", "post", "patch"):
+        for m in ("get", "post", "patch", "put"):
             monkeypatch.setattr(requests, m, (lambda method: lambda url, **k: f._hit(method, url, **k))(m))
         return f
     return install
