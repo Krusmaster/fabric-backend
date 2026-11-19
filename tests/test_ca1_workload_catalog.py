@@ -6,7 +6,7 @@ import pytest
 pytest.importorskip("jwt")
 
 import golden_support as gs  # noqa: E402
-from fabric_backend.catalog_publish import writes  # noqa: E402
+from fabric_backend.catalog_publish import recorded, writes  # noqa: E402
 from test_workload_api import SRC, _post, _writes, api, keys, tok  # noqa: E402,F401
 
 
@@ -44,6 +44,10 @@ def test_a_rejected_link_is_left_out_of_the_cards(api):
 
 def test_writing_is_refused_outside_the_list_and_done_inside_it(api, monkeypatch):
     client, fake, _, priv = api
+    # WB2: one minute for the whole test. The cards state the check's time to the minute, and the confirm is a hash of
+    # exactly what was shown, so a dry run at 19:09 and a write at 19:10 differ (PR #98's CI, 19 Nov 2026)
+    stamp = recorded.with_recorded
+    monkeypatch.setattr(recorded, "with_recorded", lambda v, r, now: stamp(v, r, "2026-11-19T19:09Z"))
     rv = _review(client, priv)
     dry = _post(client, "/catalog", {**SRC, "review": rv, "include": [gs.LH]}, tok(priv)).json()
     monkeypatch.delenv(writes.ALLOW_ENV, raising=False)
