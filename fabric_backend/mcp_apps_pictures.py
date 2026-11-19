@@ -395,7 +395,7 @@ DRAW_JS = r"""
     return t;
   }
   function kgLabelLines(r) {
-    var top = r.rule || "";
+    var top = document.documentElement.getAttribute("data-coach") === "1" ? "" : r.rule || "";   // CO1: codes under Details
     if (r.state === "failed") top += " \u2715 " + kgPlural(Number(r.orphans) || 0, "orphan");
     else if (r.state === "passed") top += " \u2713";
     else if (r.state === "warning") top += " !";
@@ -403,7 +403,8 @@ DRAW_JS = r"""
     if (r.review === "rejected") top += " rejected";
     else if (r.review === "accepted") top += " accepted";
     else if (r.review === "open") top += " open";
-    return [top, kgPair(r)];
+    top = top.trim();
+    return top ? [top, kgPair(r)] : [kgPair(r)];
   }
   // svgText: the picture's inner SVG from the chat demo's picture(); labels: [{id, lines, cls, a, b}] drawn on top.
   // n172: each label sits on its own line: at the middle of the drawn segment (between the two tables' edges), else
@@ -698,7 +699,8 @@ RENDER_JS = r"""
     if (!m || !box) return;
     box.appendChild(el("p", "The " + m.tables + " " + word + " with the most links, of " + m.of_tables + ", and the " +
                     kgPlural(m.links, "link") + " between them, of " + m.of_links + ".", "muted kg-mini"));
-    if (Array.isArray(small.rules) && small.rules.length) box.appendChild(el("p", small.rules.join(". ") + ".", "muted kg-rules"));
+    if (Array.isArray(small.rules) && small.rules.length && document.documentElement.getAttribute("data-coach") !== "1")
+      box.appendChild(el("p", small.rules.join(". ") + ".", "muted kg-rules"));
     var det = el("details", null, "kg-full"), inner = el("section");
     det.appendChild(el("summary", "Show the map (all " + m.of_tables + " " + word + ")"));
     det.appendChild(inner);
@@ -711,6 +713,7 @@ RENDER_JS = r"""
     var wrap = document.getElementById("pictures");
     if (!wrap) return "";
     var said = "";
+    if (isObj(d) && isObj(d.coach)) document.documentElement.setAttribute("data-coach", "1");   // CO1: plain first view
     try {
       var hasProducts = isObj(d) && isObj(d.products);
       // n227: an answer with the card's own words draws its ontology as the static picture (resultView, ontoSvg)

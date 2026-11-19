@@ -9,6 +9,10 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round CO1: **the coach: one guided path, said like the home page's demo chat** (`docs/COACHING.md`). Every card shows
+  "Step N of 8: <stage>" and one mascot line in plain words, one primary button and at most two others, with rule codes
+  and the table of checks under Details; every tool result's text carries a short Coach block for the host model;
+  "help me with my SAP data in Fabric" starts the path. Fixed rules in `fabric_backend/coach.py`, no LLM.
 - Round WB13: **the chat cards after Gustav's phone test of 19 November 2026** (`docs/CHAT-TEST-2026-11-19.md`, issues
   #66, #71, #76 and #89-#93). Every card reports the height of its content, also after a section opens or closes
   (`mcp_apps_size.py`); the check results travel into the review and each card says what its numbers count; every

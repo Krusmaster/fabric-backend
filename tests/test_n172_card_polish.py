@@ -322,12 +322,13 @@ def test_the_plan_card_at_claudes_width(fabric, tmp_path, width, theme):
     _no_overlaps(out, width)
     assert out["unlabelled"] == "" and {l["id"] for l in out["labels"]} == {x["id"] for x in d["map"]["relationships"]}
     ship = next(l for l in out["labels"] if l["id"] == SHIP_TO)
-    assert ship["text"][0].startswith("R5")
+    assert not ship["text"][0].startswith("R5")                    # CO1: with the coach, the rule codes are under Details
     # 6: the header is just "Plan", Onto says the numbers once, the card's copy of them shows only with the mascots off
     c = d[words.KEY]
     assert out["title"] == "Plan"
-    assert out["bubbles"] == {"onto": c["onto"], "thinker": c["thinker"], "builder": c["builder"]}
-    assert not out["verdictShown"] and out["text"].count("7 tables, 6 with a key.") == 1
+    # CO1: the coach says the step in one mascot line; the three figures stay off and the summary is shown once
+    assert out["bubbles"] == {} and "Step 2 of 8: Krusgraph reads the tables" in out["text"]
+    assert out["verdictShown"] and out["text"].count("7 tables, 6 with a key.") == 1
     assert out["afterToggle"]["bubbles"] == {} and out["afterToggle"]["verdictShown"]
     # 3: no argument syntax in what the card shows outside "Show details"
     for said in out["bubbles"].values():
@@ -348,7 +349,7 @@ def test_the_plan_card_shows_a_link_it_could_not_count_in_grey(fabric, monkeypat
     _no_overlaps(out, 680)
     ship = next(l for l in out["labels"] if l["id"] == SHIP_TO)
     assert "st-not_counted" in ship["cls"] and "not counted" in ship["text"][0]
-    assert out["bubbles"]["thinker"].startswith("I couldn't count ship_to_id") and "Count again" in out["buttons"]
+    assert out["bubbles"] == {} and "Count again" in out["buttons"]               # CO1: the coach's one line instead
     assert "not counted" in out["text"]
 
 
@@ -399,10 +400,9 @@ def test_the_plan_check_card(fabric, tmp_path, theme):
     assert not any(b.startswith("Run ") for b in out["buttons"])               # the drafts are under "More", folded
     assert out["more"]["tag"] == "DETAILS" and not out["more"]["open"] and not out["more"]["hidden"]
     assert "Draft a semantic model" in out["more"]["text"] or "Draft a query" in out["more"]["text"]   # n227: plain labels
-    assert out["bubbles"]["builder"] == words.BUILDER_PLAN
-    assert all(out["bubbles"]["builder"] not in (s.get("text", "") + s.get("why", "")) for s in d["next_steps"])
-    assert out["bubbles"]["onto"] == c["onto"] and not out["verdictShown"] and not out["countsShown"]
-    assert out["bubbles"]["thinker"] == c["thinker"]
+    # CO1: the coach's one line replaces the three figures; the summary and the counts are shown on the card
+    assert out["bubbles"] == {} and out["verdictShown"] and out["countsShown"]
+    assert "Step 4 of 8: You decide the open links" in out["text"]
     assert out["afterToggle"]["verdictShown"] and out["afterToggle"]["countsShown"]
     for said in out["bubbles"].values():
         assert not words.WORDS_WITH_ARGUMENTS.search(said)

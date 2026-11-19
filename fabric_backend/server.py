@@ -81,7 +81,9 @@ from . import after_create as _after_create, verify_build as _verify  # noqa: E4
 mcp = MCPServer("fabric-backend", version=_package_version(), extensions=_mcp_apps.extensions(), instructions=(
     "Tables in a Microsoft Fabric lakehouse/warehouse → a GraphQL API with inferred keys and relationships, "
     "plus Rayfin connector entities. When the user's first message is vague ('start', 'start Krusgraph', 'help', "
-    "'what can you do', 'check my data'), offer Start Krusgraph: call the start tool and follow its steps one at a time; "
+    "'what can you do', 'check my data', 'help me with my SAP data in Fabric'), offer Start Krusgraph: call the start "
+    "tool and follow its steps one at a time; each result's Coach block says the step in plain words and its one next "
+    "step: say that, offer that step, nothing more; "
     "a user without Fabric data can see it on the synthetic shop ('Show me on the synthetic shop sample', sample=true). "
     "Start with list_workspaces (or list_sources if you know the workspace), then plan_backend (nothing is deployed; "
     "it also suggests composite keys), sample_rows when a column's meaning is unclear, validate_plan to check keys and "
@@ -679,7 +681,7 @@ def start(workspace: _p.StartPick = "", source: _p.StartPick = "", schema: _p.St
           plan: _p.StartPlan = None, create: _p.StartCreate = None, confirm: _p.StartConfirm = False,
           sample: _p.StartSample = False, ctx: Context = None) -> str:
     """A guided path for a first or vague message ('start', 'start Krusgraph', 'help', 'what can you do', 'check my
-    data'): workspace, source, schema, map, check, decide, doubled totals, a dry run of all builds with the data flow,
+    data', 'help me with my SAP data in Fabric'): workspace, source, schema, map, check, decide, doubled totals, a dry run of all builds with the data flow,
     then create after a second confirmation of the names. Returns JSON {step, path, actions: [{tool, arguments, say}],
     after}: each action is an existing tool; after is the next start call. Changes nothing. Errors: {error, kind, hint}."""
     plan = plan if isinstance(plan, dict) else {}

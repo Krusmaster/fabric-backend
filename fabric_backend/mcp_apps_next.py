@@ -401,6 +401,11 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 details.ck-all > summary { cursor: pointer; color: var(--kg-muted); font-size: 13.5px }
 .dec { display: inline-flex; gap: 4px; margin-top: 4px }
 .dec button[aria-pressed="true"] { background: var(--kg-ink); color: var(--kg-bg) }
+.nx-coach { display: grid; gap: 4px; margin: 0 }
+.nx-stage { margin: 0; font-size: 13px; font-weight: 650; color: var(--kg-muted) }
+.nx-coach .kg-say { margin: 0 }
+html[data-mascots="off"] .nx-coach .kg-fig { display: none }
+html[data-mascots="off"] .nx-coach .kg-say { grid-template-columns: minmax(0, 1fr) }
 """
 
 NEXT_JS = r"""
@@ -460,8 +465,30 @@ NEXT_JS = r"""
     return NEXT_TOOLS.indexOf(s.tool) >= 0 && s.arguments.dry_run !== false;
   }
 __OPEN_JS__
+  // CO1 (coach.py): "Step N of 8: <stage>" and one mascot line in plain words, right under the card's title, as the
+  // home page's demo chat says each step; the mascot's figure follows Mascots on/off, the words stay
+  var COACH_WHO = { onto: "Onto", thinker: "Thinker", builder: "Builder" };
+  function coachHead(data) {
+    var c = isObj(data) && isObj(data.coach) ? data.coach : null;
+    if (!c || !readable(c.title) || !readable(c.line) || !COACH_WHO[c.who]) return false;
+    var old = document.querySelector(".nx-coach"); if (old) old.remove();
+    var box = el("section", null, "nx-coach"); box.setAttribute("aria-label", "Where you are");
+    box.setAttribute("data-stage", String(c.stage || ""));
+    box.appendChild(el("p", "Step " + (Number(c.n) || 1) + " of " + (Number(c.of) || 8) + ": " + c.title, "nx-stage"));
+    var say = el("div", null, "kg-say " + c.who), fig = el("span", null, "kg-fig");
+    var src = document.querySelector('#kg-mascots [data-mascot="' + c.who + '"] svg');
+    if (src) { var f = src.cloneNode(true); f.setAttribute("data-pose", String(c.pose || "point")); fig.appendChild(f); }
+    var bub = el("div", null, "kg-bub"); bub.appendChild(el("p", COACH_WHO[c.who], "kg-who")); bub.appendChild(el("p", c.line, "nx-line"));
+    say.appendChild(fig); say.appendChild(bub); box.appendChild(say);
+    var head = document.querySelector("main .kg-head");
+    if (head && head.parentNode) head.parentNode.insertBefore(box, head.nextSibling); else return false;
+    document.documentElement.setAttribute("data-coach", "1");       // one mascot line: the summary's figures stay off
+    var mb = document.getElementById("kg-mascots"); if (mb) { mb.hidden = true; if (typeof mascotsEcho === "function") mascotsEcho(); }
+    return true;
+  }
   function renderNext(data, box) {
-    var list = (Array.isArray(data.next) ? data.next : []).filter(okStep).slice(0, 4);
+    var coached = coachHead(data);
+    var list = (Array.isArray(data.next) ? data.next : []).filter(okStep).slice(0, coached ? 3 : 4);   // CO1: 1 + 2
     if (!list.length) return false;
     var wrap = el("section", null, "nx"); wrap.setAttribute("aria-label", "Next steps");
     wrap.appendChild(el("p", "Next steps", "nx-h"));
@@ -555,6 +582,11 @@ __OPEN_JS__
       wrap.appendChild(all);
     } else wrap.appendChild(table(rows));
     if (readable(c.left_out)) wrap.appendChild(el("p", c.left_out, "muted"));
+    if (isObj(data.coach)) {                                    // CO1: the rows, with their rule names, under Details
+      var det = el("details", null, "ck-all ck-details");
+      det.appendChild(el("summary", "Details: every key and link (" + rows.length + ")")); det.appendChild(wrap);
+      box.appendChild(det); return true;
+    }
     box.appendChild(wrap);
     return true;
   }

@@ -1,0 +1,6 @@
+Coach (step 7 of 8: Data agent)
+Say in one or two short sentences, in plain words: That was a dry run: nothing was created. Say yes and it is created in Fabric with these names.
+Offer one next step: Create the data agent in Fabric = create_data_agent(workspace="demo", source="demo_lh", schema="sap_silver", name="sap_silver_agent", dry_run=false).
+It creates items in Fabric: run it only after the user says yes to these names.
+Only if asked, also: Start again on another schema.
+No rule codes, key strings or file text unless the user asks; end with the one next step.

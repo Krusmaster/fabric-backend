@@ -207,7 +207,8 @@ def test_the_check_card_shows_states_and_the_sql_on_request(tmp_path, fabric):
     args = {**SRC, "keys": {"order_items": ["order_id"]}}
     r, d = _sc("validate_plan", **args)
     out = _browse(tmp_path, mcp_apps.card_html(), {"args": args, "result": _result(r), "caps": {"serverTools": {}},
-                                                   "clicks": [{"text": "Show the SQL that counts it"}], "scheme": "dark"})
+                                                   "clicks": [{"css": "details.ck-details > summary"},   # CO1: under Details
+                                                              {"text": "Show the SQL that counts it"}], "scheme": "dark"})
     n = d["checks"]["counts"]
     assert out["pills"] == [[x["id"], x["state"].replace("_", " ")] for x in d["checks"]["rows"]]
     assert ["key:order_items", "failed"] in out["pills"]

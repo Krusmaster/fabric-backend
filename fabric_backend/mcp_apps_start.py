@@ -165,7 +165,7 @@ __RESULT_CSS__
   <div id="answer"></div>
   __PICTURES__
   __MASCOTS__
-  <ol class="st-path" id="path" aria-label="The steps"></ol>
+  <details id="path-fold" class="kg-fold" open><summary>Every step of the path</summary><ol class="st-path" id="path" aria-label="The steps"></ol></details>
   <div class="muted" id="honest"></div>
 </main>
 <script>
@@ -333,8 +333,10 @@ __READ_JS__
     if (!d) { verdict.textContent = "The card could not read the answer; it is in the text of the tool result."; return; }
     if (readable(d.error)) { verdict.textContent = d.error + (readable(d.hint) ? " " + d.hint : ""); return; }
     var st = isObj(d.step) ? d.step : {};
-    document.getElementById("title").textContent = "Start Krusgraph" + (st.n ? ": step " + st.n + " of " + st.of : "") + (d.sample ? " (synthetic shop)" : "");
+    var coached = coachHead(d);                                   // CO1: "Step N of 8: <stage>" and one mascot line
+    document.getElementById("title").textContent = "Start Krusgraph" + (st.n && !coached ? ": step " + st.n + " of " + st.of : "") + (d.sample ? " (synthetic shop)" : "");
     drawPath(d, path);
+    var pf = document.getElementById("path-fold"); if (pf) pf.open = !coached;     // CO1: the 9 steps, folded
     verdict.textContent = readable(d.say) || readable(d.summary) || "";
     // n227 (1): the sentence is shown once: in Onto's bubble while the mascots are on, here while they are off
     verdict.setAttribute("data-echo", "onto"); verdict.setAttribute("data-said", verdict.textContent);

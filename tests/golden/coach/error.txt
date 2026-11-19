@@ -1,0 +1,4 @@
+Coach (step 3 of 8: Check the links against the rows)
+Say in one or two short sentences, in plain words: That did not work. I say why in one sentence, and we go on from where you are.
+Offer one next step: Show where we are = start(workspace="demo", source="demo_lh", schema="sap_silver").
+No rule codes, key strings or file text unless the user asks; end with the one next step.

@@ -130,7 +130,7 @@ def test_structured_content_with_the_flag_and_the_text_unchanged(live_shop):
         assert lead["type"] == "text" and "Next steps:" in lead["text"] and not lead["text"].lstrip().startswith("{")
         assert part["type"] == "text" and json.loads(part["text"]) == json.loads(plain)
         # n170: structuredContent is the answer plus the picture's data (`map`), which the text does not carry
-        assert {k: v for k, v in r["structuredContent"].items() if k not in ("map", "kg_card", "checks", "next")} == json.loads(plain) and not r.get("isError")   # n172: + the card's words
+        assert {k: v for k, v in r["structuredContent"].items() if k not in ("map", "kg_card", "checks", "next", "coach")} == json.loads(plain) and not r.get("isError")   # n172: + the card's words
         assert "map" in r["structuredContent"] and "map" not in json.loads(plain)
 
 
@@ -171,8 +171,9 @@ def _check_validate(view: dict, data: dict, words: dict | None = None):
     if words:                                                                # n172: the server's own words for the card
         assert view["verdict"] == " ".join(words["lines"]) and not view["resultShown"]
         said = {f["kind"]: f for f in view["figures"] if f["shown"]}
-        assert said["onto"]["text"] == words["onto"] and said["onto"]["glad"]
-        assert said["builder"]["text"] == data["next_steps"][0]["why"]     # no builds offered here: the draft step, open
+        if said:                                                         # CO1: with the coach, its one line instead
+            assert said["onto"]["text"] == words["onto"] and said["onto"]["glad"]
+            assert said["builder"]["text"] == data["next_steps"][0]["why"]     # no builds offered here: the draft step, open
         assert "Draft a semantic model" in view["buttons"]                 # n227: a button says what it does, not the tool's name
         _no_json(view)
         return
@@ -195,7 +196,7 @@ def test_validate_card_reads_every_shape(tmp_path, live_shop):
     data = json.loads(answer)
     shapes = _shapes(answer)
     shapes["hosted_server"] = _call("validate_plan", SRC)                    # what the server now returns, flag on
-    assert {k: v for k, v in shapes["hosted_server"]["structuredContent"].items() if k not in ("map", "kg_card", "checks", "next")} == data   # n170: + the map; n172: + the words
+    assert {k: v for k, v in shapes["hosted_server"]["structuredContent"].items() if k not in ("map", "kg_card", "checks", "next", "coach")} == data   # n170: + the map; n172: + the words
     drafted = json.dumps({"tmdl": "model Model", "note": "a draft; nothing was created."})
     for name, result in shapes.items():
         out = _browse(tmp_path, "validate_plan", SRC, result,
@@ -253,8 +254,9 @@ def _check_review(view: dict, data: dict):
     assert sorted(set(view["decisions"])) == sorted(i["id"] for i in rv["items"])  # n218: Accept and Reject for each of the 13
     assert view["note"] == [data["note"]]
     said = {f["kind"]: f for f in view["figures"] if f["shown"]}
-    assert said["onto"]["text"] == data["summary"] and said["thinker"]["text"] == data["attention"][0]
-    assert said["builder"]["text"] == data["note"]
+    if said:                                                              # CO1: the coach's one line hides them
+        assert said["onto"]["text"] == data["summary"] and said["thinker"]["text"] == data["attention"][0]
+        assert said["builder"]["text"] == data["note"]
     assert not any(f["glad"] for f in view["figures"])                     # an open question: nobody is glad
     _no_json(view)
 
@@ -266,7 +268,7 @@ def test_review_card_reads_every_shape(tmp_path, live_shop):
     data = json.loads(answer)
     shapes = _shapes(answer)
     shapes["hosted_server"] = _call("review_plan", args)
-    assert {k: v for k, v in shapes["hosted_server"]["structuredContent"].items() if k not in ("map", "kg_card", "checks", "next")} == data   # n170: + the map; n172: + the words
+    assert {k: v for k, v in shapes["hosted_server"]["structuredContent"].items() if k not in ("map", "kg_card", "checks", "next", "coach")} == data   # n170: + the map; n172: + the words
     for name, result in shapes.items():
         probe = _browse(tmp_path, "review_plan", args, result)
         _check_review(probe["before"], data)

@@ -86,7 +86,7 @@ def tool_meta(on: bool | None = None) -> dict | None:
     return {"ui": {"resourceUri": CARD_URI}, "ui/resourceUri": CARD_URI}
 
 
-def call_result(text: str, extra: dict | None = None, lead: str | None = None):
+def call_result(text: str, extra: dict | None = None, lead: str | None = None, coach_text: str | None = None):
     """n137: a tool's text answer as a CallToolResult: the same text content every client gets, plus the answer as
     `structuredContent` when the text is a JSON object (an answer that is not one has no structuredContent). n170:
     `extra` (the pictures' data, mcp_apps_pictures.extras) goes into structuredContent only; the text is unchanged."""
@@ -98,6 +98,11 @@ def call_result(text: str, extra: dict | None = None, lead: str | None = None):
     if isinstance(data, dict) and extra:
         data = {**data, **{k: v for k, v in extra.items() if k not in data}}
     content = [TextContent(type="text", text=text)]
+    if lead and coach_text:                                  # CO1: the Coach block ends the lead; the JSON stays last
+        tail = "The full answer follows as JSON."
+        lead = (lead[:-len(tail)] + coach_text + "\n\n" + tail) if lead.endswith(tail) else lead + "\n\n" + coach_text
+    elif coach_text:
+        lead = coach_text
     if lead:                                                 # n218: the result and the next steps first, the JSON after
         content.insert(0, TextContent(type="text", text=lead))
     return CallToolResult(content=content, structured_content=data if isinstance(data, dict) else None)
@@ -149,9 +154,10 @@ def structured(fn, name: str | None = None):
             extra.update(words.extras(name, answer, stash, call))
         except Exception:                                            # noqa: BLE001 - the card falls back to the answer's text
             pass
-        lead = None
+        lead = ctext = None
         if isinstance(answer, dict) and name not in STRUCTURED:      # n227: every other tool gets its kg_card, nothing else
             from . import mcp_apps_next as _nxt, next_rules          # WB13 (#91): a draft on the path gets its next steps
+            todo = None
             if name in next_rules.TOOLS and not answer.get("error"):
                 try:
                     todo = _nxt.steps(name, call, answer)
@@ -159,7 +165,8 @@ def structured(fn, name: str | None = None):
                         extra["next"] = todo
                 except Exception:                                    # noqa: BLE001 - the answer stands without them
                     pass
-            return call_result(out, extra or None)
+            ctext = _coach(name, call, answer, None, todo, extra)
+            return call_result(out, extra or None, None, ctext)
         if isinstance(answer, dict):                                 # n218: next steps as buttons, the result first
             from . import mcp_apps_next as nxt
             try:
@@ -170,12 +177,32 @@ def structured(fn, name: str | None = None):
                     extra["next"] = todo
                 if name == "validate_plan" and stash.get("checks"):
                     extra["checks"] = stash["checks"]
-                lead = nxt.lead(name, {**answer, **{k: v for k, v in extra.items() if k == "kg_card"}}, todo,
-                                answer.get("actions"))
+                ctext = _coach(name, call, answer, stash.get("checks") if name == "validate_plan" else None,
+                               todo, extra)
+                lead = nxt.lead(name, {**answer, **{k: v for k, v in extra.items() if k == "kg_card"}},
+                                extra.get("next") or [], answer.get("actions"))
             except Exception:                                        # noqa: BLE001 - the answer stands without them
                 lead = None
-        return call_result(out, extra or None, lead)
+        return call_result(out, extra or None, lead, ctext)
     return wrapper
+
+
+def _coach(name: str, call: dict, answer: dict, checks, todo, extra: dict) -> str | None:
+    """CO1: the coach (coach.py) for one result: `coach` for the card (the stage, the mascot's line), `next` as ONE
+    primary step and at most two secondary ones (start keeps its own buttons), and the Coach block's text."""
+    from . import coach as _c
+    try:
+        c = _c.coach(name, call, answer, checks, todo)
+    except Exception:                                                # noqa: BLE001 - the answer stands without it
+        return None
+    extra["coach"] = _c.card(c)
+    if name == "start" or "next" not in extra:              # start draws its own buttons; a listing gets no buttons
+        return c["text"]
+    if _c.own_action(name, answer) is not None:              # the card's own action (Check, Create) is the primary
+        extra["next"] = list(c["secondary"]) if not answer.get("error") else []
+    else:
+        extra["next"] = _c.next_steps(c)
+    return c["text"]
 
 
 def registration(name: str, on: bool | None = None) -> dict:
