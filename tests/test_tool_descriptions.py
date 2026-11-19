@@ -80,4 +80,6 @@ def test_read_only_listing_stays_small():
     # 69 400 since CSN2: csn_path on plan_backend and validate_plan (a SAP CSN file or folder in the lakehouse's Files; its
     # description cut to one short sentence first): 68 972 before, 69 312 after
     # 75 900 when Q2 met CSN2 and CA1 on main (M39): both together, 75 783
-    assert size <= 75_900, f"read-only tools/list is {size} characters"
+    # 81 000 since AP2: analysis_plan and analysis_notebook_draft (descriptions cut to two sentences, parameters to one short
+    # sentence each first): 75 783 before, about 80 700 after
+    assert size <= 81_000, f"read-only tools/list is {size} characters"

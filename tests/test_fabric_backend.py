@@ -354,7 +354,8 @@ def test_remote_server_tools_are_annotated_and_auth_reads_headers():
                                     "compare_semantic_model", "gold_views_draft", "create_gold_views", "export_item_definitions",
                                     "review_plan", "sap_pack_draft", "domain_draft", "create_report", "create_pipeline",
                                     "verify_build", "publish_catalog",      # n229, CA1
-                                    "qlik_plan", "qlik_measures_draft", "qlik_reconcile_draft"}     # Q2
+                                    "qlik_plan", "qlik_measures_draft", "qlik_reconcile_draft",     # Q2
+                                    "analysis_plan", "analysis_notebook_draft"}                       # AP2
     for t in ts:
         assert t.title and t.annotations is not None and t.annotations.read_only_hint is not None   # directory requirement
         assert t.annotations.title == t.title, t.name                                               # the directory reads annotations.title

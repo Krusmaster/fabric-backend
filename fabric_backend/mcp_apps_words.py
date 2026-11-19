@@ -43,7 +43,7 @@ NOTE_ITEMS_MAX = 60
 # n227: a tool's name in a sentence a person reads (list_workspaces, create_report ...); `start` is a plain word. The
 # names are listed, not matched by shape: list_price and order_items are columns and tables, not tools.
 TOOLS_NAMED = (
-    "analyze_schema", "answer_query_draft", "app_readiness", "app_starter", "compare_semantic_model",
+    "analysis_notebook_draft", "analysis_plan", "analyze_schema", "answer_query_draft", "app_readiness", "app_starter", "compare_semantic_model",
     "create_backend", "create_data_agent", "create_drift_monitor", "create_gold_views", "create_ontology",
     "create_pipeline", "create_report", "create_semantic_model", "create_silver_notebook", "create_views",
     "data_dictionary", "dbt_schema", "describe_backend", "domain_draft", "drift_monitor_draft",

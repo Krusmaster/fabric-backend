@@ -220,7 +220,7 @@ print(json.dumps({"names": sorted(t.name for t in tools),
                                [mcp_apps_review.CARD_URI, "text/html;profile=mcp-app"],
                                [mcp_apps_build.CARD_URI, "text/html;profile=mcp-app"],
                                [mcp_apps_start.CARD_URI, "text/html;profile=mcp-app"]]
-    assert on["ro_size"] <= 75_500 and on["ro_size"] - off["ro_size"] < 500, (on["ro_size"], off["ro_size"])
+    assert on["ro_size"] <= 81_000 and on["ro_size"] - off["ro_size"] < 500, (on["ro_size"], off["ro_size"])   # 81 000 since AP2: the two analysis tools
 
 
 # ------------------------------------------------------------------ the card in a browser -----------------------------

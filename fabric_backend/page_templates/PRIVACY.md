@@ -118,6 +118,8 @@ writing the tenant id down{{/IF}}. Nothing else: no user id, no name or e-mail, 
 column names, no queries, no plans and no results. The record is one line on the server's console; the totals since the
 server started are kept in memory and, when the operator turns it on, readable at a protected `/metrics` address.
 
+The server also adds these up per UTC day, for all its replicas together: how many organisations and how many signed-in users (each counted by a salted hash, never by the id itself; the hashes are kept 35 days, then only the number), how many MCP connections and the name the MCP client gives for itself (such as `claude-ai`), calls and errors per tool and error kind, and calls per route of the Fabric workload's API. The daily numbers are kept in our Azure storage for 400 days and only the operator can read them, at the protected `/metrics` address. Nothing else: no names, e-mail, IP addresses, workspace, table or column names, prompts or tool arguments.
+
 The site writes one more kind of line: `path` when `/`, `/check`, `/start` or `/partners` is served, and on
 `/check` a `step` that is either `loaded` (the engine started in your browser) or `done` (a check finished). `/check`
 sends this as a request for an image whose address carries only that word; your files, their names and their tables and

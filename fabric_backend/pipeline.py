@@ -133,7 +133,9 @@ def check_spec(plan, silver_spec: dict, gold_spec: dict, plan_mark: dict | None 
     keys = [{"table": t["table"], "columns": list(t["key"]), "rule": t["key_rule"],
              **({} if t.get("dedupe", True) or t.get("fix_key") else {"not_enforced": NOT_ENFORCED})}
             for t in silver_spec["tables"] if t["key"]]
-    rels = [{"source": r.source, "columns": list(r.source_cols), "target": r.target, "target_columns": list(r.target_cols), "rule": r.rule}
+    from .silver import _blank_rule                              # AP2: SAP's blank (and an optional field's zeros) is no reference
+    rels = [{"source": r.source, "columns": list(r.source_cols), "target": r.target, "target_columns": list(r.target_cols), "rule": r.rule,
+             **_blank_rule(r)}
             for r in plan.relationships if r.source in tables and r.target in tables]
     views = [{"view": v["name"].split(".", 1)[1], "fact": v["fact"], "sums": _sum_columns(plan, v)} for v in gold_spec["views"]]
     from .health import health_spec
@@ -204,9 +206,12 @@ def check_key(execute, schema, key):
 
 
 def check_reference(execute, schema, rel):
-    """A reference holds when every row with a value finds its row in the target table (no orphans)."""
+    """A reference holds when every row with a value finds its row in the target table (no orphans). SAP's initial value
+    is no value (AP2): a blank in a column of rel["blank"], zeros only in one of rel["initial"]."""
     src, tgt, cols, tcols = rel["source"], rel["target"], rel["columns"], rel["target_columns"]
     filled = " AND ".join("s." + _q(c) + " IS NOT NULL" for c in cols)
+    filled += "".join(" AND TRIM(s." + _q(c) + ") <> ''" for c in rel.get("blank", []))
+    filled += "".join(" AND REPLACE(TRIM(s." + _q(c) + "), '0', '') <> ''" for c in rel.get("initial", []))
     match = " AND ".join("t." + _q(tc) + " = s." + _q(c) for c, tc in zip(cols, tcols))
     n = int(_one(execute, f"SELECT COUNT(*) AS n FROM {_tbl(schema, src)} AS s WHERE {filled}").get("n") or 0)
     o = int(_one(execute, f"SELECT COUNT(*) AS o FROM {_tbl(schema, src)} AS s WHERE {filled} AND NOT EXISTS "

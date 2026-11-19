@@ -429,6 +429,10 @@ TOOLS = {
     "qlik_reconcile_draft": ("Draft only", "writes T-SQL for a Fabric SQL analytics endpoint; touches no source"),
 }
 NOT_ON_DATABRICKS = {
+    "analysis_plan": ("its counting statements are written for the Fabric SQL analytics endpoint and SQL Server, and have not run "
+                      "on Databricks SQL", "Mirror the catalog into Fabric and use analysis_plan there (Planned for Databricks)."),
+    "analysis_notebook_draft": ("the analysis notebook is a Fabric notebook for a lakehouse",
+                                "Mirror the catalog into Fabric and draft the notebook there."),
     "create_backend": ("an API for GraphQL item is a Fabric object; Databricks has no equivalent item",
                        "Plan with plan_backend here; for the API, mirror the catalog into Fabric (Mirrored Azure Databricks catalog) and "
                        "use the hosted server, which creates the API over the mirrored item."),
