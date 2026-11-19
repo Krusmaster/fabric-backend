@@ -67,7 +67,7 @@ class TwoLayers(FakeFabric):
 def two(monkeypatch):
     def install(**kw):
         f = TwoLayers(**kw)
-        for m in ("get", "post", "patch"):
+        for m in ("get", "post", "patch", "put"):
             monkeypatch.setattr(requests, m, (lambda method: lambda url, **k: f._hit(method, url, **k))(m))
         return f
     return install

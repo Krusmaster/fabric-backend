@@ -134,6 +134,14 @@ def draft(plan: Plan, info: dict, name: str, schema: str, show_personal_data: bo
     ctx = agent_context.build(plan, info.get("item_name") or "source", schema, flagged, validation, show_personal_data,
                               info.get("item_kind") or "Lakehouse")
     kind = info.get("item_kind") or "Lakehouse"
+    from . import agent_topics
+
+    def extras(p: Plan, sch: str, shots: list[dict]) -> dict:              # DA2: topics and templates for one layer
+        j = agent_context.joins(p, validation)
+        a = agent_context.repeated_amounts(p, validation)
+        out = agent_topics.build(p, sch, j, validation, a, flagged, taken={f["question"] for f in shots})
+        return out if kind in agent_topics.SQL_KINDS else {**out, "topics": [], "topic_chars": 0, "topics_left_out": []}
+    base = extras(plan, schema, ctx["fewshots"])
     if kind == "Lakehouse":
         datasource = {"type": "LakehouseTables", "lakehouseReference": {"referenceType": "ById", "itemId": info.get("item_id"), "workspaceId": info.get("workspace_id")}}
     else:
@@ -149,17 +157,24 @@ def draft(plan: Plan, info: dict, name: str, schema: str, show_personal_data: bo
                              "Each join key appears once, under the referencing column's name (order_id, not orders_order_id); "
                              "the joined tables' other columns are named table_column.",
                              "datasource_instructions": ctx["datasource_instructions"], "datasource_description": ctx["datasource_description"],
-                             "fewshots": []})
+                             # DA2: no topics on the gold views (already joined; the layer text says how), but one
+                             # example per view from its checked joins
+                             "fewshots": [], "topics": [],
+                             "templates": agent_topics.gold_templates(lay.get("views") or [], lay["schema"], plan)})
         elif lay["layer"] == "silver":
             sp = on_schema(plan, lay["schema"])
             c = agent_context.build(sp, info.get("item_name") or "source", lay["schema"], flagged, validation, show_personal_data, kind)
+            x = extras(sp, lay["schema"], c["fewshots"])
             variants.append({"layer": "silver", "schema": lay["schema"], "tables": [t.name for t in plan.schema], "kinds": ("Table",),
                              "instructions": c["instructions"], "datasource_instructions": c["datasource_instructions"],
-                             "datasource_description": c["datasource_description"], "fewshots": c["fewshots"]})
+                             "datasource_description": c["datasource_description"], "fewshots": c["fewshots"],
+                             "topics": x["topics"], "templates": x["templates"]})
     if variants:
         variants.append({"layer": "source", "schema": schema, "tables": [t.name for t in plan.schema], "kinds": ("Table",),
                          "instructions": ctx["instructions"], "datasource_instructions": ctx["datasource_instructions"],
-                         "datasource_description": ctx["datasource_description"], "fewshots": ctx["fewshots"]})
+                         "datasource_description": ctx["datasource_description"], "fewshots": ctx["fewshots"],
+                         "topics": base["topics"], "templates": base["templates"]})
+    sql_source = kind in agent_topics.SQL_KINDS
     return {
         "layers": variants, "schema": schema,
         "name": name, "instructions": ctx["instructions"],
@@ -167,11 +182,19 @@ def draft(plan: Plan, info: dict, name: str, schema: str, show_personal_data: bo
         "datasource_description": ctx["datasource_description"],
         "tables_to_select": [t.name for t in plan.schema], "fewshots": ctx["fewshots"], "context": ctx["context"],
         "personal_left_out": privacy.findings(flagged),
+        # DA2: topics (preview, SQL data sources on the preview runtime) and example-query templates from checked joins
+        "topics": base["topics"], "templates": base["templates"],
+        "topics_note": (f"{len(base['topics'])} topic file(s), {base['topic_chars']} characters of the documented 1,000,000 per data "
+                        "source; topics are a preview feature for SQL data sources on the preview runtime"
+                        + (f"; left out: {', '.join(x['topic'] for x in base['topics_left_out'])}" if base["topics_left_out"] else "")
+                        if sql_source else f"no topics: Learn documents topics for SQL data sources only, not for {kind}"),
         "rest": [f"POST /v1/workspaces/{ws}/dataAgents (or reuse the item named {name!r})",
                  f"PATCH /v1/workspaces/{ws}/dataAgents/{{id}}/staging/settings",
                  f"POST /v1/workspaces/{ws}/dataAgents/{{id}}/staging/datasources (once; reused if it exists)",
                  "PATCH …/staging/datasources/{dsId} (instructions, description); PATCH …/elements?id=… isSelected for the tables above",
-                 "POST or PATCH …/staging/datasources/{dsId}/fewshots, one per example",
+                 "POST or PATCH …/staging/datasources/{dsId}/fewshots, one per example and template",
+                 "PUT …/staging/datasources/{dsId}/topics?fileName=krusgraph-<area>.md (text/markdown), one per topic; "
+                 "only files named krusgraph-*.md are written, nothing is deleted",
                  f"POST /v1/workspaces/{ws}/dataAgents/{{id}}/staging/publish"],
         "delegated_scope": "Item.ReadWrite.All (staging routes also accept DataAgent.ReadWrite.All)",
     }
@@ -239,9 +262,13 @@ def apply(spec: dict, workspace: str, headers: dict, publish: bool = True, poll_
     log.append("data source instructions set")
     selection = select_layer(requests, headers, elements_url, tree, spec, layer)
     log.append(selection["words"])
+    topics = use.get("topics") if layer else spec.get("topics")
+    log.append(write_topics(requests, headers, f"{stage}/datasources/{ds_id}/topics", topics or []))
+    shots = list(use["fewshots"]) + [{"question": t["question"], "query": t["query"]}
+                                     for t in ((use.get("templates") if layer else spec.get("templates")) or [])]
     have = {f.get("question"): f for f in _check(requests.get(f"{stage}/datasources/{ds_id}/fewshots", headers=headers, timeout=60), "listing examples").get("value", [])}
     added = updated = 0
-    for shot in use["fewshots"]:
+    for shot in shots:
         old = have.get(shot["question"])
         if old and old.get("query") == shot["query"]:
             continue
@@ -251,8 +278,8 @@ def apply(spec: dict, workspace: str, headers: dict, publish: bool = True, poll_
         else:
             _check(requests.post(f"{stage}/datasources/{ds_id}/fewshots", headers=headers, json=shot, timeout=60), "adding an example")
             added += 1
-    log.append(f"examples: {added} added, {updated} updated, {len(use['fewshots']) - added - updated} unchanged")
-    examples = example_status(requests, headers, f"{stage}/datasources/{ds_id}/fewshots", [f["question"] for f in use["fewshots"]])
+    log.append(f"examples: {added} added, {updated} updated, {len(shots) - added - updated} unchanged")
+    examples = example_status(requests, headers, f"{stage}/datasources/{ds_id}/fewshots", [f["question"] for f in shots])
     published = False
     if publish:
         _check(requests.post(f"{stage}/publish", headers=headers, json={"publishedDescription": spec.get("published_description") or "Published by Krusgraph from the inferred plan"}, timeout=60), "publishing")
@@ -260,6 +287,31 @@ def apply(spec: dict, workspace: str, headers: dict, publish: bool = True, poll_
         published = True
     return {"status": "Succeeded", "id": agent_id, "datasource_id": ds_id, "log": log, "selection": selection,
             "examples": examples, "published": published}
+
+
+def write_topics(requests, headers: dict, url: str, topics: list[dict]) -> str:
+    """DA2: each topic file by Staging - Upload Datasource Topic (PUT …/topics?fileName=…, text/markdown; "If a file with the
+    same name already exists, it is replaced"). Only Krusgraph's own file names (krusgraph-*.md); nothing is deleted.
+    Topics are a preview of the preview runtime: a refusal is reported in the log, and the rest of the agent stands."""
+    from .agent_topics import TOPIC_PREFIX
+    if not topics:
+        return "topics: none to write"
+    done, failed = 0, []
+    for t in topics:
+        if not t["file_name"].startswith(TOPIC_PREFIX) or not t["file_name"].endswith(".md"):
+            failed.append(f"{t['file_name']} (not a Krusgraph topic file name)")
+            continue
+        r = requests.put(url, headers={**headers, "Content-Type": "text/markdown"}, params={"fileName": t["file_name"]},
+                         data=t["markdown"].encode("utf-8"), timeout=60)
+        if r.status_code >= 400:
+            failed.append(f"{t['file_name']} (HTTP {r.status_code})")
+        else:
+            done += 1
+    words = f"topics: {done} of {len(topics)} written"
+    if failed:
+        words += ("; not written: " + ", ".join(failed) + ". Topics are a preview for SQL data sources on the preview runtime: "
+                  "switch the agent to the preview runtime in Fabric, then run Create again")
+    return words
 
 
 def _tree(requests, headers: dict, url: str) -> list[dict] | None:

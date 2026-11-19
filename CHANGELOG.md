@@ -9,6 +9,14 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round DA2: **data agent topics and example-query templates from checked joins.** `create_data_agent` now also writes
+  one topic file per business area (Fabric preview, SQL sources on the preview runtime; Staging - Upload Datasource
+  Topic) with the tables, what their fields point at, the joins validate_plan counted with their match rates, and the
+  known traps (a header total that doubles over its lines), and one example query per checked join with comments where
+  a customer, a period or another filter goes. Rules only, no AI; dry run by default; only `krusgraph-*.md` topic
+  files are written, nothing is deleted. Unit-tested; not tested live. Sources and the parts that stay design:
+  `docs/DATA-AGENT-TOPICS-TEMPLATES.md`. The Domains REST calls Krusgraph prepares were checked: none uses the removed
+  preview version.
 - Round FA1: **`app_readiness` for a semantic model**, before an app is built from it in Power BI Desktop for Apps
   (preview). With `semantic_model` (read with getDefinition, TMDL), the tool checks tables, measures, format
   strings, relationships, keys and the date table, and names what Fabric's API cannot read (Build and Read permission,

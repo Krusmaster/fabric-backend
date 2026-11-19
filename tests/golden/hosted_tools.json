@@ -3135,7 +3135,7 @@
      "order": 3,
      "step": "data_agent",
      "who": "builder",
-     "why": "People can then ask the data in words; it is experimental and judged by its answers, so try its questions first."
+     "why": "Krusgraph checks the joins once, with evidence and your approval; your data agent then reuses them in topics and templates, so people can ask the data in words (experimental: try its questions first)."
     },
     {
      "ask": "What does the Rayfin App (preview) take? Say it plainly: Krusgraph for Fabric makes an empty App item and a package with one command, and the App opens inside Fabric only. From this chat, rayfin_connector gives the connector's entities for workspace=\"demo\", source=\"demo_lh\", schema=\"shop\".",
@@ -3293,7 +3293,7 @@
      "order": 3,
      "step": "data_agent",
      "who": "builder",
-     "why": "People can then ask the data in words; it is experimental and judged by its answers, so try its questions first."
+     "why": "Krusgraph checks the joins once, with evidence and your approval; your data agent then reuses them in topics and templates, so people can ask the data in words (experimental: try its questions first)."
     },
     {
      "ask": "What does the Rayfin App (preview) take? Say it plainly: Krusgraph for Fabric makes an empty App item and a package with one command, and the App opens inside Fabric only. From this chat, rayfin_connector gives the connector's entities for workspace=\"demo\", source=\"demo_lh\", schema=\"shop\".",
@@ -3455,7 +3455,7 @@
      "order": 3,
      "step": "data_agent",
      "who": "builder",
-     "why": "People can then ask the data in words; it is experimental and judged by its answers, so try its questions first."
+     "why": "Krusgraph checks the joins once, with evidence and your approval; your data agent then reuses them in topics and templates, so people can ask the data in words (experimental: try its questions first)."
     },
     {
      "ask": "What does the Rayfin App (preview) take? Say it plainly: Krusgraph for Fabric makes an empty App item and a package with one command, and the App opens inside Fabric only. From this chat, rayfin_connector gives the connector's entities for workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\".",
@@ -3609,7 +3609,7 @@
      "order": 3,
      "step": "data_agent",
      "who": "builder",
-     "why": "People can then ask the data in words; it is experimental and judged by its answers, so try its questions first."
+     "why": "Krusgraph checks the joins once, with evidence and your approval; your data agent then reuses them in topics and templates, so people can ask the data in words (experimental: try its questions first)."
     },
     {
      "ask": "What does the Rayfin App (preview) take? Say it plainly: Krusgraph for Fabric makes an empty App item and a package with one command, and the App opens inside Fabric only. From this chat, rayfin_connector gives the connector's entities for workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\".",
@@ -3779,7 +3779,7 @@
      "order": 3,
      "step": "data_agent",
      "who": "builder",
-     "why": "People can then ask the data in words; it is experimental and judged by its answers, so try its questions first."
+     "why": "Krusgraph checks the joins once, with evidence and your approval; your data agent then reuses them in topics and templates, so people can ask the data in words (experimental: try its questions first)."
     },
     {
      "ask": "What does the Rayfin App (preview) take? Say it plainly: Krusgraph for Fabric makes an empty App item and a package with one command, and the App opens inside Fabric only. From this chat, rayfin_connector gives the connector's entities for workspace=\"11111111-2222-3333-4444-555555555555\", source=\"demo_lh\", schema=\"shop\".",
@@ -6112,7 +6112,7 @@
      "order": 5,
      "step": "data_agent",
      "who": "builder",
-     "why": "People can then ask the data in words; it is experimental and judged by its answers, so try its questions first."
+     "why": "Krusgraph checks the joins once, with evidence and your approval; your data agent then reuses them in topics and templates, so people can ask the data in words (experimental: try its questions first)."
     },
     {
      "ask": "What does the Rayfin App (preview) take? Say it plainly: Krusgraph for Fabric makes an empty App item and a package with one command, and the App opens inside Fabric only. From this chat, rayfin_connector gives the connector's entities for workspace=\"demo\", source=\"demo_lh\", schema=\"shop\".",
@@ -6593,7 +6593,45 @@
      "orders",
      "order_items",
      "audit_log"
-    ]
+    ],
+    "templates": [],
+    "topics": [
+     {
+      "chars": 2600,
+      "description": "Questions about customers: addresses; customers; order items; orders",
+      "file_name": "krusgraph-customers.md",
+      "markdown": "---\nname: Customers\ndescription: \"Questions about customers: addresses; customers; order items; orders\"\n---\n\n## Customers\n\nUse these tables for questions about customers. Written by Krusgraph by rules from the plan (nothing was counted yet). A person approves this text by reading create_data_agent's dry run and calling it again with dry_run=false; Krusgraph writes nothing before that.\n\n### Tables and what their fields mean\n\n- `shop.customers`: one row per customer_id (key rule K2).\n  - `customer_id`: part of the key.\n  - Left out as personal data by name: name. Do not select, group by or show them.\n- `shop.addresses`: one row per address_id (key rule K2).\n  - `address_id`: part of the key.\n  - `customer_id`: points at customers.customer_id (rule R1).\n  - Left out as personal data by name: city. Do not select, group by or show them.\n- `shop.orders`: one row per order_id (key rule K2).\n  - `order_id`: part of the key.\n  - `customer_id`: points at customers.customer_id (rule R1).\n  - `ship_to_id`: points at addresses.address_id (rule R5).\n- `shop.order_items`: one row per order_id + line_no (key rule K5).\n  - `order_id`: part of the key; points at orders.order_id (rule R1).\n  - `line_no`: part of the key.\n  - `product_id`: points at products.product_id (rule R1).\n\n### Checked joins (use these)\n\n- None yet. No join was counted: create_data_agent with validate=true counts them.\n\n### Joins not to use without asking\n\n- `addresses.customer_id = customers.customer_id` (rule R1): inferred from the names; not counted: create_data_agent with validate=true counts it.\n- `orders.customer_id = customers.customer_id` (rule R1): inferred from the names; not counted: create_data_agent with validate=true counts it.\n- `order_items.order_id = orders.order_id` (rule R1): inferred from the names; not counted: create_data_agent with validate=true counts it.\n- `order_items.product_id = products.product_id` (rule R1): inferred from the names; not counted: create_data_agent with validate=true counts it.\n- `audit_log.customer_id = customers.customer_id` (rule R1): inferred from the names; not counted: create_data_agent with validate=true counts it.\n- `orders.ship_to_id = addresses.address_id` (rule R5): inferred from the names; not counted: create_data_agent with validate=true counts it.\n\n### Known traps\n\n- products.list_price is one value per products row; a join with order_items repeats it on every order_items row. Never SUM(products.list_price) over order_items rows: it is a price, so multiply it by the quantity on each order_items row, or report it per products without summing.\n",
+      "name": "Customers",
+      "tables": [
+       "addresses",
+       "customers",
+       "order_items",
+       "orders"
+      ]
+     },
+     {
+      "chars": 1364,
+      "description": "Questions about products: categories; products",
+      "file_name": "krusgraph-products.md",
+      "markdown": "---\nname: Products\ndescription: \"Questions about products: categories; products\"\n---\n\n## Products\n\nUse these tables for questions about products. Written by Krusgraph by rules from the plan (nothing was counted yet). A person approves this text by reading create_data_agent's dry run and calling it again with dry_run=false; Krusgraph writes nothing before that.\n\n### Tables and what their fields mean\n\n- `shop.categories`: one row per id (key rule K2).\n  - `id`: part of the key.\n- `shop.products`: one row per product_id (key rule K2).\n  - `product_id`: part of the key.\n  - `category_id`: points at categories.id (rule R1).\n\n### Checked joins (use these)\n\n- None yet. No join was counted: create_data_agent with validate=true counts them.\n\n### Joins not to use without asking\n\n- `products.category_id = categories.id` (rule R1): inferred from the names; not counted: create_data_agent with validate=true counts it.\n- `order_items.product_id = products.product_id` (rule R1): inferred from the names; not counted: create_data_agent with validate=true counts it.\n\n### Known traps\n\n- products.list_price is one value per products row; a join with order_items repeats it on every order_items row. Never SUM(products.list_price) over order_items rows: it is a price, so multiply it by the quantity on each order_items row, or report it per products without summing.\n",
+      "name": "Products",
+      "tables": [
+       "categories",
+       "products"
+      ]
+     },
+     {
+      "chars": 897,
+      "description": "Questions about other tables: audit log",
+      "file_name": "krusgraph-other-tables.md",
+      "markdown": "---\nname: Other tables\ndescription: \"Questions about other tables: audit log\"\n---\n\n## Other tables\n\nUse these tables for questions about other tables. Written by Krusgraph by rules from the plan (nothing was counted yet). A person approves this text by reading create_data_agent's dry run and calling it again with dry_run=false; Krusgraph writes nothing before that.\n\n### Tables and what their fields mean\n\n- `shop.audit_log`: no key found (rule K3); do not join to it as a dimension.\n  - `customer_id`: points at customers.customer_id (rule R1).\n\n### Checked joins (use these)\n\n- None yet. No join was counted: create_data_agent with validate=true counts them.\n\n### Joins not to use without asking\n\n- `audit_log.customer_id = customers.customer_id` (rule R1): inferred from the names; not counted: create_data_agent with validate=true counts it.\n\n### Known traps\n\n- None known for these tables.\n",
+      "name": "Other tables",
+      "tables": [
+       "audit_log"
+      ]
+     }
+    ],
+    "topics_note": "3 topic file(s), 4861 characters of the documented 1,000,000 per data source; topics are a preview feature for SQL data sources on the preview runtime"
    },
    "context": {
     "business_names": [
@@ -6780,9 +6818,11 @@
     "PATCH /v1/workspaces/11111111-2222-3333-4444-555555555555/dataAgents/{id}/staging/settings",
     "POST /v1/workspaces/11111111-2222-3333-4444-555555555555/dataAgents/{id}/staging/datasources (once; reused if it exists)",
     "PATCH …/staging/datasources/{dsId} (instructions, description); PATCH …/elements?id=… isSelected for the tables above",
-    "POST or PATCH …/staging/datasources/{dsId}/fewshots, one per example",
+    "POST or PATCH …/staging/datasources/{dsId}/fewshots, one per example and template",
+    "PUT …/staging/datasources/{dsId}/topics?fileName=krusgraph-<area>.md (text/markdown), one per topic; only files named krusgraph-*.md are written, nothing is deleted",
     "POST /v1/workspaces/11111111-2222-3333-4444-555555555555/dataAgents/{id}/staging/publish"
    ],
+   "reuse": "Krusgraph checks the joins once, with evidence and your approval; your data agent then reuses them in topics and templates. Read the topics and templates in this dry run; calling again with dry_run=false is your approval to write them.",
    "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\ncounted in this call: 6 key(s), 6 unique\nno key (query only; can reference others, cannot be referenced): audit_log"
   },
   "args": {
@@ -6856,7 +6896,88 @@
      "orders",
      "order_items",
      "audit_log"
-    ]
+    ],
+    "templates": [
+     {
+      "area": "customers",
+      "from": "checked join addresses -> customers",
+      "query": "-- Template from the checked join addresses.customer_id = customers.customer_id (rule R1; counted: 17 of 17 rows with a value find their customers row (100.0% match)).\n-- For one customer, add: WHERE t.[customer_id] = '<customer_id>'\nSELECT TOP (25) t.[customer_id], COUNT_BIG(*) AS [addresses_count]\nFROM [shop].[addresses] AS s\nJOIN [shop].[customers] AS t ON s.[customer_id] = t.[customer_id]\nGROUP BY t.[customer_id]\nORDER BY [addresses_count] DESC",
+      "question": "Which customer has the most addresses?"
+     },
+     {
+      "area": "customers",
+      "from": "checked join order_items -> orders",
+      "query": "-- Template from the checked join order_items.order_id = orders.order_id (rule R1; counted: 134 of 134 rows with a value find their orders row (100.0% match)).\n-- For one order, add: WHERE t.[order_id] = '<order_id>'\n-- For one product, add: WHERE s.[product_id] = '<product_id>'\nSELECT TOP (25) t.[order_id], COUNT_BIG(*) AS [order_items_count]\nFROM [shop].[order_items] AS s\nJOIN [shop].[orders] AS t ON s.[order_id] = t.[order_id]\nGROUP BY t.[order_id]\nORDER BY [order_items_count] DESC",
+      "question": "Which order has the most order items?"
+     },
+     {
+      "area": "customers",
+      "from": "checked join order_items -> products",
+      "query": "-- Template from the checked join order_items.product_id = products.product_id (rule R1; counted: 134 of 134 rows with a value find their products row (100.0% match)).\n-- For one product, add: WHERE t.[product_id] = '<product_id>'\n-- For one order, add: WHERE s.[order_id] = '<order_id>'\nSELECT TOP (25) t.[product_id], COUNT_BIG(*) AS [order_items_count]\nFROM [shop].[order_items] AS s\nJOIN [shop].[products] AS t ON s.[product_id] = t.[product_id]\nGROUP BY t.[product_id]\nORDER BY [order_items_count] DESC",
+      "question": "Which product has the most order items?"
+     },
+     {
+      "area": "customers",
+      "from": "checked join orders -> addresses",
+      "query": "-- Template from the checked join orders.ship_to_id = addresses.address_id (rule R5; counted: 60 of 60 rows with a value find their addresses row (100.0% match)).\n-- For one address, add: WHERE t.[address_id] = '<address_id>'\n-- For one period, add: WHERE s.[order_date] BETWEEN '<from>' AND '<to>'\n-- For one customer, add: WHERE s.[customer_id] = '<customer_id>'\nSELECT TOP (25) t.[address_id], COUNT_BIG(*) AS [orders_count]\nFROM [shop].[orders] AS s\nJOIN [shop].[addresses] AS t ON s.[ship_to_id] = t.[address_id]\nGROUP BY t.[address_id]\nORDER BY [orders_count] DESC",
+      "question": "Which address has the most orders?"
+     },
+     {
+      "area": "customers",
+      "from": "checked join orders -> customers",
+      "query": "-- Template from the checked join orders.customer_id = customers.customer_id (rule R1; counted: 60 of 60 rows with a value find their customers row (100.0% match)).\n-- For one customer, add: WHERE t.[customer_id] = '<customer_id>'\n-- For one period, add: WHERE s.[order_date] BETWEEN '<from>' AND '<to>'\n-- For one address, add: WHERE s.[ship_to_id] = '<ship_to_id>'\nSELECT TOP (25) t.[customer_id], COUNT_BIG(*) AS [orders_count]\nFROM [shop].[orders] AS s\nJOIN [shop].[customers] AS t ON s.[customer_id] = t.[customer_id]\nGROUP BY t.[customer_id]\nORDER BY [orders_count] DESC",
+      "question": "Which customer has the most orders?"
+     },
+     {
+      "area": "products",
+      "from": "checked join products -> categories",
+      "query": "-- Template from the checked join products.category_id = categories.id (rule R1; counted: 8 of 8 rows with a value find their categories row (100.0% match)).\n-- For one category, add: WHERE t.[id] = '<id>'\nSELECT TOP (25) t.[id], COUNT_BIG(*) AS [products_count]\nFROM [shop].[products] AS s\nJOIN [shop].[categories] AS t ON s.[category_id] = t.[id]\nGROUP BY t.[id]\nORDER BY [products_count] DESC",
+      "question": "Which category has the most products?"
+     },
+     {
+      "area": "other tables",
+      "from": "checked join audit_log -> customers",
+      "query": "-- Template from the checked join audit_log.customer_id = customers.customer_id (rule R1; counted: 40 of 40 rows with a value find their customers row (100.0% match)).\n-- For one customer, add: WHERE t.[customer_id] = '<customer_id>'\n-- For one period, add: WHERE s.[happened_at] BETWEEN '<from>' AND '<to>'\nSELECT TOP (25) t.[customer_id], COUNT_BIG(*) AS [audit_log_count]\nFROM [shop].[audit_log] AS s\nJOIN [shop].[customers] AS t ON s.[customer_id] = t.[customer_id]\nGROUP BY t.[customer_id]\nORDER BY [audit_log_count] DESC",
+      "question": "Which customer has the most audit log?"
+     }
+    ],
+    "topics": [
+     {
+      "chars": 2798,
+      "description": "Questions about customers: addresses; customers; order items; orders",
+      "file_name": "krusgraph-customers.md",
+      "markdown": "---\nname: Customers\ndescription: \"Questions about customers: addresses; customers; order items; orders\"\n---\n\n## Customers\n\nUse these tables for questions about customers. Written by Krusgraph by rules from the plan and validate_plan's counts. A person approves this text by reading create_data_agent's dry run and calling it again with dry_run=false; Krusgraph writes nothing before that.\n\n### Tables and what their fields mean\n\n- `shop.customers`: one row per customer_id (key rule K2).\n  - `customer_id`: part of the key.\n  - Left out as personal data by name: name. Do not select, group by or show them.\n- `shop.addresses`: one row per address_id (key rule K2).\n  - `address_id`: part of the key.\n  - `customer_id`: points at customers.customer_id (rule R1).\n  - Left out as personal data by name: city. Do not select, group by or show them.\n- `shop.orders`: one row per order_id (key rule K2).\n  - `order_id`: part of the key.\n  - `customer_id`: points at customers.customer_id (rule R1).\n  - `ship_to_id`: points at addresses.address_id (rule R5).\n- `shop.order_items`: one row per order_id + line_no (key rule K5).\n  - `order_id`: part of the key; points at orders.order_id (rule R1).\n  - `line_no`: part of the key.\n  - `product_id`: points at products.product_id (rule R1).\n\n### Checked joins (use these)\n\n- `addresses.customer_id = customers.customer_id`: addresses to customers, many-to-one (rule R1; counted: 17 of 17 rows with a value find their customers row (100.0% match); the target key is unique).\n- `orders.customer_id = customers.customer_id`: orders to customers, many-to-one (rule R1; counted: 60 of 60 rows with a value find their customers row (100.0% match); the target key is unique).\n- `order_items.order_id = orders.order_id`: order_items to orders, many-to-one (rule R1; counted: 134 of 134 rows with a value find their orders row (100.0% match); the target key is unique).\n- `order_items.product_id = products.product_id`: order_items to products, many-to-one (rule R1; counted: 134 of 134 rows with a value find their products row (100.0% match); the target key is unique).\n- `audit_log.customer_id = customers.customer_id`: audit_log to customers, many-to-one (rule R1; counted: 40 of 40 rows with a value find their customers row (100.0% match); the target key is unique).\n- `orders.ship_to_id = addresses.address_id`: orders to addresses, many-to-one (rule R5; counted: 60 of 60 rows with a value find their addresses row (100.0% match); the target key is unique).\n\n### Known traps\n\n- products.list_price is one value per products row; a join with order_items repeats it on every order_items row. Never SUM(products.list_price) over order_items rows: it is a price, so multiply it by the quantity on each order_items row, or report it per products without summing.\n",
+      "name": "Customers",
+      "tables": [
+       "addresses",
+       "customers",
+       "order_items",
+       "orders"
+      ]
+     },
+     {
+      "chars": 1353,
+      "description": "Questions about products: categories; products",
+      "file_name": "krusgraph-products.md",
+      "markdown": "---\nname: Products\ndescription: \"Questions about products: categories; products\"\n---\n\n## Products\n\nUse these tables for questions about products. Written by Krusgraph by rules from the plan and validate_plan's counts. A person approves this text by reading create_data_agent's dry run and calling it again with dry_run=false; Krusgraph writes nothing before that.\n\n### Tables and what their fields mean\n\n- `shop.categories`: one row per id (key rule K2).\n  - `id`: part of the key.\n- `shop.products`: one row per product_id (key rule K2).\n  - `product_id`: part of the key.\n  - `category_id`: points at categories.id (rule R1).\n\n### Checked joins (use these)\n\n- `products.category_id = categories.id`: products to categories, many-to-one (rule R1; counted: 8 of 8 rows with a value find their categories row (100.0% match); the target key is unique).\n- `order_items.product_id = products.product_id`: order_items to products, many-to-one (rule R1; counted: 134 of 134 rows with a value find their products row (100.0% match); the target key is unique).\n\n### Known traps\n\n- products.list_price is one value per products row; a join with order_items repeats it on every order_items row. Never SUM(products.list_price) over order_items rows: it is a price, so multiply it by the quantity on each order_items row, or report it per products without summing.\n",
+      "name": "Products",
+      "tables": [
+       "categories",
+       "products"
+      ]
+     },
+     {
+      "chars": 831,
+      "description": "Questions about other tables: audit log",
+      "file_name": "krusgraph-other-tables.md",
+      "markdown": "---\nname: Other tables\ndescription: \"Questions about other tables: audit log\"\n---\n\n## Other tables\n\nUse these tables for questions about other tables. Written by Krusgraph by rules from the plan and validate_plan's counts. A person approves this text by reading create_data_agent's dry run and calling it again with dry_run=false; Krusgraph writes nothing before that.\n\n### Tables and what their fields mean\n\n- `shop.audit_log`: no key found (rule K3); do not join to it as a dimension.\n  - `customer_id`: points at customers.customer_id (rule R1).\n\n### Checked joins (use these)\n\n- `audit_log.customer_id = customers.customer_id`: audit_log to customers, many-to-one (rule R1; counted: 40 of 40 rows with a value find their customers row (100.0% match); the target key is unique).\n\n### Known traps\n\n- None known for these tables.\n",
+      "name": "Other tables",
+      "tables": [
+       "audit_log"
+      ]
+     }
+    ],
+    "topics_note": "3 topic file(s), 4982 characters of the documented 1,000,000 per data source; topics are a preview feature for SQL data sources on the preview runtime"
    },
    "context": {
     "business_names": [
@@ -7068,9 +7189,11 @@
     "PATCH /v1/workspaces/11111111-2222-3333-4444-555555555555/dataAgents/{id}/staging/settings",
     "POST /v1/workspaces/11111111-2222-3333-4444-555555555555/dataAgents/{id}/staging/datasources (once; reused if it exists)",
     "PATCH …/staging/datasources/{dsId} (instructions, description); PATCH …/elements?id=… isSelected for the tables above",
-    "POST or PATCH …/staging/datasources/{dsId}/fewshots, one per example",
+    "POST or PATCH …/staging/datasources/{dsId}/fewshots, one per example and template",
+    "PUT …/staging/datasources/{dsId}/topics?fileName=krusgraph-<area>.md (text/markdown), one per topic; only files named krusgraph-*.md are written, nothing is deleted",
     "POST /v1/workspaces/11111111-2222-3333-4444-555555555555/dataAgents/{id}/staging/publish"
    ],
+   "reuse": "Krusgraph checks the joins once, with evidence and your approval; your data agent then reuses them in topics and templates. Read the topics and templates in this dry run; calling again with dry_run=false is your approval to write them.",
    "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\ncounted in this call: 6 key(s), 6 unique\nno key (query only; can reference others, cannot be referenced): audit_log"
   },
   "args": {
