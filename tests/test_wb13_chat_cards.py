@@ -345,7 +345,12 @@ def test_every_card_reports_its_content_height_also_after_details_open_and_close
     out = _browse(tmp_path, html, {"result": _result(r), "args": SAP, "caps": {"serverTools": {}}, "width": 390,
                                    "scheme": scheme, "clicks": clicks})
     _fits(out)
-    assert out["phases"][0]["content"] < 2400, out["phases"][0]                # SAP's 17 tables, folded, at 390 px
+    # SAP's 17 tables, folded at 390 px (unfolded, the check card was 7031 px and the review card 12524 px). The bound
+    # leaves room for other fonts (2324 px here, 2445 px on the CI runner); the folds themselves are checked too.
+    assert out["phases"][0]["content"] < 3200, out["phases"][0]
+    folds = {"validate": "Show every check (56)", "review": "Show every key and link (", "ontology": "Show the map (all 17",
+             "start": "Show the map (all 17"}
+    assert any(s.startswith(folds[card]) for s in out["details"]), out["details"]
     opened, closed = out["phases"][1], out["phases"][2]
     assert opened["content"] > out["phases"][0]["content"] and closed["content"] < opened["content"]   # it grew and shrank
     assert not out["overflow"], "the card scrolls sideways at 390 px"
