@@ -525,3 +525,42 @@ def test_n208_guessed_keys_keep_every_row_in_pyspark(tmp_path):
                 assert got == [] and spark.read.table(f"{silver_schema}.customers").count() == 3
     finally:
         spark.stop()
+
+
+def test_ap2_blank_sap_partners_stay_in_silver_and_the_real_orphan_is_quarantined_in_pyspark(tmp_path):
+    """AP2: the bug of the live run of 18 Nov 2026 on a local Spark. The SAP demo's sap_vbpa has partner rows whose KUNNR
+    or PARNR is blank (a contact person has no customer number, a customer partner no contact number); the silver
+    notebook keeps them, as validate_plan counts them, plus one row with zeros only (the pack marks VBPA -> KNA1
+    optional). Only the item of order 0000000009, which has no header, goes to quarantine; and the pipeline's check
+    notebook, run on the silver tables with spark.sql, finds no orphan in sap_vbpa."""
+    pytest.importorskip("pyspark")
+    from pyspark.sql.types import DecimalType, StringType, StructField, StructType
+    from decimal import Decimal
+    from fabric_backend import pipeline, sap_demo
+    spark = _spark(tmp_path, "krusgraph-ap2-blank-partner")
+    try:
+        spark.sql("CREATE SCHEMA IF NOT EXISTS sap")
+        tables = sap_demo.tables()
+        cols, kinds, rows = tables["VBPA"]
+        tables["VBPA"] = (cols, kinds, list(rows) + [("100", "0000000002", "000000", "AG", "0000000000", "", "")])
+        for name, (cols, kinds, rows) in tables.items():
+            schema = StructType([StructField(c, DecimalType(15, 2) if k != "string" else StringType(), True) for c, k in zip(cols, kinds)])
+            data = [tuple(Decimal(str(v)) if k != "string" and v is not None else v for v, k in zip(r, kinds)) for r in rows]
+            spark.createDataFrame(data, schema).write.format("parquet").saveAsTable(f"sap.sap_{name.lower()}")
+        sch, _ = sap_demo.sqlite(schema="sap")
+        p = plan(sch)
+        s = silver.spec(p, dict(INFO, schema="sap", item_name="demo_lh"), silver_schema="sap_silver")
+        _run_cells(spark, silver.cells(s), 'TABLE_FORMAT = "parquet"')
+        q = spark.read.table("sap_silver.krusgraph_quarantine")
+        got = sorted((r["source_table"], json.loads(r["row_json"]).get("VBELN")) for r in q.collect())
+        assert got == [("sap_vbap", "0000000009")], got
+        assert spark.read.table("sap_silver.sap_vbpa").count() == len(tables["VBPA"][2]) == 6
+        rels = [r for r in pipeline.check_spec(p, s, {"gold_schema": "gold", "views": []})["relationships"] if r["source"] == "sap_vbpa"]
+
+        def execute(sql):
+            return [r.asDict() for r in spark.sql(sql).collect()]
+        for r in rels:
+            out = pipeline._CHECK["check_reference"](execute, "sap_silver", r)
+            assert out["holds"] and out["orphans"] == 0, out
+    finally:
+        spark.stop()
