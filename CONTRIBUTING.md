@@ -40,13 +40,13 @@ owner of an area is listed here. Change an area you do not own only when the mai
 | Area | Files | Owner now |
 | --- | --- | --- |
 | Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/concepts.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | n242 holds `sap.html` and the new files `static/media/krusgraph-sap-to-report*` only (the approved SAP film on /sap, with captions); the rest is open |
-| MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | open; WB15 holds `start_flow.py`, `coach.py`, `mcp_apps_start.py`, `mcp_apps_next.py`, the new `flow_state.py`, the `start` tool and the tool wrapper `_titled_tool` in `server.py` only (one living start card, Gustav's phone test of 19 Nov) |
+| MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | open |
 | Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | | open |
 | Deployment | `deploy/`, `Dockerfile`, `.github/` | open; MOD1 holds the `workload` job of `.github/workflows/ci.yml`, `.github/workflows/workload-package.yml` and `tools/workload_package.py`, `tools/workload_package_ci.py` only (PR #26) |
 | Pipeline jobs and permissions | `fabric_backend/pipeline_jobs.py`, `fabric_backend/access.py`, `fabric_backend/report.py` | open |
 | SAP pack | `fabric_backend/packs/`, `fabric_backend/sap_pack.py`, `fabric_backend/sap_demo.py`, `fabric_backend/exports.py` | | open |
-| Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | open; WB15 holds `docs/CHAT-TEST-2026-11-19.md`, `docs/COACHING.md`, its `CHANGELOG.md` line and the browser-test rule in `CONTRIBUTING.md`; MOD1 holds `docs/MODELER-GO-LIVE.md`, `docs/WORKLOAD-PACKAGE-UPDATES.md`, `docs/WORKLOAD-PUBLISH.md`, `docs/PUBLISHING-READINESS.md`, the workload-name paragraph of `CONTRIBUTING.md` and its `CHANGELOG.md` line only (PR #26); M1 holds new files under `docs/marketing/` only (marketing drafts: a fictional industrial case on synthetic data, LinkedIn posts, a film script, taglines, a home page section; nothing applied to the site or `llms.txt`); W9 holds the one new file `docs/INTEGRATE-AND-HEAL-DESIGN.md` (a design for connecting sources to OneLake and for self-healing data products by rules; docs only, nothing built); L1 holds the one new file `docs/LEARNING-DESIGN.md` and an update of `docs/LANDSCAPE.md` only (a re-run of the MCP landscape scan and a design for knowledge that accumulates by rules: decisions, packs, templates; docs only, nothing built); not the site, not the editor) |
-| Tests | `tests/` | open; WB15 holds the new `tests/test_wb15_*`, `tests/wb15_*` and the start/coach card tests it updates; MOD1 holds `tests/test_w12_modeler.py`, `tests/test_workload_publish.py`, `tests/test_workload_package_names.py`, `tests/test_workload_manifest.py`, `tests/test_deploy_workload.py`, `tests/test_n195_attestation.py` and `tests/test_w14_workload_package.py`, `tests/test_wp1_workload_package_ci.py` only (PR #26) |
+| Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | open; MOD1 holds `docs/MODELER-GO-LIVE.md`, `docs/WORKLOAD-PACKAGE-UPDATES.md`, `docs/WORKLOAD-PUBLISH.md`, `docs/PUBLISHING-READINESS.md`, the workload-name paragraph of `CONTRIBUTING.md` and its `CHANGELOG.md` line only (PR #26); M1 holds new files under `docs/marketing/` only (marketing drafts: a fictional industrial case on synthetic data, LinkedIn posts, a film script, taglines, a home page section; nothing applied to the site or `llms.txt`); W9 holds the one new file `docs/INTEGRATE-AND-HEAL-DESIGN.md` (a design for connecting sources to OneLake and for self-healing data products by rules; docs only, nothing built); L1 holds the one new file `docs/LEARNING-DESIGN.md` and an update of `docs/LANDSCAPE.md` only (a re-run of the MCP landscape scan and a design for knowledge that accumulates by rules: decisions, packs, templates; docs only, nothing built); not the site, not the editor) |
+| Tests | `tests/` | open; MOD1 holds `tests/test_w12_modeler.py`, `tests/test_workload_publish.py`, `tests/test_workload_package_names.py`, `tests/test_workload_manifest.py`, `tests/test_deploy_workload.py`, `tests/test_n195_attestation.py` and `tests/test_w14_workload_package.py`, `tests/test_wp1_workload_package_ci.py` only (PR #26) |
 | Workload | `workload/` (the Fabric workload, a fork of Microsoft's starter kit), `fabric_backend/workload_api.py`, the workload routes in `server.py`, `docs/WORKLOAD-DEV.md` | open; MOD1 holds `workload/scripts/build_package.py`, `workload/scripts/build-package`, the new `workload/scripts/validate_package.py`, `workload/README.md` and `docs/WORKLOAD-DEV.md` only (PR #26: Krusgraph.Modeler as the package's default name) |
 | Marketplace | `fabric_backend/marketplace.py`, `fabric_backend/entitlements.py`, the marketplace routes in `server.py`, `docs/MARKETPLACE-SETUP.md`, `tests/test_marketplace.py` | open |
 | Hub readiness | `docs/HUB-ATTESTATION.md`, `docs/HUB-READINESS.md`, `tools/hub_readiness.py`, `.github/workflows/hub-readiness.yml` (new files only; no `workload/` code, no site, no engine) | open |
@@ -155,6 +155,17 @@ and only the founder uploads.
 - A pull request follows `.github/PULL_REQUEST_TEMPLATE.md`, which repeats the rules above as a checklist: the claim, an
   own worktree, a green suite, no customer data, the sales-word test (`tests/test_site.py`, `SALES`), no deployment.
 - The code of conduct is the Contributor Covenant 2.1, `CODE_OF_CONDUCT.md`; reports go to hello@krusgraph.com.
+
+## The guided path is clicked through
+
+Gustav, 19 November 2026: the chat path worked and looked good on 12 November, and then five rounds in a week each
+changed the cards and tested only their own part. So no round may merge a change that breaks the path: the
+click-through `tests/test_wb15_click_through.py` (with `tests/wb15_click_through.js` and `tests/wb15_fake.py`) clicks
+the Start Krusgraph card's own buttons on the synthetic SAP demo from step 1 to the confirmation step, at 390 px, light
+and dark. It runs in CI's `test` job with the other browser tests and is a required check: in CI it fails, rather than
+skips, when Chromium does not start. A change to a card (`mcp_apps*.py`), to `start_flow.py`, `coach.py`, `next_rules.py`
+or to how the tools are wrapped in `server.py` keeps it green; when the path is meant to change, change the test in the
+same pull request and say why.
 
 ## Verified, and how
 
