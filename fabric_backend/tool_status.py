@@ -143,6 +143,8 @@ _ITEM = "creates/updates one item; never deletes"
 # live, its date and its result; OPEN: what is still open), so `note` stays empty and label() builds the text.
 _RAW = {
     "start": (HOSTED, READS, "nothing (answers the next step; calls no tool itself)", "unit tests"),   # n219
+    "publish_catalog": (HOSTED, CREATES, "sets item descriptions and adds existing tags; never removes, deletes or endorses",
+                        "unit tests (Fabric replaced by a test double); not run against Fabric"),   # CA1
     "verify_build": (HOSTED, READS, _NO, "unit tests (definitions, rows and Power BI answers replaced by test doubles)"),   # n229
     "list_workspaces": (HOSTED, READS, _NO, "unit tests"),
     "list_sources": (HOSTED, READS, _NO, "unit tests"),
@@ -189,6 +191,16 @@ _RAW = {
                         "unit tests; run live on 7 November 2026 (pipeline_shop, run 9de8bc49)"),
     "export_item_definitions": (HOSTED, DRAFT, _NO, "unit tests"),
     "review_plan": (HOSTED, READS, "nothing (counting queries with validate=true)", "unit tests; reading a file back by unit tests only"),
+    # Q2: Krusgraph Migrate, from Qlik to Power BI (qlik_tools.py). No Qlik installation and no customer's script was read.
+    "qlik_plan": (HOSTED, DRAFT, "nothing (counting queries when a workspace and a source are named)",
+                  "unit tests (a synthetic load script with synthetic rows, and public load scripts; no Qlik installation)"),
+    "qlik_measures_draft": (HOSTED, DRAFT, _NO, "unit tests (synthetic expressions; the DAX was not run)"),
+    "qlik_reconcile_draft": (HOSTED, DRAFT, _NO, "unit tests (the statements run on SQLite over synthetic rows)"),
+    # AP2: the analysis pack, phase 1. Rules over metadata and counts; the notebook runs in Fabric, started by the analyst.
+    "analysis_plan": (HOSTED, READS, "nothing (counting queries)", "unit tests on the synthetic SAP samples (SQLite)"),
+    "analysis_notebook_draft": (HOSTED, DRAFT, _NO, "unit tests; the notebooks ran on a local PySpark 4.0.1 against synthetic SAP data"),
+    # RQ1: a pasted requirements list matched to the checked SAP data by rules; reads names and counts, never a value
+    "requirements_draft": (HOSTED, READS, "nothing (counting queries)", "unit tests and goldens on the synthetic SAP demo (SQLite)"),
 }
 STATUS: dict[str, ToolStatus] = {name: ToolStatus(*v, name=name) for name, v in _RAW.items()}
 
@@ -237,6 +249,7 @@ OPEN = {
     "create_silver_notebook": "the notebook it created has not been run in Fabric; " + _PIPELINE_RAN,
     "create_gold_views": "the notebook it created has not been run in Fabric; " + _PIPELINE_RAN,
     "silver_notebook_draft": "the notebook ran on a local PySpark 4.0.1; " + _PIPELINE_RAN,
+    "analysis_notebook_draft": "the notebooks ran on a local PySpark 4.0.1 without MLflow, AutoML or scikit-learn; not yet in Fabric",
     "gold_views_draft": "the SQL ran on SQLite and a local PySpark 4.0.1; " + _PIPELINE_RAN,
     "drift_monitor_draft": "the notebook ran two nights on a local PySpark, not yet in Fabric",
     "create_drift_monitor": "neither item has been run in Fabric; the schedule needs DataPipeline.Execute.All, opt-in on the "
@@ -586,7 +599,9 @@ def connect_sentence() -> str:
 # the hosted tools the local stdio server (fabric_backend/mcp_server.py) has too; tests/test_capabilities.py locks it
 LOCAL_TOOLS = ("list_tables", "plan_backend", "validate_plan", "sample_rows", "join_path", "data_dictionary", "dbt_schema",
                "analyze_schema", "suggest_relationships", "rayfin_connector", "create_views", "answer_query_draft",
-               "semantic_model_draft", "ontology_draft", "silver_notebook_draft", "review_plan", "create_backend")
+               "semantic_model_draft", "ontology_draft", "silver_notebook_draft", "review_plan", "create_backend",
+               "qlik_plan", "qlik_measures_draft", "qlik_reconcile_draft",       # Q2: the same three, the text stays local
+               "analysis_plan", "analysis_notebook_draft")                      # AP2: the analysis pack, local first
 
 # what is not a hosted tool: (name, status word, where, what it is)
 # n146, Gustav's decision of 7 November 2026: what ran against SQL Server 2022 in a container on 28 October 2026

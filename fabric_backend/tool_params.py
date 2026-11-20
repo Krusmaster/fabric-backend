@@ -35,6 +35,7 @@ Profile = Annotated[bool | dict, _d('true adds per column of the checked tables:
                                    'min/max below/above zero; {"numbers": [lo, hi], "dates": [from, to]} states ranges. '
                                    'One query per table within max_items; never values. Default false.')]
 MaxItems = Annotated[int, _d('Cap on counting queries (one per key and relationship), 1–200. Default 60.')]
+CsnPath = Annotated[str | None, _d('SAP CSN file or folder in Files. Default Files/krusgraph/csn/.')]
 CheckTables = Annotated[list[str] | None, _d('Names or globs: count only their keys and links. Default all.')]
 ResumeFrom = Annotated[int, _d('The resume_from of an answer cut by time or max_items. Default 0.')]
 SqlSums = Annotated[bool, _d('true also reads the SQL views\' definitions (no rows) and lists views that SUM a header '
@@ -56,6 +57,10 @@ Writable = Annotated[bool, _d('true includes create, update and delete mutations
 SilverSchema = Annotated[str, _d('Lakehouse schema with the silver tables create_silver_notebook writes. Default '
                                  '"silver".')]
 GoldSchema = Annotated[str, _d('Lakehouse schema for the gold views. Default "gold". Example: "gold".')]
+# WB2 (#54): where an output that reads silver or gold reads them; empty means "not given" (layer_schemas.resolve)
+ReadSilverSchema = Annotated[str, _d('Schema of the silver tables read. Default "": the pipeline\'s, else "silver".')]
+ReadGoldSchema = Annotated[str, _d('Schema of the gold views read. Default "": the pipeline\'s, else "gold".')]
+LayerPipeline = Annotated[str, _d('Pipeline whose schemas to use. Default "": this source\'s Krusgraph pipeline.')]
 ViewsSchema = Annotated[str, _d('Schema the T-SQL views go into; created if missing. Default "krusgraph". Example: '
                                 '"reporting".')]
 OrderBy = Annotated[dict[str, str] | None, _d(
@@ -178,6 +183,8 @@ ExportNames = Annotated[dict[str, str] | None, _d(
     'drift_monitor_<schema>, gold_<schema>, pipeline_<schema> (its check notebook: <name>_check). '
     'Example: {"create_backend": "shop_api"}.')]
 StarterApi = Annotated[str, _d('API for GraphQL item created by create_backend, by name or id.')]
+ReadinessApi = Annotated[str, _d('API for GraphQL item created by create_backend, by name or id. Default "".')]
+ReadinessModel = Annotated[str, _d('Power BI semantic model, by name or id, instead of api. Default "".')]
 LineageTable = Annotated[str | None, _d('One table to trace: the answer adds what a change to it reaches. Default: none. '
                                         'Example: "orders".')]
 LineageFormat = Annotated[Literal["graph", "openlineage"], _d('"graph" (default) or "openlineage": one OpenLineage '
@@ -224,3 +231,28 @@ StartPlan = Annotated[dict | None, _d('{keys, confirmed, decisions} so far, as r
 StartCreate = Annotated[list[str] | None, _d('Step create: dry-run item names the user asked to create.')]
 StartConfirm = Annotated[bool, _d('Step create: true only after the user said yes to exactly those names.')]
 StartSample = Annotated[bool, _d('true: the synthetic shop sample; no Fabric.')]
+# WB12 (#75): the start prompt's one argument, as the question the claude.ai prompt dialog shows
+StartPromptSample = Annotated[str, _d('Use the synthetic shop sample? Type yes. Leave empty to use your own Fabric data.')]
+
+# ------------------------------------------------------------------ publish_catalog (CA1) ---------------
+
+CatalogItems = Annotated[list[str] | None, _d(
+    'More item names to describe and tag, besides the source and the items Krusgraph built. Default none.')]
+CatalogOwner = Annotated[str | None, _d('The data products\' owner, a person\'s name or e-mail. Default: not chosen yet.')]
+CatalogConfirm = Annotated[str | None, _d('With dry_run=false: the confirm value the dry run returned.')]
+CatalogCheckRows = Annotated[bool, _d('true (default): counts keys and orphans for the evidence line and the rules.')]
+
+# ------------------------------------------------------------------ AP2: analysis_plan, analysis_notebook_draft -------
+AnalysisProfile = Annotated[bool, _d('true (default) counts the rows (never a value); false: names only.')]
+AnalysisWeights = Annotated[dict[str, float] | None, _d('Your value per analysis, e.g. {"A2": 5}; 0-5.')]
+DocumentTypes = Annotated[dict[str, list[str]] | None, _d('Return/credit types, e.g. {"credit_billing_types": ["G2"]}.')]
+AnalysisMaxItems = Annotated[int, _d('Cap on counting queries, 1-60. Default 20.')]
+Analysis = Annotated[str, _d('A7 (forecasting), A8 (RFM) or A3 (ABC/XYZ).')]
+OutputSchema = Annotated[str, _d('Schema the notebook writes its one result table to.')]
+# RQ1: requirements_draft, a pasted requirements list (for example a Copilot Workspace summary) matched by rules
+Requirements = Annotated[str, _d('Requirements, one per line (pasted). Up to 20.')]
+RequirementsWorkspace = Annotated[str, _d('Fabric workspace; empty with sample=true.')]
+RequirementsSource = Annotated[str, _d('Source; empty with sample=true.')]
+RequirementsValidate = Annotated[bool, _d('Count the joins used. Default true.')]
+RequirementsSample = Annotated[bool, _d('true: synthetic SAP demo, offline.')]
+AgentRequirements = Annotated[str | None, _d('Requirements list; answerable ones become example queries.')]

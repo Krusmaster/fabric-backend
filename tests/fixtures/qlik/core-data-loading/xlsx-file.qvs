@@ -1,0 +1,13 @@
+// Test fixture of Krusgraph, copied from github.com/qlik-oss/core-data-loading at commit 0b79c835e30af66f06590b93e5dfa4d4d8bc1ff5, file scripts/xlsx-file.qvs. Licence: MIT, see LICENSE-core-data-loading.txt in this folder. This line was added; other changes are listed in ../SOURCES.md.
+// This script shows a simple example of how to load data from an Ecxel file.
+// The options on the last line specify how data in the Ecxel file shall be
+// interpreted, for example, that the first line contains header names
+// ('embedded labels'), that the file is in the Open Document Format
+// ('ooxml'), and that data shall be read from the sheet named 'Airports'
+// ('table is Airports').
+
+Airports:
+    LOAD
+        *
+    FROM [lib://data/airports.xlsx]
+    (ooxml, embedded labels, table is Airports);

@@ -181,7 +181,7 @@ def map_associations(read: dict, execute=None, schema: str = "dbo", dialect=TSQL
             if any(facts[f][t]["unique"] is None for t in ts):
                 undecided.append({"field": f, "tables": ts, "counts": facts[f],
                                   "why": "no table is known to hold each value once: count the field in these tables "
-                                         "(give `execute` once the tables are landed)"})
+                                         "(ask again once the tables are landed, so that the rows are counted)"})
             else:
                 no_key.append(f)
             continue

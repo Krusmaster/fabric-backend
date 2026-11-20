@@ -51,7 +51,7 @@ AFTER_RESULT = ("After a tool result: a client that draws the result as a card h
                 "the answer does not tell.")
 # Next steps may name only these tools: they read or draft; none creates anything in Fabric.
 STEP_TOOLS = ("validate_plan", "plan_backend", "review_plan", "semantic_model_draft", "list_tables", "join_path",
-              "data_dictionary", "ontology_draft")
+              "data_dictionary", "ontology_draft", "gold_views_draft")    # WB13 (#91): the gold views' draft reads
 LABEL = {
     "check": "Check against the rows",
     "doubled": "Show the doubled totals",
@@ -62,6 +62,11 @@ LABEL = {
     "ontology": "Draft an ontology",
 }
 CHECK_MAX = 200                                                      # rows on the check card
+# WB13 (#92): on Gustav's phone the ontology's Turtle was printed in the chat and ran off the screen. The card keeps a
+# file behind a closed section; the lead asks the client model not to print it.
+FILE_TOOLS = ("ontology_draft", "create_ontology", "dbt_schema")
+FILES_STAY = (" Please do not print file contents from the JSON (the Turtle file, TMDL, SQL or YAML) in the reply: the "
+              "card keeps them behind a closed section such as Show the ontology file, and they run off a phone's screen.")
 
 
 def _carried(args: dict, *keys) -> dict:
@@ -151,15 +156,19 @@ def error_steps(tool: str, args: dict, answer: dict) -> list[dict]:
     return out[:ERROR_MAX]
 
 
-def steps(tool: str, args: dict, answer: dict) -> list[dict]:
+def steps(tool: str, args: dict, answer: dict, checks: dict | None = None) -> list[dict]:
     """The card's next steps for one answer (2 to 4; 1 to 3 for an error or a refusal, n220; none for a question back
-    to the user)."""
+    to the user). WB13 (#91): after plan_backend the rules below; for every other tool next_rules.steps, the most useful
+    step first, from the plan state (`checks`: validate_plan's check rows)."""
     if isinstance(answer, dict) and isinstance(answer.get("started"), dict):
         return []                                    # n227: Fabric is still working: the one step is Check status (an action)
     if isinstance(answer, dict) and answer.get("error"):
         return error_steps(tool, args, answer)
     if not isinstance(answer, dict) or answer.get("choose_schema") or answer.get("ask"):
         return []
+    if tool == "requirements_draft":                                 # RQ1: its steps name the requirement ids they serve
+        from .requirements_draft import next_steps
+        return next_steps(args, answer)
     args = {k: v for k, v in (args or {}).items() if k != "ctx"}
     if "workspace" not in args or "source" not in args:
         return []
@@ -171,28 +180,14 @@ def steps(tool: str, args: dict, answer: dict) -> list[dict]:
         # mcp_apps_build.actions_for); nothing here repeats it or suggests a build. These two only read.
         out = [_step(LABEL["doubled"], "validate_plan", {**base, "detail": "full"}, where),
                _step(LABEL["review"], "review_plan", base, where)]
-    elif tool == "validate_plan":
-        out = []
-        if _failed(answer):
-            out.append(_step(LABEL["fixes"], "validate_plan", {**base, "fixes": True}, where))
-        out.append(_step(LABEL["review"], "review_plan", {**base, "validate": True}, where))
-        if _has_amounts(answer) and not args.get("detail") == "full":
-            out.append(_step(LABEL["doubled"], "validate_plan", {**base, "detail": "full"}, where))
-        t = answer.get("totals") if isinstance(answer.get("totals"), dict) else {}
-        if not int(((t.get("keys") or {}) if isinstance(t.get("keys"), dict) else {}).get("failed") or 0):
-            out.append(_step(LABEL["model"], "semantic_model_draft", {**base, "validate": True}, where))   # n227: after the keys hold
-    elif tool == "review_plan":
-        out = [_step(LABEL["check"], "review_plan", {**_carried(args, "workspace", "source", "schema", "keys", "confirmed"),
-                                                    "validate": True}, where),
-               _step(LABEL["replan"], "plan_backend", base, where),
-               _step(LABEL["model"], "semantic_model_draft", {**base, "validate": True}, where)]
     elif tool in DRY_RUN_TOOLS and answer.get("dry_run") is False and isinstance(answer.get("next_steps"), list):
         out = []                                                     # n229: after a Create the data product's next steps are the
         #                                                              answer's own (after_create.py), drawn with its actions
-    elif tool in ("create_semantic_model", "create_ontology", "create_backend", "ontology_draft", "domain_draft", "dbt_schema"):
-        out = [_step(LABEL["check"], "validate_plan", base, where), _step(LABEL["review"], "review_plan", base, where)]
-        if tool not in ("create_semantic_model",):
-            out.append(_step(LABEL["model"], "semantic_model_draft", {**base, "validate": True}, where))
+    else:
+        from . import next_rules                                     # WB13 (#91): one rule set, the most useful step first
+        if tool not in next_rules.TOOLS:
+            return []
+        return next_rules.steps(tool, args, answer, checks, can_build=tool != "review_plan")
     return [s for s in out if s["tool"] in STEP_TOOLS][:MAX_STEPS]
 
 
@@ -205,7 +200,8 @@ def _first_lines(tool: str, answer: dict) -> list[str]:
     if answer.get("choose_schema") or answer.get("ask"):
         return [str(answer.get("summary") or answer.get("ask"))]
     if tool == "validate_plan" and isinstance(answer.get("totals"), dict):
-        return words.check_lines(answer)
+        own = (answer.get("kg_card") or {}).get("lines") if isinstance(answer.get("kg_card"), dict) else None
+        return list(own) if own else words.check_lines(answer)       # WB13 (#90): the card's own lines, with the split
     card = answer.get("kg_card") if isinstance(answer.get("kg_card"), dict) else {}
     lines = [x for x in card.get("lines") or [] if isinstance(x, str) and x.strip()]
     if isinstance(card.get("result"), str) and card["result"].strip():     # n227: the one-line result, then the lines
@@ -240,6 +236,12 @@ def numbered(next_steps: list[dict], actions: list | None = None) -> list[tuple[
         if label not in seen and len(out) < cap:
             seen.add(label)
             out.append((label, call))
+    first = [s for s in next_steps if s.get("primary")]                # WB13 (#91): the primary step comes first
+    for s in first:
+        if s.get("tool"):
+            add(s["label"], _for_assistant(s["tool"], s.get("arguments"), s["tool"] in DRY_RUN_TOOLS))
+        else:
+            add(s["label"], f"the user asks \u201c{s.get('say')}\u201d")
     for a in actions or []:
         if not isinstance(a, dict) or not a.get("label"):
             continue
@@ -260,15 +262,41 @@ def numbered(next_steps: list[dict], actions: list | None = None) -> list[tuple[
             add(s["label"], _for_assistant(s["tool"], s.get("arguments"), s["tool"] in DRY_RUN_TOOLS))
         elif s.get("url"):
             add(f"{s['label']}: {s['url']}", "the user opens that address")
+        elif s.get("start"):                                          # WB13: a sentence that runs the start card's step
+            add(s["label"], f"the user asks \u201c{s.get('say')}\u201d")
         else:
             add(s["label"], "answer it in the chat")
     return out
+
+
+# WB12 (#69): under the start card Claude wrote the card's content again. The start answer's lead says the card shows
+# it and asks for one short sentence and the step's question; the JSON after it stays complete for clients without cards.
+START_AFTER_CARD = ("For the assistant, not for the user: where the client drew the Start Krusgraph card, the card already "
+                    "shows this step: its findings, the step list and the buttons. Please do not repeat or summarise them; "
+                    "reply with at most one short sentence, then ask the step's question: \u201c{q}\u201d. Where no card "
+                    "was drawn, show the step from the JSON below in a few lines and its buttons as a numbered list.")
+
+
+def start_lead(answer: dict) -> str:
+    """The text a client model reads first after `start` (WB12, #69)."""
+    q = answer.get("say") if isinstance(answer.get("say"), str) and answer.get("say").strip() else ""
+    if not q:
+        found = answer.get("found") if isinstance(answer.get("found"), dict) else {}
+        q = found.get("question") if isinstance(found.get("question"), str) else ""
+    if not q:
+        q = (answer.get("after") or {}).get("label", "") if isinstance(answer.get("after"), dict) else ""
+        q = f"Shall we go on? ({q})" if q else "Shall we go on?"
+    st = answer.get("step") if isinstance(answer.get("step"), dict) else {}
+    head = f"Start Krusgraph, step {st.get('n')} of {st.get('of')}: {st.get('title')}." if st.get("n") else "Start Krusgraph."
+    return "\n\n".join([head, START_AFTER_CARD.format(q=words.plain(q)[:300]), "The full answer follows as JSON."])
 
 
 def lead(tool: str, answer: dict, next_steps: list[dict], actions: list | None = None) -> str:
     """The result first, in a few short lines, then the next steps as a numbered list in plain words (n227: a client
     that draws no card shows the list and the user replies with a number). The last paragraph is for the client model:
     which call each number is, and what not to add to the card."""
+    if tool == "start" and isinstance(answer, dict) and not answer.get("error"):
+        return start_lead(answer)
     lines = _first_lines(tool, answer) if isinstance(answer, dict) else []
     out = [" ".join(words.plain(x) for x in lines)[:600]] if lines else []
     todo = numbered(next_steps, actions)
@@ -278,9 +306,10 @@ def lead(tool: str, answer: dict, next_steps: list[dict], actions: list | None =
         out.append("Next steps:\n" + "\n".join(f"{i}. {label}" for i, (label, _) in enumerate(todo, 1))
                    + f"\nReply {reply}.")
         out.append("For the assistant, not for the user: " + "; ".join(f"{i} = {call}" for i, (_, call) in enumerate(todo, 1))
-                   + ". The other arguments are in the JSON (actions, or the arguments of this call). " + AFTER_CARD)
+                   + ". The other arguments are in the JSON (actions, or the arguments of this call). " + AFTER_CARD
+                   + (FILES_STAY if tool in FILE_TOOLS else ""))
     else:
-        out.append("For the assistant, not for the user: " + AFTER_CARD)
+        out.append("For the assistant, not for the user: " + AFTER_CARD + (FILES_STAY if tool in FILE_TOOLS else ""))
     out.append("The full answer follows as JSON.")
     return "\n\n".join(out)
 
@@ -315,6 +344,8 @@ def check_rows(plan, full: dict) -> dict:
         row = {"kind": "link", "id": f"rel:{r['source']}.{'+'.join(r['columns'])}>{r['target']}",
                "label": _rel_label(r["source"], r["columns"], r["target"]), "rule": r.get("rule"), "state": state,
                "counts": f"{o} of {words._plural(n, 'row points', 'rows point')} at nothing"}
+        if r.get("kind"):                                            # WB13 (#90): a join of plan.extended, not a key link
+            row["other"] = True
         if state == "failed":
             row["sql"] = relationship_sql(schema, r["source"], list(r["columns"]), r["target"], list(r["target_columns"]))
         rows.append(row)
@@ -323,7 +354,9 @@ def check_rows(plan, full: dict) -> dict:
         state = {"not_counted": "not_checked"}.get(_amount_status(f), _amount_status(f))
         table = f.get("header") or f.get("table") or ""
         cols = f.get("amount_columns") or ([f["column"]] if f.get("column") else [])
-        rows.append({"kind": "amount", "id": f"amount:{table}", "label": f"{table}: {', '.join(cols)}"
+        # LT1: one header amount can be checked over several line tables (VBAP over VBEP, LIPS and VBRP), so the id names
+        # the line table too; amount:<table> alone repeated one id for different checks
+        rows.append({"kind": "amount", "id": f"amount:{table}" + (f">{f['line']}" if f.get("line") else ""), "label": f"{table}: {', '.join(cols)}"
                      + (f" over {f['line']}" if f.get("line") else ""), "state": state,
                      "counts": "repeated on every line: do not sum over the lines" if state == "failed" else "on its own level"})
     for table, (cols, rule) in plan.keys.items():
@@ -368,8 +401,14 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .pill-not_checked { color: var(--kg-muted) }
 .pill-rule { color: var(--kg-muted); font-weight: 500 }
 .ck-sql { margin-top: 4px }
+details.ck-all > summary { cursor: pointer; color: var(--kg-muted); font-size: 13.5px }
 .dec { display: inline-flex; gap: 4px; margin-top: 4px }
 .dec button[aria-pressed="true"] { background: var(--kg-ink); color: var(--kg-bg) }
+.nx-coach { display: grid; gap: 4px; margin: 0 }
+.nx-stage { margin: 0; font-size: 13px; font-weight: 650; color: var(--kg-muted) }
+.nx-coach .kg-say { margin: 0 }
+html[data-mascots="off"] .nx-coach .kg-fig { display: none }
+html[data-mascots="off"] .nx-coach .kg-say { grid-template-columns: minmax(0, 1fr) }
 """
 
 NEXT_JS = r"""
@@ -429,14 +468,37 @@ NEXT_JS = r"""
     return NEXT_TOOLS.indexOf(s.tool) >= 0 && s.arguments.dry_run !== false;
   }
 __OPEN_JS__
+  // CO1 (coach.py): "Step N of 8: <stage>" and one mascot line in plain words, right under the card's title, as the
+  // home page's demo chat says each step; the mascot's figure follows Mascots on/off, the words stay
+  var COACH_WHO = { onto: "Onto", thinker: "Thinker", builder: "Builder" };
+  function coachHead(data) {
+    var c = isObj(data) && isObj(data.coach) ? data.coach : null;
+    if (!c || !readable(c.title) || !readable(c.line) || !COACH_WHO[c.who]) return false;
+    var old = document.querySelector(".nx-coach"); if (old) old.remove();
+    var box = el("section", null, "nx-coach"); box.setAttribute("aria-label", "Where you are");
+    box.setAttribute("data-stage", String(c.stage || ""));
+    box.appendChild(el("p", "Step " + (Number(c.n) || 1) + " of " + (Number(c.of) || 8) + ": " + c.title, "nx-stage"));
+    var say = el("div", null, "kg-say " + c.who), fig = el("span", null, "kg-fig");
+    var src = document.querySelector('#kg-mascots [data-mascot="' + c.who + '"] svg');
+    if (src) { var f = src.cloneNode(true); f.setAttribute("data-pose", String(c.pose || "point")); fig.appendChild(f); }
+    var bub = el("div", null, "kg-bub"); bub.appendChild(el("p", COACH_WHO[c.who], "kg-who")); bub.appendChild(el("p", c.line, "nx-line"));
+    say.appendChild(fig); say.appendChild(bub); box.appendChild(say);
+    var head = document.querySelector("main .kg-head");
+    if (head && head.parentNode) head.parentNode.insertBefore(box, head.nextSibling); else return false;
+    document.documentElement.setAttribute("data-coach", "1");       // one mascot line: the summary's figures stay off
+    var mb = document.getElementById("kg-mascots"); if (mb) { mb.hidden = true; if (typeof mascotsEcho === "function") mascotsEcho(); }
+    return true;
+  }
   function renderNext(data, box) {
-    var list = (Array.isArray(data.next) ? data.next : []).filter(okStep).slice(0, 4);
+    var coached = coachHead(data);
+    var list = (Array.isArray(data.next) ? data.next : []).filter(okStep).slice(0, coached ? 3 : 4);   // CO1: 1 + 2
     if (!list.length) return false;
     var wrap = el("section", null, "nx"); wrap.setAttribute("aria-label", "Next steps");
     wrap.appendChild(el("p", "Next steps", "nx-h"));
     var row = el("div", null, "nx-row"), out = el("div", null, "nx-out");
     list.forEach(function (s) {
-      var b = el("button", null, "nx-b"); b.type = "button";
+      var b = el("button", null, "nx-b" + (s.primary === true ? " nx-primary" : "")); b.type = "button";   // WB13 (#91)
+      if (s.primary === true) b.setAttribute("data-primary", "true");
       b.appendChild(el("span", s.label));
       if (typeof s.url === "string") {                                         // n220: a link
         b.setAttribute("aria-label", s.label + " (opens a link)");
@@ -454,7 +516,9 @@ __OPEN_JS__
       }
       row.appendChild(b);
     });
-    wrap.appendChild(row); wrap.appendChild(out); box.appendChild(wrap);
+    wrap.appendChild(row);
+    if (list[0].primary === true && readable(list[0].why)) wrap.appendChild(el("p", list[0].why, "muted nx-why"));   // WB13: why this one first
+    wrap.appendChild(out); box.appendChild(wrap);
     return true;
   }
   // A tool's answer drawn on the card: the check rows when it has them, its own next steps, else resultView.
@@ -465,14 +529,15 @@ __OPEN_JS__
       var res = el("div", null, "res-box");
       res.appendChild(el("p", lines.length ? lines.join(" ") : (readable(d.summary) || "The check answered.")));
       box.appendChild(res);
+      renderNext(d, box);                                       // WB13 (#93): the next step before the long table
       renderChecks(d, box);
     } else {
       box.appendChild(resultView(tool, r));
+      if (isObj(d)) renderNext(d, box);
     }
-    if (isObj(d)) renderNext(d, box);
     return box;
   }
-  var STATE_WORDS = { passed: "passed", failed: "failed", not_checked: "not checked" };
+  var STATE_WORDS = { passed: "passed", failed: "failed", not_checked: "not checked" }, CK_LONG = 20;
   function renderChecks(data, box) {
     var c = isObj(data.checks) ? data.checks : null, rows = c && Array.isArray(c.rows) ? c.rows.filter(isObj) : [];
     if (!rows.length) return false;
@@ -487,11 +552,12 @@ __OPEN_JS__
       var li = el("li"); li.appendChild(el("span", (Number(n[s]) || 0) + " " + STATE_WORD[s], "pill pill-" + s)); sum.appendChild(li);
     });
     wrap.appendChild(sum);
+    function table(list) {
     var t = el("table", null, "ck-table"), head = el("tr");
     ["What", "State", "In the rows"].forEach(function (h) { var th = el("th", h); th.scope = "col"; head.appendChild(th); });
     var thead = el("thead"); thead.appendChild(head); t.appendChild(thead);
     var tb = el("tbody");
-    rows.forEach(function (x) {
+    list.forEach(function (x) {
       var tr = el("tr"); tr.setAttribute("data-check", String(x.id || ""));
       var what = el("td"); what.appendChild(el("span", (readable(x.what) ? x.what + " " : x.kind === "key" ? "Key " : x.kind === "link" ? "Link " : "Amount ") + String(x.label || "")));
       if (readable(x.rule)) { what.appendChild(document.createTextNode(" ")); what.appendChild(el("span", x.rule, "pill pill-rule")); }
@@ -506,8 +572,24 @@ __OPEN_JS__
       }
       tr.appendChild(what); tr.appendChild(state); tr.appendChild(counts); tb.appendChild(tr);
     });
-    t.appendChild(tb); wrap.appendChild(t);
+    t.appendChild(tb); return t;
+    }
+    // WB13 (#93): on a phone a long list of checks is a wall: what failed or was not checked first, every check behind
+    // "Show every check", drawn the first time it opens
+    if (rows.length > CK_LONG) {
+      var first = rows.filter(function (x) { return x.state !== "passed"; }).slice(0, CK_LONG);
+      if (first.length) wrap.appendChild(table(first));
+      var all = el("details", null, "ck-all"), allBox = el("div");
+      all.appendChild(el("summary", "Show every check (" + rows.length + ")")); all.appendChild(allBox);
+      all.addEventListener("toggle", function () { if (all.open && !allBox.childNodes.length) allBox.appendChild(table(rows)); });
+      wrap.appendChild(all);
+    } else wrap.appendChild(table(rows));
     if (readable(c.left_out)) wrap.appendChild(el("p", c.left_out, "muted"));
+    if (isObj(data.coach)) {                                    // CO1: the rows, with their rule names, under Details
+      var det = el("details", null, "ck-all ck-details");
+      det.appendChild(el("summary", "Details: every key and link (" + rows.length + ")")); det.appendChild(wrap);
+      box.appendChild(det); return true;
+    }
     box.appendChild(wrap);
     return true;
   }

@@ -36,7 +36,10 @@ from pathlib import Path
 PACKS = Path(__file__).parent / "packs"
 RULE = "SAP pack"
 MIRROR_RULE = "SAP mirror metadata"       # n129: keys (and descriptions) a mirrored source declares; see sap_mirror.py
-CLIENT_COLUMNS = ("MANDT", "RCLNT", "CLIENT")      # BUT000 and the CVI link tables name it CLIENT
+CLIENT_COLUMNS = ("MANDT", "RCLNT", "CLIENT", "COMPANY")   # BUT000 and the CVI link tables name it CLIENT; COMPANY is
+# Business Central's `$Company` column, which an export adds to per-company tables (bc2adls) and a per-company SQL
+# table (`<company>$<table>$<app id>`) does not have: like SAP's client it is left out of keys and relationships on both
+# sides when the table lacks it (round PK2, packs/dynamics365)
 # words a landing puts in front of a source table's name: a layer (raw, bronze) or the system (sap, younium, sf)
 _LEADING = ("sap", "raw", "stg", "src", "bronze", "landing", "mirror", "mirrored", "ext", "extract", "younium", "sf", "salesforce", "crm",
             "cds", "s4", "s4hana")
@@ -46,15 +49,43 @@ def available() -> list[str]:
     return sorted(p.name for p in PACKS.iterdir() if p.is_dir())
 
 
+INCLUDE = ".include"      # PK1: packs/<pack>/<module>.include names a module of another pack to read, not copy
+
+
+def _included(spec_file: Path) -> tuple[dict, str]:
+    """A module of another pack, cut to the tables an `.include` file names (round PK1). The file is JSON:
+    {"pack": "salesforce", "module": "salesforce", "tables": [...], "traps": [...]}. The module keeps its own text and
+    sources; relationships are taken where both tables are named, traps by id, sources where a kept claim cites them.
+    The including pack's own modules set the rule, so the engine's label of the including pack does not change."""
+    spec = json.loads(spec_file.read_text(encoding="utf-8"))
+    src = PACKS / spec["pack"] / f"{spec['module']}.json"
+    m = json.loads(src.read_text(encoding="utf-8"))
+    keep = set(spec["tables"])
+    unknown = keep - {t["name"] for t in m["tables"]}
+    if unknown:
+        raise KeyError(f"{spec_file.name}: the {spec['pack']} pack does not describe {', '.join(sorted(unknown))}")
+    m["tables"] = [t for t in m["tables"] if t["name"] in keep]
+    m["relationships"] = [r for r in m["relationships"] if r["source"] in keep and r["target"] in keep]
+    m["traps"] = [t for t in m.get("traps", []) if t["id"] in set(spec.get("traps", []))]
+    cited = {s for x in m["tables"] + m["relationships"] + m["traps"] for s in x["sources"]}
+    m["sources"] = {k: v for k, v in m["sources"].items() if k in cited}
+    return m, f"packs/{spec['pack']}/{src.name}"
+
+
 @lru_cache(maxsize=None)
 def _load(pack: str) -> str:
-    files = sorted((PACKS / pack).glob("*.json"))
+    files = sorted(list((PACKS / pack).glob("*.json")) + list((PACKS / pack).glob("*" + INCLUDE)), key=lambda f: f.stem)
     if not files:
         raise KeyError(f"no pack named {pack!r}; available: {', '.join(available())}")
     merged: dict = {"pack": pack, "modules": [], "variants": {}, "sources": {}, "tables": {}, "relationships": [], "traps": []}
+    rule = None
     for f in files:
-        m = json.loads(f.read_text(encoding="utf-8"))
-        merged["modules"].append({"module": m["module"], "title": m["title"], "status": m["status"], "file": f"packs/{pack}/{f.name}"})
+        if f.suffix == INCLUDE:
+            m, file = _included(f)
+        else:
+            m, file = json.loads(f.read_text(encoding="utf-8")), f"packs/{pack}/{f.name}"
+            rule = rule or m["rule"]
+        merged["modules"].append({"module": m["module"], "title": m["title"], "status": m["status"], "file": file})
         merged["rule"] = m["rule"]
         merged["variants"].update(m["variants"])
         for sid, s in m["sources"].items():
@@ -63,6 +94,7 @@ def _load(pack: str) -> str:
             merged["tables"][t["name"]] = {**t, "module": m["module"]}
         merged["relationships"] += [{**r, "module": m["module"]} for r in m["relationships"]]
         merged["traps"] += [{**t, "module": m["module"]} for t in m.get("traps", [])]
+    merged["rule"] = rule or merged["rule"]
     return json.dumps(merged)
 
 
@@ -148,8 +180,25 @@ def problems(pack: dict) -> list[str]:
     return out
 
 
+_BC_SUFFIX = re.compile(r"^(.*[A-Za-z].*)-\d+$")     # bc2adls: `SalesHeader-36` (table), `No-3` (field); round PK2
+
+
+def _bc_name(name: str) -> str:
+    """A Business Central name without what its landing adds (round PK2): the company and the app id of a per-company SQL
+    table (`Example AB$Sales Header$437dbf0e-...` -> `Sales Header`; schema prefixes go with the company), and the
+    table or field number bc2adls appends (`SalesHeader-36` -> `SalesHeader`). Other names are returned as they are."""
+    if "$" in name:
+        parts = name.split("$")
+        if len(parts) >= 2 and parts[1].strip():
+            name = parts[1]
+    m = _BC_SUFFIX.match(name)
+    return m.group(1) if m else name
+
+
 def table_name(name: str) -> str:
-    """The name a pack would know a table by: `bronze.SAP_VBAK` -> `VBAK`."""
+    """The name a pack would know a table by: `bronze.SAP_VBAK` -> `VBAK`; `CRONUS$Sales Header$<app id>` and
+    `SalesHeader-36` -> `SALES_HEADER`/`SALESHEADER` (Business Central, round PK2; compared without underscores)."""
+    name = _bc_name(name.split(".")[-1] if "$" not in name else name)
     words = [w for w in re.split(r"[^A-Za-z0-9]+", name.split(".")[-1]) if w]
     while len(words) > 1 and words[0].lower() in _LEADING:
         words = words[1:]
@@ -174,6 +223,32 @@ def pack_table(name: str, pack: str = "sap") -> str | None:
     `SalesDocument` -> `I_SALES_DOCUMENT` (round n230: without underscores, and by the aliases a table lists)."""
     found = _names(pack).get(_norm(table_name(name)))
     return found[0] if found else None
+
+
+_BLANK_EXEMPT = ("MANDT", "RCLNT", "CLIENT")   # the client: validate_plan never counted its blank as no reference
+
+
+@lru_cache(maxsize=None)
+def _optional_links(pack: str) -> frozenset:
+    return frozenset((r["source"], tuple(_norm(c) for c in r["source_cols"]), r["target"])
+                     for r in load(pack)["relationships"] if r.get("optional"))
+
+
+def initial_columns(source: str, source_cols: list[str], target: str, pack: str = "sap") -> list[str]:
+    """AP2: the source columns of a pack relationship marked "optional" whose value of zeros only is SAP's initial value
+    ("no partner for this row", like a blank): VBPA.KUNNR of a contact-person row, VBPA.ADRNR without a document address.
+    The client column is left out. [] when the pack does not mark the relationship (or does not know the tables): then
+    only NULL and blank count as no reference, and a value of zeros is a value that must find its row."""
+    s, t = pack_table(source, pack), pack_table(target, pack)
+    if not s or not t or (s, tuple(_norm(c) for c in source_cols), t) not in _optional_links(pack):
+        return []
+    return [c for c in source_cols if c.upper() not in _BLANK_EXEMPT]
+
+
+def blank_columns(source_cols: list[str]) -> list[str]:
+    """AP2: the columns of a reference whose blank ('' or spaces, SAP's initial value) means no reference, as validate_plan
+    has counted SAP pack links since it began: every column but the client."""
+    return [c for c in source_cols if c.upper() not in _BLANK_EXEMPT]
 
 
 @dataclass
@@ -202,8 +277,18 @@ class Match:
 def _norm(column: str) -> str:
     """A column name as a pack compares it: without case and underscores, so a pack written in snake case (EXTERNAL_CRM_ID)
     reads a camelCase landing (externalCrmId) and a snake-case one (external_crm_id) alike. SAP names have no such
-    doubles (VBTYP_N is only ever VBTYP_N)."""
-    return column.upper().replace("_", "")
+    doubles (VBTYP_N is only ever VBTYP_N). Since round PK2 every character that is not a letter or a digit is left out,
+    so Business Central's `Document No.` reads `Document No_` (its SQL spelling), `DOCUMENT_NO` and `$Company` reads
+    `COMPANY`."""
+    return re.sub(r"[^A-Z0-9]", "", column.upper())
+
+
+def column_key(column: str) -> str:
+    """A column as the loader compares it, in its plain spelling (round PK2): `_parentaccountid_value` and
+    `parentaccountid` -> PARENTACCOUNTID, `DocumentNo-3` and `Document No_` -> DOCUMENTNO."""
+    lookup = re.fullmatch(r"_(.+)_value", column)
+    bc = _BC_SUFFIX.match(column)
+    return _norm(lookup.group(1) if lookup else bc.group(1) if bc else column)
 
 
 def _cols(table) -> dict[str, str]:
@@ -211,6 +296,11 @@ def _cols(table) -> dict[str, str]:
     out: dict[str, str] = {}
     for c in table.column_names:
         out.setdefault(_norm(c), c)
+    for c in table.column_names:                     # round PK2: other spellings of a column, when the plain one is absent
+        lookup = re.fullmatch(r"_(.+)_value", c)     # Dataverse Web API lookups: `_parentaccountid_value` is parentaccountid
+        bc = _BC_SUFFIX.match(c)                     # bc2adls fields: `No-3` is No.
+        for other in ((lookup.group(1),) if lookup else ()) + ((bc.group(1),) if bc else ()):
+            out.setdefault(_norm(other), c)
     return out
 
 
@@ -576,7 +666,7 @@ def write_verified(report: dict, pack: str = "sap") -> list[str]:
         if x["proposal"] == "verified":
             by_module.setdefault(x["module"], []).append(x)
     for module, items in by_module.items():
-        path = PACKS / pack / f"{module}.json"
+        path = PACKS.parent / next(x["file"] for x in p["modules"] if x["module"] == module)   # PK1: an included module's own file
         lines = path.read_text(encoding="utf-8").split("\n")
         for x in items:
             r = {k: v for k, v in p["relationships"][x["index"]].items() if k != "module"}

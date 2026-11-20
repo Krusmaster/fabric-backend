@@ -413,8 +413,10 @@ def test_pipeline_check_notebook_runs_after_silver_and_gold_in_pyspark(tmp_path)
         spark.sql("DROP TABLE gold.order_items")
         items = next(v for v in g["views"] if v["fact"] == "order_items")
         spark.sql(f"SELECT * FROM ({gold.select_sql(items, g['silver_schema'])}) AS v").createOrReplaceTempView("items_v")
-        spark.sql("SELECT order_id, line_no, product_id, quantity + CASE WHEN line_no = 1 THEN 1 ELSE 0 END AS quantity, "
-                  "* EXCEPT (order_id, line_no, product_id, quantity) FROM items_v").write.format("parquet").saveAsTable("gold.order_items")
+        # WB1 (F8): the other columns by name; SELECT * EXCEPT (...) parses only on Spark 4, and Fabric Runtime 1.3 is 3.5
+        rest = "".join(f", `{c}`" for c in spark.table("items_v").columns if c not in ("order_id", "line_no", "product_id", "quantity"))
+        spark.sql("SELECT order_id, line_no, product_id, quantity + CASE WHEN line_no = 1 THEN 1 ELSE 0 END AS quantity"
+                  f"{rest} FROM items_v").write.format("parquet").saveAsTable("gold.order_items")
         spark.sql("INSERT INTO silver.order_items SELECT 4242, 1, product_id, 1.0 FROM silver.order_items LIMIT 1")
         with pytest.raises(Exception) as e:
             run()
@@ -523,5 +525,126 @@ def test_n208_guessed_keys_keep_every_row_in_pyspark(tmp_path):
                 assert "duplicates" not in ns["summary"]["customers"]
             else:
                 assert got == [] and spark.read.table(f"{silver_schema}.customers").count() == 3
+    finally:
+        spark.stop()
+
+
+def test_ap2_blank_sap_partners_stay_in_silver_and_the_real_orphan_is_quarantined_in_pyspark(tmp_path):
+    """AP2: the bug of the live run of 18 Nov 2026 on a local Spark. The SAP demo's sap_vbpa has partner rows whose KUNNR
+    or PARNR is blank (a contact person has no customer number, a customer partner no contact number); the silver
+    notebook keeps them, as validate_plan counts them, plus one row with zeros only (the pack marks VBPA -> KNA1
+    optional). Only the item of order 0000000009, which has no header, goes to quarantine; and the pipeline's check
+    notebook, run on the silver tables with spark.sql, finds no orphan in sap_vbpa."""
+    pytest.importorskip("pyspark")
+    from pyspark.sql.types import DecimalType, StringType, StructField, StructType
+    from decimal import Decimal
+    from fabric_backend import pipeline, sap_demo
+    spark = _spark(tmp_path, "krusgraph-ap2-blank-partner")
+    try:
+        spark.sql("CREATE SCHEMA IF NOT EXISTS sap")
+        tables = sap_demo.tables()
+        cols, kinds, rows = tables["VBPA"]
+        tables["VBPA"] = (cols, kinds, list(rows) + [("100", "0000000002", "000000", "AG", "0000000000", "", "")])
+        for name, (cols, kinds, rows) in tables.items():
+            schema = StructType([StructField(c, DecimalType(15, 2) if k != "string" else StringType(), True) for c, k in zip(cols, kinds)])
+            data = [tuple(Decimal(str(v)) if k != "string" and v is not None else v for v, k in zip(r, kinds)) for r in rows]
+            spark.createDataFrame(data, schema).write.format("parquet").saveAsTable(f"sap.sap_{name.lower()}")
+        sch, _ = sap_demo.sqlite(schema="sap")
+        p = plan(sch)
+        s = silver.spec(p, dict(INFO, schema="sap", item_name="demo_lh"), silver_schema="sap_silver")
+        _run_cells(spark, silver.cells(s), 'TABLE_FORMAT = "parquet"')
+        q = spark.read.table("sap_silver.krusgraph_quarantine")
+        got = sorted((r["source_table"], json.loads(r["row_json"]).get("VBELN")) for r in q.collect())
+        assert got == [("sap_vbap", "0000000009")], got
+        assert spark.read.table("sap_silver.sap_vbpa").count() == len(tables["VBPA"][2]) == 6
+        rels = [r for r in pipeline.check_spec(p, s, {"gold_schema": "gold", "views": []})["relationships"] if r["source"] == "sap_vbpa"]
+
+        def execute(sql):
+            return [r.asDict() for r in spark.sql(sql).collect()]
+        for r in rels:
+            out = pipeline._CHECK["check_reference"](execute, "sap_silver", r)
+            assert out["holds"] and out["orphans"] == 0, out
+    finally:
+        spark.stop()
+
+
+def test_ap2_demo36_notebook_and_the_three_analysis_notebooks_run_in_pyspark(tmp_path, capsys):
+    """AP2: the 36-month synthetic SAP demo notebook writes nothing on its default dry run, refuses dbo, then writes the
+    17 tables in its own schema; on those tables the notebooks for A7, A8 and A3 run every cell, pass the data check
+    against analysis_plan's counts and write their one marked table each. MLflow, statsmodels, FLAML and scikit-learn
+    are not installed here, so each says it was skipped (never silently); Fabric's runtime has them."""
+    pytest.importorskip("pyspark")
+    from fabric_backend import analysis_notebook, analysis_plan, sap_demo36
+    spark = _spark(tmp_path, "krusgraph-ap2-analysis")
+    try:
+        cells = sap_demo36.notebook_cells(target_schema="sap")
+        _run_cells(spark, cells, 'TABLE_FORMAT = "parquet"')                       # DRY_RUN = True: nothing written
+        assert not spark.catalog.tableExists("sap.sap_vbrk")
+        with pytest.raises(ValueError, match="is refused"):
+            _run_cells(spark, cells, 'TABLE_FORMAT = "parquet"; DRY_RUN = False; TARGET_SCHEMA = "dbo"')
+        _run_cells(spark, cells, 'TABLE_FORMAT = "parquet"; DRY_RUN = False')
+        assert spark.read.table("sap.sap_vbrp").count() == len(sap_demo36.tables()["VBRP"][2])
+        s, execute = sap_demo36.sqlite()
+        result = analysis_plan.recommend(plan(s), execute)
+        info = dict(workspace_id="w", item_id="lh-1", item_name="demo_lh", schema="sap", schemas_enabled=True)
+        expected = {"A7": None, "A8": 293, "A3": 492}
+        capsys.readouterr()
+        for a in analysis_notebook.ANALYSES:
+            _run_cells(spark, analysis_notebook.cells(analysis_notebook.spec(result, a, info)), 'TABLE_FORMAT = "parquet"')
+            out = spark.read.table(f"krusgraph_analysis.{analysis_notebook.OUTPUT[a]}")
+            if expected[a] is not None:
+                assert out.count() == expected[a], a
+            printed = capsys.readouterr().out
+            assert "MLflow is not installed here" in printed and "differs" not in printed, a
+            skipped = {"A7": "FLAML (AutoML) is not installed here", "A8": "scikit-learn is not installed here", "A3": "not logged (no MLflow)"}
+            assert skipped[a] in printed, a
+        forecast = spark.read.table("krusgraph_analysis.forecast_monthly")
+        assert {r["kind"] for r in forecast.collect()} == {"backtest", "forecast"}
+        classes = {r["abc"] for r in spark.read.table("krusgraph_analysis.abc_xyz").collect()}
+        assert classes == {"A", "B", "C"}
+        # a second run replaces only its own marked table; a foreign table of that name stops the notebook
+        spark.sql("CREATE SCHEMA IF NOT EXISTS other")
+        spark.createDataFrame([(1,)], "x int").write.format("parquet").saveAsTable("other.rfm_segments")
+        with pytest.raises(ValueError, match="was not written by this notebook"):
+            _run_cells(spark, analysis_notebook.cells(analysis_notebook.spec(result, "A8", info, output_schema="other")),
+                       'TABLE_FORMAT = "parquet"')
+    finally:
+        spark.stop()
+
+
+def test_wb1_sap_gold_keeps_one_row_per_silver_row_in_pyspark(tmp_path):
+    """WB1 (F8 in docs/WORKLOAD-TEST-2026-11-17.md): the SAP path on a local Spark, on both CI lines (PySpark 3.5, the
+    Spark of Fabric Runtime 1.3, and 4.0). The synthetic SAP demo goes through the generated silver notebook into
+    sap_silver and the gold views' SELECTs into sap_gold; every gold view, sap_vbrp, sap_lips, sap_vbap, sap_vbpa and
+    sap_vbrk among them, has exactly the rows and sums of its silver fact table, and the generated check notebook says
+    so for each of them and passes."""
+    pytest.importorskip("pyspark")
+    from fabric_backend import gold, notebook, pipeline, sap_demo
+    spark = _spark(tmp_path, "krusgraph-wb1-sap-gold")
+    try:
+        spark.sql("CREATE SCHEMA IF NOT EXISTS sap")
+        spark.catalog.setCurrentDatabase("sap")
+        exec(compile(sap_demo.notebook_inline().replace('.format("delta")', '.format("parquet")'), "load_sap_demo.py", "exec"),
+             {"spark": spark})
+        spark.catalog.setCurrentDatabase("default")
+        p = plan(sap_demo.sqlite()[0])
+        info = dict(INFO, item_name="demo_lh", schema="sap")
+        s = silver.spec(p, info, silver_schema="sap_silver")
+        _run_cells(spark, silver.cells(s), 'TABLE_FORMAT = "parquet"')
+        g = gold.spec(p, info, silver_schema="sap_silver", gold_schema="sap_gold")
+        names = {v["name"] for v in g["views"]}
+        assert {"sap_gold.sap_vbrp", "sap_gold.sap_lips", "sap_gold.sap_vbap", "sap_gold.sap_vbpa", "sap_gold.sap_vbrk"} <= names
+        spark.sql("CREATE SCHEMA IF NOT EXISTS sap_gold")
+        for v in g["views"]:
+            spark.sql(f"SELECT * FROM ({gold.select_sql(v, g['silver_schema'])}) AS v WHERE "
+                      + (" AND ".join(f"({c['check']})" for c in v["constraints"]) or "1 = 1")).write.format("parquet").saveAsTable(v["name"])
+            assert spark.table(v["name"]).count() == spark.table(f"sap_silver.{v['fact']}").count() > 0, v["name"]
+        text = pipeline.check_source(pipeline.check_spec(p, s, g), "demo_lh.sap")
+        nb = _run_cells(spark, notebook.parse(text), 'SILVER_SCHEMA = "sap_silver"; GOLD_SCHEMA = "sap_gold"; '
+                                                     'TABLE_FORMAT = "parquet"; RUN_ID = "run-1"')
+        assert nb["result"]["passed"], nb["result"]["lines"]
+        views = {v["view"]: v for v in nb["result"]["joins"]}
+        assert set(views) == names
+        assert all(v["rows_before"] == v["rows_after"] > 0 and all(x["holds"] for x in v["sums"]) for v in views.values())
     finally:
         spark.stop()

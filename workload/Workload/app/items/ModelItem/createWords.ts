@@ -105,7 +105,8 @@ export function progressLine(cards: BuildCard[]): string {
 
 // ------------------------------------------------------------------ (b) the item's own type ---------------------------
 
-const TYPE_LABEL: Record<string, string> = {
+// WB11: exported so the icon test checks every type named here has its Fabric icon
+export const TYPE_LABEL: Record<string, string> = {
   Notebook: "Notebook",
   DataPipeline: "Pipeline",
   SemanticModel: "Semantic model",

@@ -1,0 +1,7 @@
+// Test fixture of Krusgraph, copied from github.com/qlik-oss/core-data-loading at commit 0b79c835e30af66f06590b93e5dfa4d4d8bc1ff5, file scripts/concat-tables-auto.qvs. Licence: MIT, see LICENSE-core-data-loading.txt in this folder. This line was added; other changes are listed in ../SOURCES.md.
+// The LOAD statements below result an automatic concatenation of values from 
+// both CSV files since the same fields are loaded from both files, yielding
+// one table with all values.
+
+LOAD Brand, RegNo, Year FROM [lib://data/cars1.csv];
+LOAD Brand, Year, RegNo FROM [lib://data/cars2.csv];

@@ -50,6 +50,10 @@ Krusgraph did not make is never written.
   `silver`, examples can fail that check. Create now reads each example's `validationStatus` (Valid, Invalid,
   Validating) back and shows it on the card, with Fabric's reason for each Invalid one.
 
+Since round DA2 (19 November 2026) the same call also writes **topics** (one `krusgraph-<area>.md` file per business
+area, a Fabric preview for SQL sources on the preview runtime) and one **template** per checked join as further example
+queries; see `docs/DATA-AGENT-TOPICS-TEMPLATES.md`.
+
 ## 3. Publishing: two separate ticks, both off
 
 | Tick | What Create does | Source |

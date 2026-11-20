@@ -1,0 +1,5 @@
+Coach (step 4 of 8: You decide the open links)
+Say in one or two short sentences, in plain words: A few links need you: I show the counts. The count supports it, and you decide.
+Offer one next step: Show what points at nothing = validate_plan(workspace="demo", source="demo_lh", schema="sap_silver", fixes=true, tables=["VBAP"]).
+Only if asked, also: Create the semantic model (dry run first); Draft the gold views.
+No rule codes, key strings or file text unless the user asks; end with the one next step.

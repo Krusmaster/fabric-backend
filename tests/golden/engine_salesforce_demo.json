@@ -1,0 +1,156 @@
+{
+ "analyze": {
+  "bytes": 25288,
+  "sha256": "7328ef2f3cd4d2bc14237cc72c8b1ff525c4e97f047e1f6e1c9e1a132fbb6628"
+ },
+ "candidates": {
+  "bytes": 23719,
+  "sha256": "c0578b7f77182c26013a0457f380305ab9358ca05a94a1ecc999e518faa499c7"
+ },
+ "composite_key_suggestions": [],
+ "dbt": {
+  "bytes": 27383,
+  "sha256": "ebb1eb80eae04ada86e1b77fb6a2d806991846763ba6648e18aacee1cd442341"
+ },
+ "dictionary": {
+  "bytes": 70265,
+  "sha256": "291c13612e298a74d974faddd2774db6f3bf948e180dbe1fbfb3f96bba72d28b"
+ },
+ "gold": {
+  "bytes": 70994,
+  "sha256": "8ca59d4ca06457fac3802179484b7961209851e29718b8e3332d6aab828b6d5f"
+ },
+ "graphql": {
+  "bytes": 26461,
+  "sha256": "5c00f1268a157cb1c5abf629b6014338391a74800b386ed773ce5b9e45b98e49"
+ },
+ "join_paths": {
+  "bytes": 125311,
+  "sha256": "6efd607b190b3e87fd9dbf9ce2cbf3e69eceffd16f009610ed7ef57691160cbf"
+ },
+ "key_sql": {
+  "Account": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Id] FROM [salesforce].[Account] WHERE [Id] IS NOT NULL) AS d) AS distinct_keys FROM [salesforce].[Account]",
+  "Asset": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Id] FROM [salesforce].[Asset] WHERE [Id] IS NOT NULL) AS d) AS distinct_keys FROM [salesforce].[Asset]",
+  "Campaign": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Id] FROM [salesforce].[Campaign] WHERE [Id] IS NOT NULL) AS d) AS distinct_keys FROM [salesforce].[Campaign]",
+  "CampaignMember": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Id] FROM [salesforce].[CampaignMember] WHERE [Id] IS NOT NULL) AS d) AS distinct_keys FROM [salesforce].[CampaignMember]",
+  "Case": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Id] FROM [salesforce].[Case] WHERE [Id] IS NOT NULL) AS d) AS distinct_keys FROM [salesforce].[Case]",
+  "Contact": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Id] FROM [salesforce].[Contact] WHERE [Id] IS NOT NULL) AS d) AS distinct_keys FROM [salesforce].[Contact]",
+  "Contract": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Id] FROM [salesforce].[Contract] WHERE [Id] IS NOT NULL) AS d) AS distinct_keys FROM [salesforce].[Contract]",
+  "Event": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Id] FROM [salesforce].[Event] WHERE [Id] IS NOT NULL) AS d) AS distinct_keys FROM [salesforce].[Event]",
+  "Lead": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Id] FROM [salesforce].[Lead] WHERE [Id] IS NOT NULL) AS d) AS distinct_keys FROM [salesforce].[Lead]",
+  "Opportunity": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Id] FROM [salesforce].[Opportunity] WHERE [Id] IS NOT NULL) AS d) AS distinct_keys FROM [salesforce].[Opportunity]",
+  "OpportunityContactRole": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Id] FROM [salesforce].[OpportunityContactRole] WHERE [Id] IS NOT NULL) AS d) AS distinct_keys FROM [salesforce].[OpportunityContactRole]",
+  "OpportunityLineItem": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Id] FROM [salesforce].[OpportunityLineItem] WHERE [Id] IS NOT NULL) AS d) AS distinct_keys FROM [salesforce].[OpportunityLineItem]",
+  "Order": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Id] FROM [salesforce].[Order] WHERE [Id] IS NOT NULL) AS d) AS distinct_keys FROM [salesforce].[Order]",
+  "OrderItem": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Id] FROM [salesforce].[OrderItem] WHERE [Id] IS NOT NULL) AS d) AS distinct_keys FROM [salesforce].[OrderItem]",
+  "Pricebook2": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Id] FROM [salesforce].[Pricebook2] WHERE [Id] IS NOT NULL) AS d) AS distinct_keys FROM [salesforce].[Pricebook2]",
+  "PricebookEntry": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Id] FROM [salesforce].[PricebookEntry] WHERE [Id] IS NOT NULL) AS d) AS distinct_keys FROM [salesforce].[PricebookEntry]",
+  "Product2": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Id] FROM [salesforce].[Product2] WHERE [Id] IS NOT NULL) AS d) AS distinct_keys FROM [salesforce].[Product2]",
+  "Quote": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Id] FROM [salesforce].[Quote] WHERE [Id] IS NOT NULL) AS d) AS distinct_keys FROM [salesforce].[Quote]",
+  "QuoteLineItem": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Id] FROM [salesforce].[QuoteLineItem] WHERE [Id] IS NOT NULL) AS d) AS distinct_keys FROM [salesforce].[QuoteLineItem]",
+  "Task": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Id] FROM [salesforce].[Task] WHERE [Id] IS NOT NULL) AS d) AS distinct_keys FROM [salesforce].[Task]",
+  "User": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Id] FROM [salesforce].[User] WHERE [Id] IS NOT NULL) AS d) AS distinct_keys FROM [salesforce].[User]"
+ },
+ "ontology_ttl": {
+  "bytes": 53264,
+  "sha256": "2134901449a92d96edf1579387c515cc777dc019afe50df5e7acae3c006887dc"
+ },
+ "plan": {
+  "bytes": 24205,
+  "sha256": "7fb751ac532973650d2766b55c6a95175a3808e1029f009ab4f0fd27e4d27756"
+ },
+ "rayfin": {
+  "bytes": 60612,
+  "sha256": "ee5afe174f869fb55f4e0605abe2883ea74448fdb245f2aedb6fbcf05ed7a032"
+ },
+ "relationship_sql": [
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Account] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[User]) AS t ON s.[OwnerId] = t.[Id] WHERE s.[OwnerId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Contact] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Account]) AS t ON s.[AccountId] = t.[Id] WHERE s.[AccountId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Contact] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[User]) AS t ON s.[OwnerId] = t.[Id] WHERE s.[OwnerId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Lead] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Account]) AS t ON s.[ConvertedAccountId] = t.[Id] WHERE s.[ConvertedAccountId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Lead] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Contact]) AS t ON s.[ConvertedContactId] = t.[Id] WHERE s.[ConvertedContactId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Lead] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Opportunity]) AS t ON s.[ConvertedOpportunityId] = t.[Id] WHERE s.[ConvertedOpportunityId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Lead] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Campaign]) AS t ON s.[CampaignId] = t.[Id] WHERE s.[CampaignId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Opportunity] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Account]) AS t ON s.[AccountId] = t.[Id] WHERE s.[AccountId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Opportunity] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Campaign]) AS t ON s.[CampaignId] = t.[Id] WHERE s.[CampaignId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Opportunity] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Pricebook2]) AS t ON s.[Pricebook2Id] = t.[Id] WHERE s.[Pricebook2Id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Opportunity] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[User]) AS t ON s.[OwnerId] = t.[Id] WHERE s.[OwnerId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[OpportunityLineItem] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Opportunity]) AS t ON s.[OpportunityId] = t.[Id] WHERE s.[OpportunityId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[OpportunityLineItem] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[PricebookEntry]) AS t ON s.[PricebookEntryId] = t.[Id] WHERE s.[PricebookEntryId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[OpportunityLineItem] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Product2]) AS t ON s.[Product2Id] = t.[Id] WHERE s.[Product2Id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[OpportunityContactRole] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Opportunity]) AS t ON s.[OpportunityId] = t.[Id] WHERE s.[OpportunityId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[OpportunityContactRole] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Contact]) AS t ON s.[ContactId] = t.[Id] WHERE s.[ContactId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Case] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Account]) AS t ON s.[AccountId] = t.[Id] WHERE s.[AccountId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Case] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Contact]) AS t ON s.[ContactId] = t.[Id] WHERE s.[ContactId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Case] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Asset]) AS t ON s.[AssetId] = t.[Id] WHERE s.[AssetId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Case] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Product2]) AS t ON s.[ProductId] = t.[Id] WHERE s.[ProductId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Campaign] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[User]) AS t ON s.[OwnerId] = t.[Id] WHERE s.[OwnerId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[CampaignMember] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Campaign]) AS t ON s.[CampaignId] = t.[Id] WHERE s.[CampaignId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[CampaignMember] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Lead]) AS t ON s.[LeadId] = t.[Id] WHERE s.[LeadId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[CampaignMember] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Contact]) AS t ON s.[ContactId] = t.[Id] WHERE s.[ContactId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Order] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Account]) AS t ON s.[AccountId] = t.[Id] WHERE s.[AccountId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Order] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Contract]) AS t ON s.[ContractId] = t.[Id] WHERE s.[ContractId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Order] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Opportunity]) AS t ON s.[OpportunityId] = t.[Id] WHERE s.[OpportunityId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Order] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Quote]) AS t ON s.[QuoteId] = t.[Id] WHERE s.[QuoteId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Order] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Pricebook2]) AS t ON s.[Pricebook2Id] = t.[Id] WHERE s.[Pricebook2Id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Order] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[User]) AS t ON s.[OwnerId] = t.[Id] WHERE s.[OwnerId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[OrderItem] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Order]) AS t ON s.[OrderId] = t.[Id] WHERE s.[OrderId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[OrderItem] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[PricebookEntry]) AS t ON s.[PricebookEntryId] = t.[Id] WHERE s.[PricebookEntryId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[OrderItem] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Product2]) AS t ON s.[Product2Id] = t.[Id] WHERE s.[Product2Id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[OrderItem] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[QuoteLineItem]) AS t ON s.[QuoteLineItemId] = t.[Id] WHERE s.[QuoteLineItemId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[PricebookEntry] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Pricebook2]) AS t ON s.[Pricebook2Id] = t.[Id] WHERE s.[Pricebook2Id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[PricebookEntry] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Product2]) AS t ON s.[Product2Id] = t.[Id] WHERE s.[Product2Id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Quote] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Opportunity]) AS t ON s.[OpportunityId] = t.[Id] WHERE s.[OpportunityId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Quote] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Account]) AS t ON s.[AccountId] = t.[Id] WHERE s.[AccountId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Quote] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Contact]) AS t ON s.[ContactId] = t.[Id] WHERE s.[ContactId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Quote] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Pricebook2]) AS t ON s.[Pricebook2Id] = t.[Id] WHERE s.[Pricebook2Id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Quote] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[User]) AS t ON s.[OwnerId] = t.[Id] WHERE s.[OwnerId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[QuoteLineItem] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Quote]) AS t ON s.[QuoteId] = t.[Id] WHERE s.[QuoteId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[QuoteLineItem] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[PricebookEntry]) AS t ON s.[PricebookEntryId] = t.[Id] WHERE s.[PricebookEntryId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[QuoteLineItem] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Product2]) AS t ON s.[Product2Id] = t.[Id] WHERE s.[Product2Id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[QuoteLineItem] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[OpportunityLineItem]) AS t ON s.[OpportunityLineItemId] = t.[Id] WHERE s.[OpportunityLineItemId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Contract] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Account]) AS t ON s.[AccountId] = t.[Id] WHERE s.[AccountId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Contract] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[User]) AS t ON s.[OwnerId] = t.[Id] WHERE s.[OwnerId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Asset] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Account]) AS t ON s.[AccountId] = t.[Id] WHERE s.[AccountId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Asset] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Contact]) AS t ON s.[ContactId] = t.[Id] WHERE s.[ContactId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Asset] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Product2]) AS t ON s.[Product2Id] = t.[Id] WHERE s.[Product2Id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Asset] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[User]) AS t ON s.[OwnerId] = t.[Id] WHERE s.[OwnerId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Task] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Account]) AS t ON s.[AccountId] = t.[Id] WHERE s.[AccountId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [salesforce].[Event] AS s LEFT JOIN (SELECT DISTINCT [Id] FROM [salesforce].[Account]) AS t ON s.[AccountId] = t.[Id] WHERE s.[AccountId] IS NOT NULL"
+ ],
+ "sample_sql": {
+  "Account": "SELECT TOP (10) [Id], [Name], [Industry], [BillingCountry], [ParentId], [IsPersonAccount], [CurrencyIsoCode], [OwnerId] FROM [salesforce].[Account]",
+  "Asset": "SELECT TOP (10) [Id], [AccountId], [ContactId], [Product2Id], [Name], [SerialNumber], [Status], [InstallDate], [Quantity], [Price], [OwnerId] FROM [salesforce].[Asset]",
+  "Campaign": "SELECT TOP (10) [Id], [Name], [Type], [Status], [StartDate], [BudgetedCost], [ActualCost], [AmountAllOpportunities], [AmountWonOpportunities], [OwnerId] FROM [salesforce].[Campaign]",
+  "CampaignMember": "SELECT TOP (10) [Id], [CampaignId], [LeadId], [ContactId], [Status], [HasResponded] FROM [salesforce].[CampaignMember]",
+  "Case": "SELECT TOP (10) [Id], [CaseNumber], [AccountId], [ContactId], [AssetId], [ProductId], [Status], [Priority], [Origin], [Subject], [IsClosed], [IsEscalated], [CreatedDate], [ClosedDate], [SuppliedEmail], [OwnerId] FROM [salesforce].[Case]",
+  "Contact": "SELECT TOP (10) [Id], [AccountId], [FirstName], [LastName], [Email], [OwnerId] FROM [salesforce].[Contact]",
+  "Contract": "SELECT TOP (10) [Id], [AccountId], [ContractNumber], [Status], [StartDate], [ContractTerm], [EndDate], [OwnerId] FROM [salesforce].[Contract]",
+  "Event": "SELECT TOP (10) [Id], [WhoId], [WhatId], [AccountId], [Subject], [StartDateTime], [EndDateTime], [DurationInMinutes], [OwnerId] FROM [salesforce].[Event]",
+  "Lead": "SELECT TOP (10) [Id], [FirstName], [LastName], [Company], [Email], [Status], [LeadSource], [IsConverted], [ConvertedDate], [ConvertedAccountId], [ConvertedContactId], [ConvertedOpportunityId], [CampaignId], [OwnerId] FROM [salesforce].[Lead]",
+  "Opportunity": "SELECT TOP (10) [Id], [AccountId], [Name], [StageName], [CloseDate], [IsClosed], [IsWon], [Probability], [Amount], [ExpectedRevenue], [CurrencyIsoCode], [CampaignId], [Pricebook2Id], [SyncedQuoteId], [IsDeleted], [OwnerId] FROM [salesforce].[Opportunity]",
+  "OpportunityContactRole": "SELECT TOP (10) [Id], [OpportunityId], [ContactId], [Role], [IsPrimary] FROM [salesforce].[OpportunityContactRole]",
+  "OpportunityLineItem": "SELECT TOP (10) [Id], [OpportunityId], [PricebookEntryId], [Product2Id], [Quantity], [UnitPrice], [ListPrice], [TotalPrice] FROM [salesforce].[OpportunityLineItem]",
+  "Order": "SELECT TOP (10) [Id], [AccountId], [ContractId], [OpportunityId], [QuoteId], [Pricebook2Id], [OrderNumber], [Status], [EffectiveDate], [TotalAmount], [CurrencyIsoCode], [OwnerId] FROM [salesforce].[Order]",
+  "OrderItem": "SELECT TOP (10) [Id], [OrderId], [PricebookEntryId], [Product2Id], [QuoteLineItemId], [Quantity], [UnitPrice], [TotalPrice] FROM [salesforce].[OrderItem]",
+  "Pricebook2": "SELECT TOP (10) [Id], [Name], [IsStandard], [IsActive] FROM [salesforce].[Pricebook2]",
+  "PricebookEntry": "SELECT TOP (10) [Id], [Pricebook2Id], [Product2Id], [UnitPrice], [CurrencyIsoCode], [IsActive], [UseStandardPrice] FROM [salesforce].[PricebookEntry]",
+  "Product2": "SELECT TOP (10) [Id], [Name], [ProductCode], [Family], [IsActive], [QuantityUnitOfMeasure] FROM [salesforce].[Product2]",
+  "Quote": "SELECT TOP (10) [Id], [OpportunityId], [AccountId], [ContactId], [Pricebook2Id], [Name], [QuoteNumber], [Status], [IsSyncing], [Subtotal], [TotalPrice], [GrandTotal], [CurrencyIsoCode], [OwnerId] FROM [salesforce].[Quote]",
+  "QuoteLineItem": "SELECT TOP (10) [Id], [QuoteId], [PricebookEntryId], [Product2Id], [OpportunityLineItemId], [Quantity], [UnitPrice], [Subtotal], [TotalPrice] FROM [salesforce].[QuoteLineItem]",
+  "Task": "SELECT TOP (10) [Id], [WhoId], [WhatId], [AccountId], [Subject], [Status], [ActivityDate], [Priority], [TaskSubtype], [OwnerId] FROM [salesforce].[Task]",
+  "User": "SELECT TOP (10) [Id], [Username], [FirstName], [LastName], [Name], [Email], [IsActive], [ManagerId] FROM [salesforce].[User]"
+ },
+ "semantic_model": {
+  "bytes": 181175,
+  "sha256": "448e324e94f6b9a6634d0dcf8de16770c794da1460fa5bc29c7e4066b409c28c"
+ },
+ "silver": {
+  "bytes": 52927,
+  "sha256": "9eedf1a46be45ce48a2665af5076be10779ac25b30dbabf3eb20179e8d877955"
+ },
+ "views": {
+  "bytes": 31708,
+  "sha256": "3d490a1ab9be44d57edd41b3ebdc93e122b38dc48fd81896079ddd4ddc8dde81"
+ }
+}

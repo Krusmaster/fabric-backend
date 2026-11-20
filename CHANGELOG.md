@@ -9,6 +9,143 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Rounds W12 and MOD1: **the workload package builds as `Krusgraph.Modeler` by default** (PR #26, opened 16 November, brought up to date with `main` and merged 20 November 2026). `workload/scripts/build_package.py` takes the name from one constant, `WORKLOAD_NAME`; `Org.Krusgraph`, the live development workload, is built with `--name Org.Krusgraph`, and the Dockerfile's fallback stays `Org.Krusgraph`. The new `workload/scripts/validate_package.py` checks a `.nupkg` offline (parts, name, version, the kit's XSDs, the publishing fields). CI's workload job builds, validates and keeps `Krusgraph.Modeler.1.0.<N>` as an artifact on every push to `main`, with no repository variable; `.github/workflows/workload-package.yml` (WP1) now builds `Org.Krusgraph` explicitly, so the two never offer packages for the same name. `docs/MODELER-GO-LIVE.md` has the 19 November upload result (the package passed Fabric's checks up to the name registration, which waits on Microsoft), the admin path and the download steps. Nothing was uploaded or registered.
+- Round AP3: **`analysis_plan` counts customers on Fabric** (19-20 November 2026, the first live run of the analysis pack, `docs/LIVE-TEST.md`). The per-customer count named a column `top`, a reserved word in T-SQL, so it failed on the SQL analytics endpoint and A8 said "Only 0 customers"; the column is renamed, and a count that did not run is no longer read as zero (A8, A4 and A3 say which count did not run). `analysis_notebook_draft`'s "not ready" error now hints at `analysis_plan` and `land_next` instead of the keys. Tests: `tests/test_ap3_analysis_live.py`.
+- Round RQ1: **`requirements_draft`, a pasted requirements list matched to the checked SAP data by rules** (19 November
+  2026). A list the business wrote (for example one Copilot summarised in a Copilot Workspace; nothing is read from the
+  Workspace, whose content Microsoft Learn documents no API for) is read one requirement per line (R1, R2 ...) and
+  matched by fixed English and Swedish word lists, the SAP pack's table names and a small field glossary, with no AI:
+  answerable now, answerable with a trap (a header amount that repeats on every line, a join with rows that point at
+  nothing, quantities in several units), missing data (the table or field named: LIKP.WADAT_IST, BSID, VBAP.WAVWR) or
+  unclear (one question). Each answerable one gets a T-SQL query starting with its id, the counted evidence from
+  validate_plan and the tables for `gold_views_draft` and `semantic_model_draft`; `create_data_agent` takes the same list
+  as `requirements=` and adds the answerable ones as example queries. `sample=true` runs it offline on the synthetic
+  SAP demo. Read-only, never a row value (a test checks every answer against the demo's rows). On the build card with
+  the next steps as buttons (390 px, light and dark). 48 tools (37 read-only); the read-only listing cap 81 500 -> 83 000
+  characters, deliberately. Docs: `docs/REQUIREMENTS-TO-FABRIC.md`, `docs/demo/REQUIREMENTS-DEMO.md`. Tests:
+  `tests/test_rq1_requirements_draft.py`, golden `tests/golden/rq1_sap_demo.json`. Not yet run against a live workspace.
+- Round WB3: **every review decision in the Model item is saved without Save** (F6 in
+  `docs/WORKLOAD-TEST-2026-11-17.md`, the founder's yes of 18 November 2026). Accept, reject, a key or a link and Accept
+  all are saved to the item's definition a moment later; the line says Saving… and Saved; a save Fabric does not confirm
+  is tried once more, then one sentence says so and Save still saves the decisions. An autosave never starts Create.
+  **Look for leftovers** words ids that are not GUIDs for a person (F5). PR #99; e2e flow 23.
+- Round WB2: **every output that reads silver or gold reads the schemas the pipeline wrote** (issues #54 and #55, from
+  LT1 in `docs/LIVE-TEST.md`). The semantic model, the ontology and the data agent take `silver_schema` (the agent also
+  `gold_schema`), else the schemas the source's Krusgraph pipeline sets in its notebooks' parameter cells (`pipeline=`
+  names one; pipelines that disagree are never guessed between), else `silver` and `gold`; the answer says where the
+  schema came from. `verify_build` reads a pipeline's notebooks first and rebuilds the dry run with their
+  `SILVER_SCHEMA` and `GOLD_SCHEMA`, so `sap_silver`/`sap_gold` no longer make every notebook "differs"; it also takes
+  `silver_schema` for the model. The Model editor's build and verify requests take `silver_schema` and `gold_schema`
+  and pass them to the dry run and to Create alike (no field in the editor yet). After `create_pipeline` the next steps
+  name a semantic model only when its description carries this plan's marker, which `create_semantic_model` now
+  writes. A wrong `tables=` gets a hint about `tables=` instead of keys. New module `fabric_backend/layer_schemas.py`
+  (rules only); tests in `tests/test_wb2_layer_schemas.py` with `sap_silver`/`sap_gold` and with the defaults.
+- Round WB1: **gold keeps one row per silver row on the SAP path, on Spark 3.5 and 4.0** (F8 in
+  `docs/WORKLOAD-TEST-2026-11-17.md`). A gold view's join rule now counts SAP's initial value (a blank, and zeros only in
+  an optional field) as no reference, as silver has since AP2: `sap_gold.sap_vbpa` dropped every partner row with a blank
+  `KUNNR` or `PARNR` (all five of the demo's), on any Spark; the check notebook's row count caught it. The Salesforce
+  pack's views get the same rule. The failure F8 reported on PySpark 3.5.3 was the test's own `SELECT * EXCEPT`, which
+  only Spark 4 parses; no join repeated a row. New: the SAP demo through silver, gold and the check notebook on a local
+  Spark, and CI's notebooks job on PySpark 3.5.3 with Python 3.11 (Fabric Runtime 1.3) next to 4.0.1. SAP gold built
+  before this needs a regenerated gold notebook run again.
+- Round CO1: **the coach: one guided path, said like the home page's demo chat** (`docs/COACHING.md`). Every card shows
+  "Step N of 8: <stage>" and one mascot line in plain words, one primary button and at most two others, with rule codes
+  and the table of checks under Details; every tool result's text carries a short Coach block for the host model;
+  "help me with my SAP data in Fabric" starts the path. Fixed rules in `fabric_backend/coach.py`, no LLM.
+- Round WB13: **the chat cards after Gustav's phone test of 19 November 2026** (`docs/CHAT-TEST-2026-11-19.md`, issues
+  #66, #71, #76 and #89-#93). Every card reports the height of its content, also after a section opens or closes
+  (`mcp_apps_size.py`); the check results travel into the review and each card says what its numbers count; every
+  card ends with the one most useful next step first, chosen by fixed rules from the plan state (`next_rules.py`);
+  step 6 of the start card asks about each open link on your own data, with review_plan's evidence; a map of more
+  than eight tables is drawn small first with "Show the map"; the Turtle file sits behind "Show the ontology file";
+  the next-step buttons come right after the summary; step 1 says what each workspace holds where documented APIs say it.
+- Round DA2: **data agent topics and example-query templates from checked joins.** `create_data_agent` now also writes
+  one topic file per business area (Fabric preview, SQL sources on the preview runtime; Staging - Upload Datasource
+  Topic) with the tables, what their fields point at, the joins validate_plan counted with their match rates, and the
+  known traps (a header total that doubles over its lines), and one example query per checked join with comments where
+  a customer, a period or another filter goes. Rules only, no AI; dry run by default; only `krusgraph-*.md` topic
+  files are written, nothing is deleted. Unit-tested; not tested live. Sources and the parts that stay design:
+  `docs/DATA-AGENT-TOPICS-TEMPLATES.md`. The Domains REST calls Krusgraph prepares were checked: none uses the removed
+  preview version.
+- Round FA1: **`app_readiness` for a semantic model**, before an app is built from it in Power BI Desktop for Apps
+  (preview). With `semantic_model` (read with getDefinition, TMDL), the tool checks tables, measures, format
+  strings, relationships, keys and the date table, and names what Fabric's API cannot read (Build and Read permission,
+  three tenant settings, a workspace on Fabric capacity). Each check says whether it rests on a Microsoft Learn page
+  (linked), on Krusgraph's own rule, or on nothing Microsoft documents. The Model editor's next steps add "Build an app
+  in Power BI Desktop for Apps" (guide only) once a semantic model is built. Sources: `docs/APP-READINESS-MODEL.md`.
+- Round AP2: **the analysis pack, phase 1** (Gustav's yes of 18 November 2026 to the design's phase 1). Two new tools,
+  local and hosted: `analysis_plan` ranks ten SAP order-to-cash analyses by deterministic rules over the plan and counts
+  of the rows (never a value; no AI), each with readiness ready/partial/missing, a score, "Recommended because …", what
+  is missing, the tables and columns used and the next step, plus `land_next`; `analysis_notebook_draft` writes the
+  Fabric notebook for A7 forecasting, A8 RFM segmentation or A3 ABC/XYZ, wired to those tables, with a data check and
+  every run logged to an ML experiment (MLflow; AutoML for A7, k-means for A8); it creates and runs nothing. Rules as
+  data in `fabric_backend/analysis/o2c.json`. New `fabric_backend/sap_demo36.py`: a seeded synthetic SAP demo with the
+  same 17 tables over 36 months (300 customers, 500 materials), as a Fabric notebook (dry run by default, writes only
+  its own schema, default `sap_demo36`) and a small CSV sample in `examples/sap_demo36/`. Read-only listing cap raised
+  from 75 900 to 81 000 characters for the two tools. `docs/ANALYSIS-PLAN.md`; tests `tests/test_ap2_*.py`, goldens
+  `tests/golden/ap2_*.json`, a PySpark case in `tests/test_spark_notebooks.py`. Not yet run in Fabric.
+- Round AP2: **a blank partner field in SAP data is no reference, not an orphan** (found 18 November 2026 in the live demo run of
+  `sap_lt1_pipeline`, where the silver notebook quarantined 5 `sap_vbpa` rows whose `KUNNR` or `PARNR` was blank). The
+  silver notebook (and `silver.simulate`) and the pipeline's check notebook now count a NULL, a blank (`''` or spaces) or,
+  where the SAP pack marks the relationship `optional` (VBPA -> KNA1, VBPA -> KNVK, KNVK -> KNA1/LFA1, the `ADRNR` links
+  to ADRC), a value of zeros only as "no link" for SAP pack relationships, as `validate_plan` already did for blanks; it
+  counts the zeros the same way now. Only a set value without a parent row is quarantined: the item of order 0000000009
+  without a `sap_vbak` header still is. `tests/test_ap2_blank_partner.py` and a PySpark case in
+  `tests/test_spark_notebooks.py`.
+- Round WB11: **more Fabric item icons in the Model editor** (Gustav, 18 November 2026). The icons n184 put on the
+  output cards, from Microsoft's `@fabric-msft/svg-icons@12.0.0`, now stand beside every Fabric item type the editor
+  names: the next steps' cards (workload and item types at the top left), the Data product page's Built list, Retire,
+  the catalog's "What would be written as you" and the source and target buttons. Item icons only, always beside the
+  type's name, `alt=""` there; API for GraphQL and Activator use the package's generic item icon.
+  `docs/WORKLOAD-DEV.md`, section 13.
+- Round WB10: **Gustav's live test of the Model item in Fabric, 18 November 2026: the catalog step's owner, counts,
+  dates and descriptions** (issues #58-#61). The owner field is the Data product page's people picker with Me, has
+  autocomplete off and refuses an item's name (editor and engine). Every key and link count on the page comes from the
+  check recorded in the item, with links between data products stated separately, and every sentence states that
+  check's time. The catalog keeps each item's own first sentence and appends the data-product sentence; items
+  Krusgraph did not build are offered unticked. `docs/WORKLOAD-TEST-2026-11-17.md`, section 8.
+- Round WB10, next steps (issues #62-#64): the Data product page says "No pipeline built for this data product" and
+  points to the Data Factory step; the Data Factory card says what is left when the silver notebook is built and ticks
+  only that; the Data Science starter has Dry run, then Create of the notebook in the workspace (never run by Krusgraph).
+- Round WB12: **The start cards in claude.ai, after Gustav's chat test of 18 November 2026** (issues #66-#77,
+  `docs/CHAT-TEST-2026-11-18.md`). Step 6 has Accept, Reject and Skip per open decision with the counted evidence
+  (share of values found, distinct values), the decision travels into steps 7-9, and Next is secondary until every
+  decision is answered or skipped. Sums are formatted (`fabric_backend/number_words.py`: thousands grouped by a thin
+  space, two decimals, the factor such as "about 13.6x") with one plain sentence, and validate_plan's fan-out sums are
+  rounded where they are made (`fix_plan.py`). The card reports the height of its content, not of its frame, so frames
+  no longer keep blank space. The text the client model reads after `start` says the card already shows the step and
+  asks for one short sentence and the step's question. Step 5 shows the item's proof tiles and the 2.2x line; step 4
+  says each rule code in words; the "Steps 1-8 only read" sentence is in full on the first card only; finished and
+  later steps fold into one line each; steps 1-3 are "skipped (sample)" on the sample; step 9 on the sample offers
+  "Start on my data" and "Show the dry run again". The prompt's argument is `use_sample` ("Use the synthetic shop
+  sample? Type yes. Leave empty to use your own Fabric data."). Steps 1-3 list the workspaces, sources and schemas
+  (with table counts; a schema without tables disabled) as buttons, with a search box over eight, read by `start`
+  itself (names and counts only, so `start` is now listed with `open_world_hint: true`); Next waits for the choice.
+- Round WB10, downloads (issue #57): every download in the Model editor works inside Fabric's sandboxed frame. The
+  engine keeps the file ten minutes behind a signed, single-use link (`POST /workload/v1/file`), the Fabric host opens it
+  in a new tab, and it is served once as an attachment; Copy falls back to a visible text area. E2E flow 20 runs the
+  editor in an iframe sandboxed as Fabric's.
+- Round Q2: **Krusgraph Migrate, from Qlik to Power BI: three tools, a public test corpus and the design of a
+  workload of its own.** The founder decided on 16 November 2026 that Migrate becomes its own Fabric workload
+  (name proposal `Krusgraph.Migrate`; "Qlik" not in the registered name), with chat tools and a guided page built
+  first because name registration is still blocked. **Tools** (hosted and local, read-only, fixed rules, no AI model,
+  no connection to Qlik; status "draft only", titles end in "(experimental)"): `qlik_plan` (a Qlik load script as
+  tables, keys and associations, each synthetic key in one of five cases, circular references, a proposed star schema,
+  and `plan.keys` and `plan.confirmed` for the planning and building tools; with a workspace and a source the keys and
+  links are counted in the landed tables), `qlik_measures_draft` (expressions as DAX, labelled translated, suggested
+  or not translated with the reason) and `qlik_reconcile_draft` (one T-SQL statement per KPI that compares values
+  exported from Qlik with the migrated tables, and the comparison table; it runs nothing and names no reason for a
+  difference). 44 hosted tools (41 before), 27 local (24 before); the read-only listing guard goes from 69 000 to
+  75 500 characters. **Corpus**: 58 public load scripts from four repositories under the MIT licence as fixtures with
+  attribution (`tests/fixtures/qlik/SOURCES.md`); of 1 856 statements the reader reads 1 092, lists 722 as control flow
+  and 29 as includes, and leaves 13 not read (813 before the fixes). The reader (`migration_read.py`, the Qlik part) now
+  lists control statements and includes on their own, reads variables with built names, `REPLACE`/`ADD` loads, labels
+  built by dollar-sign expansion and `CROSSTABLE`, and no longer cuts `lib://` in an Include as a comment. A tool that
+  writes its own `kg_card` has it shown as it is (`mcp_apps_words.card`). **Docs**: `docs/MIGRATE-WORKLOAD-DESIGN.md`
+  (item type, editor flow, how it shares the engine with Modeler, manifest and Entra, the ask-list for Microsoft; nothing
+  built and the name in no build), `docs/MIGRATE-GUIDED-PAGE-DRAFT.md` (a draft, not a page of the site), and section 0
+  and 3b of `docs/QLIK-MIGRATION-PRODUCT.md`. Not tested: no script, measure or number came from a Qlik installation;
+  the DAX was not run; the statements ran on SQLite, not on Fabric; nothing was deployed.
 - Round n227: **The chat cards after the founder's test in claude.ai.** The founder tried the MCP Apps cards on
   12 November 2026 (deploy `src-37ff21adce4ff691`): the Start stepper and its buttons worked and real items were
   created, but the cards drew the raw `summary` where the answer already held plain words in `kg_card`. Now every card

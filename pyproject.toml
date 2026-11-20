@@ -15,7 +15,7 @@ sql = ["pyodbc"]
 mcp = ["mcp>=1.2", "requests", "pyodbc"]
 server = ["mcp>=2,<3", "requests", "pyodbc", "uvicorn", "pyjwt[crypto]>=2.8", "graphql-core>=3.2,<3.4"]
 databricks = ["requests", "databricks-sdk"]
-test = ["pytest", "sqlglot", "pyyaml"]
+test = ["pytest", "sqlglot", "pyyaml", "pytest-xdist==3.8.0"]   # CI1: pytest-xdist runs the suite in parallel (`pytest -n auto`), pinned exactly
 
 [project.scripts]
 fabric-backend = "fabric_backend.cli:main"
@@ -30,7 +30,7 @@ build-backend = "setuptools.build_meta"
 include = ["fabric_backend*"]
 
 [tool.setuptools.package-data]
-fabric_backend = ["page_templates/*.md", "page_templates/*.html", "static/*", "static/fonts/*", "static/pyodide/*", "static/media/*", "static/mascots/*", "static/workload-shots/*", "packs/*.json", "packs/*/*.json", "packs/*/*.yaml"]
+fabric_backend = ["page_templates/*.md", "page_templates/*.html", "static/*", "static/fonts/*", "static/pyodide/*", "static/media/*", "static/mascots/*", "static/workload-shots/*", "packs/*.json", "packs/*/*.json", "packs/*/*.include", "packs/*/*.yaml", "analysis/*.json"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]          # tests import deploy/azure_containerapp.py from the repo root; plain `pytest` (CI) does not add the cwd

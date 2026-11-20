@@ -7,8 +7,8 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import ICONS from "./fabricIcons.json";
-import { ICON_SIZE, NOTICES, TRADEMARK, itemIcon } from "./fabricIcons";
-import { KINDS, choicesFor, defaultName } from "./buildWords";
+import { ICON_SIZE, NOTICES, TRADEMARK, altBeside, itemIcon } from "./fabricIcons";
+import { KINDS, cardTitle, choicesFor, defaultName } from "./buildWords";
 import { AboutNotices, ItemTitle, OutputCard, OutputsView } from "./ModelItemViews";
 import { BuildCard } from "./engineClient";
 
@@ -36,7 +36,7 @@ describe("the Fabric item icons", () => {
     expect(pkg.version).toBe(ICONS.version);
     const lock = JSON.parse(readFileSync(join(ROOT, "package-lock.json"), "utf8"));
     expect(lock.packages[`node_modules/${ICONS.package}`]).toMatchObject({ version: ICONS.version, integrity: ICONS.integrity });
-    const used = new Set(Object.values(ICONS.kinds).map((k) => k.file));
+    const used = new Set([...Object.values(ICONS.kinds), ...Object.values(ICONS.types)].map((k) => k.file));
     expect([...used].sort()).toEqual(Object.keys(ICONS.files).sort());
     for (const [file, sha] of Object.entries(ICONS.files)) {
       const bytes = readFileSync(join(ROOT, ICONS.sourceDir, file));
@@ -55,7 +55,7 @@ describe("the Fabric item icons", () => {
     for (const k of KINDS) {
       const icon = itemIcon(k.kind);
       const section = html.split(`aria-label="${k.label}"`)[1].split("</section>")[0];
-      expect(section).toContain(`<span class="krusgraph-item-title"><img class="krusgraph-item-icon" src="${icon.src}" alt="${icon.alt}" width="20" height="20"/>${k.label}`);
+      expect(section).toContain(`<span class="krusgraph-item-title"><img class="krusgraph-item-icon" src="${icon.src}" alt="${altBeside(icon.alt, k.label)}" width="20" height="20"/>${k.label}`);
     }
     expect(html).not.toMatch(/krusgraph-item-icon[^>]*(mascot|krusgraph-icon|krusgraph-item-icon\.png)/);
     expect(html).toContain(TRADEMARK);
@@ -66,10 +66,20 @@ describe("the Fabric item icons", () => {
       for (const dry of [true, false]) {
         const card = { output: k.kind, label: k.label, dry_run: dry, name: defaultName(k.kind, "demo_lh"), permissions: { needs: [] } } as unknown as BuildCard;
         const html = renderToStaticMarkup(React.createElement(OutputCard, { card }));
-        expect(html).toMatch(new RegExp(`^<section[^>]*><span class="krusgraph-item-title"><img class="krusgraph-item-icon" src="${itemIcon(k.kind).src}" alt="${itemIcon(k.kind).alt}"`));
+        expect(html).toMatch(new RegExp(`^<section[^>]*><span class="krusgraph-item-title"><img class="krusgraph-item-icon" src="${itemIcon(k.kind).src}" alt="${altBeside(itemIcon(k.kind).alt, cardTitle(card))}"`));
       }
     }
     expect(renderToStaticMarkup(React.createElement(ItemTitle, { kind: "unknown", children: "x" }))).not.toContain("<img");
+  });
+
+  it("W13: are decorative where the label already names the item type, so a screen reader reads it once", () => {
+    expect(altBeside("Semantic model", "Semantic model")).toBe("");
+    expect(altBeside("API for GraphQL", "Create api for graphql demo_lh_api")).toBe("");
+    expect(altBeside("Notebook", "Silver notebook")).toBe("");
+    expect(altBeside("Notebook", "Gold views demo_lh_gold: created")).toBe("Notebook");
+    expect(altBeside("Report", undefined)).toBe("Report");
+    const html = renderToStaticMarkup(React.createElement(ItemTitle, { kind: "semantic_model", children: "Semantic model" }));
+    expect(html).toContain('alt=""');
   });
 
   it("come with the terms and the trademark line in About and notices", () => {

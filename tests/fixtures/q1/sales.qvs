@@ -80,4 +80,4 @@ LOAD store_id AS StoreID, month AS Month, channel AS Channel, Sum(amount) AS Sal
 FROM [lib://Shop/store_sales.qvd] (qvd) GROUP BY store_id, month, channel;
 
 Targets:
-CROSSTABLE (TargetMonth, Target, 1) LOAD * FROM [lib://Shop/targets.xlsx] (ooxml, embedded labels);
+GENERIC LOAD * FROM [lib://Shop/targets.xlsx] (ooxml, embedded labels);

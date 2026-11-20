@@ -406,6 +406,8 @@ TOOLS = {
     "list_tables": ("Draft only", "Unity Catalog information_schema.columns"),
     "plan_backend": ("Draft only", "inference on names; informational PRIMARY KEY / FOREIGN KEY constraints are K0 / R0"),
     "validate_plan": ("Draft only", "the counting queries in Databricks SQL on the SQL warehouse"),
+    "record_decision": ("Draft only", "your team's decision kept in the local decision file (docs/DECISION-RULES.md); rules applied to the Unity Catalog plan"),
+    "list_decisions": ("Draft only", "the decisions in the local decision file"),
     "review_plan": ("Draft only", "the review file over the Unity Catalog plan; with validate=true the counts from the SQL warehouse"),
     "sample_rows": ("Draft only", "LIMIT n in Databricks SQL; personal columns by name and by Unity Catalog column tag are masked"),
     "join_path": ("Draft only", "the chain with Databricks SQL (three-part names, LIMIT)"),
@@ -421,8 +423,16 @@ TOOLS = {
     "databricks_metric_view_draft": ("Draft only", "one metric view per fact table"),
     "export_databricks_bundle": ("Draft only", "a bundle folder: databricks.yml, the pipeline, the SQL files"),
     "databricks_lineage": ("Draft only", "system.access.table_lineage; needs access to the system catalog"),
+    # Q2: the Qlik tools read text they are given; only qlik_plan's count=true touches the source
+    "qlik_plan": ("Draft only", "reads a Qlik load script as text; with count=true the keys and links are counted in Databricks SQL"),
+    "qlik_measures_draft": ("Draft only", "reads Qlik expressions as text and drafts DAX; touches no source"),
+    "qlik_reconcile_draft": ("Draft only", "writes T-SQL for a Fabric SQL analytics endpoint; touches no source"),
 }
 NOT_ON_DATABRICKS = {
+    "analysis_plan": ("its counting statements are written for the Fabric SQL analytics endpoint and SQL Server, and have not run "
+                      "on Databricks SQL", "Mirror the catalog into Fabric and use analysis_plan there (Planned for Databricks)."),
+    "analysis_notebook_draft": ("the analysis notebook is a Fabric notebook for a lakehouse",
+                                "Mirror the catalog into Fabric and draft the notebook there."),
     "create_backend": ("an API for GraphQL item is a Fabric object; Databricks has no equivalent item",
                        "Plan with plan_backend here; for the API, mirror the catalog into Fabric (Mirrored Azure Databricks catalog) and "
                        "use the hosted server, which creates the API over the mirrored item."),
@@ -436,6 +446,9 @@ NOT_ON_DATABRICKS = {
                               "databricks_pipeline_draft gives the same silver rules as a Lakeflow pipeline with expectations."),
     "answer_query_draft": ("the drafted query is T-SQL; a Databricks SQL version is Planned",
                            "join_path gives the joins in Databricks SQL for the same tables."),
+    "plan_migration": ("its after-landing counts read the Fabric side, and this server reads Databricks (MG1)",
+                       "Call plan_migration without fabric_schema here (it reads only the exported files), or from a local server "
+                       "whose FABRIC_ODBC points at the Fabric SQL analytics endpoint."),
 }
 
 

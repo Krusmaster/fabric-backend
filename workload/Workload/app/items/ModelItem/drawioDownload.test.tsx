@@ -5,8 +5,9 @@
 import React from "react";
 import { createRoot, Root } from "react-dom/client";
 import { act } from "react-dom/test-utils";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { DrawioButton, DrawioContext, DrawioRequest, fileHref, flowForFile } from "./drawioDownload";
+import { FileContext } from "./fileOffer";
 import type { DataFlow } from "./engineClient";
 import flowFixture from "./flow.fixture.json";
 
@@ -34,9 +35,8 @@ describe("Download as draw.io", () => {
     expect(host.innerHTML).toBe("");
   });
 
-  it("sends the map with the source's name and offers the file as a download link, clicked once", async () => {
+  it("sends the map with the source's name; outside Fabric (no FileContext) it offers the file as a link to save", async () => {
     const sent: DrawioRequest[] = [];
-    const clicks = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
     const get = async (body: DrawioRequest) => {
       sent.push(body);
       return FILE;
@@ -57,9 +57,32 @@ describe("Download as draw.io", () => {
     expect(a.getAttribute("download")).toBe(FILE.filename);
     expect(a.textContent).toBe(`Save ${FILE.filename}`);
     expect(decodeURIComponent(a.getAttribute("href")!.split(",")[1])).toBe(FILE.content);
-    expect(a.getAttribute("href")!.startsWith("data:application/vnd.jgraph.mxfile;charset=utf-8,")).toBe(true);
-    expect(clicks).toHaveBeenCalledTimes(1);
-    clicks.mockRestore();
+  });
+
+  it("WB10: inside Fabric the file goes through the engine's single-use link, opened by the host in a new tab", async () => {
+    const offered: unknown[] = [];
+    const opened: string[] = [];
+    const files = {
+      offer: async (f: unknown) => { offered.push(f); return { path: "/workload/v1/file/abc.1.sig", expires_in: 600, filename: FILE.filename }; },
+      open: async (url: string) => { opened.push(url); },
+      base: "https://workload.krusgraph.com",
+    };
+    act(() =>
+      root.render(
+        <FileContext.Provider value={files}>
+          <DrawioContext.Provider value={{ get: async () => FILE, name: "demo_lh.shop" }}>
+            <DrawioButton what="map" request={() => ({ diagram: "map", map: MAP })} />
+          </DrawioContext.Provider>
+        </FileContext.Provider>
+      )
+    );
+    await act(async () => {
+      button().click();
+    });
+    expect(offered).toEqual([{ filename: FILE.filename, mime: FILE.mime_type, text: FILE.content }]);
+    expect(opened).toEqual(["https://workload.krusgraph.com/workload/v1/file/abc.1.sig"]);
+    expect(host.querySelector("a[download]")).toBeNull();                 // no data: link inside the frame
+    expect(host.textContent).toContain(`Opened ${FILE.filename} in a new tab`);
   });
 
   it("says what the engine said when the file is too large, and that nothing changed when the call fails", async () => {

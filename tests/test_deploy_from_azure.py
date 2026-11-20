@@ -219,3 +219,22 @@ def test_flags_that_belong_to_from_azure_are_refused_without_it(monkeypatch, tmp
     with pytest.raises(SystemExit):
         d.main()
     assert "--from-azure --update" in capsys.readouterr().err               # a missing file says what to run instead
+
+
+def test_app_and_resource_group_with_a_trailing_line_break_find_the_app(monkeypatch, tmp_path):
+    """DP1: KRUSGRAPH_APP held "krusgraph\\r\\n" on 17 November 2026 and --update stopped with "Hittade inte
+    container-appen krusgraph". The pasted line break is removed before the app is looked up."""
+    cloud = FakeCloud(selected=APP_SUB)
+    run_main(monkeypatch, tmp_path, cloud, "--from-azure", "--update", "--app", "krusgraph\r\n", "--resource-group", "rg-krusgraph ")
+    assert json.loads((tmp_path / "krusgraph.json").read_text(encoding="utf-8")) == EXPECTED
+    assert any(a[:2] == ("containerapp", "update") and a[a.index("--name") + 1] == "krusgraph" for a, _ in cloud.calls)
+    assert all(not any(isinstance(x, str) and x != x.strip() for x in a) for a, _ in cloud.calls)
+
+
+def test_a_line_break_inside_the_app_name_stops_before_any_azure_call(monkeypatch, tmp_path, capsys):
+    cloud = FakeCloud(selected=APP_SUB)
+    with pytest.raises(SystemExit) as stop:
+        run_main(monkeypatch, tmp_path, cloud, "--from-azure", "--update", "--app", "krus\ngraph")
+    assert stop.value.code == 2 and cloud.calls == []
+    err = capsys.readouterr().err
+    assert "--app" in err and "inuti namnet" in err and "krus\ngraph" not in err

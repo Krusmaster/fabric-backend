@@ -15,7 +15,7 @@ Authentication, in order:
      "custom connection" model Lovable's Fabric connector uses: one principal, no per-user identity.
 The server stores nothing: no tokens beyond their lifetime, no data, no query results.
 
-Tools (all annotated for the Claude directory): forty-one, from start to verify_build; docs page
+Tools (all annotated for the Claude directory): forty-eight, from start to requirements_draft; docs page
 /docs lists them. Around every tool: fair-use limits (limits.py), anonymous usage counts (usage.py) and the dormant paid-plan
 check (entitlements.py).
 """
@@ -46,6 +46,7 @@ from . import lineage as _lineage, compact as _compact, sap_pack as _sap_pack
 from . import coverage as _coverage
 from . import domains as _domains
 from . import limits as _limits, usage as _usage, entitlements as _entitlements
+from . import usage_metrics as _usage_metrics  # UM1: anonymous daily counts for /metrics
 from . import billing as _billing
 from .deploy import create_semantic_model as _create_semantic_model
 from .deploy import answer_by as _answer_by  # noqa: E402  (n227: a Create answers before the host stops waiting)
@@ -80,7 +81,9 @@ from . import after_create as _after_create, verify_build as _verify  # noqa: E4
 mcp = MCPServer("fabric-backend", version=_package_version(), extensions=_mcp_apps.extensions(), instructions=(
     "Tables in a Microsoft Fabric lakehouse/warehouse → a GraphQL API with inferred keys and relationships, "
     "plus Rayfin connector entities. When the user's first message is vague ('start', 'start Krusgraph', 'help', "
-    "'what can you do', 'check my data'), offer Start Krusgraph: call the start tool and follow its steps one at a time; "
+    "'what can you do', 'check my data', 'help me with my SAP data in Fabric'), offer Start Krusgraph: call the start "
+    "tool and follow its steps one at a time; each result's Coach block says the step in plain words and its one next "
+    "step: say that, offer that step, nothing more; "
     "a user without Fabric data can see it on the synthetic shop ('Show me on the synthetic shop sample', sample=true). "
     "Start with list_workspaces (or list_sources if you know the workspace), then plan_backend (nothing is deployed; "
     "it also suggests composite keys), sample_rows when a column's meaning is unclear, validate_plan to check keys and "
@@ -250,6 +253,20 @@ class Auth:
         return t.strip() if t else self._client_credentials(SQL_SCOPE)
 
 
+    def onelake(self, ctx: Context | None) -> str | None:
+        """CSN2: a token for OneLake's DFS API (Azure Storage audience), to read CSN files in the lakehouse's Files as
+        the signed-in user: the workload's own exchange inside a workload request; in Entra mode the on-behalf-of
+        exchange (the app needs Azure Storage user_impersonation); else only an X-OneLake-Token header, never the
+        server's own credentials. None when there is none."""
+        from .csn_onelake import STORAGE_SCOPE
+        if (w := _WORKLOAD_TOKENS.get()) is not None:
+            return w.onelake() if hasattr(w, "onelake") else None
+        if self.entra:
+            return self._user_token(ctx, STORAGE_SCOPE)
+        h = (ctx.headers if ctx is not None else {}) or {}
+        t = h.get("x-onelake-token") or h.get("X-OneLake-Token")
+        return t.strip() if t else None
+
     def powerbi(self, ctx: Context | None) -> str:
         """n229: a token for the Power BI REST API (a model's refresh history and its DAX queries, verify_build; one
         refresh, create_semantic_model refresh=true). The workload's own exchange inside a workload request; in Entra
@@ -322,6 +339,53 @@ def _execute_factory(item: dict, sql_token: str):
 R5_SAMPLE, R5_MAX_QUERIES = 200, 20        # R5: the first 200 distinct values of a candidate column, at most 20 counting queries
 
 
+def _lakehouse_csn(workspace_id: str, item: dict, ctx, csn_path: str | None = None):
+    """CSN2: the CSN files in the lakehouse's Files (csn_onelake.find): Files/krusgraph/csn/ by default, or csn_path.
+    Read-only, as the signed-in user, in this call only; nothing is kept or logged but counts. None when there is
+    nothing to say (no lakehouse, the default folder switched off or absent, no OneLake sign-in for the default folder).
+    A failure here never fails the plan: the plan is then made without the CSN, and an asked-for path says why."""
+    from . import csn_onelake as _co
+    given = bool((csn_path or "").strip())
+    try:
+        target = _co.clean_path(csn_path)
+    except ValueError as e:
+        raise _p_error(str(e)) from None
+    if not given and not _co.enabled():
+        return None
+    if item.get("type") not in _co.LAKEHOUSE_TYPES:
+        return _co.Found(target, given, not_read={"kind": "not_a_lakehouse", "why": f"a {item.get('type')} has no Files area",
+                                                  "hint": "Upload the CSN file to a lakehouse's Files and plan that lakehouse."}) if given else None
+    try:
+        token = auth.onelake(ctx)
+    except Exception as e:  # noqa: BLE001 — no OneLake sign-in: the plan goes on without the CSN
+        token, why = None, type(e).__name__
+    else:
+        why = "no OneLake sign-in on this call"
+    if not token:
+        return _co.Found(target, given, not_read={"kind": "no_sign_in", "why": why, "hint": _co._hint("denied")}) if given else None
+    try:
+        found = _co.find(_co.OneLake(workspace_id, item["id"], token), csn_path)
+    except Exception as e:  # noqa: BLE001 — a network failure reading Files never fails the plan
+        found = _co.Found(target, given, not_read={"kind": "error", "why": f"OneLake could not be read ({type(e).__name__})",
+                                                   "hint": _co._hint("error")})
+    import logging
+    logging.getLogger("krusgraph.csn").info("csn_onelake files_used=%d skipped=%d not_read=%s given=%s", len(found.used), len(found.skipped),
+             (found.not_read or {}).get("kind"), given)
+    return found
+
+
+def _p_error(msg: str):
+    from .infer import PlanInputError
+    return PlanInputError(msg)
+
+
+def _attach_csn(execute, found) -> None:
+    try:
+        execute.csn_found = found
+    except AttributeError:
+        pass
+
+
 def _hosted_plan(s, keys, confirmed, execute):
     """The one way the hosted tools make a plan (n87): the names rules and R5, which counts the code and role columns
     the names left unlinked over the call's open connection, bounded by R5_SAMPLE and R5_MAX_QUERIES. Every tool that
@@ -329,8 +393,9 @@ def _hosted_plan(s, keys, confirmed, execute):
     again on every call, over the connection the call opened and closes."""
     from . import propose                                      # F2: keys counted in this call, K6 and R6 from the rows
     n = propose.max_queries()
-    p = make_plan(s, keys, confirmed, execute=execute, sample=R5_SAMPLE, max_queries=R5_MAX_QUERIES,
-                  profile=n > 0, profile_queries=n)
+    from . import csn_onelake                                 # CSN2: a CSN in the lakehouse's Files comes first
+    p = csn_onelake.plan_with(s, getattr(execute, "csn_found", None), make_plan, keys, confirmed, execute=execute,
+                              sample=R5_SAMPLE, max_queries=R5_MAX_QUERIES, profile=n > 0, profile_queries=n)
     scope = _PLAN_SCOPE.get()                                  # n174: the workload's review applied (plan_scope)
     return scope["adjust"](p) if scope else p
 
@@ -346,7 +411,7 @@ def _within_call(execute):
         if sql not in seen:
             seen[sql] = list(execute(sql))
         return seen[sql]
-    for name in ("close", "source_item", "dialect"):
+    for name in ("close", "source_item", "dialect", "csn_found"):
         if hasattr(execute, name):
             try:
                 setattr(run, name, getattr(execute, name))
@@ -355,28 +420,30 @@ def _within_call(execute):
     return run
 
 
-def _plan(workspace: str, source: str, schema: str, keys, confirmed, ctx, rows: bool = True):
+def _plan(workspace: str, source: str, schema: str, keys, confirmed, ctx, rows: bool = True, csn_path: str | None = None):
     """The plan of a source, R5 included (_hosted_plan), over a connection that does not outlive the call. `rows` is
     kept for callers that still pass it; every plan counts R5."""
     scope = _PLAN_SCOPE.get()
     if scope is not None:                                      # n174: one read per distinct question within a workload build
-        memo_key = json.dumps([workspace, source, schema, keys, confirmed], sort_keys=True, default=str)
+        memo_key = json.dumps([workspace, source, schema, keys, confirmed] + ([csn_path] if csn_path else []), sort_keys=True, default=str)
         if memo_key not in scope["memo"]:
-            scope["memo"][memo_key] = _plan_read(workspace, source, schema, keys, confirmed, ctx)
+            scope["memo"][memo_key] = _plan_read(workspace, source, schema, keys, confirmed, ctx, **({"csn_path": csn_path} if csn_path else {}))
             exact = scope["memo"][memo_key][0].schema.schema                # n175: the build's later calls use the exact name
             scope["memo"].setdefault(json.dumps([workspace, source, exact, keys, confirmed], sort_keys=True, default=str),
                                      scope["memo"][memo_key])
         else:
             _note_schema(schema, scope["memo"][memo_key][0].schema.schema)
         return scope["memo"][memo_key]
-    return _plan_read(workspace, source, schema, keys, confirmed, ctx)
+    return _plan_read(workspace, source, schema, keys, confirmed, ctx, **({"csn_path": csn_path} if csn_path else {}))
 
 
-def _plan_read(workspace: str, source: str, schema: str, keys, confirmed, ctx):
+def _plan_read(workspace: str, source: str, schema: str, keys, confirmed, ctx, csn_path: str | None = None):
     headers = _headers(ctx)
     workspace = _workspace_id(workspace, headers)
     item = _resolve_source(workspace, source, headers)
+    found = _lakehouse_csn(workspace, item, ctx, csn_path)                 # CSN2: before the SQL connection opens
     execute = _execute_factory(item, auth.sql(ctx))
+    _attach_csn(execute, found)
     try:
         s = _fabric.PLATFORM.read_schema(execute, schema)
         if len(s) == 0:
@@ -446,7 +513,10 @@ def _instrumented(fn, name: str):
             refusal = _entitlements.check(name, dry_run, (who or {}).get("tid"))
         text = json.dumps(refusal, indent=2) if refusal is not None else _billing.with_notice(fn(*args, **kwargs), notice)
         try:
-            _usage.usage.record(name, _usage.outcome_of(text), time.monotonic() - start, dry_run, (who or {}).get("tid"))
+            if _usage_metrics.enabled():                   # UM1: KRUSGRAPH_METRICS=off counts nothing at all
+                outcome = _usage.outcome_of(text)
+                _usage.usage.record(name, outcome, time.monotonic() - start, dry_run, (who or {}).get("tid"))
+                _usage_metrics.counts.tool_call(name, outcome, (who or {}).get("tid"), (who or {}).get("oid"))
         except Exception:  # noqa: BLE001 — counting must never break a call
             pass
         return text
@@ -485,9 +555,124 @@ def _titled_tool(register):
 mcp.tool = _titled_tool(mcp.tool)
 
 
-# n219: Start Krusgraph, a guided path through the tools (start_flow.py). The tool reads nothing and calls nothing: it
+# n219: Start Krusgraph, a guided path through the tools (start_flow.py). The tool reads no rows and runs no other tool: it
 # answers where the user is, what was chosen and the next step as a call of an existing tool; the prompt starts it.
-START = ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False)
+# WB12 (#76): on steps 1-3 it reads the names to choose from (workspaces, sources, schemas with table counts), so it
+# reaches Fabric: open_world_hint is true, as for list_workspaces.
+START = ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=True)
+
+
+def _start_options(workspace: str, source: str, schema: str, sample: bool, ctx) -> dict | None:
+    """WB12 (#76): what step 1, 2 or 3 offers as buttons, read with the user's own sign-in: names and counts only, no
+    row values. None on the sample or from step 4 on; {step, error} when it cannot be read (the step then offers the
+    listing tool's button, as before)."""
+    if sample:
+        return None
+    now = _start_flow.current(None, {"workspace": (workspace or "").strip() or None,
+                                     "source": (source or "").strip() or None, "schema": (schema or "").strip() or None})
+    if now not in ("workspace", "source", "schema"):
+        return None
+    try:
+        if now == "workspace":
+            headers = _headers(ctx)
+            listed = [w for w in _workspaces(headers) if w.get("name")]
+            items = [{"name": w["name"], "hint": "" if w.get("capacity_id") else "no capacity: nothing can run here",
+                      "id": w.get("id")} for w in listed]
+            items.sort(key=lambda x: (bool(x["hint"]), str(x["name"]).lower()))
+            hints = _workspace_hints([x["id"] for x in items if not x["hint"] and x.get("id")][:HINT_MAX], headers)
+            for x in items:                                      # WB13 (#76): "1 lakehouse, 17 tables" where known
+                wid = x.pop("id", None)
+                if not x["hint"] and hints.get(wid):
+                    x["hint"] = hints[wid]
+        elif now == "source":
+            listed = json.loads(list_sources(workspace, ctx=ctx))
+            if not isinstance(listed, dict) or listed.get("error"):
+                return {"step": now, "error": str((listed or {}).get("error") or "could not list the sources")}
+            words = {"Lakehouse": "lakehouse", "Warehouse": "warehouse", "MirroredDatabase": "mirrored database",
+                     "SQLDatabase": "SQL database", "MirroredAzureDatabricksCatalog": "mirrored catalog"}
+            items = [{"name": x["name"], "hint": words.get(x.get("type"), str(x.get("type") or ""))}
+                     for x in listed.get("sources") or []]
+        else:
+            items = [{"name": x["schema"], "tables": x["tables"]}
+                     for x in _candidate_schemas(_source_schemas(workspace, source, ctx))]
+    except Exception as e:                                       # noqa: BLE001 - the step keeps its listing button
+        return {"step": now, "error": (str(e) or type(e).__name__).splitlines()[0][:200]}
+    return {"step": now, "items": items}
+
+
+# WB13 (#76): what each workspace holds, said under its name on step 1 ("1 lakehouse, 17 tables"). Only documented Fabric
+# REST APIs: Core "Items - List Items" (GET /v1/workspaces/{workspaceId}/items) and Lakehouse "Tables - List Tables"
+# (GET /v1/workspaces/{workspaceId}/lakehouses/{lakehouseId}/tables). Microsoft Learn says List Tables does not support
+# a lakehouse with schemas, and no documented REST call lists a warehouse's tables: there the hint names the items only,
+# never a guessed table count. At most HINT_MAX workspaces, HINT_WORKERS calls at a time, HINT_BUDGET seconds in all;
+# what is not answered by then gets no hint. Kept HINT_TTL seconds per sign-in (a digest of the token, in memory only).
+HINT_MAX, HINT_WORKERS, HINT_BUDGET, HINT_TTL = 12, 4, 4.0, 120
+_HINTS: dict = {}
+_HINT_WORDS = {"Lakehouse": ("lakehouse", "lakehouses"), "Warehouse": ("warehouse", "warehouses"),
+               "SQLDatabase": ("SQL database", "SQL databases"), "MirroredDatabase": ("mirrored database", "mirrored databases"),
+               "MirroredAzureDatabricksCatalog": ("mirrored catalog", "mirrored catalogs")}
+
+
+def _workspace_hint(wid: str, headers: dict) -> str:
+    """One workspace's hint, or "" when it cannot be said for sure."""
+    import requests
+    r = requests.get(f"{FABRIC}/v1/workspaces/{wid}/items", headers=headers, timeout=3)
+    if r.status_code != 200:
+        return ""
+    body = r.json() if r.content else {}
+    if body.get("continuationUri"):                       # a long workspace: one page only, so no count is promised
+        return ""
+    items = [it for it in body.get("value") or [] if it.get("type") in _HINT_WORDS]
+    if not items:
+        return "no lakehouse or warehouse"
+    counts: dict[str, int] = {}
+    for it in items:
+        counts[it["type"]] = counts.get(it["type"], 0) + 1
+    words = [f"{counts[t]} {_HINT_WORDS[t][0 if counts[t] == 1 else 1]}" for t in _HINT_WORDS if t in counts]
+    tables = 0
+    if set(counts) == {"Lakehouse"} and counts["Lakehouse"] <= 3:
+        for it in items:
+            t = requests.get(f"{FABRIC}/v1/workspaces/{wid}/lakehouses/{it['id']}/tables", headers=headers, timeout=3)
+            data = t.json() if t.status_code == 200 and t.content else None
+            if not isinstance(data, dict) or not isinstance(data.get("data"), list) or data.get("continuationUri"):
+                tables = None                               # schemas, an error or a long list: no number
+                break
+            tables += len(data["data"])
+    else:
+        tables = None
+    return ", ".join(words) + (f", {tables} {'table' if tables == 1 else 'tables'}" if tables is not None else "")
+
+
+def _workspace_hints(ids: list[str], headers: dict) -> dict[str, str]:
+    """{workspace id: hint} for the ids answered within HINT_BUDGET; nothing for the others."""
+    import hashlib
+    import time
+    from concurrent.futures import ThreadPoolExecutor, wait
+    who = hashlib.sha256(str(headers.get("Authorization", "")).encode()).hexdigest()[:16]
+    now, out, todo = time.monotonic(), {}, []
+    for wid in ids:
+        hit = _HINTS.get((who, wid))
+        if hit and now - hit[0] < HINT_TTL:
+            out[wid] = hit[1]
+        else:
+            todo.append(wid)
+    if not todo:
+        return out
+    pool = ThreadPoolExecutor(max_workers=HINT_WORKERS)
+    futures = {pool.submit(_workspace_hint, wid, headers): wid for wid in todo}
+    done, _ = wait(futures, timeout=HINT_BUDGET)
+    pool.shutdown(wait=False, cancel_futures=True)
+    for f in done:
+        try:
+            hint = f.result()
+        except Exception:                                    # noqa: BLE001 - no hint rather than a wrong one
+            continue
+        _HINTS[(who, futures[f])] = (time.monotonic(), hint)
+        if hint:
+            out[futures[f]] = hint
+    if len(_HINTS) > 2000:
+        _HINTS.clear()
+    return out
 
 
 @mcp.tool(title="Start Krusgraph: a guided path", annotations=START, structured_output=False)
@@ -496,21 +681,44 @@ def start(workspace: _p.StartPick = "", source: _p.StartPick = "", schema: _p.St
           plan: _p.StartPlan = None, create: _p.StartCreate = None, confirm: _p.StartConfirm = False,
           sample: _p.StartSample = False, ctx: Context = None) -> str:
     """A guided path for a first or vague message ('start', 'start Krusgraph', 'help', 'what can you do', 'check my
-    data'): workspace, source, schema, map, check, decide, doubled totals, a dry run of all builds with the data flow,
+    data', 'help me with my SAP data in Fabric'): workspace, source, schema, map, check, decide, doubled totals, a dry run of all builds with the data flow,
     then create after a second confirmation of the names. Returns JSON {step, path, actions: [{tool, arguments, say}],
     after}: each action is an existing tool; after is the next start call. Changes nothing. Errors: {error, kind, hint}."""
     plan = plan if isinstance(plan, dict) else {}
+    options = _start_options(workspace, source, schema, bool(sample), ctx)
+    review = _start_review(workspace, source, schema, step, plan, bool(sample), ctx)
     return json.dumps(_start_flow.guide(workspace=workspace, source=source, schema=schema, step=step,
                                         keys=plan.get("keys"), confirmed=plan.get("confirmed"),
                                         decisions=plan.get("decisions"), create=create, confirm=confirm,
-                                        sample=sample), indent=2)
+                                        sample=sample, options=options, review=review), indent=2)
+
+
+def _start_review(workspace: str, source: str, schema: str, step: str, plan: dict, sample: bool, ctx) -> dict | None:
+    """WB13 (#66, #71): step 6 on your own data reads review_plan's file with the checks counted (counts only, no row
+    values), so the card can ask about each open link with its evidence; step 4 reads it without counting, for the small
+    map. None elsewhere; {error} when it cannot be read (the step
+    then keeps its Record my decisions button)."""
+    if sample:
+        return None
+    c = {"workspace": (workspace or "").strip() or None, "source": (source or "").strip() or None,
+         "schema": (schema or "").strip() or None}
+    now = _start_flow.current((step or "").strip().lower() or None, c)
+    if now not in ("map", "decide"):                        # step 4 draws the map, step 6 asks with the counts
+        return None
+    try:
+        return _review_file(c["workspace"], c["source"], c["schema"], plan.get("keys"), plan.get("confirmed"), None, None,
+                            now == "decide", None, 60, ctx)
+    except Exception as e:                                       # noqa: BLE001 - the step keeps its review_plan button
+        return {"error": (str(e) or type(e).__name__).splitlines()[0][:200]}
 
 
 @mcp.prompt(name=_start_flow.PROMPT, title=_start_flow.PROMPT_TITLE,
             description="A guided path from your workspace to a checked plan and a dry run of what would be built; "
-                        "nothing is created until you confirm the names. sample=yes runs it on the synthetic shop.")
-def start_prompt(sample: str = "") -> str:
-    return _start_flow.prompt_text(str(sample).strip().lower() in ("yes", "true", "1", "sample"))
+                        "nothing is created until you confirm the names. Leave the field empty for your own Fabric "
+                        "data, or type yes for the synthetic shop sample.")
+def start_prompt(use_sample: _p.StartPromptSample = "") -> str:
+    # WB12 (#75): the dialog showed a bare "Sample" field; the argument is named and described as the question it is
+    return _start_flow.prompt_text(_start_flow.wants_sample(use_sample))
 
 
 @mcp.tool(title="List workspaces", annotations=RO)
@@ -597,7 +805,7 @@ def _with_schemas(text: str, schemas: list[dict] | None) -> str:
 @safe
 def plan_backend(workspace: _p.Workspace, source: _p.Source, schema: _p.PlanSchema = None, keys: _p.Keys = None,
                  confirmed: _p.Confirmed = None, tables: _p.TablesShown = None, detail: _p.Detail = "auto",
-                 mermaid: _p.Mermaid = True, drawio: _p.Drawio = "", ctx: Context = None) -> str:
+                 mermaid: _p.Mermaid = True, drawio: _p.Drawio = "", csn_path: _p.CsnPath = None, ctx: Context = None) -> str:
     """Infers primary keys and relationships for a schema's tables and proposes them as a plan. Requires workspace and
     source. Returns JSON: summary, keys and relationships each with the rule behind it (K0–K5, R0–R5), ambiguous
     columns, keyless tables, suggested composite keys and a Mermaid ER diagram. Rule R5 counts code and role columns
@@ -614,8 +822,10 @@ def plan_backend(workspace: _p.Workspace, source: _p.Source, schema: _p.PlanSche
         schema = chosen = schemas[0]["schema"] if schemas else "dbo"
     if (drawio or "").strip():                                        # n228: the map, the model draft or the data flow as a file
         return _with_schema_chosen(_drawio_file(drawio, workspace, source, schema, keys, confirmed, tables, ctx), chosen)
-    p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx, rows=True)
+    p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx, rows=True, **({"csn_path": csn_path} if csn_path else {}))
     schema = p.schema.schema                                   # n175: the name the metadata returns
+    from . import csn_onelake as _csn_onelake
+    csn_digest = _csn_onelake.digest(p)                        # CSN2: which file each CSN key and link came from
     keep = _compact.match_tables(p.schema, tables)
     shown = _compact.sub_plan(p, keep)
     _pictures.keep("map", lambda: _pictures.map_from_plan(shown))                # n170: the map on the card
@@ -624,10 +834,14 @@ def plan_backend(workspace: _p.Workspace, source: _p.Source, schema: _p.PlanSche
     if _compact.pick_detail(detail, len(shown.schema)) == "summary":
         body = _coverage.attach(_compact.plan_summary(shown, suggested, f"{len(shown.schema)} of {len(p.schema)} tables shown" if keep else ""),
                                 p, first=_coverage.EVIDENCE_FIRST, keep=keep)          # n226: evidence state and coverage
+        if csn_digest:
+            body["csn"] = csn_digest
         text = _bounded(body, MAX_RESULT_CHARS, _compact.NARROW_HINT)
     else:
         body = _coverage.attach(_compact.plan_full(shown, suggested, mermaid=bool(mermaid), states=_coverage.entry_states(p)),
                                 p, per_item=False)
+        if csn_digest:
+            body["csn"] = csn_digest
         text = _bounded(body, MAX_RESULT_CHARS, _compact.NARROW_HINT, drop=("mermaid",))
     return _with_schema_chosen(text, chosen)
 
@@ -703,12 +917,15 @@ def _with_schema_chosen(text: str, chosen: str | None) -> str:
     return json.dumps({"schema_chosen": chosen, **data}, indent=2)
 
 
-def _connected(workspace: str, source: str, schema: str, ctx):
-    """(plan inputs) the source's schema plus an open SQL connection; the caller closes it."""
+def _connected(workspace: str, source: str, schema: str, ctx, csn_path: str | None = None):
+    """(plan inputs) the source's schema plus an open SQL connection; the caller closes it. CSN2: the connection carries
+    the CSN files found in the lakehouse's Files (csn_found), which _hosted_plan plans with."""
     headers = _headers(ctx)
     workspace = _workspace_id(workspace, headers)
     item = _resolve_source(workspace, source, headers)
+    found = _lakehouse_csn(workspace, item, ctx, csn_path)
     execute = _execute_factory(item, auth.sql(ctx))
+    _attach_csn(execute, found)
     try:
         execute.source_item = item                                         # the sensitivity label, for the answers that show values
     except AttributeError:
@@ -730,7 +947,8 @@ def _connected(workspace: str, source: str, schema: str, ctx):
 def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", keys: _p.Keys = None,
                   confirmed: _p.Confirmed = None, max_items: _p.MaxItems = 60, detail: _p.ValidateDetail = "summary",
                   profile: _p.Profile = False, sql_sums: _p.SqlSums = False, fixes: _p.Fixes = False, review: _p.Review = None,
-                  tables: _p.CheckTables = None, resume_from: _p.ResumeFrom = 0, ctx: Context = None) -> str:
+                  tables: _p.CheckTables = None, resume_from: _p.ResumeFrom = 0, csn_path: _p.CsnPath = None,
+                  ctx: Context = None) -> str:
     """Checks the plan against the rows: is each key unique, non-null, how many references find no target (orphans).
     For "check shop", "run a check". Requires workspace and source; keys, confirmed as in plan_backend. Returns counts
     and each item's evidence state, never row values; past the call's time budget, "not checked (time)" and a
@@ -742,7 +960,7 @@ def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema 
         from . import review as _review
         rv = _review.read(review)
         keys, confirmed = _review.merge_arguments(_review.carried_arguments(rv), keys, confirmed)
-    s, execute = _connected(workspace, source, schema, ctx)
+    s, execute = _connected(workspace, source, schema, ctx, **({"csn_path": csn_path} if csn_path else {}))
     schema = s.schema                                   # n175: the name the metadata returns
     try:
         p = _hosted_plan(s, keys, confirmed, execute)
@@ -775,6 +993,9 @@ def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema 
                            keep=keep)                                  # n226: evidence state and coverage
     if prof is not None:
         out["column_profile"] = prof
+    from . import csn_onelake as _csn_onelake
+    if (csn_digest := _csn_onelake.digest(p)):                         # CSN2: the CSN's keys and links, and their files
+        out["csn"] = csn_digest
     if sql_sums:
         out["sql_sums"] = sums
     if fixes:
@@ -797,6 +1018,14 @@ def review_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = 
     """Builds a review file of the plan: each key and relationship with a review status and a check status, plus a
     Markdown report. Requires workspace and source. Returns JSON with the file, the report and what needs attention
     first, no row values. Changes nothing. Errors: {error, kind, hint}."""
+    from . import review as _review
+    rv = _review_file(workspace, source, schema, keys, confirmed, decisions, previous, validate, tables, max_items, ctx)
+    return _review.answer(rv, MAX_RESULT_CHARS)
+
+
+def _review_file(workspace, source, schema, keys, confirmed, decisions, previous, validate, tables, max_items, ctx) -> dict:
+    """review_plan's file (review.build), the one way it is made: review_plan's answer and, since WB13 (#66), the start
+    card's step 6 on your own data, which asks about the same items with the same evidence."""
     from datetime import datetime, timezone
     from . import review as _review
     prev = _review.read(previous) if previous else None
@@ -810,10 +1039,9 @@ def review_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = 
         checks = _evidence.validate(p, execute, max_items=max(1, min(int(max_items), 200))) if validate else None
     finally:
         getattr(execute, "close", lambda: None)()
-    rv = _review.build(p, base, {"platform": "fabric", "workspace": workspace, "source": source, "schema": schema},
-                       decisions=decisions, checks=checks, previous=prev, tables=sorted(keep) if keep is not None else None,
-                       checked_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%MZ"))
-    return _review.answer(rv, MAX_RESULT_CHARS)
+    return _review.build(p, base, {"platform": "fabric", "workspace": workspace, "source": source, "schema": schema},
+                         decisions=decisions, checks=checks, previous=prev, tables=sorted(keep) if keep is not None else None,
+                         checked_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%MZ"))
 
 
 @mcp.tool(title="Show a few rows of a table", annotations=RO)
@@ -898,7 +1126,9 @@ def _lifecycle(kind: str):
                     return text                                            # the Model editor has its own list (workload_api.run_verify)
                 call = sig.bind_partial(*args, **kwargs).arguments
                 found = re.search(r"/workspaces/([0-9a-fA-F-]{36})", text)   # the Create's own answer names the workspace's id
-                data.update(_next_after(kind, dict(call), found.group(1) if found else None))
+                health = data.get("health") if isinstance(data.get("health"), dict) else {}
+                mark = {k: health[k] for k in ("plan_id", "schema_fingerprint") if health.get(k)} or None   # WB2 (#55)
+                data.update(_next_after(kind, dict(call), found.group(1) if found else None, mark))
                 return json.dumps(data, indent=2, default=str)
             except Exception:                                              # noqa: BLE001 - the Create's answer stands
                 return text
@@ -906,7 +1136,7 @@ def _lifecycle(kind: str):
     return wrap
 
 
-def _next_after(kind: str, call: dict, workspace_id: str | None = None) -> dict:
+def _next_after(kind: str, call: dict, workspace_id: str | None = None, mark: dict | None = None) -> dict:
     ctx = call.get("ctx")
     args = {k: call.get(k) for k in ("workspace", "source", "schema", "keys", "confirmed")}
     name = call.get("name")
@@ -930,7 +1160,8 @@ def _next_after(kind: str, call: dict, workspace_id: str | None = None) -> dict:
                     and i.get("type") in SOURCE_ITEM_TYPES), None)
         if src:
             source_name, lakehouse = src.get("displayName"), src.get("type") == "Lakehouse"
-    built = _after_create.built_from_plan(items, str(args.get("source") or ""), str(args.get("schema") or ""), source_name) if items is not None else None
+    built = (_after_create.built_from_plan(items, str(args.get("source") or ""), str(args.get("schema") or ""), source_name, mark)
+             if items is not None else None)
     if kind == "report" and call.get("model") and built is not None and not _GUID.match(str(call["model"])):
         built.setdefault("semantic_model", [])
         if str(call["model"]).lower() not in {n.lower() for n in built["semantic_model"]}:
@@ -1097,6 +1328,47 @@ def _source_inputs(workspace, source, schema, keys, confirmed, ctx):
                    onelake_tables_path=item.get("onelake_tables_path") or "")
 
 
+def _layers(info: dict, silver_schema: str = "", gold_schema: str = "", pipeline: str = "", ctx=None, need: bool = True,
+            which=("silver", "gold")) -> dict:
+    """WB2 (#54): where the silver tables and gold views this output reads are (layer_schemas.py): the call's arguments,
+    else the pipeline named by `pipeline`, else this source's one Krusgraph pipeline in the build's workspace, else
+    silver and gold. `need` false (nothing here reads silver or gold) skips reading Fabric. Never raises for a read."""
+    from . import layer_schemas as _ls
+    found, found_from, note = {}, "", ""
+    given = all(bool((x or "").strip()) for k, x in (("silver", silver_schema), ("gold", gold_schema)) if k in which)
+    if (pipeline or "").strip() or (need and not given and info.get("item_kind", "Lakehouse") == "Lakehouse"):
+        try:
+            headers = _headers(ctx)
+            ws = _out_ws(info["workspace_id"])
+            label = f"{(info.get('read_from') or {}).get('item_name') or info['item_name']}.{info['schema']}"
+            found, found_from, note = _ls.discover(_workspace_items(ws, headers), label,
+                                                   lambda route, i: _item_definition_parts(ws, route, i, headers),
+                                                   (pipeline or "").strip())
+        except Exception as e:                                             # noqa: BLE001 - not known: the defaults, said
+            note = (f"The workspace's pipelines could not be read ({type(e).__name__}), so the default schemas are used; "
+                    "pass silver_schema and gold_schema to be sure.")
+    out = _ls.resolve(silver_schema, gold_schema, found=found, found_from=found_from)
+    if note:
+        out["note"] = note
+    return out
+
+
+def _layers_shown(lay: dict, which=("silver", "gold")) -> dict:
+    """The answer's `layers`: the schemas used, where each came from, and a note when a pipeline could not be used."""
+    return {**{k: lay[k] for k in which}, "from": {k: lay["from"][k] for k in which},
+            "said": lay["said"] if len(which) == 2 else f"Silver tables in {lay['silver']} (from {lay['from']['silver']}).",
+            **({"note": lay["note"]} if lay.get("note") else {})}
+
+
+def _combines(p, tables) -> bool:
+    """Whether an output over these tables carries combined key columns, so reads the silver layer (n226)."""
+    from . import combined_keys as _combined
+    try:
+        return bool(_combined.columns(p, tables))
+    except Exception:                                                     # noqa: BLE001 - then nothing is read for it
+        return False
+
+
 def _ontology_inputs(workspace, source, schema, keys, confirmed, ctx):
     """The subset ontology.envelope takes as keyword arguments."""
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
@@ -1104,10 +1376,19 @@ def _ontology_inputs(workspace, source, schema, keys, confirmed, ctx):
     return p, {k: info[k] for k in ("workspace_id", "item_id", "item_name", "item_kind", "schema", "sql_endpoint")}
 
 
+def _ontology_summary(p, tables, lay: dict) -> dict:
+    """The ontology's summary; WB2 (#54): when it reads the silver layer, which schema and where that came from."""
+    out = _ontology.summary(p, tables, silver_schema=lay["silver"])
+    if out.get("reads"):
+        out["reads_schema"] = {"silver": lay["silver"], "from": lay["from"]["silver"], **({"note": lay["note"]} if lay.get("note") else {})}
+    return out
+
+
 @mcp.tool(title="Draft a Fabric IQ ontology from the plan (nothing deployed)", annotations=RO)
 @safe
 def ontology_draft(workspace: _p.Workspace, source: _p.Source, name: _p.OntologyDraftName = "ontology", schema: _p.Schema = "dbo", keys: _p.Keys = None,
-                   confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, ctx: Context = None) -> str:
+                   confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, silver_schema: _p.ReadSilverSchema = "",
+                   ctx: Context = None) -> str:
     """Drafts a Fabric IQ ontology (preview) from the plan: entity types with keys, relationship types and bindings.
     Requires workspace and source. Returns JSON with a summary (the rule behind each key and link), the binding
     checklist, a Turtle file for Import ontology and the item definition parts. Changes nothing; create_ontology
@@ -1115,13 +1396,15 @@ def ontology_draft(workspace: _p.Workspace, source: _p.Source, name: _p.Ontology
     p, args = _ontology_inputs(workspace, source, schema, keys, confirmed, ctx)
     schema = p.schema.schema                                   # n175: the name the metadata returns
     check_tables(p.schema, tables)
-    parts = _ontology.ontology_parts(p, name, tables=tables, **args)
-    _pictures.keep("ontology", lambda: _pictures.ontology_from(_ontology.bindings(p, args["item_name"], schema, tables),
-                                                               _ontology.summary(p, tables)))   # n170: the proposal on the card
+    lay = _layers(args, silver_schema, "", "", ctx, need=_combines(p, tables), which=("silver",))   # WB2 (#54)
+    silver = lay["silver"]
+    parts = _ontology.ontology_parts(p, name, tables=tables, silver_schema=silver, **args)
+    _pictures.keep("ontology", lambda: _pictures.ontology_from(_ontology.bindings(p, args["item_name"], schema, tables, silver),
+                                                               _ontology.summary(p, tables, silver_schema=silver)))   # n170: the proposal on the card
     out = {
-        "summary": _ontology.summary(p, tables),
-        "bindings": _ontology.bindings(p, args["item_name"], schema, tables),
-        "ttl": _ontology.ontology_ttl(p, name, schema, tables),
+        "summary": _ontology_summary(p, tables, lay),
+        "bindings": _ontology.bindings(p, args["item_name"], schema, tables, silver),
+        "ttl": _ontology.ontology_ttl(p, name, schema, tables, silver_schema=silver),
         "definition_parts": parts,
         "rest": {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{args['workspace_id']}/ontologies",
                  "delegated_scope": "Item.ReadWrite.All", "body": _ontology.envelope(name, parts)},
@@ -1149,7 +1432,8 @@ def ontology_draft(workspace: _p.Workspace, source: _p.Source, name: _p.Ontology
 @_lifecycle("ontology")
 def create_ontology(workspace: _p.Workspace, source: _p.Source, name: _p.OntologyName, schema: _p.Schema = "dbo", keys: _p.Keys = None,
                     confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, dry_run: _p.DryRun = True,
-                    check: _p.CreateCheck = "", ctx: Context = None) -> str:
+                    check: _p.CreateCheck = "", silver_schema: _p.ReadSilverSchema = "", pipeline: _p.LayerPipeline = "",
+                    ctx: Context = None) -> str:
     """Creates a Fabric IQ ontology (preview) item from the plan, or updates the item of that name in place. Requires
     workspace, source and name; the delegated permission Item.ReadWrite.All, Contributor on the workspace and a
     Fabric capacity. Returns JSON with the definition parts and the REST call; with dry_run=false also the result,
@@ -1161,11 +1445,13 @@ def create_ontology(workspace: _p.Workspace, source: _p.Source, name: _p.Ontolog
     p, args = _ontology_inputs(workspace, source, schema, keys, confirmed, ctx)
     schema = p.schema.schema                                   # n175: the name the metadata returns
     check_tables(p.schema, tables)
-    parts = _ontology.ontology_parts(p, name, tables=tables, **args)
+    lay = _layers(args, silver_schema, "", pipeline, ctx, need=_combines(p, tables), which=("silver",))   # WB2 (#54)
+    silver = lay["silver"]
+    parts = _ontology.ontology_parts(p, name, tables=tables, silver_schema=silver, **args)
     body = _ontology.envelope(name, parts, description=f"Created by Krusgraph from {source} ({schema})")
-    _pictures.keep("ontology", lambda: _pictures.ontology_from(_ontology.bindings(p, args["item_name"], schema, tables),
-                                                               _ontology.summary(p, tables)))   # n170: the dry run's picture
-    out = {"summary": _ontology.summary(p, tables), "dry_run": dry_run,
+    _pictures.keep("ontology", lambda: _pictures.ontology_from(_ontology.bindings(p, args["item_name"], schema, tables, silver),
+                                                               _ontology.summary(p, tables, silver_schema=silver)))   # n170: the dry run's picture
+    out = {"summary": _ontology_summary(p, tables, lay), "dry_run": dry_run,
            "rest": {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{_out_ws(args['workspace_id'])}/ontologies",
                     "update": f"{FABRIC}/v1/workspaces/{_out_ws(args['workspace_id'])}/ontologies/{{id}}/updateDefinition",
                     "delegated_scope": "Item.ReadWrite.All", "workspace_role": "Contributor", "parts": list(parts),
@@ -1212,7 +1498,8 @@ def _api_id(workspace: str, api: str, headers: dict) -> str | None:
 @safe
 def semantic_model_draft(workspace: _p.Workspace, source: _p.Source, name: _p.ModelDraftName = "semantic_model", schema: _p.Schema = "dbo",
                          keys: _p.Keys = None, confirmed: _p.Confirmed = None,
-                         tables: _p.TablesShown = None, validate: _p.Validate = False, ctx: Context = None) -> str:
+                         tables: _p.TablesShown = None, validate: _p.Validate = False, silver_schema: _p.ReadSilverSchema = "",
+                         ctx: Context = None) -> str:
     """Drafts the plan as a Power BI semantic model in TMDL (Direct Lake on the source's SQL analytics endpoint):
     relationships with cardinality and filter direction, one active path per table pair, suggested measures that sum
     at the right level (validate=true also counts header amounts repeated in a flat table). Requires workspace and
@@ -1231,7 +1518,9 @@ def semantic_model_draft(workspace: _p.Workspace, source: _p.Source, name: _p.Mo
             getattr(execute, "close", lambda: None)()
     keep = _compact.match_tables(p.schema, tables)
     tables = sorted(keep, key=str.lower) if keep is not None else None
-    out = _semantic_model.draft(p, info, name, tables, validation=checked)
+    lay = _layers(info, silver_schema, "", "", ctx, need=_combines(p, tables), which=("silver",))   # WB2 (#54): the silver it reads
+    out = _semantic_model.draft(p, {**info, "silver_schema": lay["silver"]}, name, tables, validation=checked)
+    _model_layers(out, lay)
     out["note"] = ("Unit-tested against Microsoft's published TMDL samples. " + _tool_status.answer_note("semantic_model_draft")
                    + " create_semantic_model creates the item from it (" + _tool_status.short("create_semantic_model") + "). Open the "
                    "folder in Power BI Desktop (TMDL view) or create the item with the Fabric REST API; README.generated.md "
@@ -1871,6 +2160,25 @@ def _refresh_once(workspace_id: str, model_id: str, ctx) -> dict:
         return {"status": "failed", "reason": type(e).__name__, "hint": portal}
 
 
+def _marked(description: str, p, schema: str) -> str:
+    """WB2 (#55): the description with Krusgraph's plan marker (workload_api.MARK), so the next steps after a pipeline
+    of the same plan know this model is one of it. Unchanged when the mark cannot be computed."""
+    try:
+        from . import pipeline as _pipeline, workload_api as _w
+        return _w.with_mark(description, {**_pipeline.plan_mark_of(p), "schema": schema, "links": len(p.relationships)})
+    except Exception:                                                     # noqa: BLE001 - the description stands
+        return description
+
+
+def _model_layers(draft: dict, lay: dict) -> None:
+    """WB2 (#54): a model that reads the silver layer says which schema and where that came from (summary.reads)."""
+    reads = (draft.get("summary") or {}).get("reads")
+    if isinstance(reads, dict) and reads.get("layer") == "silver":
+        reads["schema_from"] = lay["from"]["silver"]
+        if lay.get("note"):
+            reads["note"] = lay["note"]
+
+
 def _silver_there(workspace: str, source: str, summary: dict, ctx) -> bool | None:
     """n229: whether the silver tables a model would read exist (its dry run reads the silver layer when composite keys
     are carried, n226). None when the model reads the source tables, or when the source's schemas could not be listed."""
@@ -1888,7 +2196,8 @@ def _silver_there(workspace: str, source: str, summary: dict, ctx) -> bool | Non
 @_lifecycle("semantic_model")
 def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.ModelName, schema: _p.Schema = "dbo", keys: _p.Keys = None,
                           confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, dry_run: _p.DryRun = True,
-                          refresh: _p.RefreshOnce = False, check: _p.CreateCheck = "", ctx: Context = None) -> str:
+                          refresh: _p.RefreshOnce = False, check: _p.CreateCheck = "", silver_schema: _p.ReadSilverSchema = "",
+                          pipeline: _p.LayerPipeline = "", ctx: Context = None) -> str:
     """Creates a Fabric semantic model item from semantic_model_draft's TMDL (Direct Lake), or updates the item of that
     name in place. Requires workspace, source and name; SemanticModel.ReadWrite.All or Item.ReadWrite.All and
     Contributor on the workspace. Returns JSON with the parts and the REST call; with dry_run=false also the result,
@@ -1902,8 +2211,11 @@ def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.M
     schema = p.schema.schema                                   # n175: the name the metadata returns
     check_tables(p.schema, tables)
     read = _model_reads(workspace, source, schema, p, tables, ctx)          # n151: the calendar's range, whole-number quantities
+    lay = _layers(info, silver_schema, "", pipeline, ctx, need=_combines(p, tables), which=("silver",))   # WB2 (#54): the dry run's and Create's
+    info = {**info, "silver_schema": lay["silver"]}
     draft = _semantic_model.draft(p, info, name, tables, date_range=read["date_range"], whole_quantities=read["whole"])
-    body = _semantic_model.envelope(draft["parts"], name, description=f"Created by Krusgraph from {source} ({schema})")
+    _model_layers(draft, lay)
+    body = _semantic_model.envelope(draft["parts"], name, description=_marked(f"Created by Krusgraph from {source} ({schema})", p, schema))
     replaces = _model_replacement(_out_ws(info["workspace_id"]), name, draft["parts"], _headers(ctx))   # n221: where it is built
     out = {"replaces": replaces} if replaces else {}
     out |= {"summary": draft["summary"], "read_from_rows": read["said"], "dry_run": dry_run,
@@ -2158,15 +2470,17 @@ def _views_personal(stmts: dict) -> dict:
                       "the keys stay. create_views has no show_personal_data: add such a column to a view by hand where you need it."}
 
 
-def _agent_layers(p, info: dict, layer: str, show_personal_data: bool) -> list[dict] | None:
-    """n185: the layers the agent may read, preferred first; the source is always the last fallback (data_agent.draft)."""
+def _agent_layers(p, info: dict, layer: str, show_personal_data: bool, lay: dict | None = None) -> list[dict] | None:
+    """n185: the layers the agent may read, preferred first; the source is always the last fallback (data_agent.draft).
+    WB2 (#54): in the schemas `lay` names (_layers: the call's, the pipeline's, else silver and gold)."""
     if layer == "source" or not info.get("schemas_enabled", True):   # without schemas silver is a prefix: the source stays
         return None
+    silver, gold = (lay or {}).get("silver") or "silver", (lay or {}).get("gold") or "gold"
     if layer == "silver":
-        return [{"layer": "silver", "schema": "silver"}]
+        return [{"layer": "silver", "schema": silver}]
     from . import gold as _gold_mod
-    views = _gold_mod.spec(p, info, "silver", "gold", None, show_personal_data)["views"]
-    return [{"layer": "gold", "schema": "gold", "tables": [v["name"].split(".", 1)[-1] for v in views]}]
+    views = _gold_mod.spec(p, info, silver, gold, None, show_personal_data)["views"]
+    return [{"layer": "gold", "schema": gold, "tables": [v["name"].split(".", 1)[-1] for v in views], "views": views}]
 
 
 def _layer_words(spec: dict, layer: str) -> str:
@@ -2180,16 +2494,27 @@ def _layer_words(spec: dict, layer: str) -> str:
             f"when they are in the lakehouse; otherwise the source tables in {spec['schema']}. Never two layers at once.")
 
 
+# DA2: what a person reads in the dry run and after Create (docs/DATA-AGENT-TOPICS-TEMPLATES.md)
+_DATA_AGENT_REUSE = ("Krusgraph checks the joins once, with evidence and your approval; your data agent then reuses them in "
+                     "topics and templates. Read the topics and templates in this dry run; calling again with dry_run=false is "
+                     "your approval to write them.")
+
+
 @mcp.tool(title="Create or update a Fabric data agent from the plan (dry run by default)", annotations=WRITE)
 @safe
 @_lifecycle("data_agent")
 def create_data_agent(workspace: _p.Workspace, source: _p.Source, name: _p.AgentName, schema: _p.Schema = "dbo", keys: _p.Keys = None,
                       confirmed: _p.Confirmed = None, publish: _p.Publish = True, show_personal_data: _p.ShowPersonalData = False,
                       validate: _p.Validate = False, dry_run: _p.DryRun = True, test_questions: _p.AgentTests = False,
-                      layer: _p.AgentLayer = "source", ctx: Context = None) -> str:
+                      layer: _p.AgentLayer = "source", silver_schema: _p.ReadSilverSchema = "", gold_schema: _p.ReadGoldSchema = "",
+                      pipeline: _p.LayerPipeline = "", requirements: _p.AgentRequirements = None, ctx: Context = None) -> str:
     """Creates a Fabric data agent over the source, with the plan as its instructions (business names, the joins that
     are safe and those that are not, header amounts not to sum over lines), the plan's tables selected and 3–5 example
-    question/T-SQL pairs over safe joins, or updates the agent of that name in place. Only joins validate=true counted
+    question/T-SQL pairs over safe joins, or updates the agent of that name in place. Krusgraph checks the joins once,
+    with evidence and your approval; your data agent then reuses them in topics and templates: one topic file per
+    business area (tables, what their fields point at, the checked joins with their counts, known traps; topics are a
+    Fabric preview for SQL sources) and one example query per checked join, with comments where a customer, a period
+    or another filter goes. Rules and templates only, no AI. Only joins validate=true counted
     are called safe. Requires workspace, source and name; Item.ReadWrite.All or DataAgent.ReadWrite.All. Returns JSON
     with the instructions, examples, sizes against the documented limits and the REST calls; with dry_run=false also
     the result, or kind consent. Changes Fabric only with dry_run=false: instructions, data source and examples are
@@ -2208,7 +2533,9 @@ def create_data_agent(workspace: _p.Workspace, source: _p.Source, name: _p.Agent
     if layer not in ("source", "silver", "gold"):
         return json.dumps({"error": f"layer is \"source\", \"silver\" or \"gold\"; got {layer!r}.", "kind": "bad_request",
                            "hint": "Leave it out for the source tables."})
-    layers = _agent_layers(p, info, layer, show_personal_data)
+    lay = _layers(info, silver_schema, gold_schema, pipeline, ctx, need=layer != "source",
+                  which=("silver",) if layer == "silver" else ("silver", "gold"))   # WB2 (#54): the schemas the layer is in
+    layers = _agent_layers(p, info, layer, show_personal_data, lay)
     reads = info
     if layers and _cross(info):                       # n221: silver and gold are in the build's lakehouse, not the source's
         winfo, _refusal = _write_info(info, "The data agent's layer", ctx)
@@ -2217,14 +2544,34 @@ def create_data_agent(workspace: _p.Workspace, source: _p.Source, name: _p.Agent
     spec = _data_agent.draft(p, reads, name, schema, show_personal_data, counted, layers=layers)
     if reads is not info:                             # the source's tables are not in that lakehouse: no fallback to them
         spec["layers"] = [x for x in spec["layers"] if x["layer"] != "source"]
+    traced = None
+    if requirements:                                  # RQ1: each answerable requirement as an example query, with its id
+        from . import requirements_draft as _rq
+        traced = _rq.draft(p, requirements, counted, schema)
+        extra = _rq.example_queries(traced) if layer == "source" else []
+        spec["fewshots"] = list(spec["fewshots"]) + extra
+        for v in spec.get("layers") or []:
+            if v.get("layer") == "source":
+                v["fewshots"] = list(v.get("fewshots") or []) + extra
     out = {"summary": p.summary(), "dry_run": dry_run, "agent": {k: spec[k] for k in ("name", "instructions", "datasource", "datasource_instructions",
-                                                                                      "datasource_description", "tables_to_select", "fewshots")},
+                                                                                      "datasource_description", "tables_to_select", "fewshots",
+                                                                                      "topics", "templates", "topics_note")},
+           "reuse": _DATA_AGENT_REUSE,
            "context": spec["context"],
            "rest": spec["rest"], "delegated_scope": spec["delegated_scope"],
            "layer": _layer_words(spec, layer),
+           **({"layers": _layers_shown(lay, ("silver",) if layer == "silver" else ("silver", "gold"))} if layers else {}),
            "note": "Unit-tested with the REST calls mocked. " + _tool_status.answer_note("create_data_agent") + " Without the permission the create "
                    "answers kind=consent naming it, see docs/SCOPES.md. The portal shows the agent's data source, "
                    "selected tables and example queries under its staging configuration; publish makes them live."}
+    if traced is not None:
+        out["requirements"] = {"counts": traced["counts"], "added": [x["requirement"] for x in
+                               traced["feeds"]["create_data_agent"]["example_queries"]] if layer == "source" else [],
+                               "states": {x["id"]: x["state"] for x in traced["requirements"]},
+                               "note": "Each added example query starts with its requirement id (-- R1: ...). "
+                                       + ("" if layer == "source" else "Only on layer=\"source\": the queries name the source tables. ")
+                                       + ("Counted with validate=true." if counted is not None else
+                                          "Not counted: pass validate=true so the joins behind them are checked.")}
     flagged = spec["personal_left_out"] or ([] if not show_personal_data else _privacy.findings(_privacy.personal_columns(p.schema)))
     if spec["personal_left_out"]:
         out["personal_data"] = {"left_out": [f"{x['table']}.{x['column']} ({x['rule']}: {x['what']})" for x in flagged],
@@ -2351,6 +2698,72 @@ def _lakehouse_only(info: dict, tool: str) -> str | None:
                                 f"{info.get('item_kind')}.", "kind": "unsupported",
                        "hint": "Add the tables to a lakehouse as OneLake shortcuts (Get data -> New shortcut) and plan that lakehouse; "
                                "the notebook then reads them through the shortcuts and writes the silver tables beside them."}, indent=2)
+
+
+@mcp.tool(title="Which SAP analyses this data supports, by rules", annotations=RO)
+@safe
+def analysis_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", keys: _p.Keys = None,
+                  confirmed: _p.Confirmed = None, profile: _p.AnalysisProfile = True, weights: _p.AnalysisWeights = None,
+                  document_types: _p.DocumentTypes = None, max_items: _p.AnalysisMaxItems = 20, ctx: Context = None) -> str:
+    """Ranks ten SAP order-to-cash analyses by rules over the plan and row counts (no AI). Returns JSON: readiness,
+    score, reasons, what is missing, tables used, next step. Read-only. Errors: {error, kind, hint}."""
+    from . import analysis_plan as _ap
+    s, execute = _connected(workspace, source, schema, ctx)
+    try:
+        p = _hosted_plan(s, keys, confirmed, execute)
+        out = _ap.recommend(p, execute if profile else None, weights, document_types, max(1, min(int(max_items), 60)), "o2c", bool(profile))
+    finally:
+        getattr(execute, "close", lambda: None)()
+    return _compact.bounded(out, MAX_RESULT_CHARS)
+
+
+@mcp.tool(title="Draft a Fabric Data Science notebook for a recommended analysis (nothing created)", annotations=RO)
+@safe
+def analysis_notebook_draft(workspace: _p.Workspace, source: _p.Source, analysis: _p.Analysis, schema: _p.Schema = "dbo",
+                            output_schema: _p.OutputSchema = "krusgraph_analysis", keys: _p.Keys = None, confirmed: _p.Confirmed = None,
+                            weights: _p.AnalysisWeights = None, document_types: _p.DocumentTypes = None, ctx: Context = None) -> str:
+    """Drafts the notebook for A7, A8 or A3 wired to the SAP tables (MLflow, data check). Returns JSON with the
+    steps and the notebook. Creates and runs nothing. Errors: {error, kind, hint}."""
+    from . import analysis_notebook as _an, analysis_plan as _ap
+    _, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
+    s, execute = _connected(workspace, source, schema, ctx)
+    try:
+        p = _hosted_plan(s, keys, confirmed, execute)
+        result = _ap.recommend(p, execute, weights, document_types)
+    finally:
+        getattr(execute, "close", lambda: None)()
+    return json.dumps(_an.draft(result, analysis, info, output_schema), indent=2)
+
+
+@mcp.tool(title="Match requirements to the checked SAP data (by rules)", annotations=RO)
+@safe
+def requirements_draft(requirements: _p.Requirements, workspace: _p.RequirementsWorkspace = "", source: _p.RequirementsSource = "",
+                       schema: _p.Schema = "dbo", validate: _p.RequirementsValidate = True, sample: _p.RequirementsSample = False, ctx: Context = None) -> str:
+    """Matches pasted requirements (one per line) to checked SAP order-to-cash data by rules, no AI. Returns JSON: per
+    requirement answerable, trap, missing or unclear, evidence, a T-SQL query, ids. Errors: {error, kind, hint}."""
+    from . import requirements_draft as _rq
+    if sample:
+        from . import sap_demo as _sap_demo
+        s, execute = _sap_demo.sqlite()
+        schema = "sap"
+    else:
+        if not workspace or not source:
+            return json.dumps({"error": "workspace and source are needed, or sample=true for the synthetic SAP demo.",
+                               "kind": "bad_input", "hint": "Name the lakehouse with the SAP tables, or pass sample=true."})
+        s, execute = _connected(workspace, source, schema, ctx)
+        schema = s.schema
+    try:
+        p = _hosted_plan(s, None, None, execute) if not sample else make_plan(s)
+        counted = _evidence.validate(p, execute, max_items=200) if validate else None
+    finally:
+        getattr(execute, "close", lambda: None)()
+    out = _rq.draft(p, requirements, counted, schema)
+    out["kg_card"] = _rq.card(out)
+    out["where"] = ("the synthetic SAP demo (fabric_backend/sap_demo.py, SQLite, offline)" if sample
+                    else f"{source} ({schema}), read-only")
+    out["note"] = ("Rules and word lists, no AI. " + _tool_status.answer_note("requirements_draft")
+                   + " The list is pasted: Microsoft Learn documents no API to read a Copilot Workspace (19 November 2026).")
+    return _compact.bounded(out, MAX_RESULT_CHARS)
 
 
 def _silver(workspace, source, schema, silver_schema, order_by, keys, confirmed, tables, ctx, show_personal_data=False, fixes=None):
@@ -3058,7 +3471,7 @@ def export_item_definitions(workspace: _p.Workspace, source: _p.Source, schema: 
             env = definition(api_plan, names[tool], info["workspace_id"], source_id, source_type, writable=writable, tables=tables)
             add(tool, "GraphQLApi", env, f"the API for GraphQL over {info['item_name']}.{schema} with the plan's relationships")
         elif tool == "create_semantic_model":
-            draft = _semantic_model.draft(p, info, names[tool], tables)
+            draft = _semantic_model.draft(p, {**info, "silver_schema": silver_schema}, names[tool], tables)   # WB2: the export's silver
             add(tool, "SemanticModel", _semantic_model.envelope(draft["parts"], names[tool], f"Created by Krusgraph from {source} ({schema})"),
                 "the Direct Lake semantic model with the plan's relationships, the suggested measures and the calendar")
             notes.append(f"The semantic model's README.generated.md is not part of its definition and is left out; semantic_model_draft returns it.")
@@ -3237,7 +3650,17 @@ def _verify_checks(result: dict) -> dict:
             "label": _verify.LABEL}
 
 
-def _verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx, skip: dict | None = None) -> dict:
+def _pipeline_schemas_from(lay: dict) -> str:
+    """Where verify_build took a pipeline's schemas from, in words."""
+    if lay["from"]["silver"] == lay["from"]["gold"] == "the default":
+        return "the defaults: the notebooks' parameters could not be read"
+    if "the default" in lay["from"].values():
+        return "as the notebooks' parameters set them, the default for the one they do not set"
+    return "as the notebooks' parameters set them"
+
+
+def _verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx, skip: dict | None = None,
+                  silver_schema: str = "") -> dict:
     from . import budget as _budget, model_compare as _mc
     from .infer import PlanInputError
     if not isinstance(items, dict) or not items:
@@ -3255,6 +3678,11 @@ def _verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx
     listing = _workspace_items(ws, headers)
     lakehouse = info.get("item_kind") == "Lakehouse"
     conn: dict = {}
+    # WB2 (#54): the silver schema the model and the ontology read: the call's, else the verified pipeline's, else this
+    # source's one Krusgraph pipeline, else silver. Only read when one of them carries combined key columns.
+    lay = _layers(info, silver_schema, "", items.get("pipeline", ""), ctx, which=("silver",),
+                  need=bool({"semantic_model", "ontology"} & set(items)) and _combines(p, tables))
+    info = {**info, "silver_schema": lay["silver"]}
 
     def execute(sql):                                              # the source's SQL endpoint, opened once, on first use
         if "run" not in conn:
@@ -3334,8 +3762,9 @@ def _verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx
                     figs, doubles = figures_for(model, shape if shape["visuals"] else None, m_item["id"])
                     lines.append(_verify.line(kind, shown, cmp, figs=figs, doubles=doubles, notes=notes))
                 elif kind == "ontology":
-                    parts = _ontology.ontology_parts(p, shown, tables=tables, **{k: info[k] for k in ("workspace_id", "item_id", "item_name",
-                                                                                                        "item_kind", "schema", "sql_endpoint")})
+                    parts = _ontology.ontology_parts(p, shown, tables=tables, silver_schema=lay["silver"],
+                                                     **{k: info[k] for k in ("workspace_id", "item_id", "item_name",
+                                                                             "item_kind", "schema", "sql_endpoint")})
                     cmp = _verify.compare_ontology(parts, _item_definition_parts(ws, "ontologies", item["id"], headers))
                     lines.append(_verify.line(kind, shown, cmp, state_check=_verify.ontology_state(shown, listing)))
                 elif kind == "api":
@@ -3356,19 +3785,40 @@ def _verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx
                     names = {i: n.get("displayName") for i, n in by_id.items()}
                     ran = [s["notebook"] for s in _verify.pipeline_steps(content, names)]
                     known = len(ran) == 3 and all(n in names.values() for n in ran)
-                    build = _pipeline_build(p, info, schema, "silver", "gold", tables, False, shown, ran[0] if known else "", ran[1] if known else "")
+                    # WB2 (#55): the notebooks are read first, and the dry run is rebuilt with the schemas their parameter
+                    # cells set (SILVER_SCHEMA, GOLD_SCHEMA), so a pipeline built with sap_silver/sap_gold is not "differs"
+                    # for its schemas alone
+                    sources: dict = {}
+                    for n in ([*ran[:2], f"{shown}_check"] if known else []):
+                        try:
+                            reading(f"reading the notebook {n}")
+                            nb = next((i for i in by_id.values() if str(i.get("displayName") or "").lower() == n.lower()), None)
+                            if nb:
+                                sources[n.lower()] = _item_definition_parts(ws, "notebooks", nb["id"], headers).get("notebook-content.py") or ""
+                        except Exception as e:                             # noqa: BLE001 - said on the notebook's own line
+                            sources[n.lower()] = e
+                    from . import layer_schemas as _ls
+                    set_by = _ls.from_notebooks(v for v in sources.values() if isinstance(v, str))
+                    p_lay = _ls.resolve("", "", found=set_by, found_from=f"the parameters of {shown}'s notebooks")
+                    build = _pipeline_build(p, info, schema, p_lay["silver"], p_lay["gold"], tables, False, shown,
+                                            ran[0] if known else "", ran[1] if known else "")
                     expected = _pipeline_content(build, {n["name"]: n["name"] for n in build["notebooks"]}, ws)
                     cmp = _verify.compare_pipeline(expected, content, None, names, notebooks_known=known)
                     lines.append(_verify.line(kind, shown, cmp, state_check=_verify.pipeline_state(state_of(lambda: _job_instances(ws, item["id"], headers))),
-                                              notes=["Compared with silver and gold in the schemas silver and gold (the defaults) and no schedule in the check."]))
+                                              notes=[f"Compared with silver tables in {p_lay['silver']} and gold views in {p_lay['gold']} "
+                                                     f"({_pipeline_schemas_from(p_lay)}) and no schedule in the check."]))
                     for n in build["notebooks"]:                           # the three notebooks, each a line of its own
                         try:
-                            reading(f"reading the notebook {n['name']}")
-                            nb = next((i for i in by_id.values() if str(i.get("displayName") or "").lower() == n["name"].lower()), None)
-                            if not nb:
-                                lines.append(missing("notebook", n["name"]))
-                                continue
-                            src = _item_definition_parts(ws, "notebooks", nb["id"], headers).get("notebook-content.py") or ""
+                            src = sources.get(n["name"].lower())
+                            if src is None:
+                                reading(f"reading the notebook {n['name']}")
+                                nb = next((i for i in by_id.values() if str(i.get("displayName") or "").lower() == n["name"].lower()), None)
+                                if not nb:
+                                    lines.append(missing("notebook", n["name"]))
+                                    continue
+                                src = _item_definition_parts(ws, "notebooks", nb["id"], headers).get("notebook-content.py") or ""
+                            if isinstance(src, BaseException):
+                                raise src
                             lines.append(_verify.line("notebook", n["name"], _verify.compare_notebook(n["content"], src)))
                         except Exception as e:                             # noqa: BLE001
                             lines.append(_verify.line("notebook", n["name"], not_checked=not_read(e)))
@@ -3392,12 +3842,14 @@ def _verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx
 @mcp.tool(title="Verify what was built (by rules, no AI)", annotations=RO)
 @safe
 def verify_build(workspace: _p.Workspace, source: _p.Source, items: _p.VerifyItems, schema: _p.Schema = "dbo", keys: _p.Keys = None,
-                 confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, ctx: Context = None) -> str:
+                 confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, silver_schema: _p.ReadSilverSchema = "",
+                 ctx: Context = None) -> str:
     """After a Create: verifies built items by rules, not by AI. Reads each back and compares it with its dry run,
     counts a report's cards again from the rows with SQL, flags doubled totals and what was never refreshed or run.
     Requires workspace, source and items. Returns JSON: one line per item (verified, differs, or not checked and
     why), counts and the SQL. Changes nothing. Errors: {error, kind, hint}."""
-    return json.dumps(_verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx), indent=2, default=str)
+    return json.dumps(_verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx, silver_schema=silver_schema),
+                      indent=2, default=str)
 
 
 @mcp.tool(title="Starter pack for an app on a GraphQL API", annotations=RO)
@@ -3418,13 +3870,19 @@ def app_starter(workspace: _p.Workspace, api: _p.StarterApi, ctx: Context = None
     return json.dumps(_app_starter.starter(description, endpoint_url(workspace_id, api_id), api, workspace_id), indent=2)
 
 
-@mcp.tool(title="What an app still needs on a GraphQL API", annotations=RO)
+@mcp.tool(title="What an app still needs on an API or a model", annotations=RO)
 @safe
-def app_readiness(workspace: _p.Workspace, api: _p.StarterApi, ctx: Context = None) -> str:
-    """Checks what an API for GraphQL item still needs before an app can use it: keys, relationships, write access,
-    introspection, permissions. Only for an API the user names; a schema's check is validate_plan. Requires workspace
-    and an API. Returns JSON {api, endpoint, checks, missing, unknown, verdict}, each with its next step. Changes
-    nothing. Errors: {error, kind, hint}."""
+def app_readiness(workspace: _p.Workspace, api: _p.ReadinessApi = "", semantic_model: _p.ReadinessModel = "", ctx: Context = None) -> str:
+    """Checks what an app still needs. Only for an API the user names (keys, relationships, write access, introspection,
+    permissions) or a semantic model an app will be built from in Power BI Desktop for Apps; a schema's check is
+    validate_plan. Returns JSON {checks, missing, unknown, verdict}, each with its next step. Changes nothing.
+    Errors: {error, kind, hint}."""
+    if semantic_model:
+        return json.dumps(_model_app_readiness(workspace, semantic_model, ctx), indent=2)
+    if not api:
+        return json.dumps({"error": "Name the API for GraphQL (`api`) or the semantic model (`semantic_model`) the app is built on.",
+                           "kind": "bad_input", "hint": "list_sources lists the GraphQL APIs in a workspace; the Fabric portal shows its "
+                                                        "semantic models."}, indent=2)
     headers = _headers(ctx)
     workspace_id = _workspace_id(workspace, headers)
     api_id = _api_id(workspace_id, api, headers)
@@ -3444,6 +3902,30 @@ def app_readiness(workspace: _p.Workspace, api: _p.StarterApi, ctx: Context = No
     except ValueError:
         body = {}
     return json.dumps(_readiness.assess(description, _readiness.classify_probe(status, body), endpoint, api), indent=2)
+
+
+def _model_app_readiness(workspace: str, model: str, ctx) -> dict:
+    """FA1: app_readiness for a semantic model (model_readiness.py), read with getDefinition (TMDL)."""
+    from . import model_readiness as _mr
+    headers = _headers(ctx)
+    workspace_id = _workspace_id(workspace, headers)
+    item = {"id": model} if _GUID.match(model.strip()) else find_item_by_name(workspace_id, model, headers, ("SemanticModel",))
+    if not item:
+        return {"error": f"no semantic model named {model!r} in workspace {workspace}", "kind": "not_found",
+                "hint": "Check the name in the Fabric portal (the model's own name, not its report's), or pass its id."}
+    try:
+        parts = _item_definition_parts(workspace_id, "semanticModels", item["id"], headers, fmt="TMDL")
+    except requests.HTTPError as e:
+        status = int(getattr(e.response, "status_code", 0) or 0)
+        if status in (401, 403):
+            return {"error": f"Fabric refused reading the definition of {model!r} (HTTP {status}): it needs the delegated permission "
+                             f"{MODEL_READ_SCOPE} and write permission on the model.", "kind": "consent", "scope": MODEL_READ_SCOPE,
+                    "hint": "The operator adds the permission to the Entra app and an administrator consents (docs/SCOPES.md); it is "
+                            "the same one create_semantic_model needs."}
+        raise
+    out = _mr.assess(parts, model)
+    out["read_with"] = "Fabric getDefinition (TMDL)"
+    return out
 
 
 def _which_one(workspace_id: str, word: str, headers: dict) -> dict | None:
@@ -3733,12 +4215,120 @@ def query_graphql(workspace: _p.Workspace, api: _p.Api, query: _p.Query = "", va
     return _bounded(body, MAX_RESULT_CHARS)
 
 
+@mcp.tool(title="Publish data products to the OneLake catalog (dry run by default)", annotations=WRITE)
+@safe
+def publish_catalog(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", items: _p.CatalogItems = None,
+                    owner: _p.CatalogOwner = None, check_rows: _p.CatalogCheckRows = True, dry_run: _p.DryRun = True,
+                    confirm: _p.CatalogConfirm = None, ctx: Context = None) -> str:
+    """Prepares the OneLake catalog entry of each data product the plan proves: description, owner, proposed domain,
+    tags, glossary terms, row-check evidence and quality rules. Requires workspace and source. Returns JSON with the
+    product cards, the diff of what it would write as you (item descriptions, existing tags), a confirm value, the undo
+    calls and handover files for what needs a Fabric admin, a Purview steward or a reviewer. Never endorses. Changes
+    Fabric only with dry_run=false, the confirm, and a workspace the operator allows. Errors: {error, kind, hint}."""
+    from datetime import date as _date
+    from . import catalog_publish as _cp
+    from .catalog_publish import fabric_io as _io, writes as _cw
+    validation = None
+    if check_rows:
+        s, execute = _connected(workspace, source, schema, ctx)
+        try:
+            p = _hosted_plan(s, None, None, execute)
+            validation = _evidence.validate(p, execute)
+        finally:
+            getattr(execute, "close", lambda: None)()
+    else:
+        p, _, _ = _plan(workspace, source, schema, None, None, ctx)
+    schema = p.schema.schema
+    headers = _headers(ctx)
+    ws = _workspace_id(workspace, headers)
+    item = _resolve_source(ws, source, headers)
+    get = _io.reader(headers)
+    listed = _io.items(get, ws)
+    chosen = _io.pick(listed, item.get("id"), set(), schema, items)
+    tenant, readable = _io.tenant_tags(get)
+    on_items = list({t.get("id"): t for it in listed for t in it.get("tags") or [] if t.get("id")}.values())
+    owners = None
+    if owner:
+        owners = {d["slug"]: owner for d in _domains.propose_plan(p, validation)["domains"]}
+    out = _cp.prepare(p, schema, ws, chosen, source=item.get("displayName") or source, validation=validation,
+                      checked_on=_date.today().isoformat() if validation else None, owners=owners,
+                      tenant_tags=tenant, tags_readable=readable, workspace_tags=on_items)
+    if dry_run:
+        out = _cp.for_chat(out)
+        out["note"] = ("A dry run: nothing was written. Check the diff; to write as you, call again with dry_run=false and "
+                       "this confirm. The handover files are for the people named in them; domain_draft gives the contracts.")
+        return _bounded(out, MAX_RESULT_CHARS)
+    try:
+        done = _cp.apply(out, ws, confirm, _io.sender(headers))
+    except _cw.NotAllowed as e:
+        return json.dumps({"error": str(e), "kind": "not_allowed", "hint": "Nothing was written. The dry run's diff and "
+                           "handover files stay yours to use."}, indent=2)
+    return _bounded({"summary": out["summary"], "results": done["results"], "undo": done["undo"],
+                     "handover": _cp.for_chat(out)["handover"], "note": "Written as you. undo lists the calls that put back what was there."},
+                    MAX_RESULT_CHARS)
+
+
 MAX_RESULT_CHARS = 60000
 
 
 def _bounded(body, limit: int, hint: str = "Ask for fewer fields or page with first:/after.", drop: tuple[str, ...] = ()) -> str:
     """JSON of at most `limit` characters, always valid (fabric_backend.compact.bounded)."""
     return _compact.bounded(body, limit, hint, drop)
+
+
+# Q2: Krusgraph Migrate, from Qlik to Power BI (qlik_tools.py): a load script to a plan, measure drafts and a
+# reconciliation draft. Read-only, fixed rules, no connection to Qlik; only qlik_plan may read Fabric, and only when a
+# workspace and a source are named. Registered here because the three answers use _bounded.
+from . import qlik_tools as _q  # noqa: E402
+
+
+@mcp.tool(title=_q.TITLES["qlik_plan"], annotations=RO)
+@safe
+@_q.bad_input
+def qlik_plan(script: _q.Script, workspace: _q.OptionalWorkspace = None, source: _q.OptionalSource = None,
+              schema: _q.LandedSchema = "dbo", tables: _q.TableNames = None, detail: _q.Detail = "summary",
+              ctx: Context = None) -> str:
+    """Reads a Qlik load script: its tables, keys and associations as a plan, each synthetic key in one of five
+    cases, circular references and a proposed star schema. Requires script. With workspace and source it counts keys
+    and links in the landed tables; otherwise it counts nothing and reads nothing in Fabric. Returns JSON: plan.keys
+    and plan.confirmed for the planning tools, statements not read, kg_card. Fixed rules, no AI model, no connection
+    to Qlik. Not tested on a customer's Qlik installation. Errors: {error, kind, hint}."""
+    if bool(workspace) != bool(source):
+        raise ValueError("Give workspace and source together to count in the landed tables, or neither.")
+    if not workspace:
+        return _bounded(_q.plan_answer(script, None, schema, tables, detail), MAX_RESULT_CHARS)
+    landed, execute = _connected(workspace, source, schema, ctx)
+    try:
+        return _bounded(_q.plan_answer(script, execute, landed.schema, tables, detail, dialect=getattr(execute, "dialect", _q.TSQL)),
+                        MAX_RESULT_CHARS)
+    finally:
+        getattr(execute, "close", lambda: None)()
+
+
+@mcp.tool(title=_q.TITLES["qlik_measures_draft"], annotations=RO)
+@safe
+@_q.bad_input
+def qlik_measures_draft(measures: _q.Measures, script: _q.OptionalScript = None, tables: _q.TableNames = None,
+                        tmdl: _q.Tmdl = False) -> str:
+    """Drafts DAX from Qlik master measures or chart expressions by fixed rules, each labelled translated,
+    suggested (with when it may differ from Qlik) or not_translated (with the reason). Requires measures. Covers Sum,
+    Min, Max, Avg, Count, arithmetic, If, literal set modifiers and TOTAL; not Aggr, P(), E(), searches, alternate
+    states or run-time dollar-sign expansion. Returns JSON with counts and kg_card. Runs no Qlik and no DAX; creates
+    nothing; no AI model. Errors: {error, kind, hint}."""
+    return _bounded(_q.measures_answer(measures, script, tables, tmdl), MAX_RESULT_CHARS)
+
+
+@mcp.tool(title=_q.TITLES["qlik_reconcile_draft"], annotations=RO)
+@safe
+@_q.bad_input
+def qlik_reconcile_draft(script: _q.Script, kpis: _q.Kpis, schema: _q.LandedSchema = "dbo", tolerance: _q.Tolerance = 0.005,
+                         results: _q.Results = None, tables: _q.TableNames = None, confirmed: _q.Relationships = None) -> str:
+    """Writes one T-SQL statement per KPI: the values exported from Qlik, the same KPI computed on the migrated
+    tables at the same grain, and the comparison (qlik_value, new_value, difference, status). Requires script and
+    kpis. Runs nothing and reads nothing in Fabric; with results (the rows a statement returned) it fills the
+    comparison in. A KPI no rule covers gets no SQL and the reason; a difference is listed as open, never explained by
+    guess. Returns JSON with kg_card. No AI model. Errors: {error, kind, hint}."""
+    return _bounded(_q.reconcile_answer(script, kpis, schema, tolerance, results, tables, confirmed), MAX_RESULT_CHARS)
 
 
 MAX_BODY_BYTES = 4 * 1024 * 1024      # an MCP message is a few kilobytes; nothing here needs more than this
@@ -3823,9 +4413,9 @@ def build_app(host: str = "0.0.0.0"):
         return JSONResponse({"status": "ok"}, headers={"Cache-Control": "no-store"})
     app.router.routes.append(Route("/health", health_public, methods=["GET", "HEAD"]))
 
-    async def metrics(request):
-        """Usage totals (usage.py) in the Prometheus text format. Off unless KRUSGRAPH_METRICS_TOKEN is set (32
-        characters or more); then only for a request carrying it as a bearer token. Otherwise this path is a 404."""
+    def operator_refusal(request) -> Response | None:
+        """The operator's views (/metrics, n240: /admin/campaigns): off unless KRUSGRAPH_METRICS_TOKEN is set (32
+        characters or more), then only for a request carrying it as a bearer token. None when the request may pass."""
         import hmac
         expected = os.environ.get("KRUSGRAPH_METRICS_TOKEN", "").strip()
         if len(expected) < 32:
@@ -3834,8 +4424,54 @@ def build_app(host: str = "0.0.0.0"):
         given = a[7:].strip() if a.lower().startswith("bearer ") else ""
         if not given or not hmac.compare_digest(given.encode(), expected.encode()):
             return PlainTextResponse("unauthorized", status_code=401, headers={"Cache-Control": "no-store"})
-        return PlainTextResponse(_usage.usage.prometheus(), media_type="text/plain; version=0.0.4", headers={"Cache-Control": "no-store"})
-    app.router.routes.append(Route("/metrics", metrics))
+        return None
+
+    async def metrics(request):
+        """UM1: the operator's usage page (usage_metrics.py): the last 7 and 30 days as HTML for a browser, or JSON with
+        ?format=json; usage.py's totals in the Prometheus text format for anything else (or ?format=prometheus). The
+        token as a bearer token, or (a browser, which cannot send one from the address bar) typed into the form, which
+        POSTs it in the body, never in the address. 404 without the token setting, 401 for a wrong token."""
+        from starlette.responses import HTMLResponse
+        from urllib.parse import parse_qs
+        import hmac
+        fmt = request.query_params.get("format", "")
+        browser = "text/html" in request.headers.get("accept", "")
+        nostore = {"Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow"}
+        page_headers = {**nostore, "Content-Security-Policy": _usage_metrics.PAGE_CSP, "Referrer-Policy": "no-referrer",
+                        "X-Frame-Options": "DENY"}
+        if request.method == "POST":
+            expected = os.environ.get("KRUSGRAPH_METRICS_TOKEN", "").strip()
+            if len(expected) < 32:
+                return PlainTextResponse("not found", status_code=404)
+            body = await request.body()
+            form = parse_qs(body[:4096].decode("utf-8", "replace")) if len(body) <= 4096 else {}
+            given = (form.get("token") or [""])[0].strip()
+            if not given or not hmac.compare_digest(given.encode(), expected.encode()):
+                return HTMLResponse(_usage_metrics.login_html(wrong=True), status_code=401, headers=page_headers)
+            fmt = (form.get("format") or [fmt])[0]
+        else:
+            refused = operator_refusal(request)
+            if refused is not None:
+                if refused.status_code == 401 and browser and not fmt:
+                    return HTMLResponse(_usage_metrics.login_html(), status_code=401, headers=page_headers)
+                return refused
+        if fmt == "prometheus" or (not fmt and not browser and request.method == "GET"):
+            return PlainTextResponse(_usage.usage.prometheus(), media_type="text/plain; version=0.0.4", headers=nostore)
+        from starlette.concurrency import run_in_threadpool
+        rep = await run_in_threadpool(_usage_metrics.report, _usage_metrics.counts)
+        if fmt == "json":
+            return JSONResponse(rep, headers=nostore)
+        return HTMLResponse(_usage_metrics.report_html(rep), headers=page_headers)
+    app.router.routes.append(Route("/metrics", metrics, methods=["GET", "POST"]))
+
+    # n240: /check's visits and checks per UTC day and utm_source/medium/campaign (usage.Campaigns), read-only, JSON,
+    # behind the same token as /metrics. Counts only: no cookie, IP address or identifier is behind any of them.
+    async def admin_campaigns(request):
+        refused = operator_refusal(request)
+        if refused is not None:
+            return refused
+        return JSONResponse(_usage.campaigns.report(), headers={"Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow"})
+    app.router.routes.append(Route("/admin/campaigns", admin_campaigns))
 
     from starlette.responses import FileResponse, HTMLResponse
     from .pages import (PAGES, STATIC_TYPES, THEME_HASH, docs_html, docs_md, lovable_html, lovable_md, local_html, local_md, not_found_html, privacy_html,
@@ -3888,7 +4524,8 @@ def build_app(host: str = "0.0.0.0"):
             headers = {"Cache-Control": PAGE_CACHE, **(check_headers(request) if path == "/check" else home_headers(request) if path == "/" else PAGE_HEADERS)}
             if path == "/mascots":
                 headers["X-Robots-Tag"] = "noindex, nofollow"
-            _usage.page_view(path)                    # one line for /, /check, /explore, /start, /partners; nothing else
+            # one line for /, /check, /start, /partners; nothing else (n240: on /check, with the address's cleaned utm values)
+            _usage.page_view(path, _usage.utm_of(request.query_params) if path == "/check" else None)
             body = fn()
             if "connect-src 'none'" in headers["Content-Security-Policy"]:
                 body = strip_chat(body)               # n93: no chat button where the chat could not fetch its plan (n154: unless the page carries it)
@@ -4037,9 +4674,11 @@ def build_app(host: str = "0.0.0.0"):
         return compressed(request, p.read_bytes(), STATIC_TYPES[".js"], headers)
     app.router.routes.append(Route("/check/worker.js", check_worker))
 
-    # /check's two events, loaded as an image (the page itself may fetch nothing): the step is the whole request
+    # /check's two events, loaded as an image (the page itself may fetch nothing): the step, and (n240) the kind of check
+    # (sample or real), whether it is the page load's first, and the page address's utm values; nothing else is read
     async def check_event(request):
-        _usage.check_event(request.query_params.get("e", ""))
+        q = request.query_params
+        _usage.check_event(q.get("e", ""), kind=q.get("k"), first=q.get("n") == "1", utm=_usage.utm_of(q))
         return Response(status_code=204, headers={"Cache-Control": "no-store"})
     app.router.routes.append(Route("/check/event", check_event))
 
@@ -4107,7 +4746,7 @@ def build_app(host: str = "0.0.0.0"):
     from . import workload_host
 
     if not cfg:
-        return _with_security_headers(workload_host.wrap(app))
+        return _with_security_headers(_usage_metrics.asgi(workload_host.wrap(app)))
 
     from .entra import protected_resource_metadata, challenge, TokenError
 
@@ -4156,7 +4795,7 @@ def build_app(host: str = "0.0.0.0"):
             return await resp(scope, receive, send)
         return await inner(scope, receive, send)
 
-    return _with_security_headers(workload_host.wrap(guarded))
+    return _with_security_headers(_usage_metrics.asgi(workload_host.wrap(guarded)))   # UM1: sessions and workload routes counted
 
 
 def main() -> None:

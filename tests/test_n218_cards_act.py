@@ -86,8 +86,9 @@ def test_the_text_answer_leads_with_the_result_and_lists_the_same_next_steps(fab
         assert first and "Next steps:" in rest
         user, _, model = lead.partition("For the assistant, not for the user:")
         for s in d["next"]:                               # n227: numbered, in plain words; the call is in the model's paragraph
-            assert re.search(rf"\n\d\. {re.escape(s['label'])}\n", user) and s["tool"] not in user, (tool, s)
-            assert f"= {s['tool']}" in model, (tool, s)
+            # WB13 (#91): a step may be a sentence for the chat (no tool), e.g. Decide the open links on the start card
+            assert re.search(rf"\n\d\. {re.escape(s['label'])}\n", user) and (not s.get("tool") or s["tool"] not in user), (tool, s)
+            assert not s.get("tool") or f"= {s['tool']}" in model, (tool, s)
         assert re.search(r"\nReply 1(, \d)* or \d\.", user), (tool, user)
         assert 2 <= len(d["next"]) <= 4
     v = _sc("validate_plan", **SRC)[0].content[0].text
@@ -169,7 +170,7 @@ def test_a_next_step_button_sends_its_tool_and_arguments(tmp_path, fabric, card,
     args = {**SRC, "validate": True} if tool == "review_plan" else SRC
     r, d = _sc(tool, **args)
     html = {"validate": mcp_apps.card_html, "build": build.card_html, "review": mcp_apps_review.card_html}[card]()
-    step = d["next"][0]
+    step = next(s for s in d["next"] if s.get("tool"))                 # WB13: the first step that runs a tool
     out = _browse(tmp_path, html, {"args": args, "result": _result(r), "caps": {"serverTools": {}},
                                    "clicks": [{"css": f'.nx-b[data-tool="{step["tool"]}"]'}]})
     assert _calls(out) == [{"name": step["tool"], "arguments": step["arguments"]}]
@@ -177,7 +178,7 @@ def test_a_next_step_button_sends_its_tool_and_arguments(tmp_path, fabric, card,
     for s in d["next"]:
         assert s["label"] in out["text"]
     shown = out["text"].split("Show details")[0]
-    assert not any(s["tool"] in shown for s in d["next"])                            # n227: no button names a tool
+    assert not any(s.get("tool") and s["tool"] in shown for s in d["next"])        # n227: no button names a tool
 
 
 @needs_browser
@@ -206,7 +207,8 @@ def test_the_check_card_shows_states_and_the_sql_on_request(tmp_path, fabric):
     args = {**SRC, "keys": {"order_items": ["order_id"]}}
     r, d = _sc("validate_plan", **args)
     out = _browse(tmp_path, mcp_apps.card_html(), {"args": args, "result": _result(r), "caps": {"serverTools": {}},
-                                                   "clicks": [{"text": "Show the SQL that counts it"}], "scheme": "dark"})
+                                                   "clicks": [{"css": "details.ck-details > summary"},   # CO1: under Details
+                                                              {"text": "Show the SQL that counts it"}], "scheme": "dark"})
     n = d["checks"]["counts"]
     assert out["pills"] == [[x["id"], x["state"].replace("_", " ")] for x in d["checks"]["rows"]]
     assert ["key:order_items", "failed"] in out["pills"]

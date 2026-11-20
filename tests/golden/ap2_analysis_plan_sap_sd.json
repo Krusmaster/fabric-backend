@@ -1,0 +1,633 @@
+{
+ "area": "o2c",
+ "document_types": {
+  "credit_billing_types": [
+   "G2",
+   "RE"
+  ],
+  "return_order_types": [
+   "RE"
+  ]
+ },
+ "land_next": [
+  {
+   "land": "customer open and cleared items: BSID + BSAD (ECC) or ACDOCA customer lines (S/4HANA)",
+   "unlocks": [
+    "A2",
+    "A9"
+   ],
+   "value": 9
+  },
+  {
+   "land": "a cost per billing item: VBRP.WAVWR, a cost condition in KONV/PRCD_ELEMENTS, or ACDOCA cost-of-goods lines",
+   "unlocks": [
+    "A1"
+   ],
+   "value": 5
+  },
+  {
+   "land": "a requested date (VBEP.EDATU or VBAK.VDATU) and the actual goods issue date (LIKP.WADAT_IST), with LIPS linked to VBAP",
+   "unlocks": [
+    "A5"
+   ],
+   "value": 4
+  },
+  {
+   "land": "document conditions: KONV (ECC) or PRCD_ELEMENTS (S/4HANA), with KSCHL and KWERT",
+   "unlocks": [
+    "A6"
+   ],
+   "value": 4
+  }
+ ],
+ "notes": [
+  "Deterministic rules over the plan's metadata (SAP pack tables, keys, relationships) and counts of the rows (never a value): no AI, no model, no LLM. Same input, same answer.",
+  "value (1 to 5) is Krusgraph's own judgement of how much money or risk the answer usually touches; it is not measured. Pass weights to use your own.",
+  "Counts only: no row value left the database; the analyses themselves run later, in a notebook on Fabric Data Science that the analyst starts. Krusgraph complements Fabric Data Science; it does not run models.",
+  "The thresholds are starting points to be validated by a data scientist."
+ ],
+ "recommendations": [
+  {
+   "analysis": "A7",
+   "because": "Recommended because: VBRP.NETWR is the amount to forecast (SAP pack: VBRP); VBRK.ERDAT is the date (24 calendar months of billing documents with rows, no gap between the first and the last; profile)",
+   "caveats": [
+    "per material: 0 of 149 materials sold in 18 or more months: forecast the total or product groups, or use a method for intermittent demand"
+   ],
+   "fabric": [
+    "AutoML (FLAML) forecasting",
+    "ML experiment (MLflow)",
+    "PREDICT"
+   ],
+   "missing": [],
+   "name": "Demand and revenue forecasting",
+   "next_step": "analysis_notebook_draft(analysis=\"A7\"): a notebook wired to these tables (dry run; nothing is created or run)",
+   "parts": {
+    "currency": 1.0,
+    "gaps": 1.0,
+    "months": 1.0
+   },
+   "quality": 1.0,
+   "readiness": "ready",
+   "readiness_value": 1.0,
+   "reasons": [
+    "VBRP.NETWR is the amount to forecast (SAP pack: VBRP)",
+    "VBRK.ERDAT is the date (24 calendar months of billing documents with rows, no gap between the first and the last; profile)"
+   ],
+   "rule": "R1",
+   "score": 4.0,
+   "uses": {
+    "columns": [
+     "VBRK.ERDAT",
+     "VBRP.NETWR"
+    ],
+    "tables": [
+     "VBRK",
+     "VBRP"
+    ]
+   },
+   "value": 4
+  },
+  {
+   "analysis": "A8",
+   "because": "Recommended because: VBRK.KUNRG -> KNA1 is the customer (plan, rule SAP pack), VBRK.ERDAT the date and VBRP.NETWR the amount: R, F and M can be derived; 108 customers with documents, 78.7 % of them with 2 or more (profile)",
+   "caveats": [
+    "108 customers (target 200): quintiles will be thin; consider fixed thresholds",
+    "clustering not offered: fewer than 200 customers",
+    "capped at partial: customers below 0.5"
+   ],
+   "fabric": [
+    "Notebook (scikit-learn k-means)",
+    "ML experiment (MLflow)",
+    "Data Wrangler"
+   ],
+   "missing": [],
+   "name": "RFM segmentation (and clustering)",
+   "next_step": "analysis_notebook_draft(analysis=\"A8\"): a notebook wired to these tables (dry run; nothing is created or run)",
+   "parts": {
+    "customers": 0.387,
+    "months": 1.0,
+    "repeat_share": 1.0
+   },
+   "quality": 1.0,
+   "readiness": "partial",
+   "readiness_value": 0.796,
+   "reasons": [
+    "VBRK.KUNRG -> KNA1 is the customer (plan, rule SAP pack), VBRK.ERDAT the date and VBRP.NETWR the amount: R, F and M can be derived",
+    "108 customers with documents, 78.7 % of them with 2 or more (profile)"
+   ],
+   "rule": "R2",
+   "score": 3.18,
+   "uses": {
+    "columns": [
+     "VBRK.KUNRG",
+     "VBRK.ERDAT",
+     "VBRP.NETWR"
+    ],
+    "tables": [
+     "VBRK",
+     "VBRP",
+     "KNA1"
+    ]
+   },
+   "value": 4
+  },
+  {
+   "analysis": "A3",
+   "because": "Recommended because: VBRP.MATNR -> MARA is the material (plan, rule SAP pack); VBRP.NETWR gives the value for ABC and VBRP.FKIMG the demand for XYZ; 149 materials sold (profile)",
+   "caveats": [
+    "XYZ part not ready: 59 of 149 materials sold in 6 or more months, 24 months of history (XYZ needs a monthly series per material); ABC only"
+   ],
+   "fabric": [
+    "Notebook",
+    "Data Wrangler",
+    "ML experiment (MLflow)"
+   ],
+   "missing": [],
+   "name": "ABC / XYZ classification",
+   "next_step": "analysis_notebook_draft(analysis=\"A3\"): a notebook wired to these tables (dry run; nothing is created or run)",
+   "parts": {
+    "materials": 1.0
+   },
+   "quality": 1.0,
+   "readiness": "ready",
+   "readiness_value": 1.0,
+   "reasons": [
+    "VBRP.MATNR -> MARA is the material (plan, rule SAP pack); VBRP.NETWR gives the value for ABC and VBRP.FKIMG the demand for XYZ",
+    "149 materials sold (profile)"
+   ],
+   "rule": "R4",
+   "score": 3.0,
+   "uses": {
+    "columns": [
+     "VBRP.MATNR",
+     "VBRP.NETWR",
+     "VBRP.FKIMG",
+     "VBRK.ERDAT"
+    ],
+    "tables": [
+     "VBRP",
+     "VBRK",
+     "MARA"
+    ]
+   },
+   "value": 3
+  },
+  {
+   "analysis": "A4",
+   "because": "Recommended because: first-document month derivable for 108 customers, in 22 different months",
+   "caveats": [
+    "a churn model is not offered: 24 customers count as churned by the example definition (3 or more documents, none in the last 6 months), below 50; cohort tables only"
+   ],
+   "fabric": [
+    "Notebook",
+    "AutoML (FLAML) classification",
+    "ML experiment (MLflow)",
+    "PREDICT"
+   ],
+   "missing": [],
+   "name": "Customer cohorts and churn",
+   "next_step": "notebook planned for phase 2; the rule already says the data is there",
+   "parts": {
+    "first_months": 1.0,
+    "months": 1.0
+   },
+   "quality": 1.0,
+   "readiness": "ready",
+   "readiness_value": 1.0,
+   "reasons": [
+    "first-document month derivable for 108 customers, in 22 different months"
+   ],
+   "rule": "R3",
+   "score": 3.0,
+   "uses": {
+    "columns": [
+     "VBRK.KUNRG",
+     "VBRK.ERDAT"
+    ],
+    "tables": [
+     "VBRK"
+    ]
+   },
+   "value": 3
+  },
+  {
+   "analysis": "A1",
+   "because": "Not recommended yet because: a cost: VBRP.WAVWR, a cost condition in KONV/PRCD_ELEMENTS, or ACDOCA cost-of-goods lines",
+   "caveats": [
+    "offered instead: revenue concentration by customer and material (no cost needed)"
+   ],
+   "fabric": [
+    "Notebook",
+    "Semantic link (SemPy)",
+    "ML experiment (MLflow)"
+   ],
+   "missing": [
+    "a cost: VBRP.WAVWR, a cost condition in KONV/PRCD_ELEMENTS, or ACDOCA cost-of-goods lines"
+   ],
+   "name": "Margin by customer and product",
+   "next_step": "land: a cost per billing item: VBRP.WAVWR, a cost condition in KONV/PRCD_ELEMENTS, or ACDOCA cost-of-goods lines",
+   "parts": {},
+   "quality": 1.0,
+   "readiness": "missing",
+   "readiness_value": 0.0,
+   "reasons": [],
+   "rule": "R8",
+   "score": 0.0,
+   "uses": {
+    "columns": [],
+    "tables": []
+   },
+   "value": 5
+  },
+  {
+   "analysis": "A2",
+   "because": "Not recommended yet because: customer open and cleared items: BSID/BSAD (ECC) or ACDOCA customer lines (S/4HANA)",
+   "caveats": [],
+   "fabric": [
+    "Notebook",
+    "ML experiment (MLflow)"
+   ],
+   "missing": [
+    "customer open and cleared items: BSID/BSAD (ECC) or ACDOCA customer lines (S/4HANA)"
+   ],
+   "name": "DSO, payment behaviour and aging",
+   "next_step": "land: customer open and cleared items: BSID + BSAD (ECC) or ACDOCA customer lines (S/4HANA)",
+   "parts": {},
+   "quality": 1.0,
+   "readiness": "missing",
+   "readiness_value": 0.0,
+   "reasons": [],
+   "rule": "R6",
+   "score": 0.0,
+   "uses": {
+    "columns": [],
+    "tables": []
+   },
+   "value": 5
+  },
+  {
+   "analysis": "A5",
+   "because": "Not recommended yet because: a requested delivery date (VBEP.EDATU or VBAK.VDATU); the actual goods issue date (LIKP.WADAT_IST)",
+   "caveats": [
+    "offered instead: in-full only (delivered against ordered quantity) and lead time from creation dates, which is not OTIF"
+   ],
+   "fabric": [
+    "Notebook",
+    "Semantic link (SemPy)"
+   ],
+   "missing": [
+    "a requested delivery date (VBEP.EDATU or VBAK.VDATU)",
+    "the actual goods issue date (LIKP.WADAT_IST)"
+   ],
+   "name": "On-time-in-full delivery",
+   "next_step": "land: a requested date (VBEP.EDATU or VBAK.VDATU) and the actual goods issue date (LIKP.WADAT_IST), with LIPS linked to VBAP",
+   "parts": {},
+   "quality": 1.0,
+   "readiness": "missing",
+   "readiness_value": 0.0,
+   "reasons": [],
+   "rule": "R5",
+   "score": 0.0,
+   "uses": {
+    "columns": [],
+    "tables": [
+     "LIPS",
+     "VBAP"
+    ]
+   },
+   "value": 4
+  },
+  {
+   "analysis": "A6",
+   "because": "Not recommended yet because: document conditions: KONV (ECC) or PRCD_ELEMENTS (S/4HANA)",
+   "caveats": [
+    "offered instead: unit price dispersion (amount / quantity per material), a proxy, not a price waterfall; 144 of 149 materials are sold to 2 or more customers"
+   ],
+   "fabric": [
+    "Notebook",
+    "Data Wrangler"
+   ],
+   "missing": [
+    "document conditions: KONV (ECC) or PRCD_ELEMENTS (S/4HANA)"
+   ],
+   "name": "Price realisation and discount leakage",
+   "next_step": "land: document conditions: KONV (ECC) or PRCD_ELEMENTS (S/4HANA), with KSCHL and KWERT",
+   "parts": {},
+   "quality": 1.0,
+   "readiness": "missing",
+   "readiness_value": 0.0,
+   "reasons": [],
+   "rule": "R7",
+   "score": 0.0,
+   "uses": {
+    "columns": [],
+    "tables": []
+   },
+   "value": 4
+  },
+  {
+   "analysis": "A9",
+   "because": "Not recommended yet because: A2's payment history: BSID/BSAD or ACDOCA customer lines",
+   "caveats": [
+    "a warning list from payment behaviour, not a credit rating"
+   ],
+   "fabric": [
+    "AutoML (FLAML) classification",
+    "ML experiment (MLflow)",
+    "PREDICT"
+   ],
+   "missing": [
+    "A2's payment history: BSID/BSAD or ACDOCA customer lines"
+   ],
+   "name": "Credit risk early warning",
+   "next_step": "land: customer open and cleared items: BSID + BSAD (ECC) or ACDOCA customer lines (S/4HANA)",
+   "parts": {},
+   "quality": 1.0,
+   "readiness": "missing",
+   "readiness_value": 0.0,
+   "reasons": [],
+   "rule": "R9",
+   "score": 0.0,
+   "uses": {
+    "columns": [],
+    "tables": []
+   },
+   "value": 4
+  },
+  {
+   "analysis": "A10",
+   "because": "Not recommended yet because: no documents of the return or credit types G2, RE in VBRK.FKART: not applicable to this data (confirm the types with document_types)",
+   "caveats": [],
+   "fabric": [
+    "Notebook",
+    "Data Wrangler"
+   ],
+   "missing": [
+    "no documents of the return or credit types G2, RE in VBRK.FKART: not applicable to this data (confirm the types with document_types)"
+   ],
+   "name": "Returns and credit memos",
+   "next_step": "nothing to do on this data",
+   "not_applicable": true,
+   "parts": {},
+   "quality": 1.0,
+   "readiness": "missing",
+   "readiness_value": 0.0,
+   "reasons": [],
+   "rule": "R10",
+   "score": 0.0,
+   "uses": {
+    "columns": [
+     "VBRK.FKART"
+    ],
+    "tables": [
+     "VBRK"
+    ]
+   },
+   "value": 3
+  }
+ ],
+ "rule_version": "ap-o2c-1",
+ "signals": {
+  "counts": {
+   "billing": {
+    "joins": [
+     {
+      "columns": [
+       "MANDT",
+       "VBELN"
+      ],
+      "orphans": 0,
+      "rows_with_value": 823,
+      "source": "VBRP",
+      "target": "VBRK"
+     },
+     {
+      "columns": [
+       "MANDT",
+       "KUNRG"
+      ],
+      "orphans": 0,
+      "rows_with_value": 292,
+      "source": "VBRK",
+      "target": "KNA1"
+     },
+     {
+      "columns": [
+       "MANDT",
+       "MATNR"
+      ],
+      "orphans": 0,
+      "rows_with_value": 823,
+      "source": "VBRP",
+      "target": "MARA"
+     }
+    ],
+    "not_counted": [],
+    "per_customer": {
+     "churned": 24,
+     "customers": 108,
+     "first_months": 22,
+     "repeat_customers": 85
+    },
+    "per_material": {
+     "eighteen_months": 0,
+     "materials": 149,
+     "several_customers": 144,
+     "six_months": 59
+    },
+    "totals": {
+     "currencies": 1,
+     "customers": 108,
+     "documents": 292,
+     "materials": 149,
+     "months": 24,
+     "return_documents": 0,
+     "row_count": 823,
+     "span": 24
+    }
+   },
+   "orders": {
+    "joins": [
+     {
+      "columns": [
+       "MANDT",
+       "VBELN"
+      ],
+      "orphans": 3,
+      "rows_with_value": 844,
+      "source": "VBAP",
+      "target": "VBAK"
+     },
+     {
+      "columns": [
+       "MANDT",
+       "KUNNR"
+      ],
+      "orphans": 0,
+      "rows_with_value": 300,
+      "source": "VBAK",
+      "target": "KNA1"
+     },
+     {
+      "columns": [
+       "MANDT",
+       "MATNR"
+      ],
+      "orphans": 0,
+      "rows_with_value": 844,
+      "source": "VBAP",
+      "target": "MARA"
+     }
+    ],
+    "not_counted": [],
+    "per_customer": {
+     "churned": 23,
+     "customers": 108,
+     "first_months": 22,
+     "repeat_customers": 86
+    },
+    "per_material": {
+     "eighteen_months": 0,
+     "materials": 149,
+     "several_customers": 144,
+     "six_months": 63
+    },
+    "totals": {
+     "currencies": 1,
+     "customers": 108,
+     "documents": 300,
+     "materials": 149,
+     "months": 24,
+     "return_documents": 0,
+     "row_count": 841,
+     "span": 24
+    }
+   }
+  },
+  "dataset": {
+   "customer_link": true,
+   "field_columns": {
+    "amount": {
+     "column": "NETWR",
+     "table": "VBRP"
+    },
+    "currency": {
+     "column": "WAERK",
+     "table": "VBRK"
+    },
+    "customer": {
+     "column": "KUNRG",
+     "table": "VBRK"
+    },
+    "date": {
+     "column": "ERDAT",
+     "table": "VBRK"
+    },
+    "doc_type": {
+     "column": "FKART",
+     "table": "VBRK"
+    },
+    "material": {
+     "column": "MATNR",
+     "table": "VBRP"
+    },
+    "quantity": {
+     "column": "FKIMG",
+     "table": "VBRP"
+    }
+   },
+   "fields": {
+    "amount": "VBRP.NETWR",
+    "currency": "VBRK.WAERK",
+    "customer": "VBRK.KUNRG",
+    "date": "VBRK.ERDAT",
+    "doc_type": "VBRK.FKART",
+    "material": "VBRP.MATNR",
+    "quantity": "VBRP.FKIMG"
+   },
+   "header": "VBRK",
+   "item": "VBRP",
+   "join": {
+    "rule": "SAP pack",
+    "source_cols": [
+     "MANDT",
+     "VBELN"
+    ],
+    "target_cols": [
+     "MANDT",
+     "VBELN"
+    ]
+   },
+   "material_link": true,
+   "name": "billing"
+  },
+  "pack_tables": {
+   "KNA1": "KNA1",
+   "LIKP": "LIKP",
+   "LIPS": "LIPS",
+   "MAKT": "MAKT",
+   "MARA": "MARA",
+   "T001": "T001",
+   "VBAK": "VBAK",
+   "VBAP": "VBAP",
+   "VBRK": "VBRK",
+   "VBRP": "VBRP"
+  }
+ },
+ "summary": "3 of 10 analyses ready (A7, A3, A4), 1 partial, 6 missing; top: A7 Demand and revenue forecasting (ready, score 4.0)",
+ "thresholds": {
+  "churned_for_model": 50,
+  "cluster_customers": 200,
+  "cohort_first_months": [
+   3,
+   6
+  ],
+  "cohort_months": [
+   12,
+   24
+  ],
+  "customers": [
+   50,
+   200
+  ],
+  "materials": [
+   20,
+   100
+  ],
+  "months": [
+   12,
+   24
+  ],
+  "not_counted_readiness": 0.5,
+  "partial": 0.4,
+  "per_item_regular_months": 18,
+  "quality_factor": 0.8,
+  "ready": 0.8,
+  "repeat_share": [
+   0.3,
+   0.6
+  ],
+  "returns": [
+   10,
+   30
+  ],
+  "rfm_months": [
+   6,
+   12
+  ],
+  "weak_part": 0.5,
+  "xyz_months_per_item": 6
+ },
+ "values": {
+  "A1": 5,
+  "A10": 3,
+  "A2": 5,
+  "A3": 3,
+  "A4": 3,
+  "A5": 4,
+  "A6": 4,
+  "A7": 4,
+  "A8": 4,
+  "A9": 4
+ }
+}

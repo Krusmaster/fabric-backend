@@ -97,6 +97,14 @@ def _checked_basis(got: dict) -> str:
     return "accepted in the review"
 
 
+def _counted_unique(plan, table: str, key: list[str]) -> bool:
+    """LT1: the plan's own call counted this key (propose.py, plan.profile["key_counts"]): unique, no NULL, rows > 0, for
+    exactly these columns. Said in the texts; not a reason to remove rows (n208: new rows can share a guessed key)."""
+    c = ((getattr(plan, "profile", None) or {}).get("key_counts") or {}).get(table)
+    return bool(c and c.get("unique") and c.get("rows") and not c.get("nulls")
+                and [x.lower() for x in c.get("columns") or []] == [x.lower() for x in key])
+
+
 def not_deduplicated(s: dict) -> list[dict]:
     """n208: the tables of the spec that have a key silver does not remove rows on (a guess), with that key."""
     return [{"table": t["table"], "key": list(t["key"]), "rule": t["key_rule"]} for t in s["tables"]
@@ -109,8 +117,14 @@ def dedupe_note(s: dict) -> str:
     if not left:
         return ""
     names = ", ".join(f"{x['table']} ({' + '.join(x['key'])})" for x in left)
+    counted = {t["table"] for t in s["tables"] if t.get("key_counted_unique")}
+    n = sum(1 for x in left if x["table"] in counted)
+    # LT1: "not counted in the rows" was said of keys the same plan had just counted unique (the SAP pack's keys)
+    why = ("these keys were not declared, given or counted in the rows" if not n else
+           "these keys were not declared or given; the plan counted "
+           + ("them" if n == len(left) else f"{n} of them") + " unique in the rows today, which new rows can change")
     return (f"No duplicates were removed in {len(left)} table(s) because the key was not checked: {names}. Every row is kept; "
-            "these keys were not declared, given or counted in the rows. Give a key (keys=, or set it in the review) where rows that share it are true "
+            f"{why}. Give a key (keys=, or set it in the review) where rows that share it are true "
             "duplicates.")
 
 
@@ -206,12 +220,17 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", order_by: dict |
                            **({"rule_text": _rule_text(r.rule)} if label(r.rule) != r.rule else {}),
                            "parent_from": "silver" if (r.target in chosen and (order.index(r.target) < order.index(t) or r.target == t)) else
                                           ("source_cycle" if r.target in chosen else "source"),
-                           "note": r.note})
+                           "note": r.note, **_blank_rule(r)})
         dedupe = bool(key) and key_rule in CHECKED_KEY_RULES                 # n208: only a key the rows or a person stand behind
         got = _checked(plan, t, list(key)) if key and not dedupe else None   # n221: the editor's row check or the review
         dedupe = dedupe or got is not None
         basis = _checked_basis(got) if got else _key_basis(key_rule)
+        counted = bool(key) and not dedupe and _counted_unique(plan, t, list(key))
+        if counted:                                                          # LT1: say what the plan did count
+            basis = basis.replace(", not checked against the rows", "; counted unique in the rows when the plan was made, "
+                                  "not declared or given")
         out_tables.append({"table": t, "target": target(t), "key": list(key), "key_rule": label(key_rule) if key else "K3",
+                           **({"key_counted_unique": True} if counted else {}),
                            **({"key_rule_text": _rule_text(key_rule)} if key and label(key_rule) != key_rule else {}),
                            "dedupe": dedupe, **({"key_basis": basis} if key else {}),
                            **({"key_checked": {"how": got.get("how"), "on": checked_on(got.get("checked_at"))}} if got else {}),
@@ -325,12 +344,26 @@ def keep_latest(df, key, order_column, table, rule):
     return ranked.filter(F.col("_krusgraph_rank") == 1).drop("_krusgraph_rank")
 
 
-def check_reference(df, columns, parent_df, parent_columns, table, rule, reason):
-    """Rows whose reference (every column set) finds no row in the parent go to quarantine; a NULL reference stays."""
+def has_reference(columns, blank=(), initial=()):
+    """A row has a reference when every column is set. SAP writes "no partner" as its initial value: a blank ('' or
+    spaces) in a `blank` column, or zeros only in an `initial` column, is no reference, like NULL (AP2)."""
+    has_ref = None
+    for c in columns:
+        x = col(c).isNotNull()
+        if c in blank:
+            x = x & (F.trim(col(c).cast("string")) != "")
+        if c in initial:
+            x = x & ~F.trim(col(c).cast("string")).rlike("^0+$")
+        has_ref = x if has_ref is None else (has_ref & x)
+    return has_ref
+
+
+def check_reference(df, columns, parent_df, parent_columns, table, rule, reason, blank=(), initial=()):
+    """Rows whose reference (every column set) finds no row in the parent go to quarantine; a NULL reference stays, and
+    so does SAP's blank or initial value in the columns named (AP2)."""
     parent_keys = parent_df.select(*[col(c).alias(f"_krusgraph_p{{i}}") for i, c in enumerate(parent_columns)]).distinct()
-    has_ref, on = None, None
+    has_ref, on = has_reference(columns, blank, initial), None
     for i, c in enumerate(columns):
-        has_ref = col(c).isNotNull() if has_ref is None else (has_ref & col(c).isNotNull())
         match = col(c) == F.col(f"_krusgraph_p{{i}}")
         on = match if on is None else (on & match)
     with_ref = df.filter(has_ref)
@@ -424,15 +457,14 @@ def keep_one_per_key(df, key, winner, table, rule):
     return ranked.filter(F.col("_krusgraph_rank") == 1).drop("_krusgraph_rank")
 
 
-def resolve_reference(df, columns, parent_df, parent_columns, table, rule, reason, choice):
+def resolve_reference(df, columns, parent_df, parent_columns, table, rule, reason, choice, blank=(), initial=()):
     """ORPHANS: "quarantine" is check_reference; "set_null" keeps a row whose reference finds no row in the parent, with
     the reference set to NULL, and puts a copy of the original row in quarantine so the value is not lost."""
     if choice == "quarantine":
-        return check_reference(df, columns, parent_df, parent_columns, table, rule, reason)
+        return check_reference(df, columns, parent_df, parent_columns, table, rule, reason, blank, initial)
     parent_keys = parent_df.select(*[col(c).alias(f"_krusgraph_p{{i}}") for i, c in enumerate(parent_columns)]).distinct()
-    has_ref, on = None, None
+    has_ref, on = has_reference(columns, blank, initial), None
     for i, c in enumerate(columns):
-        has_ref = col(c).isNotNull() if has_ref is None else (has_ref & col(c).isNotNull())
         match = col(c) == F.col(f"_krusgraph_p{{i}}")
         on = match if on is None else (on & match)
     with_ref = df.filter(has_ref)
@@ -576,11 +608,26 @@ def _key_comment(t: dict) -> list[str]:
     return lines
 
 
+def _blank_rule(r) -> dict:
+    """AP2: for a SAP pack relationship, the columns whose blank is SAP's initial value ("no partner for this row", e.g.
+    VBPA.KUNNR of a contact-person row) and, where the pack marks the relationship optional, the columns whose zeros only
+    mean the same. Such a row has no reference: it stays in silver, as a NULL reference does, like validate_plan counts it."""
+    if r.rule != "SAP pack":
+        return {}
+    from .sap_pack import blank_columns, initial_columns
+    out = {"blank": blank_columns(list(r.source_cols))}
+    initial = initial_columns(r.source, list(r.source_cols), r.target)
+    return {**out, "initial": initial} if initial else out
+
+
 def _ref_call(c: dict, parent: str, name: str, reason: str) -> str:
     args = f"{_py(c['columns'])}, {parent}, {_py(c['parent_columns'])}, {_py(name)}, {_py(c['rule'])}, {_py(reason)}"
+    kw = ""
+    if c.get("blank"):                                                   # AP2: SAP's blank (and zeros) is no reference
+        kw = f", blank={_py(c['blank'])}" + (f", initial={_py(c['initial'])}" if c.get("initial") else "")
     if c.get("fix_id"):                                                  # n115: the orphans' choice, made in ORPHANS
-        return f"resolve_reference(df, {args}, ORPHANS[{_py(c['fix_id'])}])"
-    return f"check_reference(df, {args})"
+        return f"resolve_reference(df, {args}, ORPHANS[{_py(c['fix_id'])}]{kw})"
+    return f"check_reference(df, {args}{kw})"
 
 
 def _table_cell(t: dict) -> str:
@@ -920,6 +967,17 @@ def _keep_one_per_key(rows, key, winner, columns, name, rule, quarantine) -> lis
     return kept
 
 
+def _no_reference(row: dict, check: dict) -> bool:
+    """The notebook's has_reference, negated, on a row in memory: a NULL, or SAP's blank or initial value (AP2)."""
+    for x in check["columns"]:
+        v = row.get(x)
+        if v is None or (x in check.get("blank", ()) and str(v).strip() == ""):
+            return True
+        if x in check.get("initial", ()) and str(v).strip() and not str(v).strip().strip("0"):
+            return True
+    return False
+
+
 def simulate(s: dict, data: dict[str, list[dict]], given: dict | None = None) -> dict:
     """Run the notebook's steps on rows in memory: {"silver": {table: rows}, "quarantine": [{source_table, rule, reason,
     row}]}. Ties without an ordering column are broken by a content hash like the notebook's, but not the same hash
@@ -973,7 +1031,7 @@ def simulate(s: dict, data: dict[str, list[dict]], given: dict | None = None) ->
                 keep, dropped = [], 0
                 for r in rows:
                     ref = tuple(r.get(x) for x in c["columns"])
-                    if any(v is None for v in ref) or ref in keys:
+                    if _no_reference(r, c) or ref in keys:
                         keep.append(r)
                     elif set_null:                                   # n115: kept with the reference NULL, a copy in quarantine
                         dropped += 1

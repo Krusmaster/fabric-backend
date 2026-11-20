@@ -1,0 +1,14 @@
+// Test fixture of Krusgraph, copied from github.com/qlik-oss/core-data-loading at commit 0b79c835e30af66f06590b93e5dfa4d4d8bc1ff5, file scripts/split-field.qvs. Licence: MIT, see LICENSE-core-data-loading.txt in this folder. This line was added; other changes are listed in ../SOURCES.md.
+// This load script shows how a field from the input data can be split into
+// several fields, in this case using the subfield function. The input field
+// 'Code' is split into three parts, outputting the 'LetterCode',
+// 'NumericCode', and 'HexCode' fields in the 'Locations' table.
+// The 'State' field from the input is also renamed to 'Location'.
+
+Locations:
+    LOAD   
+        SubField(Code, '-', 1) as LetterCode,
+        SubField(Code, '-', 2) as NumericCode,
+        SubField(Code, '-', 3) as HexCode,
+        State AS Location
+    FROM [lib://data/location-codes.csv];

@@ -65,6 +65,12 @@ export interface RibbonAction {
    * Whether to show a divider after this action
    */
   showDividerAfter?: boolean;
+
+  /**
+   * Krusgraph (W13): show the label next to the icon (a subtle button with text, as Fabric's own ribbons do); Save
+   * stays icon only (Learn, publishing requirements for items, 3.4)
+   */
+  showLabel?: boolean;
   
   /**
    * Whether this action should be hidden
@@ -202,6 +208,7 @@ export const RibbonToolbar: React.FC<RibbonToolbarProps> = ({
               testId={action.testId}
               appearance={action.appearance}
               ariaLabel={action.ariaLabel}
+              showLabel={action.showLabel}
             />
           )}
           

@@ -166,9 +166,14 @@ export function summary(rows: ProductRow[]): string {
 }
 
 /** The pipeline's last run, from outputs.json's pipeline_jobs (n185/n197 job polling). */
+/** WB10 (Gustav's live test, 18 Nov 2026, #62): said when this data product has no pipeline at all. */
+export const NO_PIPELINE = "No pipeline built for this data product. The Data Factory card under Next steps builds one (a dry run first).";
+
 export function lastRunWords(outputs: OutputsDefinition): string {
   const runs = outputs.pipeline_jobs?.runs ?? [];
   const r = runs[runs.length - 1];
+  const hasPipeline = (outputs.created ?? []).some((c) => c.output === "pipeline" || c.type === "DataPipeline");
+  if (!r && !hasPipeline) return NO_PIPELINE;
   if (!r) return "Last pipeline run: none recorded. Run once on the pipeline, or its schedule, starts one.";
   const st = r.status === "Succeeded" ? "succeeded" : r.status === "Failed" ? "failed" : r.status === "Running" ? "still running when last read"
     : r.status === "NotStarted" ? "did not start" : `status ${r.status}`;

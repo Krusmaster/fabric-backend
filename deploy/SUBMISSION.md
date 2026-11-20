@@ -67,10 +67,10 @@ regardless. After the listing: turn security defaults back on or disable the rev
 
 **1 Connection** — `https://krusgraph.com/mcp`, one URL for every user.
 
-**2 Tools** — read from the server's code: 41 tools, 31 read-only, 10 write (`create_backend`, `create_views`,
+**2 Tools** — read from the server's code: 48 tools, 37 read-only, 11 write (`create_backend`, `create_views`,
 `create_semantic_model`, `create_data_agent`, `create_ontology`, `create_silver_notebook`, `create_gold_views`,
-`create_drift_monitor`, `create_report`, `create_pipeline`: destructive, idempotent, never delete; all dry-run by default). New since
-the earlier submission (22 tools, 18 read-only, 4 write) include `sap_pack_draft` and `domain_draft` (in main, not yet deployed). `tests/test_submission.py` keeps
+`create_drift_monitor`, `create_report`, `create_pipeline`, `publish_catalog`: destructive, idempotent, never delete; all dry-run by default). New since
+the earlier submission (22 tools, 18 read-only, 4 write) include `sap_pack_draft` and `domain_draft`, and the three Qlik drafts `qlik_plan`, `qlik_measures_draft` and `qlik_reconcile_draft` (in main, not yet deployed), and the analysis pack's `analysis_plan` and `analysis_notebook_draft` (round AP2). `tests/test_submission.py` keeps
 these numbers and names equal to `server.mcp.list_tools()`.
 
 **3 Listing** — Name *Krusgraph for Microsoft Fabric* · slug `krusgraph` (permanent) · categories Data & Analytics,

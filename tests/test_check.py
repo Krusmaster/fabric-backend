@@ -138,7 +138,7 @@ def test_xlsx_and_columns_list():
 def test_engine_zip_is_the_package_python_only():
     names = zipfile.ZipFile(io.BytesIO(bc.engine_zip())).namelist()
     assert "fabric_backend/infer.py" in names and "fabric_backend/schema.py" in names and "fabric_backend/browser_check.py" in names
-    assert not [n for n in names if "/static/" in n or "/page_templates/" in n or not n.endswith((".py", ".json"))]
+    assert not [n for n in names if "/static/" in n or "/page_templates/" in n or not n.endswith((".py", ".json", ".include"))]
     assert zipfile.ZipFile(io.BytesIO(bc.engine_zip())).read("fabric_backend/infer.py") == (ROOT / "fabric_backend/infer.py").read_bytes()
 
 

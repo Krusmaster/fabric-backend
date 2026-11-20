@@ -71,7 +71,8 @@ def card_html() -> str:
     from . import mcp_apps_pictures as pictures              # n170: the map above the column diagram
     pic = pictures.html_parts()
     from . import mcp_apps_next as nxt                       # n218: next steps, Accept / Reject and Re-plan
-    return (_HTML.replace("__ALLOWED__", allowed).replace("__PROTOCOL__", mcp_apps.PROTOCOL_VERSION).replace("__PICTURES__", pic["section"])
+    from .mcp_apps_size import SIZE_JS                   # WB13 (#89)
+    return (_HTML.replace("__SIZE_JS__", SIZE_JS).replace("__ALLOWED__", allowed).replace("__PROTOCOL__", mcp_apps.PROTOCOL_VERSION).replace("__PICTURES__", pic["section"])
             .replace("__SVGNS__", SVG_NS).replace("__DECISIONS__", json.dumps(list(DECISIONS)))
             .replace("__UNDECIDED__", json.dumps(list(UNDECIDED)))
             .replace("__MASCOT_CSS__", mascots.CSS).replace("__RESULT_CSS__", mcp_apps.RESULT_CSS).replace("__MASCOT_TOGGLE__", mascots.TOGGLE)
@@ -419,6 +420,7 @@ button:disabled { cursor: default; opacity: .6 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important } }
 __MASCOT_CSS__
 __RESULT_CSS__
+details.kg-fold > summary { cursor: pointer; color: var(--kg-muted); font-size: 13.5px }
 __PICTURE_CSS__
 </style>
 </head>
@@ -426,15 +428,19 @@ __PICTURE_CSS__
 <main>
   <div class="kg-head"><h1>Plan review</h1>__MASCOT_TOGGLE__</div>
   <p id="verdict" class="muted" role="status">Reading the review…</p>
+  <section id="nextsteps" hidden></section>
   __MASCOTS__
   <section id="attention" hidden><h2>Needs attention</h2><ul id="attention-list"></ul></section>
   __PICTURES__
+  <details id="er-fold" class="kg-fold" open><summary>The column diagram</summary>
   <section id="er" hidden><h2>Tables and relationships</h2><div id="diagram"></div>
     <p class="muted">Arrows point from the referencing table to the table it refers to; the label is the rule and, when checked, the counts.</p></section>
+  </details>
+  <details id="list-fold" class="kg-fold" open><summary id="list-sum">Every key and link</summary>
   <section id="list" hidden><h2>Keys and relationships</h2><div id="items" class="items"></div>
     <div class="replan"><button type="button" id="replan" disabled>Re-plan with my decisions</button>
       <span id="staged" class="muted">Accept or reject keys and links above, then re-plan.</span></div></section>
-  <section id="nextsteps" hidden></section>
+  </details>
   <section id="next" hidden><h2>Next steps</h2><p id="note"></p></section>
   <p id="call" class="muted" role="status" hidden></p>
   <div id="call-result" hidden></div>
@@ -629,6 +635,12 @@ __LAYOUT_JS__
       box.appendChild(row);
     });
     document.getElementById("list").hidden = !box.children.length;
+    // WB13 (#93): a big schema's column diagram and its list of every key and link are folded on the card: the small
+    // map, what needs attention and the next step come first; each opens with a click
+    var big = Object.keys(rv.snapshot.tables).length > 8;
+    document.getElementById("er-fold").open = !big; document.getElementById("list-fold").open = !big;
+    document.getElementById("list-sum").textContent = big ? "Show every key and link (" + box.children.length + ")" : "Every key and link";
+    document.querySelector("#er-fold > summary").textContent = big ? "Show the column diagram" : "The column diagram";
     staged = {}; showStaged();
     var ns = document.getElementById("nextsteps"); ns.textContent = ""; ns.hidden = !renderNext(data, ns);   // n218
 
@@ -728,15 +740,11 @@ __LAYOUT_JS__
     else if (m.method === "ping" && m.id != null) send({ jsonrpc: "2.0", id: m.id, result: {} });
   });
 
-  var last = 0, lastWidth = 0;
-  function reportSize() {
-    var h = Math.ceil(document.documentElement.scrollHeight), w = Math.ceil(document.documentElement.scrollWidth);
-    if (h !== last) { last = h; notify("ui/notifications/size-changed", { width: w, height: h }); }
-  }
+__SIZE_JS__
+  var lastWidth = 0;
   function onResize() {
     var w = document.getElementById("diagram").clientWidth;
     if (answer && Math.abs(w - lastWidth) > 4) { lastWidth = w; drawDiagram(answer.review, findingsOf(answer.review)); }
-    reportSize();
   }
   request("ui/initialize", {
     appInfo: { name: "Krusgraph plan review", version: "1" },
@@ -745,8 +753,7 @@ __LAYOUT_JS__
   }).then(function (r) {
     hostStarted(r);
     notify("ui/notifications/initialized");
-    reportSize();
-    if (window.ResizeObserver) new ResizeObserver(onResize).observe(document.body);
+    watchSize(onResize);
   }, function () { document.getElementById("verdict").textContent = "The host did not start the card; the answer is in the text of the tool result."; });
 })();
 </script>

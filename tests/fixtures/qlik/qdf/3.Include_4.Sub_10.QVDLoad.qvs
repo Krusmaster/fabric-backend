@@ -1,0 +1,2 @@
+// Test fixture of Krusgraph, copied from github.com/QlikDeploymentFramework/Qlik-Deployment-Framework at commit 0e0adaaffc26fa79087b6867e80fa3aa70cf91a7, file 3.Include/4.Sub/10.QVDLoad.qvs. Licence: MIT, see LICENSE-Qlik-Deployment-Framework.txt in this folder. This line was added; other changes are listed in ../SOURCES.md.
+// Function merged together with 9.QVDmigration.qvs

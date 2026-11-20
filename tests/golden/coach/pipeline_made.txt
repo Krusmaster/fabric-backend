@@ -1,0 +1,4 @@
+Coach (step 5 of 8: Build silver and gold)
+Say in one or two short sentences, in plain words: Done: it is created in Fabric. Next comes the semantic model.
+Offer one next step: Create the semantic model (dry run first) = create_semantic_model(workspace="demo", source="demo_lh", schema="sap_silver", name="sap_silver_model", dry_run=true).
+No rule codes, key strings or file text unless the user asks; end with the one next step.

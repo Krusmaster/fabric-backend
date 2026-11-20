@@ -1,0 +1,140 @@
+{
+ "$version": "2.0",
+ "meta": {
+  "creator": "Krusgraph tests: SYNTHETIC CSN in the shape `cds compile --to csn` writes for a CAP model; hand-written, not compiled"
+ },
+ "definitions": {
+  "my.bookshop": {
+   "kind": "context"
+  },
+  "my.bookshop.Authors": {
+   "kind": "entity",
+   "elements": {
+    "ID": {
+     "key": true,
+     "type": "cds.Integer"
+    },
+    "name": {
+     "type": "cds.String",
+     "length": 111
+    },
+    "address": {
+     "elements": {
+      "city": {
+       "type": "cds.String"
+      },
+      "country": {
+       "type": "cds.String",
+       "length": 3
+      }
+     }
+    },
+    "books": {
+     "type": "cds.Association",
+     "target": "my.bookshop.Books",
+     "cardinality": {
+      "max": "*"
+     },
+     "on": [
+      {
+       "ref": [
+        "books",
+        "author"
+       ]
+      },
+      "=",
+      {
+       "ref": [
+        "$self"
+       ]
+      }
+     ]
+    }
+   }
+  },
+  "my.bookshop.Books": {
+   "kind": "entity",
+   "elements": {
+    "ID": {
+     "key": true,
+     "type": "cds.Integer"
+    },
+    "title": {
+     "type": "cds.String",
+     "length": 111
+    },
+    "price": {
+     "type": "cds.Decimal",
+     "precision": 9,
+     "scale": 2,
+     "@Measures.ISOCurrency": {
+      "=": "currency_code"
+     }
+    },
+    "currency": {
+     "type": "cds.Association",
+     "target": "sap.common.Currencies",
+     "keys": [
+      {
+       "ref": [
+        "code"
+       ]
+      }
+     ]
+    },
+    "author": {
+     "type": "cds.Association",
+     "target": "my.bookshop.Authors",
+     "keys": [
+      {
+       "ref": [
+        "ID"
+       ]
+      }
+     ]
+    },
+    "genre": {
+     "type": "cds.Association",
+     "target": "my.bookshop.Genres"
+    }
+   }
+  },
+  "my.bookshop.Genres": {
+   "kind": "entity",
+   "elements": {
+    "ID": {
+     "key": true,
+     "type": "cds.Integer"
+    },
+    "name": {
+     "type": "cds.String"
+    },
+    "parent": {
+     "type": "cds.Association",
+     "target": "my.bookshop.Genres",
+     "keys": [
+      {
+       "ref": [
+        "ID"
+       ]
+      }
+     ]
+    }
+   }
+  },
+  "sap.common.Currencies": {
+   "kind": "entity",
+   "elements": {
+    "code": {
+     "key": true,
+     "type": "cds.String",
+     "length": 3
+    },
+    "symbol": {
+     "type": "cds.String",
+     "length": 5
+    }
+   }
+  }
+ }
+}

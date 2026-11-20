@@ -174,7 +174,9 @@ def test_every_tool_answers_with_its_words_when_the_flag_is_on_and_as_before_whe
     assert mcp_apps.registration("list_workspaces", on=False) == {} and mcp_apps.registration("validate_plan", on=False) == {}
     r = mcp_apps.structured(server.list_workspaces, "list_workspaces")()
     assert r.structured_content[words.KEY]["result"] == "1 workspace: demo."
-    assert len(r.content) == 1 and json.loads(r.content[0].text) == {k: v for k, v in r.structured_content.items() if k != words.KEY}
+    # CO1: the Coach block for the host model comes first, the JSON answer last, unchanged
+    assert len(r.content) == 2 and r.content[0].text.startswith("Coach (step 1 of 8: Choose data)")
+    assert json.loads(r.content[-1].text) == {k: v for k, v in r.structured_content.items() if k not in (words.KEY, "coach")}
     assert "next" not in r.structured_content                     # a card that ran it draws the words; nothing else is added
     s = mcp_apps.structured(server.list_sources, "list_sources")(workspace="demo")
     assert s.structured_content[words.KEY]["result"] == "2 sources: demo_lh (Lakehouse) and demo_wh (Warehouse)."
@@ -372,7 +374,9 @@ def test_the_text_lead_is_a_numbered_list_in_plain_words(fabric):
     assert json.loads(r.content[1].text)["relationships"]                # the JSON answer follows, unchanged
     r2, _ = _sc("validate_plan", **SRC)
     user2 = r2.content[0].text.split("For the assistant")[0]
-    assert "1. Build a semantic model (shop_model_2)\n2. Create an ontology (shop_ontology)" in user2 and "Reply 1, 2, 3, 4, 5, 6 or 7." in user2
+    # WB13 (#91): the most useful step first (the shop's one open link), then the builds, then the doubled totals
+    assert ("1. Decide the 1 open link\n2. Build a semantic model (shop_model_2)\n3. Create an ontology (shop_ontology)" in user2
+            and "5. Use the line amounts\nReply 1, 2, 3, 4 or 5." in user2)
     assert not words.TOOL_NAME.search(user2)
     one = nxt.lead("create_backend", {"kg_card": {"result": "Fabric is still working on x."}, "started": {}}, [],
                    [{"kind": "status", "label": "Check status", "tool": "create_backend", "arguments": {"check": "name"}}])
@@ -614,15 +618,16 @@ def test_at_375_px_an_answer_without_words_still_gets_a_line_and_readable_detail
     model["summary"]["not_expressible"] = [{"source": f"t{i}", "target": "h", "why": "two columns"} for i in range(24)]
     out = _browse(tmp_path, mcp_apps.card_html(), {
         "args": SRC, "result": _result(r), "caps": CAPS,
-        "replies": {"semantic_model_draft": [{"content": [{"type": "text", "text": json.dumps(model)}]}], "review_plan": [old]},
-        "clicks": [{"text": "Draft a semantic model"}, {"text": "Review keys and links"}],
+        # WB13 (#91): the check card's steps are now Decide the open link and Use the line amounts, then the builds
+        "replies": {"validate_plan": [{"content": [{"type": "text", "text": json.dumps(model)}]}], "create_semantic_model": [old]},
+        "clicks": [{"text": "Use the line amounts"}, {"text": "Build a semantic model"}],
         "query": {"notes": ".res-note summary", "lines": ".res-line", "buttons": "button", "raw": ".res-raw > summary"}})
     assert "no summary in it" not in out["text"]
     assert "2 workspaces." in out["found"]["lines"]
     assert "24 notes: Not expressible Show" in out["snaps"][0].replace("\n", " ")           # an older server's answer: collapsed too
     assert out["snaps"][0].count("Not expressible: t") == 0                                  # the 24 are behind Show, not on the card
     assert not any(b.startswith("Run ") for b in out["found"]["buttons"])
-    assert out["found"]["raw"] == ["Show the raw answer (JSON)"]                              # behind Show details, a second toggle
+    assert set(out["found"]["raw"]) == {"Show the raw answer (JSON)"}                        # behind Show details, a second toggle
 
 
 @needs_browser

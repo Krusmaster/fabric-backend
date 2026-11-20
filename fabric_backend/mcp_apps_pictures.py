@@ -93,7 +93,54 @@ def extras(tool: str, answer: dict, stash: dict) -> dict:
         p = products_from(answer, stash["map"])
         if p:
             out["map"], out["products"] = stash["map"], p
+    if "map" in out and "products" not in out and (small := mini_map(out["map"])):      # WB13 (#71)
+        out["map_mini"] = small
+    if "ontology" in out and (small := mini_ontology(out["ontology"])):
+        out["ontology_mini"] = small
     return out
+
+
+# ------------------------------------------------------------------ WB13 (#71): the small map ------------------------
+# Gustav's phone test of 19 November 2026: the ontology card's map with 18 entity types and 24 numbered relationships was
+# a dense wall of lines at 390 px. A picture with more than MINI tables is drawn small first: the MINI tables with the
+# most links (then by name), and only the links between them (eight fit two columns at 390 px); "Show the map" opens the whole picture. The full data stays
+# under `map` and `ontology`; the small one is `map_mini` and `ontology_mini`, with what it leaves out said in words.
+MINI = 8
+
+
+def _top(names: list[str], links: list[tuple[str, str]], n: int = MINI) -> list[str]:
+    degree = {x: 0 for x in names}
+    for a, b in links:
+        for t in (a, b):
+            if t in degree:
+                degree[t] += 1
+    return sorted(names, key=lambda t: (-degree[t], t.lower()))[:n]
+
+
+def mini_map(m: dict | None, n: int = MINI) -> dict | None:
+    """The small map of a map dict (map_from_plan or map_from_review), or None when the map is small enough."""
+    if not isinstance(m, dict) or len(m.get("tables") or []) <= n:
+        return None
+    from .start_flow import rule_words
+    rels = [r for r in m.get("relationships") or [] if isinstance(r, dict)]
+    top = set(_top([t["name"] for t in m["tables"]], [(r["source"], r["target"]) for r in rels], n))
+    keep = [r for r in rels if r["source"] in top and r["target"] in top]
+    out = {**m, "tables": [t for t in m["tables"] if t["name"] in top], "relationships": keep,
+           "mini": {"tables": len(top), "of_tables": len(m["tables"]), "links": len(keep), "of_links": len(rels)},
+           "rules": rule_words(r.get("rule") for r in keep)}
+    out.pop("left_out", None)
+    return out
+
+
+def mini_ontology(o: dict | None, n: int = MINI) -> dict | None:
+    """The small ontology picture: the n entity types with the most relationship types, and the links between them."""
+    if not isinstance(o, dict) or len(o.get("entities") or []) <= n:
+        return None
+    links = [x for x in o.get("links") or [] if isinstance(x, dict)]
+    top = set(_top([e["name"] for e in o["entities"]], [(x["source_entity"], x["target_entity"]) for x in links], n))
+    keep = [x for x in links if x["source_entity"] in top and x["target_entity"] in top]
+    return {**o, "entities": [e for e in o["entities"] if e["name"] in top], "links": keep,
+            "mini": {"tables": len(top), "of_tables": len(o["entities"]), "links": len(keep), "of_links": len(links)}}
 
 
 # ------------------------------------------------------------------ the map ------------------------------------------
@@ -348,7 +395,7 @@ DRAW_JS = r"""
     return t;
   }
   function kgLabelLines(r) {
-    var top = r.rule || "";
+    var top = document.documentElement.getAttribute("data-coach") === "1" ? "" : r.rule || "";   // CO1: codes under Details
     if (r.state === "failed") top += " \u2715 " + kgPlural(Number(r.orphans) || 0, "orphan");
     else if (r.state === "passed") top += " \u2713";
     else if (r.state === "warning") top += " !";
@@ -356,7 +403,8 @@ DRAW_JS = r"""
     if (r.review === "rejected") top += " rejected";
     else if (r.review === "accepted") top += " accepted";
     else if (r.review === "open") top += " open";
-    return [top, kgPair(r)];
+    top = top.trim();
+    return top ? [top, kgPair(r)] : [kgPair(r)];
   }
   // svgText: the picture's inner SVG from the chat demo's picture(); labels: [{id, lines, cls, a, b}] drawn on top.
   // n172: each label sits on its own line: at the middle of the drawn segment (between the two tables' edges), else
@@ -644,17 +692,38 @@ SECTION = '<div id="pictures" hidden><section id="pic-map" hidden></section><sec
 # drawPictures(answer, callArgs): the three sections from the answer's map, ontology and products; returns what Onto
 # says about the picture (the sentence the picture's description gives), or "".
 RENDER_JS = r"""
+  // WB13 (#71): under a small picture, what it leaves out in words, the rule codes in words, and "Show the map", which
+  // draws the whole picture the first time it opens
+  function kgFull(box, small, full, draw, word) {
+    var m = isObj(small) && isObj(small.mini) ? small.mini : null;
+    if (!m || !box) return;
+    box.appendChild(el("p", "The " + m.tables + " " + word + " with the most links, of " + m.of_tables + ", and the " +
+                    kgPlural(m.links, "link") + " between them, of " + m.of_links + ".", "muted kg-mini"));
+    if (Array.isArray(small.rules) && small.rules.length && document.documentElement.getAttribute("data-coach") !== "1")
+      box.appendChild(el("p", small.rules.join(". ") + ".", "muted kg-rules"));
+    var det = el("details", null, "kg-full"), inner = el("section");
+    det.appendChild(el("summary", "Show the map (all " + m.of_tables + " " + word + ")"));
+    det.appendChild(inner);
+    det.addEventListener("toggle", function () {
+      if (det.open && !inner.childNodes.length) { var x = draw(inner, full); if (x && x.nodeType) inner.appendChild(x); inner.hidden = false; }
+    });
+    box.appendChild(det);
+  }
   function drawPictures(d, callArgs) {
     var wrap = document.getElementById("pictures");
     if (!wrap) return "";
     var said = "";
+    if (isObj(d) && isObj(d.coach)) document.documentElement.setAttribute("data-coach", "1");   // CO1: plain first view
     try {
       var hasProducts = isObj(d) && isObj(d.products);
       // n227: an answer with the card's own words draws its ontology as the static picture (resultView, ontoSvg)
       var ownWords = isObj(d) && isObj(d.kg_card) && readable(d.kg_card.result);
       said = drawOntology(document.getElementById("pic-onto"), isObj(d) && !ownWords ? d.ontology : null) || said;
       said = drawProducts(document.getElementById("pic-products"), hasProducts ? d.products : null, isObj(d) ? d.map : null, d, callArgs) || said;
-      var mapSaid = drawMap(document.getElementById("pic-map"), isObj(d) && !hasProducts ? d.map : null);
+      var small = isObj(d) && !hasProducts && isObj(d.map_mini);                    // WB13 (#71): small first
+      var mapBox = document.getElementById("pic-map");
+      var mapSaid = drawMap(mapBox, isObj(d) && !hasProducts ? (small ? d.map_mini : d.map) : null);
+      if (small) kgFull(mapBox, d.map_mini, d.map, drawMap, "tables");
       said = mapSaid || said;
     } catch (e) {
       ["pic-map", "pic-onto", "pic-products"].forEach(function (id) { var b = document.getElementById(id); b.textContent = ""; b.hidden = true; });

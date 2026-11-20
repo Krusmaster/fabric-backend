@@ -24,7 +24,7 @@ def test_counts_match_the_server():
 
 
 def test_write_tools_are_named():
-    named = set(re.findall(r"`(create_\w+)`", _tools_answer()))
+    named = set(re.findall(r"`(create_\w+|publish_catalog)`", _tools_answer()))
     assert named == {t.name for t in _tools() if not t.annotations.read_only_hint}
 
 

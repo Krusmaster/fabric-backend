@@ -155,7 +155,7 @@ print(json.dumps({"n": len(tools), "ro_size": len(json.dumps({"tools": ro}, sepa
     off = json.loads(subprocess.run([sys.executable, "-c", code], env=env, cwd=ROOT,
                                     capture_output=True, text=True, check=True).stdout)
     # 66 700 since n226 (validate_plan's resume_from and its words on evidence and time), as test_tool_descriptions.py
-    assert on["n"] == off["n"] and on["ro_size"] <= 69_000 and on["ro_size"] - off["ro_size"] < 400    # 69 000 since n229 (verify_build)
+    assert on["n"] == off["n"] and on["ro_size"] <= 81_000 and on["ro_size"] - off["ro_size"] < 400    # 69 000 since n229 (verify_build); 75 500 since Q2 (the three Qlik tools); 81 000 since AP2 (analysis_plan, analysis_notebook_draft)
 
 
 # ------------------------------------------------------------------ only the image's files ----------------------------

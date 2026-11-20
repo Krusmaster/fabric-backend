@@ -214,13 +214,13 @@ print(json.dumps({"names": sorted(t.name for t in tools),
     from fabric_backend import mcp_apps_start                            # n219: the start card
     assert on["meta"] == {"validate_plan": mcp_apps.tool_meta(on=True), "review_plan": mcp_apps_review.tool_meta(on=True),
                           **{t: mcp_apps_build.tool_meta(on=True) for t in mcp_apps_build.CARD_TOOLS + mcp_apps_build.PICTURE_CARD_TOOLS
-                             + mcp_apps_build.FLOW_CARD_TOOLS},
+                             + mcp_apps_build.FLOW_CARD_TOOLS + mcp_apps_build.REQUIREMENT_CARD_TOOLS},   # RQ1
                           "start": mcp_apps_start.tool_meta(on=True)}                     # n219: Start Krusgraph's card  # n170: and the drafts with a picture; n177: dbt_schema's flow
     assert on["resources"] == [[mcp_apps.CARD_URI, "text/html;profile=mcp-app"],
                                [mcp_apps_review.CARD_URI, "text/html;profile=mcp-app"],
                                [mcp_apps_build.CARD_URI, "text/html;profile=mcp-app"],
                                [mcp_apps_start.CARD_URI, "text/html;profile=mcp-app"]]
-    assert on["ro_size"] <= 69_000 and on["ro_size"] - off["ro_size"] < 500, (on["ro_size"], off["ro_size"])
+    assert on["ro_size"] <= 81_000 and on["ro_size"] - off["ro_size"] < 500, (on["ro_size"], off["ro_size"])   # 81 000 since AP2: the two analysis tools
 
 
 # ------------------------------------------------------------------ the card in a browser -----------------------------

@@ -1,0 +1,4 @@
+Coach (step 6 of 8: Semantic model)
+Say in one or two short sentences, in plain words: For reports in Power BI: tables, links and measures. A dry run first, then it is created on your yes.
+Offer one next step: Create the semantic model (dry run first) = create_semantic_model(workspace="demo", source="demo_lh", schema="sap_silver", name="sap_silver_model", dry_run=true).
+No rule codes, key strings or file text unless the user asks; end with the one next step.

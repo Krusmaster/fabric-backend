@@ -7,7 +7,7 @@
  * (green passed, red failed with its orphans or duplicates, grey not checked), Onto, Thinker and Builder in their own
  * colours with the site's figures, Thinker's questions with their choices inline, and Accept all. Words: modelWords.ts.
  */
-import { ReadOnlySource, SapOffer, isReadOnly, sapMark, sourceButton, sourceNotes, targetButton, targetLine } from "./sourceWords";
+import { ReadOnlySource, SapOffer, isReadOnly, restType, sapMark, schemaProblem, sourceButton, sourceNotes, targetButton, targetLine } from "./sourceWords";
 import React, { useState } from "react";
 import {
   Badge,
@@ -30,7 +30,7 @@ import {
   Title3,
   Tooltip,
 } from "@fluentui/react-components";
-import { CheckmarkCircle20Filled, CheckmarkStarburst24Regular, ErrorCircle20Filled, Open24Regular, Warning20Filled } from "@fluentui/react-icons";
+import { ArrowRight24Regular, CheckmarkCircle20Filled, CheckmarkStarburst24Regular, ErrorCircle20Filled, Open24Regular, Warning20Filled } from "@fluentui/react-icons";
 import { ItemEditorEmptyView } from "../../components/ItemEditor";
 import { AppChoices, BuildCard, DataProduct, EngineError, JobsCard, ManyAnswer, SchemasAnswer } from "./engineClient";
 import {
@@ -57,6 +57,7 @@ import {
   cardTitle,
   choiceProblems,
   nameAction,
+  nameLabel,
   needsChoice,
   refreshWords,
   openLinks,
@@ -70,7 +71,10 @@ import { ChosenProductsView } from "./SuggestedProductsView";
 import { canRetry, progressLabel, toRetry } from "./createRun";
 import { AgentChoices, AgentPanel, JobsPanel, PipelineChoices } from "./JobsViews";
 import { agentOf, jobsOf, scheduleProblems } from "./jobsWords";
-import { ICON_SIZE, NOTICES, itemIcon } from "./fabricIcons";
+import { ICON_SIZE, KIND_TYPE, NOTICES, altBeside, itemIcon } from "./fabricIcons";
+import { TypeIcon, TypeName } from "./itemIcons";
+import { FIRST_LINE } from "./stepWords";
+import { ProofStrip } from "./NextStepsView";
 import {
   APP_STEPS_TITLE, CardState, FINISH_CSS, LastCreate, STATE_MARK, banner, cardState, itemTypeLabel, keepUpToDate, nextSteps,
   readLastCreate, running, stepsTitle,
@@ -80,6 +84,7 @@ import { MASCOT_COLOURS, MASCOT_CSS, MASCOT_GLAD, MASCOT_NAMES } from "./cardMap
 import { MascotFigure } from "./mascotFigure";
 import { OntoWait } from "./OntoWait";
 import { VerifyButton } from "./verifyBuilt";
+import { FileActions } from "./fileOffer";   // WB10: downloads that work inside Fabric's frame
 import { Wait, newWait } from "./waitWords";
 import {
   CheckState,
@@ -142,13 +147,23 @@ export function SchemaChoice(props: {
   schemas: { loading: boolean; list?: SchemasAnswer; error?: EngineError; wait?: Wait };
   onSchemaChange: (schema: string) => void;
   mascotsOn?: boolean;
+  /** W13: the source's name, for the no-access sentence */
+  sourceName?: string;
 }) {
   const { loading, list, error } = props.schemas;
   // n223: a list kept in the item shows at once while it is read again; without one, the wait is Onto's line
   if (loading && !list) return <Busy wait={props.schemas.wait} label="Reading the lakehouse's schemas…" skeleton={2} mascotsOn={props.mascotsOn} />;
+  if (error && !schemaProblem(error, props.sourceName ?? "").typeIt) {
+    // W13: no access is not fixed by typing a schema: say what to ask for (the field would only lead to the same 403)
+    return (
+      <MessageBar intent="warning" role="alert">
+        <MessageBarBody>{schemaProblem(error, props.sourceName ?? "").line}</MessageBarBody>
+      </MessageBar>
+    );
+  }
   if (error || !list) {
     return (
-      <Field label="Schema" hint={error ? `The schemas could not be listed: ${error.error} Type the schema as the lakehouse spells it.` : "Choose a lakehouse first"}>
+      <Field label="Schema" hint={error ? schemaProblem(error, props.sourceName ?? "").line : "Choose a lakehouse first"}>
         <Input value={props.schema} disabled={!error} onChange={(_, d) => props.onSchemaChange(d.value)} />
       </Field>
     );
@@ -197,27 +212,33 @@ export function EmptyView(props: {
   return (
     <ItemEditorEmptyView
       title="Choose a source"
-      description={
-        CHOOSE_SOURCE_WORDS
-      }
+      description={FIRST_LINE}
       imageSrc="/assets/items/ModelItem/EditorEmpty.svg"
       imageAlt=""
       customContent={
         <div className="krusgraph-empty-form">
-          <Button appearance={source ? "secondary" : "primary"} onClick={props.onChooseLakehouse}>
+          <details className="kg-how">
+            <summary><Caption1>What Krusgraph reads, and what it changes</Caption1></summary>
+            <Caption1 as="p">{CHOOSE_SOURCE_WORDS}</Caption1>
+          </details>
+          <Button appearance={source ? "secondary" : "primary"} onClick={props.onChooseLakehouse}
+            icon={source ? <TypeIcon type={restType(source.itemType)} beside={sourceButton(source)} /> : undefined}>
             {sourceButton(source)}
           </Button>
-          {source && <SchemaChoice schema={props.schema} schemas={props.schemas} onSchemaChange={props.onSchemaChange} mascotsOn={props.mascotsOn} />}
+          {source && <SchemaChoice schema={props.schema} schemas={props.schemas} onSchemaChange={props.onSchemaChange} mascotsOn={props.mascotsOn}
+            sourceName={source.displayName} />}
           {source && props.schemas.loading && props.schemas.list && (
             <Caption1 role="status">The schemas kept in this item are shown; reading them again…</Caption1>
           )}
           {readOnly && (
             <>
               <Body1>{targetLine(source, source.target)}</Body1>
-              <Button appearance="secondary" onClick={props.onChooseTarget}>{targetButton(source.target)}</Button>
+              <Button appearance="secondary" onClick={props.onChooseTarget}
+                icon={<TypeIcon type="Lakehouse" beside={targetButton(source.target)} />}>{targetButton(source.target)}</Button>
             </>
           )}
-          <Button appearance="primary" disabled={!source || !props.schema.trim() || (props.schemas.loading && !props.schemas.list)} onClick={props.onReview}>
+          <Button appearance={source ? "primary" : "secondary"} disabled={!source || !props.schema.trim() || (props.schemas.loading && !props.schemas.list) ||
+            (!!props.schemas.error && !schemaProblem(props.schemas.error, source.displayName).typeIt)} onClick={props.onReview}>
             Find keys and relationships
           </Button>
         </div>
@@ -348,6 +369,8 @@ export function ReviewView(props: {
   /** n201: a read-only source, and the SAP pack's items with their sources */
   readOnly?: ReadOnlySource;
   sap?: SapOffer;
+  /** W13: the step after the review, shown on the page (it was only the ribbon's arrow) */
+  onNext?: () => void;
 }) {
   const [tab, setTab] = useState<"map" | "list">("map");
   const notes = sourceNotes(props.readOnly, props.sap);
@@ -397,6 +420,16 @@ export function ReviewView(props: {
           <Badge appearance="filled" color="informative">
             {totals.keys.not_checked + totals.relationships.not_checked + totals.keys.stale + totals.relationships.stale} not checked
           </Badge>
+        </div>
+      )}
+
+      {totals.checked > 0 && <ProofStrip review={props.review} />}
+      {props.onNext && (
+        <div className="kg-primary-row">
+          <Button appearance={totals.checked ? "primary" : "secondary"} icon={<ArrowRight24Regular />} onClick={props.onNext}>
+            Next: choose what to build
+          </Button>
+          <Caption1>{totals.checked ? "A dry run of each output comes before anything is created." : "You can check against the rows first, or go on without it."}</Caption1>
         </div>
       )}
 
@@ -541,7 +574,7 @@ export function OutputsView(props: {
               )}
               {c.enabled && (
                 <>
-                  <Field label={`Name of the ${k.label.toLowerCase()}`} validationState={valid ? "none" : "error"}
+                  <Field label={nameLabel(k.label)} validationState={valid ? "none" : "error"}
                     validationMessage={valid ? undefined : "Letters, digits and underscores only"}>
                     <Input value={c.name} onChange={(_, d) => set(k.kind, { name: d.value })} />
                   </Field>
@@ -746,7 +779,8 @@ export function AppPanel(props: { card: BuildCard; saved?: AppChoices; onAppChoi
       <Subtitle2>{APP_STEPS_TITLE}</Subtitle2>
       {href && (
         <div className="krusgraph-actions">
-          <a href={href} download={a.package.filename}>Download the package ({a.package.filename})</a>
+          <FileActions file={{ filename: a.package.filename, mime: "application/zip", base64: a.package.zip_base64 }}
+            label={`Download the package (${a.package.filename})`} copy={false} />
         </div>
       )}
       {a.one_command ? (
@@ -770,7 +804,8 @@ export function AppPanel(props: { card: BuildCard; saved?: AppChoices; onAppChoi
       )}
       {editHref(a.edit_yourself) && (
         <div className="krusgraph-actions" aria-label={EDIT_TITLE}>
-          <a href={editHref(a.edit_yourself)} download={a.edit_yourself.file ?? "EDIT-WITH-AI.md"}>{EDIT_TITLE}</a>
+          <FileActions file={{ filename: a.edit_yourself.file ?? "EDIT-WITH-AI.md", mime: "text/markdown", text: a.edit_yourself.markdown }}
+            label={EDIT_TITLE} copyLabel="Copy the text" appearance="subtle" />
           <Caption1> {EDIT_NOTE}</Caption1>
         </div>
       )}
@@ -810,7 +845,8 @@ export function BuiltAppPanel(props: { saved?: AppChoices; record?: AppPackageRe
       {(href || r?.one_command) && <Subtitle2>{APP_STEPS_TITLE}</Subtitle2>}
       {href && r?.package && (
         <div className="krusgraph-actions">
-          <a href={href} download={r.package.filename}>Download the package ({r.package.filename})</a>
+          <FileActions file={{ filename: r.package.filename, mime: "application/zip", base64: r.package.zip_base64 }}
+            label={`Download the package (${r.package.filename})`} copy={false} />
         </div>
       )}
       {r?.one_command && <OneCommand oc={r.one_command} />}
@@ -910,11 +946,13 @@ export function FinishView(props: { last: LastCreate; mascotsOn: boolean; timeZo
 }
 
 /** n184: an output's title with the Fabric icon of the item type it creates at its left (fabricIcons.ts). */
-export function ItemTitle(props: { kind?: string; children: React.ReactNode }) {
+export function ItemTitle(props: { kind?: string; children: React.ReactNode; label?: string }) {
   const icon = itemIcon(props.kind);
+  // W13: the label's own words, when it is text, decide whether the icon's alt would repeat them (altBeside)
+  const label = props.label ?? (typeof props.children === "string" ? props.children : undefined);
   return (
     <span className="krusgraph-item-title">
-      {icon && <img className="krusgraph-item-icon" src={icon.src} alt={icon.alt} width={ICON_SIZE} height={ICON_SIZE} />}
+      {icon && <img className="krusgraph-item-icon" src={icon.src} alt={altBeside(icon.alt, label)} width={ICON_SIZE} height={ICON_SIZE} />}
       {props.children}
     </span>
   );
@@ -942,7 +980,7 @@ export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["i
   const refused = !!(c.refusal || c.answer?.error);
   return (
     <section className={`krusgraph-output${refused ? " refused" : ""}`} aria-label={cardTitle(c)} data-output={c.output}>
-      <ItemTitle kind={c.output}><Subtitle2>{cardTitle(c)}</Subtitle2><StateMark state={cardState(c)} /></ItemTitle>
+      <ItemTitle kind={c.output} label={cardTitle(c)}><Subtitle2>{cardTitle(c)}</Subtitle2><StateMark state={cardState(c)} /></ItemTitle>
       {facts.length > 0 && (
         <ul className="krusgraph-list">
           {facts.map((f) => (
@@ -1088,7 +1126,7 @@ export function ProductView(props: {
         {items.map((x) => (
           <li key={x.id || `${x.output}:${x.name}`}>
             <Body1>
-              {itemTypeLabel(x.type, x.output)} {x.name}
+              <TypeName type={x.type || KIND_TYPE[x.output ?? ""]} text={itemTypeLabel(x.type, x.output)} /> {x.name}
               {x.would ? ` (${productWould(x)})` : ""}
               {(x as { earlier?: boolean }).earlier ? " (earlier Create)" : ""}
             </Body1>

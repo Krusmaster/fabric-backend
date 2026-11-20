@@ -401,17 +401,36 @@ def compare_pipeline(expected: dict, actual: dict, expected_names: dict[str, str
 
 
 def _code_lines(source: str) -> list[str]:
-    return [ln.rstrip() for ln in str(source or "").splitlines() if ln.strip() and not ln.lstrip().startswith("# META")]
+    """The notebook's code lines, without blank lines, META lines and the text of MARKDOWN cells. LT1 (17 Nov 2026):
+    Fabric stores a markdown cell in its own form (a blank "#" line gone, the next line written again), so on the three
+    notebooks of a pipeline created that day every line after the first markdown cell was reported as different. The
+    markdown is the notebook's description, not what runs; the code cells are compared."""
+    out, markdown = [], False
+    for ln in str(source or "").splitlines():
+        head = ln.strip()
+        if head.startswith("# MARKDOWN *"):
+            markdown = True
+            continue
+        if head.startswith(("# CELL *", "# PARAMETERS CELL *", "# METADATA *")):
+            markdown = False
+        if markdown or not head or ln.lstrip().startswith("# META"):
+            continue
+        out.append(ln.rstrip())
+    return out
 
 
 def compare_notebook(expected: str, actual: str) -> dict:
+    import difflib
     e, a = _code_lines(expected), _code_lines(actual)
     out = []
     if e != a:
-        first = next((i for i, (x, y) in enumerate(zip(e, a)) if x != y), min(len(e), len(a)))
-        differing = sum(1 for x, y in zip(e, a) if x != y) + abs(len(e) - len(a))
-        out.append(_diff("code", f"The notebook's code differs from the dry run on {differing} line(s); the first is line {first + 1}"
-                                 + (f": {a[first][:120]!r} in Fabric, {e[first][:120]!r} in the dry run." if first < min(len(e), len(a)) else
+        # LT1: count the lines that differ by a diff, not by position: one line added or gone no longer makes every
+        # line after it differ
+        ops = [op for op in difflib.SequenceMatcher(None, e, a, autojunk=False).get_opcodes() if op[0] != "equal"]
+        differing = sum(max(i2 - i1, j2 - j1) for _, i1, i2, j1, j2 in ops)
+        _, i1, _, j1, _ = ops[0]
+        out.append(_diff("code", f"The notebook's code differs from the dry run on {differing} line(s); the first is line {i1 + 1}"
+                                 + (f": {a[j1][:120]!r} in Fabric, {e[i1][:120]!r} in the dry run." if i1 < len(e) and j1 < len(a) else
                                     f" (Fabric has {len(a)} lines, the dry run {len(e)}).")))
     return {"differences": out, "checked": {"lines": len(e)}}
 
@@ -559,7 +578,7 @@ def figures(model: dict, report: dict | None, execute, dax=None, default_schema:
                 before(f"reading {k['kpi']} from the model")
                 model_value, why = _number(_first_value(dax(row["dax"]))), None
             except Exception as e:                                       # noqa: BLE001
-                why = _why(e)
+                why = _why_dataset(e)
         if why is None:
             row["model"] = model_value
             if _same(model_value, row["source_rows"]):
@@ -588,6 +607,17 @@ def _why(e: BaseException) -> str:
     status = getattr(getattr(e, "response", None), "status_code", None)
     text = (str(e) or type(e).__name__).strip().splitlines()[0][:200]
     return f"HTTP {status}" if status else text
+
+
+# n241: the two Power BI reads (the model's refresh history, a DAX query) need a delegated Power BI permission that an
+# app registration may not have yet; a 401/403 there says which one, so the person knows what to add in Entra.
+DATASET_SCOPES_HINT = ("the sign-in may lack the Power BI permission Dataset.Read.All or Dataset.ReadWrite.All; an "
+                       "administrator adds it to the app registration in Microsoft Entra and grants consent")
+
+
+def _why_dataset(e: BaseException) -> str:
+    why = _why(e)
+    return f"{why}: {DATASET_SCOPES_HINT}" if why.startswith(("HTTP 401", "HTTP 403")) else why
 
 
 # ------------------------------------------------------------------ 3. doubled totals ---------------------------------
@@ -675,7 +705,7 @@ def model_state(refreshes) -> dict:
     """`refreshes`: the model's refresh history (Power BI: value of GET .../refreshes), newest first; or an exception."""
     if isinstance(refreshes, BaseException):
         return {"check": "refreshed", "state": NOT_CHECKED, "fix": REFRESH_FIX,
-                "said": f"Whether the model was ever refreshed was not read ({_why(refreshes)}). A new Direct Lake model shows no data "
+                "said": f"Whether the model was ever refreshed was not read ({_why_dataset(refreshes)}). A new Direct Lake model shows no data "
                         "(\"Data refreshed: Invalid Date\", warning triangles) until it is refreshed once."}
     done = [r for r in refreshes or [] if str(r.get("status")) == "Completed"]
     if done:

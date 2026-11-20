@@ -79,9 +79,12 @@ describe("(b) the data product lists each item by its own type", () => {
     const html = renderToStaticMarkup(React.createElement(ProductView, {
       product: { name: "Shop", owner: null, plan: {}, items, domains: [] } as never,
     }));
-    expect(html).toContain("Notebook demo_lh_silver");
-    expect(html).toContain("Notebook demo_lh_pipeline_check");
-    expect(html).not.toContain("Pipeline demo_lh_silver");
+    // WB11: each type now carries its Fabric icon (an <img>), so the words are read from the text
+    const text = html.replace(/<[^>]+>/g, "");
+    expect(text).toContain("Notebook demo_lh_silver");
+    expect(text).toContain("Notebook demo_lh_pipeline_check");
+    expect(text).not.toContain("Pipeline demo_lh_silver");
+    expect(html).toContain('<img class="krusgraph-item-icon" src="/assets/fabric-icons/notebook_24_item.svg" alt="" width="20" height="20"/>Notebook</span> demo_lh_silver');
   });
 });
 

@@ -1,0 +1,34 @@
+WEBVTT
+
+00:00:04.000 --> 00:00:09.500
+Your SAP data is in Fabric. Hundreds of tables with short, cryptic names.
+
+00:00:09.800 --> 00:00:11.000
+How do they connect?
+
+00:00:11.300 --> 00:00:13.600
+Krusgraph finds the links between your tables.
+
+00:00:13.900 --> 00:00:18.600
+Order lines to orders, orders to customers, then deliveries and invoices.
+
+00:00:18.900 --> 00:00:23.100
+Krusgraph checks them against your rows: 32 of 34 links hold.
+
+00:00:23.500 --> 00:00:28.600
+Then Krusgraph suggests data products: Order to cash, and Customer master.
+
+00:00:28.900 --> 00:00:33.100
+Each with its tables in plain words, and an owner you choose.
+
+00:00:33.500 --> 00:00:36.800
+Krusgraph builds the semantic model from Order to cash.
+
+00:00:37.200 --> 00:00:42.600
+Facts and dimensions snap together, and every total counts each order once.
+
+00:00:43.300 --> 00:00:47.700
+Then a report on that model: order value, top customers, billing.
+
+00:00:48.400 --> 00:00:51.200
+From SAP tables to a report you can trust.

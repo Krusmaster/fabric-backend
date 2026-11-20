@@ -59,7 +59,8 @@ TOOL = "validate_plan"
 STRUCTURED = ("validate_plan", "review_plan", "plan_backend", "create_semantic_model", "create_ontology", "create_backend",
               "create_report", "ontology_draft", "domain_draft",          # n170: and the two drafts with a picture
               "dbt_schema",                                                # n177: the dbt project's flow
-              "start")                                                     # n219: Start Krusgraph's stepper card
+              "start",                                                     # n219: Start Krusgraph's stepper card
+              "requirements_draft")                                        # RQ1: the requirements on the build card
 
 # The arguments a next step carries over from the validate_plan call, per tool: workspace, source and schema always;
 # keys and confirmed only where the tool takes them. tests/test_n119_mcp_apps.py checks each against the tool's
@@ -86,7 +87,7 @@ def tool_meta(on: bool | None = None) -> dict | None:
     return {"ui": {"resourceUri": CARD_URI}, "ui/resourceUri": CARD_URI}
 
 
-def call_result(text: str, extra: dict | None = None, lead: str | None = None):
+def call_result(text: str, extra: dict | None = None, lead: str | None = None, coach_text: str | None = None):
     """n137: a tool's text answer as a CallToolResult: the same text content every client gets, plus the answer as
     `structuredContent` when the text is a JSON object (an answer that is not one has no structuredContent). n170:
     `extra` (the pictures' data, mcp_apps_pictures.extras) goes into structuredContent only; the text is unchanged."""
@@ -98,6 +99,11 @@ def call_result(text: str, extra: dict | None = None, lead: str | None = None):
     if isinstance(data, dict) and extra:
         data = {**data, **{k: v for k, v in extra.items() if k not in data}}
     content = [TextContent(type="text", text=text)]
+    if lead and coach_text:                                  # CO1: the Coach block ends the lead; the JSON stays last
+        tail = "The full answer follows as JSON."
+        lead = (lead[:-len(tail)] + coach_text + "\n\n" + tail) if lead.endswith(tail) else lead + "\n\n" + coach_text
+    elif coach_text:
+        lead = coach_text
     if lead:                                                 # n218: the result and the next steps first, the JSON after
         content.insert(0, TextContent(type="text", text=lead))
     return CallToolResult(content=content, structured_content=data if isinstance(data, dict) else None)
@@ -149,25 +155,58 @@ def structured(fn, name: str | None = None):
             extra.update(words.extras(name, answer, stash, call))
         except Exception:                                            # noqa: BLE001 - the card falls back to the answer's text
             pass
-        lead = None
+        lead = ctext = None
         if isinstance(answer, dict) and name not in STRUCTURED:      # n227: every other tool gets its kg_card, nothing else
-            return call_result(out, extra or None)
+            from . import mcp_apps_next as _nxt, next_rules          # WB13 (#91): a draft on the path gets its next steps
+            todo = None
+            if name in next_rules.TOOLS and not answer.get("error"):
+                try:
+                    todo = _nxt.steps(name, call, answer)
+                    if todo:
+                        extra["next"] = todo
+                except Exception:                                    # noqa: BLE001 - the answer stands without them
+                    pass
+            ctext = _coach(name, call, answer, None, todo, extra)
+            return call_result(out, extra or None, None, ctext)
         if isinstance(answer, dict):                                 # n218: next steps as buttons, the result first
             from . import mcp_apps_next as nxt
             try:
                 import inspect as _inspect
                 call = _inspect.signature(fn).bind_partial(*args, **kwargs).arguments
-                todo = nxt.steps(name, call, answer)
+                todo = nxt.steps(name, call, answer, stash.get("checks") if name == "validate_plan" else None)
                 if todo:
                     extra["next"] = todo
                 if name == "validate_plan" and stash.get("checks"):
                     extra["checks"] = stash["checks"]
-                lead = nxt.lead(name, {**answer, **{k: v for k, v in extra.items() if k == "kg_card"}}, todo,
-                                answer.get("actions"))
+                ctext = _coach(name, call, answer, stash.get("checks") if name == "validate_plan" else None,
+                               todo, extra)
+                lead = nxt.lead(name, {**answer, **{k: v for k, v in extra.items() if k == "kg_card"}},
+                                extra.get("next") or [], answer.get("actions"))
             except Exception:                                        # noqa: BLE001 - the answer stands without them
                 lead = None
-        return call_result(out, extra or None, lead)
+        return call_result(out, extra or None, lead, ctext)
     return wrapper
+
+
+def _coach(name: str, call: dict, answer: dict, checks, todo, extra: dict) -> str | None:
+    """CO1: the coach (coach.py) for one result: `coach` for the card (the stage, the mascot's line), `next` as ONE
+    primary step and at most two secondary ones (start keeps its own buttons), and the Coach block's text."""
+    from . import coach as _c
+    try:
+        c = _c.coach(name, call, answer, checks, todo)
+    except Exception:                                                # noqa: BLE001 - the answer stands without it
+        return None
+    extra["coach"] = _c.card(c)
+    if name == "requirements_draft":                         # RQ1: its own steps stay, each with its requirement ids
+        todo = extra.get("next") or []
+        return _c.text(c, todo[0], todo[1:1 + _c.SECONDARY]) if todo else c["text"]
+    if name == "start" or "next" not in extra:              # start draws its own buttons; a listing gets no buttons
+        return c["text"]
+    if _c.own_action(name, answer) is not None:              # the card's own action (Check, Create) is the primary
+        extra["next"] = list(c["secondary"]) if not answer.get("error") else []
+    else:
+        extra["next"] = _c.next_steps(c)
+    return c["text"]
 
 
 def registration(name: str, on: bool | None = None) -> dict:
@@ -181,7 +220,8 @@ def registration(name: str, on: bool | None = None) -> dict:
         from . import mcp_apps_start
         return {"structured_output": False, "meta": mcp_apps_start.tool_meta(on=True)}
     from . import mcp_apps_build                             # n169: the build card's tools point at it
-    if name in mcp_apps_build.CARD_TOOLS + mcp_apps_build.PICTURE_CARD_TOOLS + mcp_apps_build.FLOW_CARD_TOOLS:
+    if name in (mcp_apps_build.CARD_TOOLS + mcp_apps_build.PICTURE_CARD_TOOLS + mcp_apps_build.FLOW_CARD_TOOLS
+                + mcp_apps_build.REQUIREMENT_CARD_TOOLS):
         return {"structured_output": False, "meta": mcp_apps_build.tool_meta(on=True)}
     return {"structured_output": False}
 
@@ -215,7 +255,8 @@ def card_html() -> str:
     from . import mcp_apps_pictures as pictures              # n170: the map, drawn the way the chat demo draws it
     pic = pictures.html_parts()
     from . import mcp_apps_next as nxt                       # n218: next steps as buttons, every key and link's state
-    return (_HTML.replace("__ALLOWED__", allowed).replace("__PROTOCOL__", PROTOCOL_VERSION)
+    from .mcp_apps_size import SIZE_JS                   # WB13 (#89): the content's height, every card
+    return (_HTML.replace("__SIZE_JS__", SIZE_JS).replace("__ALLOWED__", allowed).replace("__PROTOCOL__", PROTOCOL_VERSION)
             .replace("__STEP_LABEL__", json.dumps({t: STEP_LABEL[t] for t in NEXT_STEP_TOOLS}, separators=(",", ":"))).replace("__PICTURES__", pic["section"])
             .replace("__READ_JS__", READ_JS + CALL_JS + RESULT_JS + nxt.js() + mcp_apps_build.actions_js() + pic["js"])
             .replace("__MASCOT_CSS__", mascots.CSS).replace("__RESULT_CSS__", RESULT_CSS + nxt.NEXT_CSS + mcp_apps_build.ACTIONS_CSS + pic["css"]).replace("__MASCOT_TOGGLE__", mascots.TOGGLE)
@@ -312,6 +353,9 @@ CALL_JS = r"""
 # shape, not by the tool's name, so the review card names no tool but review_plan. resultView(tool, result) gives the
 # element; both cards use it.
 RESULT_CSS = """
+.res-file > summary { cursor: pointer; color: var(--kg-muted); font-size: 13.5px }
+details.res-file pre.res-file-pre { white-space: pre; overflow-wrap: normal; word-break: normal; overflow: auto; max-height: 320px; max-width: 100%;
+  margin-top: 4px; font-size: 12px }
 .res-box { display: grid; gap: 4px; min-width: 0 }
 .res-box .res { margin: 0; padding-left: 18px }
 .res-box .res li { overflow-wrap: anywhere }
@@ -427,7 +471,17 @@ RESULT_JS = r"""
     } else {
       box.appendChild(el("p", readable(text) ? (text.length > 400 ? text.slice(0, 400) + "…" : text) : "It answered; the answer is under Show details."));
     }
-    if (isObj(d) && isObj(d.ontology)) { var fig = ontoSvg(d.ontology); if (fig) box.appendChild(fig); }
+    if (isObj(d) && isObj(d.ontology)) {                       // WB13 (#71): a big ontology is drawn small first
+      var fig = ontoSvg(isObj(d.ontology_mini) ? d.ontology_mini : d.ontology);
+      if (fig) box.appendChild(fig);
+      if (fig && isObj(d.ontology_mini) && typeof kgFull === "function") kgFull(box, d.ontology_mini, d.ontology, function (into, o) { return ontoSvg(o); }, "entity types");
+    }
+    if (isObj(d) && typeof d.ttl === "string" && d.ttl.trim()) {  // WB13 (#92): the Turtle file closed, scrolling sideways
+      var tf = el("details", null, "res-file"), nl = d.ttl.split("\n").length;
+      tf.appendChild(el("summary", "Show the ontology file (Turtle, " + nl + " lines)"));
+      tf.appendChild(el("pre", d.ttl, "res-file-pre"));
+      box.appendChild(tf);
+    }
     if (text || d) box.appendChild(detailsView(tool, d, text));
     return box;
   }
@@ -488,9 +542,9 @@ __RESULT_CSS__
 <main>
   <div class="kg-head"><h1>Plan check</h1>__MASCOT_TOGGLE__</div>
   <p class="muted" role="status"><span id="verdict">Checking the plan against the rows…</span><span id="result" hidden></span></p>
+  <section id="nextsteps" hidden></section>
   __MASCOTS__
   <dl id="counts" class="counts" hidden></dl>
-  <section id="nextsteps" hidden></section>
   __PICTURES__
   <section id="checks" hidden></section>
   <section id="attention" hidden><h2 class="muted">Needs attention</h2><ul id="attention-list"></ul><p id="attention-none" hidden>Nothing needs attention.</p></section>
@@ -593,7 +647,8 @@ __READ_JS__
     document.getElementById("next").hidden = !steps.children.length;
     // n172: folded under "More" when the card has its own words and the Builder's builds; an answer without them (a
     // text result, an older server) keeps the drafts open, so the Builder's sentence stays on the card.
-    document.getElementById("next").open = !readable(words.builder);
+    // WB13 (#91): folded too when the card leads with its rule-based next steps
+    document.getElementById("next").open = !readable(words.builder) && !(Array.isArray(data.next) && data.next.length);
 
     // n169: the Builder's buttons from the answer's `actions`: each build is a dry run first, Create only on its card
     var build = document.getElementById("build"); build.textContent = "";
@@ -638,11 +693,7 @@ __READ_JS__
     else if (m.method === "ping" && m.id != null) send({ jsonrpc: "2.0", id: m.id, result: {} });
   });
 
-  var last = 0;
-  function reportSize() {
-    var h = Math.ceil(document.documentElement.scrollHeight), w = Math.ceil(document.documentElement.scrollWidth);
-    if (h !== last) { last = h; notify("ui/notifications/size-changed", { width: w, height: h }); }
-  }
+__SIZE_JS__
   request("ui/initialize", {
     appInfo: { name: "Krusgraph plan check", version: "1" },
     appCapabilities: { availableDisplayModes: ["inline"] },
@@ -650,8 +701,7 @@ __READ_JS__
   }).then(function (r) {
     hostStarted(r);
     notify("ui/notifications/initialized");
-    reportSize();
-    if (window.ResizeObserver) new ResizeObserver(reportSize).observe(document.body);
+    watchSize();
   }, function () { document.getElementById("verdict").textContent = "The host did not start the card; the answer is in the text of the tool result."; });
 })();
 </script>

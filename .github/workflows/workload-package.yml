@@ -1,0 +1,129 @@
+# WP1 (18 November 2026): when the workload manifest changes on main, build the Fabric workload package (.nupkg) here,
+# so Gustav only downloads it and uploads it by hand. Microsoft documents no API for that upload
+# (docs/WORKLOAD-PACKAGE-UPDATES.md, round W14), so this workflow never calls Fabric or any portal endpoint: it builds
+# with tools/workload_package.py and every workload manifest test (--full-tests), keeps the .nupkg and the diff as the
+# run's artifact, tags the commit workload-pkg/<version> (versions only grow; never below 1.0.1396) and opens or
+# updates one issue "New workload package ready: <name> <version>" with the diff and the portal steps.
+#
+# MOD1 (20 November 2026): this workflow builds the LIVE workload, Org.Krusgraph (--name Org.Krusgraph below), for an
+# update of what is active in the tenant. The upload-ready Krusgraph.Modeler package is built by ci.yml's workload job on
+# every push and pull request, without any repository variable (docs/MODELER-GO-LIVE.md). The two never build the same
+# name, so they cannot offer conflicting packages.
+#
+# The frontend app id comes from the repository variable KRUSGRAPH_WORKLOAD_APP_ID (a public client id, not a secret;
+# Settings > Secrets and variables > Actions > Variables). Without it the run only says so.
+name: Workload package
+on:
+  push:
+    branches: [main]
+    paths:
+      - "workload/Workload/Manifest/**"
+      - "workload/scripts/build_package.py"
+      - "workload/scripts/build-package"
+      - "tools/workload_package.py"
+      - "tools/workload_package_ci.py"
+      - "tools/workload-package.sh"
+      - ".github/workflows/workload-package.yml"
+  workflow_dispatch:
+    inputs:
+      offer_unchanged:
+        description: "Open the issue even when only the version would change (normally nothing is offered then)"
+        type: boolean
+        default: false
+permissions: {}
+# One package build at a time, so two runs cannot take the same version
+concurrency: { group: workload-package, cancel-in-progress: false }
+jobs:
+  no-variable:
+    if: vars.KRUSGRAPH_WORKLOAD_APP_ID == ''
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - run: |
+          msg="Skipped: the repository variable KRUSGRAPH_WORKLOAD_APP_ID is not set, so no workload package was built. Set it to the workload app's Application (client) ID (Settings > Secrets and variables > Actions > Variables; docs/WORKLOAD-PACKAGE-UPDATES.md, Automatic build)."
+          echo "::notice::$msg"
+          echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+  package:
+    if: vars.KRUSGRAPH_WORKLOAD_APP_ID != ''
+    runs-on: ubuntu-latest
+    # contents: write only to push the workload-pkg/<version> tag; issues: write for the one package issue
+    permissions: { contents: write, issues: write }
+    env:
+      APP_ID: ${{ vars.KRUSGRAPH_WORKLOAD_APP_ID }}
+      # the live development workload; Krusgraph.Modeler comes from ci.yml's workload job
+      LIVE_NAME: Org.Krusgraph
+      GH_TOKEN: ${{ github.token }}
+      OFFER_UNCHANGED: ${{ inputs.offer_unchanged || false }}
+    steps:
+      # the whole history and the tags: the version is at least 1.0.<commits> and one above the last workload-pkg/ tag
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0, fetch-tags: true }
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            deploy/constraints.txt
+            pyproject.toml
+      # the server extras: --full-tests runs the server-dependent workload tests too
+      - run: pip install -c deploy/constraints.txt -e ".[server,test]"
+      - name: What the package is compared with
+        id: base
+        run: |
+          gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 200 --json number,title,body,author > "$RUNNER_TEMP/issues.json"
+          python tools/workload_package_ci.py baseline --issues "$RUNNER_TEMP/issues.json" | tee -a "$GITHUB_OUTPUT"
+      - name: Build, test and compare (uploads nothing)
+        id: build
+        env: { PREVIOUS_REF: "${{ steps.base.outputs.previous_ref }}" }
+        run: |
+          set -o pipefail
+          mkdir -p "$RUNNER_TEMP/package"
+          python tools/workload_package.py --frontend-app-id "$APP_ID" --name "$LIVE_NAME" --previous-ref "$PREVIOUS_REF" \
+            --out "$RUNNER_TEMP/package" --full-tests --summary-json "$RUNNER_TEMP/summary.json" \
+            | tee "$RUNNER_TEMP/package/diff.txt"
+          python tools/workload_package_ci.py outputs --summary "$RUNNER_TEMP/summary.json" | tee -a "$GITHUB_OUTPUT"
+          { echo '```text'; cat "$RUNNER_TEMP/package/diff.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Keep the package and the diff
+        id: artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: workload-package-${{ steps.build.outputs.name }}-${{ steps.build.outputs.version }}
+          path: |
+            ${{ runner.temp }}/package/${{ steps.build.outputs.file }}
+            ${{ runner.temp }}/package/diff.txt
+          if-no-files-found: error
+          retention-days: 30
+      - name: Nothing changed for Fabric
+        if: steps.build.outputs.changed != 'true' && env.OFFER_UNCHANGED != 'true'
+        env: { NOTE: "${{ steps.base.outputs.baseline_note }}" }
+        run: |
+          echo "No change for Fabric against $NOTE: an upload would only raise the version. No tag, no issue." | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Tag the version and open or update the issue
+        if: steps.build.outputs.changed == 'true' || env.OFFER_UNCHANGED == 'true'
+        env:
+          NAME: ${{ steps.build.outputs.name }}
+          VERSION: ${{ steps.build.outputs.version }}
+          ARTIFACT_URL: ${{ steps.artifact.outputs.artifact-url }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          PREVIOUS_REF: ${{ steps.base.outputs.previous_ref }}
+          BASELINE_NOTE: ${{ steps.base.outputs.baseline_note }}
+          ISSUE: ${{ steps.base.outputs.issue }}
+          CLOSE_ISSUE: ${{ steps.base.outputs.close_issue }}
+        run: |
+          # a version is offered once: the tag push fails if workload-pkg/$VERSION exists, and the issue is not touched
+          git tag "workload-pkg/$VERSION" "$GITHUB_SHA"
+          git push origin "refs/tags/workload-pkg/$VERSION"
+          python tools/workload_package_ci.py title --summary "$RUNNER_TEMP/summary.json" > "$RUNNER_TEMP/title.txt"
+          python tools/workload_package_ci.py body --summary "$RUNNER_TEMP/summary.json" --artifact-url "$ARTIFACT_URL" \
+            --run-url "$RUN_URL" --previous-ref "$PREVIOUS_REF" --baseline-note "$BASELINE_NOTE" > "$RUNNER_TEMP/body.md"
+          if [ -n "$CLOSE_ISSUE" ]; then
+            gh issue close "$CLOSE_ISSUE" --repo "$GITHUB_REPOSITORY" --comment "Marked uploaded. The next package, $NAME $VERSION, has a new issue."
+          fi
+          if [ -n "$ISSUE" ]; then
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --title "$(cat "$RUNNER_TEMP/title.txt")" --body-file "$RUNNER_TEMP/body.md"
+            gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body "Updated to $NAME $VERSION: the earlier package in this issue was not marked uploaded, so this one replaces it ($RUN_URL)."
+            echo "Updated issue #$ISSUE: $NAME $VERSION" >> "$GITHUB_STEP_SUMMARY"
+          else
+            url=$(gh issue create --repo "$GITHUB_REPOSITORY" --title "$(cat "$RUNNER_TEMP/title.txt")" --body-file "$RUNNER_TEMP/body.md")
+            echo "Opened $url: $NAME $VERSION" >> "$GITHUB_STEP_SUMMARY"
+          fi

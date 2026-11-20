@@ -86,6 +86,7 @@ proposal in the editor's words (suggest_products), and the ticked ones come back
 from __future__ import annotations
 
 import contextvars
+import hashlib
 import json
 import re
 import threading
@@ -174,9 +175,30 @@ def _text(body: dict, key: str, default: str | None = None, limit: int = 200) ->
 
 
 def _source(body: dict) -> dict:
-    """workspace and source as ids (what the editor's lakehouse picker gives), source_name for the review file."""
-    return {"workspace": _text(body, "workspace"), "source": _text(body, "source"),
-            "source_name": _text(body, "source_name", body.get("source")), "schema": _text(body, "schema", "dbo", 128)}
+    """workspace and source as ids (what the editor's lakehouse picker gives), source_name for the review file. CSN2:
+    csn_path, a CSN file or folder under the lakehouse's Files (default Files/krusgraph/csn/ when it is there)."""
+    out = {"workspace": _text(body, "workspace"), "source": _text(body, "source"),
+           "source_name": _text(body, "source_name", body.get("source")), "schema": _text(body, "schema", "dbo", 128)}
+    if body.get("csn_path") not in (None, ""):
+        from .csn_onelake import clean_path
+        try:
+            out["csn_path"] = clean_path(_text(body, "csn_path", None, 400))
+        except ValueError as e:
+            raise BadRequest(str(e)) from None
+    return out
+
+
+def _csn_kw(req: dict) -> dict:
+    return {"csn_path": req["csn_path"]} if req.get("csn_path") else {}
+
+
+def _with_csn(out: dict, p) -> dict:
+    """CSN2: the CSN's keys and links with the file each came from, and what was looked at in the lakehouse's Files."""
+    from .csn_onelake import digest
+    d = digest(p)
+    if d:
+        out["csn"] = d
+    return out
 
 
 def schemas_request(body) -> dict:
@@ -330,12 +352,56 @@ def build_request(body) -> dict:
     flags["pending"] = [{"type": x["type"][:40], "name": x["name"][:123], "output": str(x.get("output") or "")[:40],
                          "at": str(x.get("at") or "")[:40]} for x in pending]   # n207: when the step was sent
     flags["target"] = target_request(body.get("target"))         # n201, n221
+    flags.update(layers_request(body))                             # WB2 (#54): the silver and gold schema, dry run and Create alike
     flags["products"] = _ticked_products(body.get("products"))     # n222: the suggested data products the person ticked
     flags.update(_ids(body))
     chosen.sort(key=lambda c: ORDER.index(c["kind"]))
     return {**req, "outputs": chosen, "dry_run": dry_run, "review": body["review"], "product": product,
             "created": [{k: c.get(k) for k in ("type", "id", "name", "workspace", "output", "plan") if k != "plan" or isinstance(c.get(k), dict)}
                         for c in created], "form": 2, **flags}
+
+
+def layers_request(body: dict) -> dict:
+    """WB2 (#54): silver_schema and gold_schema of the build request, "" when not given. The editor sends the same request
+    to the dry run and to Create, so both build and read the same schemas (layer_args)."""
+    from . import layer_schemas as _ls
+    out = {}
+    for key in ("silver_schema", "gold_schema"):
+        v = body.get(key)
+        if v in (None, ""):
+            out[key] = ""
+            continue
+        if not isinstance(v, str):
+            raise BadRequest(f"'{key}' must be a lakehouse schema name or empty")
+        try:
+            out[key] = _ls.check(v, key)
+        except _ls.LayerSchemaError as e:
+            raise BadRequest(str(e)) from None
+    if out["silver_schema"] and out["silver_schema"].lower() == out["gold_schema"].lower():
+        raise BadRequest("silver_schema and gold_schema must be two different schemas")
+    return out
+
+
+WRITES_LAYERS = ("silver_notebook", "gold_views", "pipeline")
+
+
+def layer_args(kind: str, chosen: dict, req: dict) -> dict:
+    """WB2 (#54): the silver and gold schema each output's tool gets. A build that writes silver or gold (or names the
+    schemas) passes them to every output, the defaults included, so the model reads where this same build writes; a
+    build that only reads passes the request's own (or "", and the tool reads them from this source's pipeline)."""
+    from . import layer_schemas as _ls
+    silver, gold = req.get("silver_schema") or "", req.get("gold_schema") or ""
+    if any(k in chosen for k in WRITES_LAYERS) or kind in WRITES_LAYERS:
+        silver, gold = silver or _ls.DEFAULT_SILVER, gold or _ls.DEFAULT_GOLD
+    if kind == "silver_notebook":
+        return {"silver_schema": silver or _ls.DEFAULT_SILVER}
+    if kind in ("gold_views", "pipeline"):
+        return {"silver_schema": silver or _ls.DEFAULT_SILVER, "gold_schema": gold or _ls.DEFAULT_GOLD}
+    if kind in ("semantic_model", "ontology", "verify"):
+        return {"silver_schema": silver}
+    if kind == "data_agent":
+        return {"silver_schema": silver, "gold_schema": gold}
+    return {}
 
 
 _GUID = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
@@ -489,6 +555,18 @@ def pipeline_run_request(body) -> dict:
     return out
 
 
+_PRODUCT_DOING = {"status": "check this data product", "retire": "retire this data product",
+                  "leftovers": "look for leftovers", "adopt": "adopt items into this data product"}
+
+
+def _not_guid_words(action: str, bad: int, total: int) -> str:
+    """WB3 (finding F5 of docs/WORKLOAD-TEST-2026-11-17.md): a sentence for a person, not the field's name, when items
+    this Model recorded have no Fabric id. Real Fabric ids are GUIDs, so a person should not normally see it."""
+    which = "the item" if total == 1 else (f"all {total} items" if bad == total else f"{bad} of the {total} items")
+    return (f"Krusgraph cannot {_PRODUCT_DOING.get(action, 'do this')}: {which} this Model recorded "
+            f"{'has' if which == 'the item' else 'have'} no Fabric id it can look up, so nothing was checked or changed.")
+
+
 def product_request(body) -> dict:
     """n198: POST /workload/v1/product {action, workspace, item_id, outputs, product, plan_id, ...} (product_life.py):
     status, retire (scope soft or delete; dry_run true by default; confirm and typed_name for the real call), leftovers
@@ -512,9 +590,10 @@ def product_request(body) -> dict:
         if not isinstance(v, list) or len(v) > 500 or not all(isinstance(x, dict) for x in v):
             raise BadRequest(f"outputs.{k} must be a list of items")
         lists[k] = v
-    for c in lists["created"]:
-        if not isinstance(c.get("id"), str) or not _GUID.match(c["id"]) or not isinstance(c.get("workspace"), str) or not _GUID.match(c["workspace"]):
-            raise BadRequest("each of outputs.created has the Fabric id and workspace (GUIDs) Create recorded")
+    bad = [c for c in lists["created"]
+           if not isinstance(c.get("id"), str) or not _GUID.match(c["id"]) or not isinstance(c.get("workspace"), str) or not _GUID.match(c["workspace"])]
+    if bad:
+        raise BadRequest(_not_guid_words(action, len(bad), len(lists["created"])))
     jobs = o.get("pipeline_jobs") if isinstance(o.get("pipeline_jobs"), dict) else {}
     # n210: a schedule's id goes into a DELETE path, so one that is not a GUID is never used (it is left out, not followed)
     schedules = [s for s in jobs.get("schedules") or [] if isinstance(s, dict)
@@ -796,7 +875,7 @@ def run_review(req: dict) -> dict:
     prev = R.read(req["previous"]) if req["previous"] else None
     keys, confirmed = req.get("keys"), req.get("confirmed")
     k, c = R.merge_arguments(R.carried_arguments(prev), keys, confirmed) if prev else (keys, confirmed)
-    s, execute = S._connected(req["workspace"], req["source"], req["schema"], None)
+    s, execute = S._connected(req["workspace"], req["source"], req["schema"], None, **_csn_kw(req))
     req = _exact(req, s.schema)
     try:
         counted = S._within_call(execute)
@@ -807,7 +886,7 @@ def run_review(req: dict) -> dict:
                  decisions=req["decisions"], previous=prev)
     out = _with_source(_answer(rv), p, execute)
     out["suggested_products"] = _suggested(p, rv)                  # n222
-    return _with_schema(out, req)
+    return _with_schema(_with_csn(out, p), req)
 
 
 def _suggested(p, rv: dict, validation: dict | None = None) -> dict | None:
@@ -861,7 +940,7 @@ def run_check(req: dict) -> dict:
     prev = R.read(req["review"])
     carried = R.carried_arguments(prev)
     k, c = carried["keys"] or None, carried["confirmed"] or None
-    s, execute = S._connected(req["workspace"], req["source"], req["schema"], None)
+    s, execute = S._connected(req["workspace"], req["source"], req["schema"], None, **_csn_kw(req))
     req = _exact(req, s.schema)
     try:
         counted = S._within_call(execute)
@@ -875,7 +954,163 @@ def run_check(req: dict) -> dict:
     out["check"] = check_totals(rv)
     out["questions"] = rv.get("open_questions", [])
     out["suggested_products"] = _suggested(p, rv, checks)        # n222: weighted by what the rows hold
-    return _with_schema(out, req)
+    return _with_schema(_with_csn(out, p), req)
+
+
+
+# ------------------------------------------------------------------ CA1: Publish to OneLake catalog ------------------
+# POST /workload/v1/catalog: the reviewed plan's data products as catalog entries (catalog_publish), as the signed-in
+# user. A dry run by default: the answer is the cards, the diff, the confirm and the handover files. With dry_run=false
+# and the dry run's confirm it writes descriptions and existing tags, and only in a workspace the operator lists in
+# KRUSGRAPH_CATALOG_WRITE_WORKSPACES. No new permission: Update Item and Apply Tags are covered by Item.ReadWrite.All.
+
+def catalog_request(body) -> dict:
+    if not isinstance(body, dict):
+        raise BadRequest("the body must be a JSON object")
+    req = _source(body)
+    if not isinstance(body.get("review"), dict):
+        raise BadRequest("'review' (the item's review.json) is required: the catalog publishes what the review holds")
+    o = body.get("outputs") or {}
+    created = o.get("created") if isinstance(o, dict) else None
+    created = created or []
+    if not isinstance(created, list) or len(created) > 500 or not all(isinstance(c, dict) for c in created):
+        raise BadRequest("'outputs' is the item's outputs.json; outputs.created a list of items")
+    ids = sorted({c["id"].lower() for c in created if isinstance(c.get("id"), str) and _GUID.match(c["id"])})
+    owner = body.get("owner")
+    if owner is not None and (not isinstance(owner, str) or len(owner) > 120):
+        raise BadRequest("'owner' is a name or e-mail of at most 120 characters")
+    include = body.get("include") or []                # WB10: items Krusgraph did not build that the person ticked
+    if not isinstance(include, list) or len(include) > 100 or not all(isinstance(i, str) and _GUID.match(i) for i in include):
+        raise BadRequest("'include' is a list of item ids (GUIDs) to write to although Krusgraph did not build them")
+    dry = body.get("dry_run", True)
+    if not isinstance(dry, bool):
+        raise BadRequest("'dry_run' must be true or false")
+    confirm = body.get("confirm")
+    if confirm is not None and (not isinstance(confirm, str) or len(confirm) > 40):
+        raise BadRequest("'confirm' is the dry run's confirm value")
+    return {**req, "review": body["review"], "created_ids": ids, "owner": (owner or "").strip() or None,
+            "dry_run": dry, "confirm": confirm, "include": sorted({i.lower() for i in include})}
+
+
+def run_catalog(req: dict) -> dict:
+    """CA1: product cards, the diff and the handover files; with dry_run=false the writes, after the guard."""
+    from datetime import datetime, timezone
+    from . import server as S, review as R, evidence as E, catalog_publish as cp, domains as D, product_life as life
+    from .catalog_publish import fabric_io as io, owner as co, recorded as rc, writes as cw
+    prev = R.read(req["review"])
+    carried = R.carried_arguments(prev)
+    s, execute = S._connected(req["workspace"], req["source"], req["schema"], None)
+    req = _exact(req, s.schema)
+    try:
+        p, left_out = apply_review(S._hosted_plan(s, carried["keys"] or None, carried["confirmed"] or None,
+                                                  S._within_call(execute)), prev)
+        validation = E.validate(p, execute)
+    finally:
+        getattr(execute, "close", lambda: None)()
+    # WB10: the counts and the time of the check recorded in this item (the Thinker line's), not a second count
+    now = datetime.now(timezone.utc).replace(second=0, microsecond=0).isoformat().replace("+00:00", "Z")
+    validation, checked_at = rc.with_recorded(validation, prev, now)
+    headers = S._headers(None)
+    get = io.reader(headers)
+    ws = req["workspace"].lower()
+    listed = io.items(get, ws)
+    if req["owner"]:                                   # WB10: a person or group in the workspace, never an item's name
+        refused = co.check(req["owner"], life.people(get, ws), listed, req.get("by"))
+        if refused:
+            return {"error": refused, "kind": "bad_owner",
+                    "hint": "Nothing was prepared or written. Pick a person or group from the list, or choose Me."}
+    src = S._resolve_source(ws, req["source"], headers)
+    chosen = io.pick(listed, src.get("id"), set(req["created_ids"]), req["schema"])
+    tenant, readable = io.tenant_tags(get)
+    on_items = list({t.get("id"): t for it in listed for t in it.get("tags") or [] if t.get("id")}.values())
+    owners = {d["slug"]: req["owner"] for d in D.propose_plan(p, validation)["domains"]} if req["owner"] else None
+    out = cp.prepare(p, req["schema"], ws, chosen, source=req["source_name"], validation=validation,
+                     checked_on=checked_at, owners=owners, created_ids=set(req["created_ids"]),
+                     tenant_tags=tenant, tags_readable=readable, workspace_tags=on_items, include=set(req["include"]))
+    out["writable"] = ws in cw.allowed_workspaces()
+    out["left_out"] = left_out
+    if req["dry_run"]:
+        log("catalog", dry_run=True, products=len(out["products"]), writes=len(out["writes"]))
+        return _with_schema({**out, "note": NOTHING_CHANGED}, req)
+    try:
+        done = cp.apply(out, ws, req["confirm"], io.sender(headers))
+    except cw.NotAllowed as e:
+        return {"error": str(e), "kind": "not_allowed", "hint": "Nothing was written. The diff and the handover files are yours."}
+    log("catalog", dry_run=False, written=sum(1 for r in done["results"] if r["ok"]), failed=sum(1 for r in done["results"] if not r["ok"]))
+    return _with_schema({**out, **done, "note": "Written as you; undo lists the calls that put back what was there."}, req)
+
+# ------------------------------------------------------------------ WB10: the Data Science starter, created ---------
+# POST /workload/v1/starter: the next step's feature-table notebook (nextSteps.ts featureCells), created as a Notebook
+# item in the item's workspace as the signed-in user, attached to the source lakehouse. Gustav, live test of 18 Nov 2026
+# (#64): one click, like the other cards. A dry run first (what would be created, nothing written); Create needs the dry
+# run's confirm. Krusgraph never runs the notebook and trains no model. An item of the same name is never overwritten.
+
+STARTER_MAX_CELLS = 12
+STARTER_MAX_CHARS = 60_000
+
+
+def starter_request(body) -> dict:
+    if not isinstance(body, dict):
+        raise BadRequest("the body must be a JSON object")
+    req = _source(body)
+    name = _item_name(body.get("name"), "The notebook's name")
+    cells = body.get("cells")
+    if (not isinstance(cells, list) or not 1 <= len(cells) <= STARTER_MAX_CELLS or not all(isinstance(c, str) for c in cells)
+            or sum(len(c) for c in cells) > STARTER_MAX_CHARS):
+        raise BadRequest(f"'cells' is the starter's code cells: 1 to {STARTER_MAX_CELLS} texts, {STARTER_MAX_CHARS} characters in all")
+    dry = body.get("dry_run", True)
+    if not isinstance(dry, bool):
+        raise BadRequest("'dry_run' must be true or false")
+    confirm = body.get("confirm")
+    if confirm is not None and (not isinstance(confirm, str) or len(confirm) > 40):
+        raise BadRequest("'confirm' is the dry run's confirm value")
+    return {**req, "name": name, "cells": cells, "dry_run": dry, "confirm": confirm}
+
+
+def starter_confirm(workspace: str, name: str, cells: list[str]) -> str:
+    text = json.dumps([workspace.lower(), name, cells], ensure_ascii=False)
+    return "starter-" + hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+
+
+STARTER_NOT_RUN = "Krusgraph does not run it and trains no model: open it in Fabric and run it yourself."
+
+
+def run_starter(req: dict) -> dict:
+    from . import server as S, notebook as _notebook
+    from .deploy import create_item_with_definition, find_item
+    headers = S._headers(None)
+    ws = S._workspace_id(req["workspace"], headers)
+    src = S._resolve_source(ws, req["source"], headers)
+    lh_id, lh_name = src.get("id") or "", src.get("displayName") or req["source_name"]
+    exists = find_item(ws, req["name"], headers, "Notebook")
+    confirm = starter_confirm(ws, req["name"], req["cells"])
+    out = {"name": req["name"], "type": "Notebook", "workspace": ws, "lakehouse": lh_name, "cells": len(req["cells"]),
+           "would": "exists" if exists else "create", "runs": False, "confirm": None if exists else confirm,
+           "words": (f"A notebook named {req['name']} is already in this workspace: Krusgraph does not overwrite it. "
+                     "Choose another name, or open that one." if exists else
+                     f"Would create the notebook {req['name']} in this workspace, attached to {lh_name}, with "
+                     f"{len(req['cells'])} cells. {STARTER_NOT_RUN}")}
+    if req["dry_run"] or exists:
+        log("starter", dry_run=req["dry_run"], exists=bool(exists))
+        return {**out, "note": NOTHING_CHANGED}
+    if req["confirm"] != confirm:
+        return {"error": "Send back the confirm value of the dry run, so what is created is what you saw.", "kind": "not_allowed",
+                "hint": "Nothing was created. Run the dry run again."}
+    source = _notebook.fabric_source([("code", c) for c in req["cells"]], _notebook.notebook_metadata(ws, lh_id, lh_name))
+    got = create_item_with_definition("notebooks", "Notebook",
+                                      _notebook.envelope(req["name"], source, f"Krusgraph starter: a feature table from the keys and links proven on {lh_name}"),
+                                      ws, token_provider=lambda: S.auth.fabric(None), update_existing=False)
+    log("starter", dry_run=False, status=got.get("status"))
+    if got.get("status") == "Timeout":
+        return {"error": f"Fabric had not finished creating {req['name']} when Krusgraph stopped waiting.", "kind": "timeout",
+                "hint": "Look in the workspace before trying again: it may have arrived. Nothing else was changed."}
+    if got.get("status") != "Succeeded" or not got.get("id"):
+        return {"error": f"Fabric did not create the notebook {req['name']} (HTTP {got.get('http', '?')}).", "kind": "fabric",
+                "hint": "Creating a notebook needs the Contributor role on the workspace. Nothing else was changed."}
+    created = {"type": "Notebook", "id": got["id"], "name": req["name"], "workspace": ws, "output": "ds_features"}
+    return {**out, "would": "created", "created": created,
+            "words": f"Created the notebook {req['name']}, attached to {lh_name}. {STARTER_NOT_RUN}",
+            "note": "Created as you; nothing was run."}
 
 
 # n179: every schema of the source with its number of tables, empty ones included (shown greyed in the editor). The
@@ -1800,10 +2035,11 @@ def _call(kind: str, o: dict, chosen: dict, req: dict, keys, confirmed, dry_run:
     from . import server as S
     common = {"workspace": req["workspace"], "source": req["source"], "schema": req["schema"], "keys": keys,
               "confirmed": confirmed, "dry_run": dry_run}
+    layers = layer_args(kind, chosen, req)                         # WB2 (#54)
     if kind == "silver_notebook":
-        text = S.create_silver_notebook(name=o["name"], **common)
+        text = S.create_silver_notebook(name=o["name"], **layers, **common)
     elif kind == "gold_views":
-        text = S.create_gold_views(name=o["name"], **common)
+        text = S.create_gold_views(name=o["name"], **layers, **common)
     elif kind == "pipeline":
         jobs = o.get("jobs") or {}
         allowed = jobs_permission(token_scopes(), None)["granted"] is not False     # n185: without the scope, neither runs
@@ -1812,15 +2048,15 @@ def _call(kind: str, o: dict, chosen: dict, req: dict, keys, confirmed, dry_run:
         try:
             text = S.create_pipeline(name=o["name"], silver_name=chosen.get("silver_notebook", ""), gold_name=chosen.get("gold_views", ""),
                                      run_once=bool(jobs.get("run_once")) and allowed,
-                                     schedule=(jobs.get("schedule") if allowed else None), **common)
+                                     schedule=(jobs.get("schedule") if allowed else None), **layers, **common)
         finally:
             S.PIPELINE_JOBS.reset(token)
     elif kind == "semantic_model":
-        text = S.create_semantic_model(name=o["name"], **common)
+        text = S.create_semantic_model(name=o["name"], **layers, **common)
     elif kind == "ontology":
-        text = S.create_ontology(name=o["name"], **common)
+        text = S.create_ontology(name=o["name"], **layers, **common)
     elif kind == "data_agent":                                     # n185: one layer; publishing is decided after (agent_card)
-        text = S.create_data_agent(name=o["name"], publish=False, layer=(o.get("agent") or {}).get("layer", "silver"), **common)
+        text = S.create_data_agent(name=o["name"], publish=False, layer=(o.get("agent") or {}).get("layer", "silver"), **layers, **common)
     elif kind == "rayfin_app":                                     # n181: preflight first, then the package (rayfin_app.py)
         from . import rayfin_app
         from .deploy import write_and_wait, find_item
@@ -2442,6 +2678,11 @@ class Tokens:
         """n180: for the Power BI REST API (a new semantic model's one refresh)."""
         return self.obo.token(self.user_token, self.tenant, POWERBI_SCOPE)
 
+    def onelake(self) -> str:
+        """CSN2: for OneLake's DFS API (Azure Storage audience): read CSN files in the lakehouse's Files, nothing else."""
+        from .csn_onelake import STORAGE_SCOPE
+        return self.obo.token(self.user_token, self.tenant, STORAGE_SCOPE)
+
 
 def cors_headers(origin: str | None) -> dict:
     if origin and FABRIC_ORIGIN.match(origin.lower()):
@@ -2536,6 +2777,8 @@ def routes(cfg, validator=None, obo=None) -> list:
                 return reply(tenant_refusal(e.tenant), 403, origin)
             except TokenError as e:
                 return reply({"error": str(e), "kind": "sign_in"}, 401, origin, {"WWW-Authenticate": 'Bearer error="invalid_token"'})
+            from .usage_metrics import counts as _usage_counts          # UM1: the organisation and user, as salted hashes only
+            _usage_counts.identity(claims.get("tid"), claims.get("oid") or claims.get("sub"))
             try:
                 req = parse(json.loads(await request.body() or b"null"))
             except (ValueError, BadRequest) as e:
@@ -2558,7 +2801,7 @@ def routes(cfg, validator=None, obo=None) -> list:
                 return reply(refusal, STATUS["upgrade"], origin)
 
             tokens = Tokens(obo, token, claims["tid"], getattr(cfg, "client_id", None))
-            if where == "product":                     # n198: who removed or adopted an item, for outputs.json
+            if where in ("product", "catalog"):        # n198: who removed or adopted an item; WB10: the catalog owner's Me
                 req["by"] = who(claims)
             if where == "operation":                   # n197: the state of a background operation, for its owner only
                 from . import operations
@@ -2608,7 +2851,11 @@ def routes(cfg, validator=None, obo=None) -> list:
             Route(f"{PREFIX}/product", endpoint(product_request, run_product, "product"), methods=["POST", "OPTIONS"]),
             Route(f"{PREFIX}/health", endpoint(health_request, run_health, "health"), methods=["POST", "OPTIONS"]),
             Route(f"{PREFIX}/drawio", endpoint(drawio_request, run_drawio, "drawio"), methods=["POST", "OPTIONS"]),   # n228
+            Route(f"{PREFIX}/file", endpoint(file_request, run_file, "file"), methods=["POST", "OPTIONS"]),   # WB10
+            Route(f"{PREFIX}/file/{{token}}", serve_file, methods=["GET"]),   # WB10: the link opened in a new tab
             Route(f"{PREFIX}/verify", endpoint(verify_request, run_verify, "verify"), methods=["POST", "OPTIONS"]),   # n229
+            Route(f"{PREFIX}/catalog", endpoint(catalog_request, run_catalog, "catalog"), methods=["POST", "OPTIONS"]),   # CA1
+            Route(f"{PREFIX}/starter", endpoint(starter_request, run_starter, "starter"), methods=["POST", "OPTIONS"]),   # WB10
             Route(f"{PREFIX}/access", endpoint(access_request, None, "access"), methods=["POST", "OPTIONS"])]
 
 
@@ -2658,6 +2905,7 @@ def verify_request(body) -> dict:
     out = {**req, "review": body["review"],
            "created": [{k: str(c.get(k) or "")[:200] for k in ("type", "id", "name", "workspace", "output")} for c in created]}
     out.update(_ids(body))
+    out.update(layers_request(body))                               # WB2 (#54): as the build was sent
     return out
 
 
@@ -2694,7 +2942,8 @@ def run_verify(req: dict) -> dict:
         with S.plan_scope(adjust):
             from . import budget
             with budget.call():
-                out = S._verify_built(req["workspace"], req["source"], items, req["schema"], keys, confirmed, None, None, skip=skip)
+                out = S._verify_built(req["workspace"], req["source"], items, req["schema"], keys, confirmed, None, None, skip=skip,
+                                      silver_schema=req.get("silver_schema") or "")
     finally:
         S.BUILD_IN.reset(build_in)
     out.pop("review_by_ai", None)                                  # the editor has no AI client beside it
@@ -2714,6 +2963,64 @@ def run_verify(req: dict) -> dict:
     log("verify", items=c.get("items"), verified=c.get("verified"), differs=c.get("differs"), not_checked=c.get("not_checked"))
     out["note"] = NOTHING_CHANGED + " The verifier only reads: definitions, counts and run history; never a row value."
     return _with_schema(out, req)
+
+
+# ------------------------------------------------------------------ WB10: downloads inside Fabric's frame -----------
+# POST /workload/v1/file {filename, mime, content | content_base64}: keeps the file ten minutes and answers a signed,
+# single-use path; the editor opens it with workloadClient.navigation.openBrowserTab (file_links.py says why). GET
+# /workload/v1/file/<token> serves it once with Content-Disposition: attachment. The token is the only key: the new tab
+# carries no bearer token. Logged: sizes and outcomes, never the name or the content.
+
+def file_request(body) -> dict:
+    from . import file_links as fl
+    if not isinstance(body, dict):
+        raise BadRequest("the body must be a JSON object")
+    name, mime = body.get("filename"), body.get("mime")
+    if not isinstance(name, str) or not name.strip() or len(name) > 200:
+        raise BadRequest("'filename' is the file's name, at most 200 characters")
+    if mime not in fl.MIMES:
+        raise BadRequest(f"'mime' is one of {', '.join(sorted(fl.MIMES))}")
+    text, b64 = body.get("content"), body.get("content_base64")
+    if (text is None) == (b64 is None):
+        raise BadRequest("send the file as 'content' (text) or as 'content_base64', one of them")
+    if text is not None:
+        if not isinstance(text, str):
+            raise BadRequest("'content' is the file's text")
+        data = text.encode("utf-8")
+    else:
+        import base64 as _b64
+        import binascii
+        try:
+            data = _b64.b64decode(str(b64), validate=True)
+        except (binascii.Error, ValueError):
+            raise BadRequest("'content_base64' is not base64") from None
+    if not data or len(data) > fl.MAX_BYTES:
+        raise BadRequest(f"the file is empty or larger than {fl.MAX_BYTES // (1024 * 1024)} MB")
+    return {"filename": name, "mime": mime, "data": data}
+
+
+def run_file(req: dict) -> dict:
+    from . import file_links as fl
+    got = fl.offer(req["data"], req["filename"], req["mime"])
+    log("file", offered=True, bytes=got["bytes"])
+    return {**got, "note": "The link works once, for ten minutes. Nothing was written in Fabric."}
+
+
+async def serve_file(request):
+    from starlette.concurrency import run_in_threadpool
+    from starlette.responses import PlainTextResponse, Response
+    from . import file_links as fl
+    got = await run_in_threadpool(fl.take, request.path_params.get("token", ""))
+    headers = {**SECURITY_HEADERS, "Referrer-Policy": "no-referrer"}
+    if isinstance(got, str):
+        log("file", served=False, why=got)
+        words = {"bad": "This download link is not valid.",
+                 "expired": "This download link has expired (links work for ten minutes). Choose Download again in the item.",
+                 "gone": "This download link was already used or has expired (each link works once). Choose Download again in the item."}[got]
+        return PlainTextResponse(words, status_code=404 if got == "bad" else 410, headers=headers)
+    data, name, mime = got
+    log("file", served=True, bytes=len(data))
+    return Response(data, media_type=mime, headers={**headers, "Content-Disposition": fl.disposition(name)})
 
 
 def drawio_request(body) -> dict:

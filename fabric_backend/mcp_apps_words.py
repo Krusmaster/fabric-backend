@@ -43,7 +43,7 @@ NOTE_ITEMS_MAX = 60
 # n227: a tool's name in a sentence a person reads (list_workspaces, create_report ...); `start` is a plain word. The
 # names are listed, not matched by shape: list_price and order_items are columns and tables, not tools.
 TOOLS_NAMED = (
-    "analyze_schema", "answer_query_draft", "app_readiness", "app_starter", "compare_semantic_model",
+    "analysis_notebook_draft", "analysis_plan", "analyze_schema", "answer_query_draft", "app_readiness", "app_starter", "compare_semantic_model",
     "create_backend", "create_data_agent", "create_drift_monitor", "create_gold_views", "create_ontology",
     "create_pipeline", "create_report", "create_semantic_model", "create_silver_notebook", "create_views",
     "data_dictionary", "dbt_schema", "describe_backend", "domain_draft", "drift_monitor_draft",
@@ -51,7 +51,8 @@ TOOLS_NAMED = (
     "ontology_draft", "plan_backend", "plan_drift", "query_graphql", "rayfin_connector", "review_plan",
     "sample_rows", "sap_pack_draft", "semantic_model_draft", "silver_notebook_draft", "suggest_relationships",
     "validate_plan",
-    "verify_build")
+    "verify_build", "publish_catalog",
+    "qlik_plan", "qlik_measures_draft", "qlik_reconcile_draft", "requirements_draft")
 TOOL_NAME = re.compile(r"\b(?:" + "|".join(sorted(TOOLS_NAMED, key=len, reverse=True)) + r")\b")
 SAP_PACK = "SAP pack: Krusgraph's list of known SAP keys"
 # What each creating tool makes, for the result line.
@@ -108,7 +109,9 @@ _TOOL_WORDS = {"validate_plan": "the check against the rows", "plan_backend": "t
                "semantic_model_draft": "the semantic model draft", "ontology_draft": "the ontology draft",
                "gold_views_draft": "the gold views draft", "sample_rows": "showing rows", "list_workspaces": "the workspace list",
                "list_sources": "the source list", "list_tables": "the table list", "app_readiness": "the app check",
-               "create_pipeline": "Create", "sap_pack_draft": "the SAP pack's list"}
+               "create_pipeline": "Create", "sap_pack_draft": "the SAP pack's list",
+               "qlik_plan": "the plan from the load script", "qlik_measures_draft": "the measure drafts",
+               "qlik_reconcile_draft": "the KPI comparison"}
 
 
 def _plural(n: int, one: str, many: str | None = None) -> str:
@@ -189,9 +192,12 @@ def plan_lines(f: dict) -> list[str]:
     return out
 
 
-def check_lines(answer: dict) -> list[str]:
-    """validate_plan's summary as short sentences, from its totals."""
+def check_lines(answer: dict, checks: dict | None = None) -> list[str]:
+    """validate_plan's summary as short sentences, from its totals. WB13 (#90): with the card's check rows (`checks`,
+    mcp_apps_next.check_rows) the links are split into key links and other joins, and the last line adds every check up
+    by kind, so the numbers can be put next to the review's."""
     t = answer.get("totals") if isinstance(answer.get("totals"), dict) else {}
+    rows = [x for x in (checks or {}).get("rows") or [] if isinstance(x, dict)] if isinstance(checks, dict) else []
     out = []
     k = t.get("keys") if isinstance(t.get("keys"), dict) else {}
     if k.get("checked"):
@@ -199,7 +205,10 @@ def check_lines(answer: dict) -> list[str]:
     r = t.get("relationships") if isinstance(t.get("relationships"), dict) else {}
     if r.get("checked"):
         failed = int(r.get("failed") or 0)
-        out.append(f"{r.get('passed', 0)} of {_plural(r['checked'], 'link')} hold"
+        other = sum(1 for x in rows if x.get("kind") == "link" and x.get("other"))
+        split = (f" ({r['checked'] - other} key {'link' if r['checked'] - other == 1 else 'links'} and {other} other "
+                 f"{'join' if other == 1 else 'joins'}: on a non-key column, valid on a date, or filtered)") if other else ""
+        out.append(f"{r.get('passed', 0)} of {_plural(r['checked'], 'link')} hold{split}"
                    + (", with no orphans." if not failed else f"; {failed} {'has' if failed == 1 else 'have'} rows that point at nothing."))
     a = t.get("amount_levels") if isinstance(t.get("amount_levels"), dict) else {}
     if a.get("checked"):
@@ -209,6 +218,19 @@ def check_lines(answer: dict) -> list[str]:
                    f"{'it' if bad == 1 else 'they'} must not be summed over the lines.")
     n = int(answer.get("needs_attention") or 0)
     out.append("Nothing needs attention." if not n else f"{_plural(n, 'thing needs', 'things need')} attention.")
+    if rows:                                                     # WB13 (#90): every check, added up by kind
+        def by(state):
+            kinds = {"key": ("key", "keys"), "link": ("link", "links"), "amount": ("header amount", "header amounts")}
+            parts = []
+            for kind, (one, many) in kinds.items():
+                m = sum(1 for x in rows if x.get("state") == state and x.get("kind") == kind)
+                if m:
+                    parts.append(f"{m} {one if m == 1 else many}")
+            return ", ".join(parts)
+        c = {s: sum(1 for x in rows if x.get("state") == s) for s in ("passed", "failed", "not_checked")}
+        line = f"In all: {c['passed']} passed, {c['failed']} failed" + (f" ({by('failed')})" if c["failed"] else "")
+        line += f", {c['not_checked']} not checked" + (f" ({by('not_checked')})." if c["not_checked"] else ".")
+        out.append(line)
     return out
 
 
@@ -590,6 +612,22 @@ def card(tool: str, answer: dict, stash: dict | None = None, call: dict | None =
         return None
     stash = stash or {}
     out: dict = {}
+    own = answer.get(KEY)
+    if isinstance(own, dict) and isinstance(own.get("result"), str) and own["result"].strip():
+        # Q2: a tool that writes its card's words itself (the Qlik tools): the same form and the same rules as below
+        out = {"result": plain(own["result"])}
+        if isinstance(own.get("title"), str):
+            out["title"] = own["title"]
+        lines = [plain(x) for x in own.get("lines") or [] if isinstance(x, str) and x.strip()][:LINES_MAX]
+        if lines:
+            out["lines"] = lines
+        notes = [_note(plain(n["line"]), n.get("items") or []) for n in own.get("notes") or []
+                 if isinstance(n, dict) and isinstance(n.get("line"), str)]
+        if notes:
+            out["notes"] = notes
+        if not WORDS_WITH_ARGUMENTS.search(out["result"]):
+            out["onto"] = out["result"]
+        return out
     if answer.get("choose_schema"):
         return {"title": "Plan", "thinker": "Which schema shall I plan?"}
     if tool == "start":                              # n227: the step's own sentence, said once by Onto
@@ -601,7 +639,7 @@ def card(tool: str, answer: dict, stash: dict | None = None, call: dict | None =
         out["lines"] = plan_lines(f)
     elif tool == "validate_plan" and isinstance(answer.get("totals"), dict):
         out["title"] = "Plan check"
-        out["lines"] = check_lines(answer)
+        out["lines"] = check_lines(answer, stash.get("checks"))
     else:                                            # n227: every other answer, in one form
         try:
             out.update(summary_card(tool, answer, call))

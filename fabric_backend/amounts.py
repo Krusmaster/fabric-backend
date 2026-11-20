@@ -117,6 +117,12 @@ def is_hours(column: str, sql_type: str = "decimal") -> bool:
     return bool(words) and words[-1] in _HOURS
 
 
+def _declared(plan: Plan) -> list[dict]:
+    """The amounts a knowledge pack names (NETWR) and, since CDS2, those a CSN file marks with @Semantics.amount."""
+    from .csn import declared_amounts
+    return declared_amounts(plan)
+
+
 def _one_to_one(plan: Plan, r) -> bool:
     key = plan.keys.get(r.source, ([], ""))[0]
     return bool(key) and {c.lower() for c in key} == {c.lower() for c in r.source_cols}
@@ -131,7 +137,7 @@ def header_amounts(plan: Plan) -> list[dict]:
         header = plan.schema[r.target]
         key = {c.lower() for c in plan.keys[r.target][0]}
         refs = {c.lower() for x in plan.relationships if x.source == r.target for c in x.source_cols}
-        packed = {x["column"].lower() for x in (plan.pack or {}).get("amounts", []) if x["table"] == r.target}  # NETWR: the pack knows
+        packed = {x["column"].lower() for x in _declared(plan) if x["table"] == r.target}  # NETWR: the pack knows
         cols = [c.name for c in header.columns if c.name.lower() not in key | refs
                 and (looks_like_amount(c.name, c.data_type) or is_hours(c.name, c.data_type) or c.name.lower() in packed)]
         if cols:
@@ -144,7 +150,7 @@ def line_amounts(plan: Plan) -> list[dict]:
     """Every line table with a quantity column, from names and types alone (no query): the amount columns it carries
     itself (by name, or named by the pack: VBAP.NETWR) and the price columns on the tables it points at many-to-one,
     each with the relationship that reaches it. `order_amount_measures` turns these into measures."""
-    packed = {(x["table"], x["column"].lower()) for x in (plan.pack or {}).get("amounts", [])}
+    packed = {(x["table"], x["column"].lower()) for x in _declared(plan)}
     out = []
     for t in plan.schema:
         key = {c.lower() for c in plan.keys.get(t.name, ([], ""))[0]}
@@ -332,7 +338,7 @@ def flat_candidates(plan: Plan) -> list[dict]:
     single-column key). The amount columns are the table's amounts by name (or named by the pack) that are neither key,
     reference nor header column, and not a price per unit. Ordered so that a header whose entity the amount names comes
     first (order_id with order_amount)."""
-    packed = {(x["table"], x["column"].lower()) for x in (plan.pack or {}).get("amounts", [])}
+    packed = {(x["table"], x["column"].lower()) for x in _declared(plan)}
     out = []
     for t in plan.schema:
         key = [c.lower() for c in plan.keys.get(t.name, ([], ""))[0]]

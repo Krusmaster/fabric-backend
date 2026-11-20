@@ -25,8 +25,10 @@ commit and again after every `git pull`.
 
 ## What an agent must not do
 
-- Deploy, or call Azure, Entra, DNS or Fabric with real credentials. Deployment is `bash deploy/krusgraph.sh
-  --update`, run by the maintainer.
+- Deploy by hand, or call Azure, Entra, DNS or Fabric with real credentials. Deployment is the workflow
+  `.github/workflows/deploy.yml` once the maintainer has switched it on (`docs/AUTO-DEPLOY.md`), and otherwise
+  `bash deploy/krusgraph.sh --update`, run by the maintainer.
+- Merge a pull request that the section "Merging and deploying" below does not allow a round to merge.
 - Publish anywhere (MCP registry, directories, package indexes) or send email.
 - Delete branches, tags or releases, or rewrite history on `main`.
 
@@ -37,15 +39,15 @@ owner of an area is listed here. Change an area you do not own only when the mai
 
 | Area | Files | Owner now |
 | --- | --- | --- |
-| Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/concepts.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | n240 holds `check.html`, `home.html`, `PRIVACY.md`, `site.css`, `check.js`, `pages.py`, `fabric_backend/usage.py`, the /check and admin-count routes in `server.py`, and new tests `tests/test_n240_*` and `tests/browser_n240_mobile.js` only (/check on a phone, a no-login sample path, cookie-free campaign counts); n242 holds `sap.html` and the new files `static/media/krusgraph-sap-to-report*` only (the approved SAP film on /sap, with captions); the rest is open |
+| Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/concepts.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | n242 holds `sap.html` and the new files `static/media/krusgraph-sap-to-report*` only (the approved SAP film on /sap, with captions); the rest is open |
 | MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | open |
-| Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | open; no tool, no pipeline cell, no workload code) |
-| Deployment | `deploy/`, `Dockerfile`, `.github/` | W12 holds `.github/workflows/ci.yml` (the workload job: the Krusgraph.Modeler package as an artifact and its offline validation) and `Dockerfile` (the editor's default workload name) only; the rest is open |
+| Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | | open |
+| Deployment | `deploy/`, `Dockerfile`, `.github/` | open; MOD1 holds the `workload` job of `.github/workflows/ci.yml`, `.github/workflows/workload-package.yml` and `tools/workload_package.py`, `tools/workload_package_ci.py` only (PR #26) |
 | Pipeline jobs and permissions | `fabric_backend/pipeline_jobs.py`, `fabric_backend/access.py`, `fabric_backend/report.py` | open |
 | SAP pack | `fabric_backend/packs/`, `fabric_backend/sap_pack.py`, `fabric_backend/sap_demo.py`, `fabric_backend/exports.py` | | open |
-| Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | open; M1 holds new files under `docs/marketing/` only (marketing drafts: a fictional industrial case on synthetic data, LinkedIn posts, a film script, taglines, a home page section; nothing applied to the site or `llms.txt`); W9 holds the one new file `docs/INTEGRATE-AND-HEAL-DESIGN.md` (a design for connecting sources to OneLake and for self-healing data products by rules; docs only, nothing built); L1 holds the one new file `docs/LEARNING-DESIGN.md` and an update of `docs/LANDSCAPE.md` only (a re-run of the MCP landscape scan and a design for knowledge that accumulates by rules: decisions, packs, templates; docs only, nothing built); W12 holds the new file `docs/MODELER-GO-LIVE.md` and the Krusgraph.Modeler rows of `docs/PUBLISHING-READINESS.md`, `docs/WORKLOAD-PUBLISH.md` and `CONTRIBUTING.md` (the founder's go-live steps for the day Microsoft registers the name); not the site, not the editor) |
-| Tests | `tests/` | W12 holds new `tests/test_w12_*` and the workload-name tests `tests/test_workload_publish.py`, `tests/test_n201_manifest.py`, `tests/test_deploy_workload.py`, `tests/test_w11_offer_url.py`, `tests/test_n195_attestation.py`, `tests/test_workload_manifest.py` only; n242 holds the new `tests/test_n242_*` only; the rest is open |
-| Workload | `workload/` (the Fabric workload, a fork of Microsoft's starter kit), `fabric_backend/workload_api.py`, the workload routes in `server.py`, `docs/WORKLOAD-DEV.md` | W12 holds `workload/` and `docs/WORKLOAD-DEV.md` (the package builds as Krusgraph.Modeler by default, one name constant, an offline package validator); not `workload_api.py`, not `server.py` |
+| Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | open; MOD1 holds `docs/MODELER-GO-LIVE.md`, `docs/WORKLOAD-PACKAGE-UPDATES.md`, `docs/WORKLOAD-PUBLISH.md`, `docs/PUBLISHING-READINESS.md`, the workload-name paragraph of `CONTRIBUTING.md` and its `CHANGELOG.md` line only (PR #26); M1 holds new files under `docs/marketing/` only (marketing drafts: a fictional industrial case on synthetic data, LinkedIn posts, a film script, taglines, a home page section; nothing applied to the site or `llms.txt`); W9 holds the one new file `docs/INTEGRATE-AND-HEAL-DESIGN.md` (a design for connecting sources to OneLake and for self-healing data products by rules; docs only, nothing built); L1 holds the one new file `docs/LEARNING-DESIGN.md` and an update of `docs/LANDSCAPE.md` only (a re-run of the MCP landscape scan and a design for knowledge that accumulates by rules: decisions, packs, templates; docs only, nothing built); not the site, not the editor) |
+| Tests | `tests/` | open; MOD1 holds `tests/test_w12_modeler.py`, `tests/test_workload_publish.py`, `tests/test_workload_package_names.py`, `tests/test_workload_manifest.py`, `tests/test_deploy_workload.py`, `tests/test_n195_attestation.py` and `tests/test_w14_workload_package.py`, `tests/test_wp1_workload_package_ci.py` only (PR #26) |
+| Workload | `workload/` (the Fabric workload, a fork of Microsoft's starter kit), `fabric_backend/workload_api.py`, the workload routes in `server.py`, `docs/WORKLOAD-DEV.md` | open; MOD1 holds `workload/scripts/build_package.py`, `workload/scripts/build-package`, the new `workload/scripts/validate_package.py`, `workload/README.md` and `docs/WORKLOAD-DEV.md` only (PR #26: Krusgraph.Modeler as the package's default name) |
 | Marketplace | `fabric_backend/marketplace.py`, `fabric_backend/entitlements.py`, the marketplace routes in `server.py`, `docs/MARKETPLACE-SETUP.md`, `tests/test_marketplace.py` | open |
 | Hub readiness | `docs/HUB-ATTESTATION.md`, `docs/HUB-READINESS.md`, `tools/hub_readiness.py`, `.github/workflows/hub-readiness.yml` (new files only; no `workload/` code, no site, no engine) | open |
 | Evolution | `docs/EVOLUTION.md`, `tools/evolution/`, `tests/test_e1_*` (how Krusgraph gets better by rules: the design, the score comparison that fails on a lower score and its baseline, the evolution-log tool, the case-record schema) | open |
@@ -70,6 +72,52 @@ comment (`tests/test_b2_supply_chain.py`); take a new one's commit from `git ls-
 --check --from-installed`, so a pip PR that changes a pin in `deploy/constraints.txt` is red until
 `THIRD_PARTY_NOTICES.md` is regenerated on its branch (`python tools/third_party_notices.py`): a simple consequence,
 fixed in place. The job also stops on a dependency under the AGPL or the SSPL, which is not fixed in place.
+## Merging and deploying
+
+The maintainer's decision of 16 November 2026: code with green tests may be merged and deployed automatically.
+
+**A round may merge its own pull request into `main`** when all of these hold:
+
+- every CI job on the pull request's current head is green, including *path-guard*;
+- the pull request touches only code, tests and public docs, and `tools/path_guard.py` finds nothing protected;
+- the branch is up to date with `main` (update it and wait for CI again if `main` has moved);
+- nothing in the round wrote to a Fabric tenant other than the demo tenant.
+
+Use the repository's usual merge method (a merge commit; Dependabot PRs are squashed, as above). Then check that
+`main` is green before the next merge.
+
+**Never merged by a round.** The round adds the label `needs-gustav` to the pull request and stops; the maintainer
+merges it. This applies to a pull request that touches any of the following:
+
+- `social/`, or marketing copy meant for publishing (`docs/marketing/` and the like);
+- pricing or sales material, including the pricing page. Pricing and sales material do not belong in this repository at
+  all (see "What never goes into the repository");
+- the legal pages' text: privacy, terms, cookies, the security policy page, `legal.py`, the DPA draft and the licences;
+- the workload name or manifest identity: `workload/Workload/Manifest/`, the package build scripts, `server.json`
+  (for example `Krusgraph.Modeler`, PR #26);
+- secrets or permissions: `.github/workflows/`, `deploy/` scripts, `Dockerfile`, `entra.py`, `access.py`,
+  `SECURITY.md`;
+- the deletion or retention of user data (`registration_store.py`, `usage.py`);
+- a major version bump of a dependency (`deploy/constraints.txt`, `pyproject.toml`,
+  `workload/Workload/package.json`; for 0.x versions a new minor counts as major);
+- this section, `tools/path_guard.py` or the pull request template.
+
+A Fabric write to a tenant other than the demo tenant cannot be seen in a diff. A round that made one labels its pull
+request `needs-gustav` itself.
+
+**The rule is enforced.** `.github/workflows/path-guard.yml` runs `tools/path_guard.py` on every pull request and on every
+label change. It fails when a protected path or a major bump has no `needs-gustav` label. The rules come from the base
+branch, so a pull request cannot loosen the check that judges it. A change to the rules is itself protected.
+`tests/test_cd1_path_guard.py` tests the check.
+
+**Deploying.** After a push to `main` whose CI run is green, `.github/workflows/deploy.yml` builds the image in Azure
+and updates the container app, the same way `bash deploy/krusgraph.sh --from-azure --update` does. It runs the same
+health checks (the home page, docs, privacy, the MCP login requirement, the build id at `/healthz`). If they fail, it
+rolls back to the previous image automatically and opens an issue. One deployment runs at a time, and commits that are
+superseded while waiting are skipped. It signs in with GitHub's OIDC token, so no stored secret is needed. It stays
+dormant until the maintainer has done the one-time steps in `docs/AUTO-DEPLOY.md`, which also says how to switch it
+off. The Fabric workload package upload stays manual.
+
 ## Reusing external code
 
 Depending on a package (a pin in `deploy/constraints.txt`, an extra in `pyproject.toml`) and copying code into this

@@ -25,6 +25,34 @@ Rules for this text, as in W7 and W10:
 
 ---
 
+## 0. Update, round Q2 (16 November 2026)
+
+Written by a scheduled Claude session with no live user. The text from section 1 on is Q1's and is kept as it was
+written, with a note where Q2 changed something. Three things changed.
+
+**The founder decided the shape**, on 16 November 2026, differently from Q1's recommendation in section 1:
+
+| Decision | Where it is carried |
+|---|---|
+| Migrate becomes its own Fabric workload. Registered name proposal `Krusgraph.Migrate`; "Qlik" is not in the registered name (a trademark); the display text may say "Krusgraph Migrate - from Qlik to Power BI" | `MIGRATE-WORKLOAD-DESIGN.md`: a design, nothing built, and the name is in no build |
+| The chat (MCP) tools and a guided page are built first, because workload name registration is still blocked | Section 3b below; `MIGRATE-GUIDED-PAGE-DRAFT.md` |
+| Customers are meant to use both Migrate and `Krusgraph.Modeler` | `MIGRATE-WORKLOAD-DESIGN.md` section 4 |
+| Load scripts may go through the hosted server by default, with a local-only path for sensitive customers | The three tools are on the hosted server and on the local server (`LOCAL.md` section 4) |
+
+So section 1's "not (b)" and section 6's questions 1 and 2 are answered: (b), and hosted by default.
+
+**The reader was run on public load scripts**: 58 files from four public repositories under the MIT licence
+(`tests/fixtures/qlik/SOURCES.md` has each source, commit, licence and change). Of 1 856 statements the reader now
+reads 1 092, lists 722 as control flow and 29 as includes of files it was not given, and leaves 13 not read. Before
+this round's fixes it left 813 under "not read". That corpus has no data model: no file in it has two tables that
+share a field, so associations and synthetic keys are still tested on the synthetic script only.
+
+**Three tools exist** (section 3b): `qlik_plan`, `qlik_measures_draft` and `qlik_reconcile_draft`. Steps 5, 6 and 7
+of section 2.2 are built as tools. Nothing here has read a script from a customer's Qlik installation, and
+every Qlik fact is still Unverified: `help.qlik.com` and `qlik.dev` could not be reached in this round either.
+
+---
+
 ## 1. Which shape
 
 Three candidates.
@@ -83,9 +111,9 @@ Krusgraph connects to nothing on the Qlik side in the first version and evaluate
 | 2 | Tables for the lakehouse | Per table: a column name per field that a Delta table accepts, the source of each field, and whether the table is a copy of its source or shaped in the script (the list of steps to rebuild in silver) | **Built** (this round) |
 | 3 | Associations to a star schema | A one side per association from counts in the rows; each synthetic key in one of five cases; roles (fact, dimension); a second path between two tables named | **Built** (this round) |
 | 4 | A Krusgraph plan | Keys and confirmed links as `infer.Plan`; the engine's own check (`validate_plan`) and the semantic model draft read it | **Built** (this round), as a library call |
-| 5 | Measures | Master measures and chart expressions under W10's three labels (section 2.4) | Not built |
-| 6 | Validate truths | The exported Qlik table against the new model's SQL per grain; equal, or a reason that reproduces the number, or open (section 2.5) | Not built |
-| 7 | A tool and a page | `qlik_plan` in the local server; the guided page | Not built |
+| 5 | Measures | Master measures and chart expressions under W10's three labels (section 2.4) | **Built in Q2** as `qlik_measures_draft`; fewer rules than section 2.4 lists (section 3b) |
+| 6 | Validate truths | The exported Qlik table against the new model's SQL per grain; equal, or a reason that reproduces the number, or open (section 2.5) | **Built in Q2** as `qlik_reconcile_draft`: the statement and the comparison; it names no reason (section 3b) |
+| 7 | A tool and a page | `qlik_plan` in the local server; the guided page | **Built in Q2**: three tools, hosted and local; the page is a draft in `docs/` |
 
 ### 2.3 Associations: the trap, and how it is decided
 
@@ -158,16 +186,67 @@ synthetic rows in a local database, counted:
 - one shared field unique nowhere, and the circular reference gone with it; one second path named;
 - the plan passes through `evidence.validate` and `semantic_model.draft` unchanged from how any plan does.
 
-What it is not. It is **not a tool**: nothing in `server.py`, `mcp_server.py` or `workload_api.py` calls it, and a
-test keeps it so. It has not read a script from a Qlik installation. Its rules about Qlik are Unverified. It runs no
+What it is not. (Q1 wrote: "It is **not a tool**: nothing in `server.py`, `mcp_server.py` or `workload_api.py` calls
+it, and a test keeps it so." Since Q2 three tools call it, section 3b; the workload still does not.) It has not read
+a script from a Qlik installation. Its rules about Qlik are Unverified. It runs no
 Qlik expression, translates no measure and compares no number. It imports private helpers of `migration_read.py`
 rather than keeping a second parser; a test fails if they change.
 
 Limits a real script will meet first: control statements (`IF`, `FOR`, `SUB`) are listed and their loads read as if
-each ran once; dollar-sign expansion that builds table or field names is counted, not expanded; `CROSSTABLE`,
-`GENERIC`, `INTERVALMATCH` and `HIERARCHY` are listed as not read; a `LOAD *` from a file gives a table whose
+each ran once; dollar-sign expansion that builds table or field names is counted, not expanded; `GENERIC`,
+`INTERVALMATCH` and `HIERARCHY` are listed as not read (`CROSSTABLE` is applied since Q2); a `LOAD *` from a file gives a table whose
 columns are not in the script; types are not in a script at all, so the plan's columns are strings until the landed
 tables' own schema is passed in.
+
+---
+
+## 3b. What round Q2 built
+
+**The reader, after the public corpus** (`fabric_backend/migration_read.py`, the Qlik part; `tests/test_q2_qlik_corpus.py`):
+
+| What the corpus showed | What the reader does now |
+|---|---|
+| 722 control statements (`IF`, `FOR`, `SUB`, `CALL`) filled "not read" | Listed on their own (`control_statements`); the loads inside them are read as if each ran once, as before |
+| `$(Include=...)` and `$(Must_Include=...)` | Listed as `includes`: a file the reader was not given. A `lib://` path inside one is no longer cut off as a comment |
+| `SET` and `LET` with a name built by dollar-sign expansion, `SET v;` without a value, `name = expression` without `LET` | Read as variables |
+| `REPLACE LOAD`, `ADD LOAD`, `BUFFER`, `FIRST n`, `SAMPLE p` | The load is read; the prefix is noted on it as not applied (it changes which rows, not which fields) |
+| A label built by dollar-sign expansion, `NoConcatenate Label: LOAD` | Read; the plan flags a table whose name is built when the script runs |
+| `CROSSTABLE (attribute, data, n)` | Applied: the first n fields stay, then the attribute field and the data field |
+| `EXECUTE` | No effect on the tables |
+| Every statement | Counted by type and outcome (`statements`): read, control flow, include, not read |
+
+**Three tools** (`fabric_backend/qlik_tools.py`; `tests/test_q2_qlik_tools.py`), on the hosted server and on the local
+server, read-only, with fixed rules and no AI model. Each answer carries `kg_card` (one result line, at most five
+more, and notes), as the other tools' cards do.
+
+| Tool | In | Out |
+|---|---|---|
+| `qlik_plan` | The load script as text. Optionally a workspace and a source (hosted) or `count=true` (local) to count in the landed tables | Tables with their lakehouse columns; relationships with their one side; each synthetic key in its case; circular references; `plan.keys` and `plan.confirmed`, the arguments `plan_backend`, `validate_plan`, `semantic_model_draft` and the creating tools take; a proposed star schema (facts, dimensions, tables in between, dimensions to build, what a person decides); statements by type; what was not read |
+| `qlik_measures_draft` | Measures as name and expression; optionally the script, which says which table holds each field | Per expression a label (translated, suggested, not translated), its DAX or the reason, when a suggestion may differ from Qlik, the counts, and TMDL lines on request |
+| `qlik_reconcile_draft` | The script, and KPIs with their exported values per grain; optionally the rows the statements returned | One T-SQL statement per KPI (the exported values, the KPI on the migrated tables, the comparison); the comparison table: equal, different, only in Qlik, only on the migrated tables, or to compute |
+
+`qlik_measures_draft` carries fewer rules than section 2.4 lists. Built: the first column, and from the second
+column the fixed-value set modifier, a cleared field, the identifier `1`, `TOTAL` and `TOTAL <fields>`, all as
+"suggested" because the tool cannot know in which visual a measure is used. Not built, and answered as "not
+translated" with the reason: `P()` and `E()`, a search inside a set, `Aggr()`. A field that is in several tables is
+not translated either: Qlik treats it as one field, and which table's column a measure reads is a decision.
+
+`qlik_reconcile_draft` writes the statement and compares; it does not yet test candidate reasons. Section 2.5's
+"a reason that reproduces the number" is therefore not built: a difference is listed as open, with the checks that
+may explain it. The export must be made with no selections.
+
+On the synthetic script and rows of section 3, by the tests:
+
+- `qlik_plan`, counted: nine relationships; the three synthetic keys in three cases; a star schema of four facts,
+  three dimensions, two tables in between and one dimension to build.
+- `qlik_measures_draft`, 24 expressions written to cover the rules: 9 translated, 7 suggested, 8 not translated.
+  That share says nothing about a real app.
+- `qlik_reconcile_draft`, nine KPIs with three planted differences: six get a statement and three a reason; run on
+  SQLite, the statements find the three planted differences (one different value, one group only in the export, one
+  only in the rows) and call the other nine rows equal.
+
+What is not tested: the DAX was never run; the statements ran on SQLite and not on a Fabric SQL analytics endpoint;
+the hosted tools were not called through the deployed connector; no script, measure or number came from Qlik.
 
 ---
 
@@ -194,11 +273,13 @@ monitor (it is the plan's own checks, run again).
 
 | # | Build | Tested on | Rounds |
 |---|---|---|---|
-| Q2 | Measures "translated by rule" only (the first column of 2.4), each with its expected DAX, and the count per label | A synthetic set of expressions. Qlik's set analysis pages read first | 1 |
-| Q3 | The reconciliation per KPI: an exported table against the model's SQL per grain, with this round's counts and W10's D2 to D9 as candidate reasons; a reason is named only when it reproduces the number | The synthetic rows of this round with planted differences, and one case that must come out open | 1 to 2 |
-| Q4 | `qlik_plan` as a tool in the local server, and the guided page (section 1, step 1) | The tool's answer under the listing caps; the page on the synthetic script | 1 |
+| Q2 | Measures "translated by rule" only (the first column of 2.4), each with its expected DAX, and the count per label | A synthetic set of expressions. Qlik's set analysis pages read first | **Done in round Q2**, without the Qlik pages (not reachable) |
+| Q3 | The reconciliation per KPI: an exported table against the model's SQL per grain, with this round's counts and W10's D2 to D9 as candidate reasons; a reason is named only when it reproduces the number | The synthetic rows of this round with planted differences, and one case that must come out open | **Half done in round Q2**: the statement and the comparison. Testing candidate reasons is left: 1 |
+| Q4 | `qlik_plan` as a tool in the local server, and the guided page (section 1, step 1) | The tool's answer under the listing caps; the page on the synthetic script | **Done in round Q2** (hosted and local); the page is a draft |
+| Q4b | One real load script, its measures and a KPI export from a trial Qlik Sense app with synthetic data, run through the three tools | Whatever it breaks | 1, after the founder has a trial app |
+| Q4c | `P()`, `E()`, a search in a set and `Aggr()` as suggestions with what may differ | Synthetic expressions, then Q4b's | 1 to 2 |
 | Q5 | A reader for the files `qlik app unbuild` writes (master measures, dimensions, variables) | Files made by hand to the documented layout, then one real unbuild of a synthetic app | 1 |
-| Q6 | "Start from a Qlik load script" in the Model item (section 1, step 2) | The workload's own tests | 1 |
+| Q6 | "Start from a Qlik load script" in the Model item (section 1, step 2) | The workload's own tests | Replaced by the founder's decision: a Migration item in a workload of its own (`MIGRATE-WORKLOAD-DESIGN.md` section 9) |
 
 ## 6. Decisions for the founder
 
@@ -216,6 +297,11 @@ monitor (it is the plan's own checks, run again).
 That Krusgraph migrates, converts or translates Qlik apps, or any share of them. That measures are translated. That
 numbers are reconciled. That the Qlik reader exists as a feature. Anything about speed, cost or compliance.
 
+Since Q2 the three tools are in the tool lists that render from `tool_status.py` (the docs' tool table, `llms.txt`,
+the README), each with the status "draft only" and the "(experimental)" label, and each saying that it was not
+tested on a customer's Qlik installation. That is what may be said. The rest of this section stands: no page says
+that Krusgraph migrates an app, no share is stated, and "compared" is the word, not "reconciled".
+
 ## Sources
 
 Verified, opened on learn.microsoft.com on 15 November 2026:
@@ -230,3 +316,7 @@ Verified, opened on learn.microsoft.com on 15 November 2026:
 
 Unverified (not opened; from public knowledge or a search summary): every statement about Qlik's products, its
 command line, its APIs, the `.qvf` format and its customer agreement.
+
+Added in Q2 (16 November 2026): the four public repositories of the test corpus, each `LICENSE` file read at the
+commit in `tests/fixtures/qlik/SOURCES.md`; and the Microsoft Learn pages listed in `MIGRATE-WORKLOAD-DESIGN.md`.
+`help.qlik.com` and `qlik.dev` answered 403 through this session's network policy.
