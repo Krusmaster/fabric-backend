@@ -272,9 +272,12 @@ def numbered(next_steps: list[dict], actions: list | None = None) -> list[tuple[
 # WB12 (#69): under the start card Claude wrote the card's content again. The start answer's lead says the card shows
 # it and asks for one short sentence and the step's question; the JSON after it stays complete for clients without cards.
 START_AFTER_CARD = ("For the assistant, not for the user: where the client drew the Start Krusgraph card, the card already "
-                    "shows this step: its findings, the step list and the buttons. Please do not repeat or summarise them; "
-                    "reply with at most one short sentence, then ask the step's question: \u201c{q}\u201d. Where no card "
-                    "was drawn, show the step from the JSON below in a few lines and its buttons as a numbered list.")
+                    "shows this step with its mascot, its choices and its buttons, and a button there runs the next step "
+                    "inside the same card. Please do not repeat, list or summarise what the card shows (no workspaces, "
+                    "sources, schemas, links, counts or step lists); reply with one short sentence at most, then the "
+                    "step's question: \u201c{q}\u201d. Name the step only as \u201c{head}\u201d. Where no card was drawn, "
+                    "say the question and show the choices as a short numbered list in plain words, without tool names "
+                    "or arguments.")
 
 
 def start_lead(answer: dict) -> str:
@@ -287,8 +290,10 @@ def start_lead(answer: dict) -> str:
         q = (answer.get("after") or {}).get("label", "") if isinstance(answer.get("after"), dict) else ""
         q = f"Shall we go on? ({q})" if q else "Shall we go on?"
     st = answer.get("step") if isinstance(answer.get("step"), dict) else {}
-    head = f"Start Krusgraph, step {st.get('n')} of {st.get('of')}: {st.get('title')}." if st.get("n") else "Start Krusgraph."
-    return "\n\n".join([head, START_AFTER_CARD.format(q=words.plain(q)[:300]), "The full answer follows as JSON."])
+    name = f"Step {st.get('n')} of {st.get('of')}: {st.get('short') or st.get('title')}" if st.get("n") else "Start Krusgraph"
+    head = f"Start Krusgraph, {name[:1].lower() + name[1:]}." if st.get("n") else "Start Krusgraph."
+    return "\n\n".join([head, START_AFTER_CARD.format(q=words.plain(q)[:300], head=name),
+                         "The full answer follows as JSON."])
 
 
 def lead(tool: str, answer: dict, next_steps: list[dict], actions: list | None = None) -> str:
@@ -412,8 +417,18 @@ html[data-mascots="off"] .nx-coach .kg-say { grid-template-columns: minmax(0, 1f
 """
 
 NEXT_JS = r"""
+  // WB15 (H): what a card puts in the chat is plain words. A tool's name with its arguments (a "run <tool> with
+  // name=value" sentence) made claude.ai warn about malicious content; only the label part is sent.
+  var FN_SAID = /\b[a-z_]+=(?:"|'|\[|\{|true\b|false\b|\d)|\brun [a-z]+_[a-z_]+\b|\b[a-z]+_[a-z_]+\(/i;
+  function plainAsk(text) {
+    var t = String(text == null ? "" : text).trim();
+    if (!FN_SAID.test(t)) return t;
+    var head = t.split(/:\s*run\b/i)[0].split(/\s+run\s+[a-z]+_[a-z_]+/i)[0].trim();
+    head = head.replace(/[a-z_]+\([^)]*\)/gi, "").replace(/\b[a-z_]+=\S+/gi, "").replace(/[\s:,;]+$/, "").trim();
+    return (head || "Go on with the next step") + ".";
+  }
   function sendChat(text) {
-    var t = String(text).slice(0, 8000);
+    var t = plainAsk(text).slice(0, 8000);
     return request("ui/message", { role: "user", content: [{ type: "text", text: t }] }).catch(function (e) {
       if (isObj(e) && e.code === -32602) return request("ui/message", { role: "user", content: { type: "text", text: t } });
       throw e;
@@ -422,6 +437,7 @@ NEXT_JS = r"""
   // n227: the chat gets the step in plain words (`ask`), which is also what the card shows; `say` (with the tool's
   // name and arguments) stays in the answer for text clients.
   function sayInChat(say, out, button) {
+    say = plainAsk(say);
     out.textContent = "Sent to the chat: “" + say + "”";
     return sendChat(say).then(function () { if (button) button.disabled = false; }, function () {
       out.textContent = "This host runs no steps from the card. Type this in the chat: “" + say + "”";
@@ -477,7 +493,7 @@ __OPEN_JS__
     var old = document.querySelector(".nx-coach"); if (old) old.remove();
     var box = el("section", null, "nx-coach"); box.setAttribute("aria-label", "Where you are");
     box.setAttribute("data-stage", String(c.stage || ""));
-    box.appendChild(el("p", "Step " + (Number(c.n) || 1) + " of " + (Number(c.of) || 8) + ": " + c.title, "nx-stage"));
+    box.appendChild(el("p", "Step " + (Number(c.n) || 1) + " of " + (Number(c.of) || 9) + ": " + c.title, "nx-stage"));
     var say = el("div", null, "kg-say " + c.who), fig = el("span", null, "kg-fig");
     var src = document.querySelector('#kg-mascots [data-mascot="' + c.who + '"] svg');
     if (src) { var f = src.cloneNode(true); f.setAttribute("data-pose", String(c.pose || "point")); fig.appendChild(f); }
@@ -505,7 +521,7 @@ __OPEN_JS__
         b.addEventListener("click", function () { openOrShow(s.url, out, b); });
       } else if (!s.tool) {                                                    // n220: a sentence for the chat
         b.setAttribute("aria-label", s.label + " (asks in the chat)");
-        b.addEventListener("click", function () { out.hidden = false; sayInChat(s.say, out, null); });
+        b.addEventListener("click", function () { out.hidden = false; sayInChat(plainAsk(askOf(s)), out, null); });
       } else {                                                                 // n227: the label alone, no tool's name
         b.setAttribute("aria-label", s.label + (s.arguments.dry_run === true ? " (a dry run: nothing is created)" : ""));
         b.setAttribute("data-tool", s.tool); b.setAttribute("data-label", s.label);

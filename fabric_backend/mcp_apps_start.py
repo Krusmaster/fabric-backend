@@ -120,6 +120,24 @@ details.st-done[open] > summary { margin-bottom: 4px }
 .st-decision .st-row { display: flex; flex-wrap: wrap; gap: 6px }
 .st-wait { display: grid; gap: 2px }
 .res-box, .st-acts, main { min-width: 0; overflow-wrap: anywhere }
+/* WB15: the coach on top, big and visible in light and dark, as the home page's demo chat */
+.st-coach { margin: 0 }
+.st-coach .kg-say.st-big { grid-template-columns: 72px minmax(0, 1fr); gap: 4px 10px; align-items: center }
+.st-coach .kg-say.st-big .kg-fig { width: 72px; height: 72px }
+.st-coach .kg-bub { border-radius: 4px 16px 16px 16px; padding: 8px 12px }
+.st-line { font-size: 16px; line-height: 1.4; margin: 0 }
+.kg-who { margin: 0; font-size: 13px; font-weight: 650; color: var(--kg-muted) }
+html[data-mascots="off"] .st-coach .kg-fig { display: none }
+html[data-mascots="off"] .st-coach .kg-say.st-big { grid-template-columns: minmax(0, 1fr) }
+h1#title { font-size: 15px; color: var(--kg-muted) }
+button.st-picked { border-color: var(--kg-ok); border-width: 2px }
+.st-q { font-weight: 650 }
+.st-count { font-variant-numeric: tabular-nums }
+.st-mine { color: var(--kg-ok); font-weight: 600 }
+details.st-details > summary, details.st-more > summary { cursor: pointer; color: var(--kg-muted); font-size: 13.5px }
+details.st-details[open] { display: grid; gap: 8px }
+.st-moreinfo { display: grid; gap: 6px; font-size: 13.5px }
+.st-moved { margin: 0 }
 """
 
 _HTML = """<!DOCTYPE html>
@@ -160,13 +178,15 @@ __RESULT_CSS__
 <body>
 <main id="main">
   <div class="kg-head"><h1 id="title">Start Krusgraph</h1>__MASCOT_TOGGLE__</div>
+  <section id="coach" class="st-coach" aria-label="Your coach" hidden></section>
   <p class="muted" role="status" id="verdict">Waiting for the tool's answer.</p>
-  <div id="next"></div>
   <div id="answer"></div>
+  <div id="next"></div>
   __PICTURES__
   __MASCOTS__
-  <details id="path-fold" class="kg-fold" open><summary>Every step of the path</summary><ol class="st-path" id="path" aria-label="The steps"></ol></details>
-  <div class="muted" id="honest"></div>
+  <details id="details" class="st-details" hidden><summary>Details</summary><div id="more" class="st-moreinfo"></div>
+    <ol class="st-path" id="path" aria-label="The steps"></ol><p class="muted" id="honest"></p></details>
+  <p id="moved" class="muted st-moved" role="status" hidden></p>
 </main>
 <script>
 (function () {
@@ -191,41 +211,113 @@ __READ_JS__
     if (!isObj(a) || typeof a.label !== "string" || typeof a.say !== "string" || !isObj(a.arguments)) return false;
     var kind = ALLOWED[a.tool];
     if (!kind) return false;
-    if ((a.kind === "choose" || a.kind === "decide") && a.tool !== "start") return false;     // WB12: only start calls
+    if ((a.kind === "choose" || a.kind === "decide" || a.kind === "confirm") && a.tool !== "start") return false;
     if (a.arguments.dry_run === false) {
       return kind === "build" && a.kind === "create" && Array.isArray(d.confirmed_by_user) &&
              d.confirmed_by_user.indexOf(a.arguments.name) >= 0;
     }
     return a.kind !== "create";
   }
+  // WB15: one living card. Every start button runs here, one at a time (busy): the buttons that call start are off
+  // while a call runs, so taps 1-2 s apart cannot overtake each other (Gustav's Accept, Reject, Accept); an answer older
+  // than the one drawn (the server's seq) is not drawn. Where the host runs no tool from the card, the step goes to the
+  // chat in plain words (never a tool's name or arguments) and this card folds to one line: Claude's answer brings the
+  // next card.
+  var busy = false, lastSeq = 0, myStep = 0, moved = false, CARD_ID = String(Math.random()).slice(2);
+  var chan = null;
+  try {
+    chan = new BroadcastChannel("krusgraph-start");
+    chan.onmessage = function (e) {
+      var m = e.data;
+      if (isObj(m) && m.id !== CARD_ID && typeof m.seq === "number" && m.seq > lastSeq) moveOn();
+    };
+  } catch (e) { chan = null; }
+  function moveOn() {
+    if (moved) return;
+    moved = true;
+    var main = document.getElementById("main"), line = document.getElementById("moved");
+    Array.prototype.forEach.call(main.children, function (x) { if (x !== line) x.hidden = true; });
+    line.textContent = "Moved on: step " + (myStep || 1) + ". The path goes on in the newest Krusgraph card.";
+    line.hidden = false;
+    if (typeof reportSize === "function") reportSize();
+  }
+  function setBusy(on) {
+    Array.prototype.forEach.call(document.querySelectorAll("main button[data-start]"), function (x) {
+      if (on) { x.setAttribute("data-was", x.disabled ? "1" : ""); x.disabled = true; }
+      else { x.disabled = x.getAttribute("data-was") === "1"; x.removeAttribute("data-was"); }
+    });
+    document.documentElement.setAttribute("data-busy", on ? "1" : "");
+  }
+  function handOff(ask, out, b) {
+    var text = plainAsk(ask);
+    out.hidden = false; out.textContent = "Sent to the chat: “" + text + "”";
+    var settled = false;
+    var t = setTimeout(function () {                        // WB15 (A): the host never answered: say so, never nothing
+      if (settled) return;
+      out.textContent = "The chat did not take it. Type this in the chat: “" + text + "”";
+      if (b) b.disabled = false;
+    }, 6000);
+    sendChat(text).then(function () { settled = true; clearTimeout(t); moveOn(); }, function () {
+      settled = true; clearTimeout(t);
+      out.textContent = "This host runs no steps from the card. Type this in the chat: “" + text + "”";
+      if (b) b.disabled = false;
+    });
+  }
+  function startCall(args, ask, out, b, act) {
+    if (busy || moved) return;
+    out.hidden = false; out.textContent = "";
+    if (!canCallTools()) { if (b) b.disabled = true; handOff(ask, out, b); return; }
+    busy = true; setBusy(true);
+    var wait = waitView(act || { label: b ? b.textContent : "" }); out.appendChild(wait.el);
+    callTool("start", JSON.parse(JSON.stringify(args)), function () { wait.note(stillWaiting(ask)); }).then(function (r) {
+      wait.stop(); busy = false; setBusy(false); out.textContent = ""; out.hidden = true; render(r);
+    }, function (e) {
+      wait.stop(); busy = false; setBusy(false);
+      if (e && e.kind === "unsupported") { handOff(ask, out, b); return; }
+      out.textContent = callProblem(e, "start", plainAsk(ask));
+    });
+  }
+  // A tool's answer inside this card: its few lines (kg_card), the long lists folded; never another coach or buttons
+  function stepAnswer(tool, r) {
+    var d = answerOf(r), box = el("div", null, "nx-res st-res");
+    box.appendChild(resultView(tool, r));
+    if (isObj(d) && isObj(d.checks)) {
+      var all = el("details", null, "st-more"); all.appendChild(el("summary", "Every check"));
+      renderChecks(d, all); if (all.childNodes.length > 1) box.appendChild(all);
+    }
+    return box;
+  }
   function button(a, d, box) {
     var row = el("div", null, "st-act"), create = a.kind === "create";
-    var b = el("button", a.label, create ? "st-create" : (a.secondary ? "nx-b st-secondary" : "nx-b")); b.type = "button"; b.setAttribute("data-tool", a.tool);
+    var cls = create ? "st-create" : (a.primary ? "nx-b nx-primary" : (a.secondary ? "nx-b st-secondary" : "nx-b"));
+    var b = el("button", a.label, cls); b.type = "button"; b.setAttribute("data-tool", a.tool);
+    if (a.primary) b.setAttribute("data-primary", "true");
     if (a.kind) b.setAttribute("data-kind", a.kind);
+    if (a.tool === "start") b.setAttribute("data-start", "1");
     if (a.decision) b.setAttribute("data-decision", a.decision);
     var out = el("div", null, "out"); out.hidden = true;
-    if (a.kind === "dry_run") row.appendChild(el("span", "Dry run: nothing is created.", "muted"));
-    if (create) row.appendChild(el("span", "Creates " + a.arguments.name + " in Fabric. You confirmed this name after the dry run.", "muted"));
+    if (create) row.appendChild(el("span", "Creates " + a.arguments.name + " in Fabric.", "muted"));
     var armed = false;
     b.addEventListener("click", function () {
       if (create && !armed) {                                 // never writes on the first click
         armed = true; b.textContent = "Yes, create " + a.arguments.name + " in Fabric"; b.setAttribute("data-armed", "true");
-        out.hidden = false; out.textContent = "Press again to create " + a.arguments.name + ". Nothing has been created yet.";
+        out.hidden = false; out.textContent = "Tap again to create " + a.arguments.name + ". Nothing has been created yet.";
         return;
       }
       var args = JSON.parse(JSON.stringify(a.arguments));
       var act = { kind: a.kind, label: a.label, name: a.arguments.name };        // n227: the progress state
-      if (a.tool === "start") runOrSay("start", args, askOf(a), out, b, function (r) { render(r); }, act);
-      else if (create) {                                      // n227: a Create is never sent twice from the card
+      if (a.tool === "start") { startCall(args, askOf(a), out, b, act); return; }
+      if (create) {                                           // n227: a Create is never sent twice from the card
         act.unknown = function (box) { statusRow(a, "name", box); };
         runOrSay(a.tool, args, askOf(a), out, b, function (r) {
-          out.appendChild(answerView(a.tool, r));
-          var d = answerOf(r), working = isObj(d) && isObj(d.started);
-          if (working) statusRow(a, d.started.check, out);
-          b.disabled = working || !(isObj(d) && readable(d.error));   // off for good unless the tool said nothing was created
+          out.appendChild(stepAnswer(a.tool, r));
+          var dd = answerOf(r), working = isObj(dd) && isObj(dd.started);
+          if (working) statusRow(a, dd.started.check, out);
+          b.disabled = working || !(isObj(dd) && readable(dd.error));
         }, act);
+        return;
       }
-      else runOrSay(a.tool, args, askOf(a), out, b, null, act);
+      runOrSay(a.tool, args, askOf(a), out, b, function (r) { out.appendChild(stepAnswer(a.tool, r)); }, act);
     });
     row.insertBefore(b, row.firstChild); row.appendChild(out); box.appendChild(row);
   }
@@ -234,41 +326,27 @@ __READ_JS__
     var sa = JSON.parse(JSON.stringify(a.arguments)); delete sa.dry_run; sa.check = typeof check === "string" && check ? check : "name";
     var row = el("div", null, "st-act"), b = el("button", "Check status", "nx-b"), out = el("div", null, "out"); b.type = "button"; out.hidden = true;
     b.setAttribute("data-kind", "status");
-    row.appendChild(b); row.appendChild(el("span", "Only reads: looks whether " + a.arguments.name + " is in Fabric now. Nothing is created again.", "muted")); row.appendChild(out);
+    row.appendChild(b); row.appendChild(el("span", "Only reads: is " + a.arguments.name + " in Fabric now?", "muted")); row.appendChild(out);
     b.addEventListener("click", function () {
-      runOrSay(a.tool, sa, "Check whether " + a.arguments.name + " is in Fabric now, without creating anything.", out, b, function (r) {
-        out.appendChild(answerView(a.tool, r));
+      runOrSay(a.tool, sa, "Is " + a.arguments.name + " in Fabric now? Only look, create nothing.", out, b, function (r) {
+        out.appendChild(stepAnswer(a.tool, r));
         var d = answerOf(r);
-        if (isObj(d) && isObj(d.started)) { b.disabled = false; } else { b.disabled = true; }
+        b.disabled = !(isObj(d) && isObj(d.started));
       }, { kind: "status", label: "Check status", name: a.arguments.name });
     });
     box.appendChild(row);
   }
   function listOf(items) { var ul = el("ul"); items.forEach(function (x) { if (readable(x)) ul.appendChild(el("li", x)); }); return ul; }
   function strings(x) { return Array.isArray(x) ? x.filter(readable) : []; }
-  // WB12 (#73): the finished steps fold into one line that opens; the step now and the later ones stay listed
+  // the steps of the path, under Details: the finished ones fold into one line, the later ones too
   function drawPath(d, path) {
-    var steps = (Array.isArray(d.path) ? d.path : []).filter(isObj), folded = null;
-    if (readable(d.done_line)) {
-      folded = el("details", null, "st-done"); folded.appendChild(el("summary", d.done_line));
-      var inner = el("ol", null, "st-path"); folded.appendChild(inner);
-    }
-    var later = steps.filter(function (p) { return p.state === "later"; }), laterBox = null;
-    if (later.length > 1) {                                   // the later steps fold too: the list stays short on a phone
-      laterBox = el("details", null, "st-done"); laterBox.setAttribute("data-fold", "later");
-      laterBox.appendChild(el("summary", "Then: " + later[0].n + "-" + later[later.length - 1].n));
-      var laterList = el("ol", null, "st-path"); laterBox.appendChild(laterList);
-    }
+    var steps = (Array.isArray(d.path) ? d.path : []).filter(isObj);
     steps.forEach(function (p) {
       var li = el("li"); li.setAttribute("data-state", p.state); li.setAttribute("data-key", p.key);
       li.appendChild(el("span", p.n + ". " + p.title + (readable(p.note) ? " (" + p.note + ")" : "")));
       var does = el("span", p.does, "st-does"); does.setAttribute("data-does", p.does); li.appendChild(does);
-      if (folded && (p.state === "done" || p.state === "skipped")) inner.appendChild(li);
-      else if (laterBox && p.state === "later") laterList.appendChild(li);
-      else path.appendChild(li);
+      path.appendChild(li);
     });
-    if (folded) path.parentNode.insertBefore(folded, path);
-    if (laterBox) path.parentNode.insertBefore(laterBox, path.nextSibling);
   }
   function tiles(proof) {
     var ul = el("ul", null, "st-tiles"); ul.setAttribute("aria-label", "What the check proved");
@@ -278,11 +356,11 @@ __READ_JS__
     });
     return ul;
   }
-  // WB12 (#76): steps 1-3: what the account can open, as buttons; a search box when the list is long
+  // steps 1-3: what the account can open, as buttons; one usable option comes chosen (WB15, A)
   function drawChoices(d, acts, box) {
     var picks = acts.filter(function (a) { return a.kind === "choose" && okButton(a, d); });
     if (!picks.length) return;
-    var wrap = el("section", null, "st-acts"); wrap.setAttribute("aria-label", "Choose");
+    var wrap = el("section", null, "st-acts st-pick"); wrap.setAttribute("aria-label", "Choose");
     var list = el("div", null, "st-choices");
     if (isObj(d.choices) && d.choices.search) {
       var q = el("input", null, "st-search"); q.type = "search"; q.placeholder = "Search " + picks.length + " names";
@@ -295,81 +373,118 @@ __READ_JS__
     }
     var out = el("div", null, "out"); out.hidden = true;
     picks.forEach(function (a) {
-      var b = el("button", null, "nx-b"); b.type = "button"; b.setAttribute("data-kind", "choose"); b.setAttribute("data-name", a.label);
-      b.appendChild(el("span", a.label));
+      var b = el("button", null, "nx-b" + (a.selected ? " st-picked" : "")); b.type = "button";
+      b.setAttribute("data-kind", "choose"); b.setAttribute("data-name", a.label); b.setAttribute("data-start", "1");
+      b.setAttribute("aria-pressed", a.selected ? "true" : "false");
+      b.appendChild(el("span", (a.selected ? "✓ " : "") + a.label));
       var why = readable(a.disabled) ? a.disabled : (readable(a.hint) ? a.hint : "");
       if (why) b.appendChild(el("small", why));
       if (readable(a.disabled)) { b.disabled = true; b.title = a.disabled; }
-      b.addEventListener("click", function () {
-        runOrSay("start", JSON.parse(JSON.stringify(a.arguments)), askOf(a), out, b, function (r) { render(r); },
-                 { kind: "call", label: a.label });
-      });
+      b.addEventListener("click", function () { startCall(a.arguments, askOf(a), out, b, { kind: "call", label: a.label }); });
       list.appendChild(b);
     });
     wrap.appendChild(list); wrap.appendChild(out); box.appendChild(wrap);
   }
-  // WB12 (#66): each decision with its counted evidence and its own buttons
+  // each open link with its count and its own buttons; the reasons under Why
   function drawDecisions(d, f, box) {
     var acts = (Array.isArray(d.actions) ? d.actions : []).filter(function (a) { return a.kind === "decide" && okButton(a, d); });
     (Array.isArray(f.decisions) ? f.decisions : []).filter(isObj).forEach(function (x) {
       var card = el("div", null, "st-decision"); card.setAttribute("data-state", x.state || "open"); card.setAttribute("data-item", x.item || "");
-      card.appendChild(el("p", x.question));
+      var q = readable(x.question) ? String(x.question) : "";
+      card.appendChild(el("p", q.indexOf("? ") > 0 ? q.slice(0, q.indexOf("? ") + 1) : q, "st-q"));
       var ev = strings(x.evidence);
-      if (ev.length) card.appendChild(el("p", ev.join(" "), "muted"));
-      if (x.state && x.state !== "open") card.appendChild(el("p", "Your decision: " + (x.state === "skipped" ? "skipped for now" : x.state) + ".", "muted"));
+      if (ev.length) card.appendChild(el("p", ev[0], "st-count"));
+      if (x.state && x.state !== "open") card.appendChild(el("p", "Your decision: " + (x.state === "skipped" ? "skipped for now" : x.state) + ".", "st-mine"));
       var row = el("div", null, "st-row");
       acts.filter(function (a) { return a.item === x.item; }).forEach(function (a) { button(a, d, row); });
       if (row.childNodes.length) card.appendChild(row);
+      var why = ev.slice(1).concat(q.indexOf("? ") > 0 ? [q.slice(q.indexOf("? ") + 2)] : []).filter(readable);
+      if (why.length) { var w = el("details", null, "st-more"); w.appendChild(el("summary", "Why")); w.appendChild(listOf(why)); card.appendChild(w); }
       box.appendChild(card);
     });
   }
+  var WHO_NAME = { onto: "Onto", thinker: "Thinker", builder: "Builder" };
+  // WB15: the mascot at the top of the step, big, with one sentence, as the home page's demo chat
+  function drawCoach(d) {
+    var box = document.getElementById("coach"); box.textContent = "";
+    var c = isObj(d.coach) ? d.coach : {};
+    var who = WHO_NAME[d.who] ? d.who : (WHO_NAME[c.who] ? c.who : "onto");
+    var line = readable(d.say) || readable(c.line) || "";
+    if (!line) { box.hidden = true; return false; }
+    var say = el("div", null, "kg-say st-big " + who), fig = el("span", null, "kg-fig");
+    var src = document.querySelector('#kg-mascots [data-mascot="' + who + '"] svg');
+    if (src) { var f = src.cloneNode(true); f.setAttribute("data-pose", "point"); fig.appendChild(f); }
+    var bub = el("div", null, "kg-bub"); bub.appendChild(el("p", WHO_NAME[who], "kg-who")); bub.appendChild(el("p", line, "st-line"));
+    say.appendChild(fig); say.appendChild(bub); box.appendChild(say); box.hidden = false;
+    box.setAttribute("data-who", who);
+    return true;
+  }
   function render(result) {
-    var d = answerOf(result), verdict = document.getElementById("verdict"), path = document.getElementById("path");
-    var answer = document.getElementById("answer"), next = document.getElementById("next");
-    answer.textContent = ""; next.textContent = ""; path.textContent = ""; mascotsQuiet();
-    Array.prototype.forEach.call(document.querySelectorAll("details.st-done"), function (x) { x.remove(); });
-    verdict.removeAttribute("data-echo"); verdict.removeAttribute("data-said"); verdict.hidden = false;
-    var honest = document.getElementById("honest"); honest.textContent = "";
-    if (!d) { verdict.textContent = "The card could not read the answer; it is in the text of the tool result."; return; }
-    if (readable(d.error)) { verdict.textContent = d.error + (readable(d.hint) ? " " + d.hint : ""); return; }
-    var st = isObj(d.step) ? d.step : {};
-    var coached = coachHead(d);                                   // CO1: "Step N of 8: <stage>" and one mascot line
-    document.getElementById("title").textContent = "Start Krusgraph" + (st.n && !coached ? ": step " + st.n + " of " + st.of : "") + (d.sample ? " (synthetic shop)" : "");
-    drawPath(d, path);
-    var pf = document.getElementById("path-fold"); if (pf) pf.open = !coached;     // CO1: the 9 steps, folded
-    verdict.textContent = readable(d.say) || readable(d.summary) || "";
-    // n227 (1): the sentence is shown once: in Onto's bubble while the mascots are on, here while they are off
-    verdict.setAttribute("data-echo", "onto"); verdict.setAttribute("data-said", verdict.textContent);
-    if (isObj(d.chosen)) {
-      var shown = ["workspace", "source", "schema"].filter(function (k) { return readable(d.chosen[k]); })
-        .map(function (k) { return k + ": " + d.chosen[k]; });
-      if (shown.length) answer.appendChild(el("p", "Chosen: " + shown.join(", "), "muted"));
+    if (moved) return;
+    var d = answerOf(result);
+    if (isObj(d) && typeof d.seq === "number" && d.seq > 0) {
+      if (d.seq < lastSeq) return;                            // WB15 (E): an older answer never undoes a newer tap
+      lastSeq = d.seq;
     }
+    var verdict = document.getElementById("verdict"), path = document.getElementById("path");
+    var answer = document.getElementById("answer"), next = document.getElementById("next"), more = document.getElementById("more");
+    var keepPics = document.getElementById("pictures"), detailsBox = document.getElementById("details");
+    if (keepPics && more.contains(keepPics)) detailsBox.parentNode.insertBefore(keepPics, detailsBox);   // kept, not cleared
+    answer.textContent = ""; next.textContent = ""; path.textContent = ""; more.textContent = ""; mascotsQuiet();
+    document.documentElement.setAttribute("data-coach", "1");
+    var honest = document.getElementById("honest"); honest.textContent = "";
+    var details = document.getElementById("details"); details.open = false; details.hidden = true;
+    verdict.hidden = false;
+    if (!d) { verdict.textContent = "The card could not read the answer; it is in the text of the tool result."; return; }
+    if (readable(d.error)) { document.getElementById("coach").hidden = true; verdict.textContent = d.error + (readable(d.hint) ? " " + d.hint : ""); return; }
+    var st = isObj(d.step) ? d.step : {};
+    myStep = Number(st.n) || 0;
+    document.getElementById("title").textContent = (st.n ? "Step " + st.n + " of " + st.of + ": " + (readable(st.short) || st.title) : "Start Krusgraph")
+      + (d.sample ? " (sample)" : "");
+    var coached = drawCoach(d);
+    verdict.textContent = readable(d.say) || readable(d.summary) || "";
+    verdict.hidden = coached;                                 // said once: in the mascot's bubble
     var actions = (Array.isArray(d.actions) ? d.actions : []);
     drawChoices(d, actions, answer);
-    if (isObj(d.found)) {
-      var f = d.found, box = el("div", null, "res-box");
-      ["summary", "note"].forEach(function (k) { if (readable(f[k])) box.appendChild(el("p", f[k])); });
-      if (readable(f.question) && !Array.isArray(f.decisions)) box.appendChild(el("p", f.question));
-      if (isObj(f.proof)) { box.appendChild(tiles(f.proof)); if (readable(f.proof.grain)) box.appendChild(el("p", f.proof.grain)); }
-      if (Array.isArray(f.links)) box.appendChild(listOf(f.links));
-      if (strings(f.rules).length) box.appendChild(el("p", strings(f.rules).join(". ") + ".", "muted"));
-      if (Array.isArray(f.decisions)) drawDecisions(d, f, box);
-      if (Array.isArray(f.doubled)) box.appendChild(listOf(f.doubled));
-      strings(f.advice).forEach(function (x) { box.appendChild(el("p", x)); });
-      if (strings(f.decided).length) { box.appendChild(el("p", "Your decisions", "muted")); box.appendChild(listOf(strings(f.decided))); }
-      if (Array.isArray(f.would_build)) box.appendChild(listOf(f.would_build.filter(isObj).map(function (w) { return w.name + ": " + w.what; })));
-      if (box.childNodes.length) answer.appendChild(box);
+    var f = isObj(d.found) ? d.found : {}, key = String(st.key || "");
+    var box = el("div", null, "res-box");
+    if (isObj(f.proof)) { box.appendChild(tiles(f.proof)); if (readable(f.proof.grain)) more.appendChild(el("p", f.proof.grain)); }
+    if (Array.isArray(f.decisions)) drawDecisions(d, f, box);
+    if (Array.isArray(f.doubled)) box.appendChild(listOf(f.doubled));
+    if (Array.isArray(d.would_create) && d.would_create.length && d.needs_confirmation) {
+      box.appendChild(listOf(d.would_create.filter(isObj).map(function (w) { return w.name; })));
     }
-    if (strings(d.decided).length) { answer.appendChild(el("p", "Your decisions", "muted")); answer.appendChild(listOf(strings(d.decided))); }
-    if (Array.isArray(d.would_build)) answer.appendChild(listOf(d.would_build.filter(isObj).map(function (w) { return w.name + ": " + w.what; })));
-    if (typeof drawPictures === "function") drawPictures({ map: d.map, map_mini: d.map_mini }, {});   // WB13 (#71)
-    var flow = Array.isArray(d.data_flow) ? d.data_flow : (isObj(d.found) && Array.isArray(d.found.data_flow) ? d.found.data_flow : null);
-    if (flow) { answer.appendChild(el("p", "The data flow", "muted")); answer.appendChild(listOf(flow)); }
+    if (readable(f.summary) && key === "map") box.appendChild(el("p", f.summary));
+    if (box.childNodes.length) answer.appendChild(box);
+    // everything else is under Details
+    ["summary", "note"].forEach(function (k) { if (readable(f[k]) && !(k === "summary" && key === "map")) more.appendChild(el("p", f[k])); });
+    if (Array.isArray(f.links)) more.appendChild(listOf(f.links));
+    if (strings(f.rules).length) more.appendChild(el("p", strings(f.rules).join(". ") + ".", "muted"));
+    strings(f.advice).forEach(function (x) { more.appendChild(el("p", x)); });
+    var decided = strings(d.decided).length ? strings(d.decided) : strings(f.decided);
+    if (decided.length) { more.appendChild(el("p", "Your decisions", "muted")); more.appendChild(listOf(decided)); }
+    var wb = Array.isArray(d.would_build) ? d.would_build : (Array.isArray(f.would_build) ? f.would_build : null);
+    if (wb) more.appendChild(listOf(wb.filter(isObj).map(function (w) { return w.name + ": " + w.what; })));
+    var flow = Array.isArray(d.data_flow) ? d.data_flow : (Array.isArray(f.data_flow) ? f.data_flow : null);
+    if (flow) { more.appendChild(el("p", "The data flow", "muted")); more.appendChild(listOf(flow)); }
+    if (isObj(d.chosen)) {
+      var shown = ["workspace", "source", "schema"].filter(function (k) { return readable(d.chosen[k]); }).map(function (k) { return k + ": " + d.chosen[k]; });
+      if (shown.length) more.appendChild(el("p", "Chosen: " + shown.join(", "), "muted"));
+    }
+    if (readable(d.note)) more.appendChild(el("p", d.note, "muted"));
+    var pics = document.getElementById("pictures");
+    if (typeof drawPictures === "function") drawPictures({ map: d.map, map_mini: d.map_mini }, {});
+    if (pics) {                                               // the map on its own step; elsewhere under Details
+      if (key === "map") next.parentNode.insertBefore(pics, details); else more.appendChild(pics);
+    }
     var acts = el("section", null, "st-acts"); acts.setAttribute("aria-label", "This step");
-    actions.forEach(function (a) { if (a.kind !== "choose" && a.kind !== "decide" && okButton(a, d)) button(a, d, acts); });
+    actions.forEach(function (a) {
+      if (a.kind === "choose" || a.kind === "decide" || !okButton(a, d)) return;
+      if (a.more) button(a, d, more); else button(a, d, acts);
+    });
     if (isObj(d.after) && !d.sample && okButton({ kind: "call", label: d.after.label, say: d.after.say, tool: d.after.tool, arguments: d.after.arguments }, d))
-      button({ kind: "call", label: d.after.label, say: d.after.say, ask: d.after.ask, tool: "start", arguments: d.after.arguments, secondary: !!d.after.secondary }, d, acts);
+      button({ kind: "next", label: d.after.label, say: d.after.say, ask: d.after.ask, tool: "start", arguments: d.after.arguments,
+               secondary: !!d.after.secondary, primary: !d.after.secondary && !actions.some(function (a) { return a.primary; }) }, d, acts);
     if (isObj(d.after) && d.after.secondary && readable(d.after.why)) acts.appendChild(el("span", d.after.why, "muted"));
     if (isObj(d.next_waits) && readable(d.next_waits.label)) {            // WB12 (#77): no Next before the choice
       var w = el("div", null, "st-wait"), nb = el("button", d.next_waits.label, "nx-b st-secondary");
@@ -377,18 +492,10 @@ __READ_JS__
       w.appendChild(nb); if (readable(d.next_waits.why)) w.appendChild(el("span", d.next_waits.why, "muted")); acts.appendChild(w);
     }
     if (acts.childNodes.length) next.appendChild(acts);
-    // WB13 (#93): the step's buttons come right after its sentence; on step 6 the decisions (each with its own buttons)
-    // come first and Next, secondary until they are answered, after them
-    var decides = isObj(d.found) && Array.isArray(d.found.decisions) && d.found.decisions.length;
-    if (decides) next.parentNode.insertBefore(answer, next); else answer.parentNode.insertBefore(next, answer);
-    if (readable(d.honest)) {                                             // WB12 (#72): in full once, then one line
-      if (d.honest_open || !readable(d.honest_short)) honest.textContent = d.honest;
-      else {
-        var det = el("details", null, "st-honest"); det.appendChild(el("summary", d.honest_short)); det.appendChild(el("p", d.honest, "muted"));
-        honest.appendChild(det);
-      }
-    }
-    mascots({ onto: [verdict.textContent, "point"] }, false);
+    drawPath(d, path);
+    if (readable(d.honest)) honest.textContent = d.honest;
+    details.hidden = !(more.childNodes.length || path.childNodes.length || honest.textContent);
+    if (chan && lastSeq) { try { chan.postMessage({ id: CARD_ID, seq: lastSeq, n: myStep }); } catch (e) {} }
   }
 
   window.addEventListener("message", function (event) {

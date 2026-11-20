@@ -175,7 +175,7 @@ def test_every_tool_answers_with_its_words_when_the_flag_is_on_and_as_before_whe
     r = mcp_apps.structured(server.list_workspaces, "list_workspaces")()
     assert r.structured_content[words.KEY]["result"] == "1 workspace: demo."
     # CO1: the Coach block for the host model comes first, the JSON answer last, unchanged
-    assert len(r.content) == 2 and r.content[0].text.startswith("Coach (step 1 of 8: Choose data)")
+    assert len(r.content) == 2 and r.content[0].text.startswith("Coach (step 1 of 9: Choose data)")
     assert json.loads(r.content[-1].text) == {k: v for k, v in r.structured_content.items() if k not in (words.KEY, "coach")}
     assert "next" not in r.structured_content                     # a card that ran it draws the words; nothing else is added
     s = mcp_apps.structured(server.list_sources, "list_sources")(workspace="demo")
@@ -425,7 +425,7 @@ def test_the_start_path_names_no_tool_in_what_a_person_reads():
             assert not words.TOOL_NAME.search(said), (step, words.TOOL_NAME.search(said).group(0))
             assert all(a.get("ask") for a in g["actions"] if a.get("tool")), step
     first = start_flow.guide()
-    assert first["say"] == "Which workspace shall we start in? I can list the ones your account can open."
+    assert first["say"] == "Hi! Which workspace shall we start in?"                  # WB15: one short sentence
     card = words.card("start", first, {}, {})
     assert card == {"title": "Start Krusgraph", "result": first["say"], "onto": first["say"]}
     lost = start_flow.guide(workspace="demo", source="demo_lh", schema="shop", step="bogus")       # F1 B13: the place is kept

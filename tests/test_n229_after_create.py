@@ -410,4 +410,4 @@ def test_the_card_in_a_browser_after_a_create_and_at_a_gated_dry_run(tmp_path, s
     assert g["buttons"] == ["Build the silver step first", "Create anyway"] and g["primary"] == 0 and g["anywayClass"] == "act-b"
     assert g["note"].startswith("24 of the plan's 24 relationship(s)")
     assert g["armed"] == "Yes, create demo_lh_model_3 in Fabric" and g["callsAfterFirstClick"] == 0      # still two clicks, and second
-    assert g["calls"] == [] and len(g["said"]) == 1 and "create_pipeline" in g["said"][0]
+    assert g["calls"] == [] and len(g["said"]) == 1 and g["said"][0] == "Show the pipeline as a dry run first."   # WB15 (H): plain words, no tool call

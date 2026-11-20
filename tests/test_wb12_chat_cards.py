@@ -116,8 +116,8 @@ def test_the_fan_out_sums_are_rounded_at_the_source():
 def test_the_lead_says_the_card_shows_it_and_asks_for_one_sentence(step):
     a = _sample(step)
     text = mcp_apps_next.lead("start", a, [], a.get("actions"))
-    assert "the card already shows this step" in text and "at most one short sentence" in text
-    assert "do not repeat or summarise" in text and "Where no card was drawn" in text
+    assert "the card already shows this step" in text and "one short sentence at most" in text   # WB15 wording
+    assert "do not repeat, list or summarise" in text and "Where no card was drawn" in text
     assert text.endswith("The full answer follows as JSON.")
     assert "7 tables" not in text                        # the findings are on the card and in the JSON, not in the lead
 
@@ -208,7 +208,9 @@ def test_step_1_lists_the_workspaces_as_buttons(monkeypatch):
     picks = [x for x in a["actions"] if x["kind"] == "choose"]
     assert [(x["label"], x["arguments"], x["hint"]) for x in picks] == [
         ("sales", {"workspace": "sales"}, ""), ("Archive", {"workspace": "Archive"}, "no capacity: nothing can run here")]
-    assert a["say"] == "Which workspace shall we start in? Your account can open 2." and a["choices"]["search"] is False
+    # WB15 (A): Archive has no capacity, so sales is the one usable workspace and comes chosen, with Next on
+    assert a["say"] == "Hi! You have one workspace I can use, sales. Shall we start there?" and a["choices"]["search"] is False
+    assert a["after"]["arguments"] == {"workspace": "sales", "step": "source"}
     assert not any(x.get("tool") == "list_workspaces" for x in a["actions"])
     assert any(x.get("arguments") == {"sample": True} for x in a["actions"])          # the sample stays offered
 
@@ -218,7 +220,7 @@ def test_a_long_list_gets_a_search_box_and_a_cap(monkeypatch):
     monkeypatch.setattr(server, "_workspaces", lambda h: [{"name": f"w{i:03}", "capacity_id": "c"} for i in range(75)])
     a = _start()
     assert a["choices"] == {"count": 75, "shown": sf.CHOICES_MAX, "search": True}
-    assert "the first 60 are listed" in a["say"]
+    assert a["say"] == "Hi! Which workspace shall we start in?"          # WB15: the counts are not said
 
 
 def test_step_2_lists_the_sources_and_step_3_the_schemas_with_counts(monkeypatch):
@@ -329,21 +331,22 @@ def test_the_card_draws_the_decision_and_its_buttons(tmp_path):
 @needs_browser
 def test_the_card_draws_tiles_rules_folded_steps_and_the_short_footer(tmp_path):
     check = _render(tmp_path, _sample("check"), width=390)
-    for word in ("rows counted", "keys unique", "links holding", "orphans", "duplicate keys", "2.2×"):
+    for word in ("rows counted", "keys unique", "links holding", "orphans", "duplicate keys"):
         assert word in check["text"], word
-    assert "Done: 4; skipped on the sample: 1-3" in check["text"]
-    assert "Only step 9 writes." in check["text"] and "Steps 1-8 only read" not in check["text"]
-    assert "1. Choose the workspace" not in check["text"]                  # folded until opened
-    first = _render(tmp_path, _sample("map"), width=390)
+    # WB15: the grain line, the step list, the footer and the rule codes in words are under the one Details fold
+    for word in ("2.2×", "1. Choose the workspace", "Steps 1-8 only read", "Only step 9 writes"):
+        assert word not in check["text"], word
+    assert "Details" in check["text"]
+    first = _render(tmp_path, _sample("map"), width=390, clicks=[{"css": "details#details > summary"}])
     assert "Steps 1-8 only read" in first["text"] and "R1: the column is named after the table it points at" in first["text"]
     assert "→" in first["text"]
     totals = _render(tmp_path, _sample("totals"), width=390)
-    assert f"22{G}610.90" in totals["text"] and "about 13.6x" in totals["text"] and "sum per product first" in totals["text"]
+    assert f"22{G}610.90" in totals["text"] and "about 13.6x" in totals["text"]
 
 
 @needs_browser
 def test_the_card_lists_choices_disables_empty_ones_and_waits_for_the_choice(tmp_path):
-    options = {"step": "schema", "items": [{"name": "dbo", "tables": 0}, {"name": "shop", "tables": 7}]}
+    options = {"step": "schema", "items": [{"name": "dbo", "tables": 0}, {"name": "shop", "tables": 7}, {"name": "sales", "tables": 3}]}
     out = _render(tmp_path, sf.guide(workspace="ws", source="lh", options=options), width=390)
     by = {b["text"]: b for b in out["buttons"]}
     assert by["shop7 tables"]["disabled"] is False and by["dbono tables"]["disabled"] is True
@@ -352,7 +355,7 @@ def test_the_card_lists_choices_disables_empty_ones_and_waits_for_the_choice(tmp
     many = {"step": "workspace", "items": [{"name": f"w{i}"} for i in range(12)]}
     searched = _render(tmp_path, sf.guide(options=many), width=390, clicks=[{"text": "w11"}], reply=sf.guide(workspace="w11"))
     calls = [m["params"] for m in searched["log"] if m.get("method") == "tools/call"]
-    assert calls == [{"name": "start", "arguments": {"workspace": "w11"}}] and "step 2 of 9" in searched["text"]
+    assert calls == [{"name": "start", "arguments": {"workspace": "w11"}}] and "Step 2 of 9" in searched["text"]
 
 
 @needs_browser

@@ -64,24 +64,28 @@ STATES = [
     ("start_check", "start", {**B, "step": "check"}, start_flow.guide(**B, step="check")),
     ("start_dry_run", "start", {**B, "step": "dry_run"}, start_flow.guide(**B, step="dry_run")),
 ]
-EXPECT = {                                     # name: (step n, the primary step's label)
-    "nothing": (1, "Choose a workspace"), "workspace": (1, "Choose the lakehouse"), "source": (1, "Choose the schema"),
-    "schema": (1, "Read the tables"), "read": (2, "Check against the rows"), "ontology_draft": (2, "Check against the rows"),
-    "checked_clean": (5, "Build silver and gold (dry run first)"), "checked_bad_key": (4, "Propose a fix per failure"),
-    "fixes_asked": (4, "Decide the open links"), "orphans": (4, "Show what points at nothing"),
-    "gold_draft": (5, "Build silver and gold (dry run first)"), "pipeline_dry": (5, "Build silver and gold in Fabric"),
-    "pipeline_made": (5, "Create the semantic model (dry run first)"),
-    "model_draft": (6, "Create the semantic model (dry run first)"), "model_dry": (6, "Create the semantic model in Fabric"),
-    "model_made": (6, "Create the data agent (dry run first)"), "agent_dry": (7, "Create the data agent in Fabric"),
-    "agent_made": (8, "Start again on another schema"), "error": (3, "Show where we are"),
-    "start_first": (1, "List my workspaces"), "start_map": (2, "Show the map"), "start_check": (3, "Check against the rows"),
+EXPECT = {                                     # name: (step n of the start path's 9, the primary step's label); WB15: one numbering
+    "nothing": (1, "Choose a workspace"), "workspace": (2, "Choose the lakehouse"), "source": (3, "Choose the schema"),
+    "schema": (3, "Read the tables"), "read": (4, "Check against the rows"), "ontology_draft": (4, "Check against the rows"),
+    "checked_clean": (8, "Build silver and gold (dry run first)"), "checked_bad_key": (6, "Propose a fix per failure"),
+    "fixes_asked": (6, "Decide the open links"), "orphans": (6, "Show what points at nothing"),
+    "gold_draft": (8, "Build silver and gold (dry run first)"), "pipeline_dry": (8, "Build silver and gold in Fabric"),
+    "pipeline_made": (8, "Create the semantic model (dry run first)"),
+    "model_draft": (8, "Create the semantic model (dry run first)"), "model_dry": (8, "Create the semantic model in Fabric"),
+    "model_made": (8, "Create the data agent (dry run first)"), "agent_dry": (8, "Create the data agent in Fabric"),
+    "agent_made": (9, "Start again on another schema"), "error": (5, "Show where we are"),
+    "start_first": (1, "List my workspaces"), "start_map": (4, "Show the map"), "start_check": (5, "Check against the rows"),
 }
 
 
 @pytest.mark.parametrize("name,tool,call,answer", STATES, ids=[s[0] for s in STATES])
 def test_each_plan_state_has_exactly_one_primary_step_that_is_new(name, tool, call, answer):
     c = coach.coach(tool, call, answer)
-    assert 1 <= c["n"] <= c["of"] == 8 and c["title"] == coach.STAGES[c["n"] - 1][1]
+    assert 1 <= c["n"] <= c["of"] == 9                            # WB15: the start path's nine steps everywhere
+    if tool == "start":
+        assert c["title"] == start_flow.SHORT[answer["step"]["key"]]
+    else:
+        assert c["title"] in [x[1] for x in coach.STAGES]
     p = c["primary"]
     assert p.get("primary") is True and p["label"] and p["say"] and p["ask"]           # never no step
     assert len(c["secondary"]) <= 2 and not any(s.get("primary") for s in c["secondary"])
@@ -174,7 +178,7 @@ def test_a_plain_sentence_starts_the_path(fabric):
     assert "Coach block" in server.mcp.instructions
     r = _sc("start")
     d = r.structured_content
-    assert d["step"]["key"] == "workspace" and d["coach"]["n"] == 1 and d["coach"]["title"] == "Choose data"
+    assert d["step"]["key"] == "workspace" and d["coach"]["n"] == 1 and d["coach"]["title"] == "Choose the workspace"
     choices = [a for a in d["actions"] if a.get("kind") == "choose"]
     assert choices and all(a["arguments"].get("workspace") for a in choices)   # clickable workspaces, nothing else asked
 
@@ -202,7 +206,7 @@ def _result(r) -> dict:
 
 
 def _first_view(out, c):
-    assert out["stage"] == f"Step {c['n']} of 8: {c['title']}" and out["line"] == c["line"] and out["who"] == c["name"]
+    assert out["stage"] == f"Step {c['n']} of 9: {c['title']}" and out["line"] == c["line"] and out["who"] == c["name"]
     assert out["firstAfterHead"] and out["lineShown"] and out["figure"] and out["oldFigures"] == 0
     assert not out["figureAfterToggle"] and out["lineAfterToggle"]                     # Mascots: off keeps the words
     assert not out["overflow"]
@@ -226,9 +230,16 @@ def test_the_check_card_coaches_at_390(fabric, tmp_path, scheme):
 @needs_browser
 @pytest.mark.parametrize("scheme", ["light", "dark"])
 def test_the_start_card_coaches_at_390(fabric, tmp_path, scheme):
+    # WB15: the start card draws its own coach (the mascot on top, one sentence) under "Step N of 9: <step>"; the rest of
+    # it, and the click-through, is tests/test_wb15_click_through.py
     r = _sc("start")
-    d = r.structured_content
-    out = _browse(tmp_path, mcp_apps_start.card_html(), {"result": _result(r), "args": {}, "scheme": scheme, "width": 390})
-    _first_view(out, d["coach"])
-    assert "demo" in out["buttons"] or any("demo" in b for b in out["buttons"])           # the workspace as a click
-    assert "Every step of the path" in out["visible"] and "The map: keys and links" not in out["visible"]
+    (tmp_path / "card.html").write_text(mcp_apps_start.card_html(), encoding="utf-8")
+    (tmp_path / "data.json").write_text(json.dumps({"result": _result(r), "scheme": scheme, "width": 390, "frame": 900}), encoding="utf-8")
+    run = subprocess.run(["node", str(TESTS / "wb13_card_browser.js"), str(tmp_path / "card.html"), str(tmp_path / "data.json")],
+                         capture_output=True, text=True, timeout=180)
+    assert run.returncode == 0, run.stderr[-2000:]
+    out = json.loads(run.stdout)
+    assert out["errors"] == [] and not out["overflow"]
+    assert out["text"].startswith("Step 1 of 9: Choose the workspace") and "Onto" in out["text"]
+    assert any("demo" in b["text"] for b in out["buttons"])                                # the workspace as a click
+    assert "Details" in out["text"] and "The map: keys and links" not in out["text"]
