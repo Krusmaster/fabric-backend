@@ -11,10 +11,16 @@
  *      (Content-Disposition: attachment). If the host cannot open the tab, the link is shown to open by hand.
  *   2. Copy: the text to the clipboard; where the frame does not allow it, the text is shown, selected, in a text area.
  * Where nothing provides FileContext (a test of one view, the page outside Fabric) the old `data:` link is kept.
+ *
+ * WB14 (#108): a third action, "Save to lakehouse Files" (onelakeSave.ts), shown only where OneLakeContext is provided:
+ * the hosting server's switch is on (KRUSGRAPH_ONELAKE_SAVE) and the item targets a lakehouse. A dry run says the full
+ * path first; Save never overwrites (a file already there asks Replace); without storage access it says so plainly and
+ * Download keeps working.
  */
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Button, Caption1 } from "@fluentui/react-components";
-import { ArrowDownload20Regular, Copy20Regular } from "@fluentui/react-icons";
+import { ArrowDownload20Regular, Copy20Regular, FolderArrowUp20Regular } from "@fluentui/react-icons";
+import { LakehouseTarget, NO_ACCESS, NO_ACCESS_ROLE, SaveIO, SaveOutcome, TIMED_OUT, dryRunWords, saveToOneLake, shownPath } from "./onelakeSave";
 
 export interface OfferedFile {
   filename: string;
@@ -41,6 +47,13 @@ export interface FileSource {
 }
 
 export const FileContext = createContext<FileSource | undefined>(undefined);
+
+/** WB14: where "Save to lakehouse Files" writes, and how it gets its Storage token. Absent: the button is not shown. */
+export interface OneLakeSaveSource extends SaveIO {
+  target: LakehouseTarget;
+}
+
+export const OneLakeContext = createContext<OneLakeSaveSource | undefined>(undefined);
 
 /** The old link, for a page without FileContext. */
 export function dataHref(file: OfferedFile): string {
@@ -144,6 +157,7 @@ export function FileActions(props: {
         {state.busy ? "Preparing the file…" : props.label}
       </Button>
       {props.copy !== false && fixed && textOf !== undefined && <CopyText text={textOf} label={props.copyLabel} />}
+      <SaveToLakehouse file={props.file} />
       {(state.said || state.problem) && <Caption1 role="status" className="kg-file-said">{state.problem ?? state.said}</Caption1>}
       {state.link && shown && (
         source
@@ -152,6 +166,63 @@ export function FileActions(props: {
       )}
       {props.copy !== false && !fixed && state.file && textOf !== undefined && state.problem && (
         <CopyText text={textOf} label={props.copyLabel ?? "Copy the file's text"} />
+      )}
+    </span>
+  );
+}
+
+export const SAVED = (where: string) => `Saved to ${where}. Download still works the same way.`;
+export const EXISTS = (name: string, where: string) =>
+  `A file named ${name} is already in ${where}. Nothing was written. Replace it with this one?`;
+
+/**
+ * WB14: "Save to lakehouse Files". The first click is the dry run (the full path, the size, nothing written); Save
+ * writes; a file already there is replaced only after Replace.
+ */
+export function SaveToLakehouse(props: { file: OfferedFile | (() => Promise<OfferedFile>) }) {
+  const source = useContext(OneLakeContext);
+  const [state, setState] = useState<{ step: "idle" | "dry" | "busy" | "exists" | "done"; file?: OfferedFile; said?: string; problem?: string }>({ step: "idle" });
+  if (!source) return null;
+  const dry = async () => {
+    setState({ step: "busy" });
+    try {
+      const file = typeof props.file === "function" ? await props.file() : props.file;
+      setState({ step: "dry", file, said: dryRunWords(source.target, file) });
+    } catch (e) {
+      setState({ step: "idle", problem: (e as Error)?.message || "The file could not be made just now. Nothing changed; try again." });
+    }
+  };
+  const save = async (file: OfferedFile, replace: boolean) => {
+    setState({ step: "busy", file });
+    const out: SaveOutcome = await saveToOneLake(source, source.target, file, { replace });
+    const where = shownPath(source.target, file.filename);
+    if (out.kind === "saved") setState({ step: "done", file, said: SAVED(where) });
+    else if (out.kind === "exists") {
+      const folder = where.slice(0, where.lastIndexOf("/") + 1);
+      setState({ step: "exists", file, said: EXISTS(file.filename, folder) });
+    } else if (out.kind === "no_access") setState({ step: "idle", file, problem: out.status ? `${NO_ACCESS} ${NO_ACCESS_ROLE}` : NO_ACCESS });
+    else if (out.kind === "timeout") setState({ step: "idle", file, problem: TIMED_OUT });
+    else setState({ step: "idle", file, problem: `OneLake did not save the file${out.status ? ` (HTTP ${out.status})` : ""}. Nothing was replaced; use Download instead, or try again.` });
+  };
+  const f = state.file;
+  return (
+    <span className="kg-file-save">
+      {(state.said || state.problem) && <Caption1 block role="status" className="kg-file-said">{state.problem ?? state.said}</Caption1>}
+      {(state.step === "idle" || state.step === "done") && (
+        <Button appearance="subtle" icon={<FolderArrowUp20Regular />} onClick={(): void => void dry()}>Save to lakehouse Files</Button>
+      )}
+      {state.step === "busy" && <Button appearance="subtle" disabled icon={<FolderArrowUp20Regular />}>Saving to the lakehouse…</Button>}
+      {state.step === "dry" && f && (
+        <>
+          <Button appearance="primary" onClick={(): void => void save(f, false)}>Save</Button>
+          <Button appearance="subtle" onClick={(): void => setState({ step: "idle" })}>Cancel</Button>
+        </>
+      )}
+      {state.step === "exists" && f && (
+        <>
+          <Button appearance="primary" onClick={(): void => void save(f, true)}>Replace</Button>
+          <Button appearance="subtle" onClick={(): void => setState({ step: "idle", said: `${f.filename} was left as it is.` })}>Keep the file there</Button>
+        </>
       )}
     </span>
   );

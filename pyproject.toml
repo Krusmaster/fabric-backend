@@ -21,6 +21,7 @@ test = ["pytest", "sqlglot", "pyyaml", "pytest-xdist==3.8.0"]   # CI1: pytest-xd
 fabric-backend = "fabric_backend.cli:main"
 fabric-backend-mcp = "fabric_backend.mcp_server:main"
 fabric-backend-server = "fabric_backend.server:main"
+krusgraph = "fabric_backend.krusgraph_cli:main"           # CL1: the read-only agent CLI (docs/CLI.md)
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -30,7 +31,7 @@ build-backend = "setuptools.build_meta"
 include = ["fabric_backend*"]
 
 [tool.setuptools.package-data]
-fabric_backend = ["page_templates/*.md", "page_templates/*.html", "static/*", "static/fonts/*", "static/pyodide/*", "static/media/*", "static/mascots/*", "static/workload-shots/*", "packs/*.json", "packs/*/*.json", "packs/*/*.include", "packs/*/*.yaml", "analysis/*.json"]
+fabric_backend = ["page_templates/*.md", "page_templates/*.html", "static/*", "static/fonts/*", "static/pyodide/*", "static/media/*", "static/mascots/*", "static/workload-shots/*", "packs/*.json", "packs/*/*.json", "packs/*/*.include", "packs/*/*.yaml", "analysis/*.json", "skills/*.md"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]          # tests import deploy/azure_containerapp.py from the repo root; plain `pytest` (CI) does not add the cwd
