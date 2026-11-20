@@ -1,0 +1,1076 @@
+[
+ {
+  "path": "careful",
+  "width": 390,
+  "steps": [
+   {
+    "title": "Step 1 of 9: Choose the workspace",
+    "line": "Hi! You have one workspace I can use, demo. Shall we start there?",
+    "words": 22,
+    "buttonWords": 16,
+    "buttons": 4,
+    "bottom": 410,
+    "key": "workspace",
+    "taps": 0,
+    "seconds": 0.28,
+    "scroll": false
+   },
+   {
+    "title": "Step 2 of 9: Choose the source",
+    "line": "demo has one source, demo_lh. I picked it for you.",
+    "words": 19,
+    "buttonWords": 8,
+    "buttons": 3,
+    "bottom": 320,
+    "key": "source",
+    "taps": 1,
+    "seconds": 0.65,
+    "scroll": false
+   },
+   {
+    "title": "Step 3 of 9: Choose the schema",
+    "line": "demo_lh has one schema with tables, dbo. I picked it for you.",
+    "words": 21,
+    "buttonWords": 11,
+    "buttons": 4,
+    "bottom": 320,
+    "key": "schema",
+    "taps": 2,
+    "seconds": 1,
+    "scroll": false
+   },
+   {
+    "title": "Step 4 of 9: The map",
+    "line": "Here is how your tables connect. Next I count each link in the rows.",
+    "words": 101,
+    "buttonWords": 7,
+    "buttons": 3,
+    "bottom": 710,
+    "key": "map",
+    "taps": 3,
+    "seconds": 1.53,
+    "scroll": false
+   },
+   {
+    "title": "Step 5 of 9: Check against the rows",
+    "line": "Let me count each key and link in the rows, so nothing is built on a guess.",
+    "words": 27,
+    "buttonWords": 9,
+    "buttons": 3,
+    "bottom": 343,
+    "key": "check",
+    "taps": 4,
+    "seconds": 1.89,
+    "scroll": false
+   },
+   {
+    "title": "Step 6 of 9: Your decisions",
+    "line": "One link needs your decision. The count supports it, and you decide.",
+    "words": 45,
+    "buttonWords": 12,
+    "buttons": 5,
+    "bottom": 535,
+    "key": "decide",
+    "taps": 6,
+    "seconds": 2.72,
+    "scroll": false
+   },
+   {
+    "title": "Step 7 of 9: Doubled totals",
+    "line": "Where would a total count twice? I show each amount and where it belongs.",
+    "words": 22,
+    "buttonWords": 8,
+    "buttons": 3,
+    "bottom": 315,
+    "key": "totals",
+    "taps": 8,
+    "seconds": 3.5,
+    "scroll": false
+   },
+   {
+    "title": "Step 8 of 9: Dry run",
+    "line": "Bronze to silver to gold. Try a dry run: nothing is created.",
+    "words": 20,
+    "buttonWords": 19,
+    "buttons": 7,
+    "bottom": 373,
+    "key": "dry_run",
+    "taps": 10,
+    "seconds": 4.17,
+    "scroll": false
+   },
+   {
+    "title": "Step 8 of 9: Dry run",
+    "line": "Bronze to silver to gold. Try a dry run: nothing is created.",
+    "words": 193,
+    "buttonWords": 19,
+    "buttons": 7,
+    "bottom": 941,
+    "key": "dry_runs_done",
+    "taps": 13,
+    "seconds": 5.12,
+    "scroll": true
+   },
+   {
+    "title": "Step 9 of 9: Confirm and create",
+    "line": "I suggest these names. Confirm them, and then you create each one with its own button.",
+    "words": 28,
+    "buttonWords": 10,
+    "buttons": 3,
+    "bottom": 380,
+    "key": "create",
+    "taps": 14,
+    "seconds": 5.53,
+    "scroll": false
+   },
+   {
+    "title": "Step 9 of 9: Confirm and create",
+    "line": "Confirmed. Each button creates one item in Fabric, on a second tap. Nothing is deleted.",
+    "words": 36,
+    "buttonWords": 8,
+    "buttons": 4,
+    "bottom": 426,
+    "key": "confirmed",
+    "taps": 15,
+    "seconds": 5.88,
+    "scroll": false
+   }
+  ],
+  "calls": [
+   {
+    "name": "start",
+    "step": "",
+    "ms": 2
+   },
+   {
+    "name": "start",
+    "step": "",
+    "ms": 4
+   },
+   {
+    "name": "start",
+    "step": "map",
+    "ms": 37
+   },
+   {
+    "name": "start",
+    "step": "check",
+    "ms": 2
+   },
+   {
+    "name": "validate_plan",
+    "step": "",
+    "ms": 34
+   },
+   {
+    "name": "start",
+    "step": "decide",
+    "ms": 27
+   },
+   {
+    "name": "start",
+    "step": "decide",
+    "ms": 25
+   },
+   {
+    "name": "start",
+    "step": "totals",
+    "ms": 4
+   },
+   {
+    "name": "validate_plan",
+    "step": "",
+    "ms": 90
+   },
+   {
+    "name": "start",
+    "step": "dry_run",
+    "ms": 5
+   },
+   {
+    "name": "create_pipeline",
+    "step": "",
+    "ms": 48
+   },
+   {
+    "name": "create_semantic_model",
+    "step": "",
+    "ms": 28
+   },
+   {
+    "name": "create_data_agent",
+    "step": "",
+    "ms": 110
+   },
+   {
+    "name": "start",
+    "step": "create",
+    "ms": 2
+   },
+   {
+    "name": "start",
+    "step": "create",
+    "ms": 2
+   }
+  ]
+ },
+ {
+  "path": "careful",
+  "width": 1280,
+  "steps": [
+   {
+    "title": "Step 1 of 9: Choose the workspace",
+    "line": "Hi! You have one workspace I can use, demo. Shall we start there?",
+    "words": 22,
+    "buttonWords": 16,
+    "buttons": 4,
+    "bottom": 348,
+    "key": "workspace",
+    "taps": 0,
+    "seconds": 0.26,
+    "scroll": false
+   },
+   {
+    "title": "Step 2 of 9: Choose the source",
+    "line": "demo has one source, demo_lh. I picked it for you.",
+    "words": 19,
+    "buttonWords": 8,
+    "buttons": 3,
+    "bottom": 308,
+    "key": "source",
+    "taps": 1,
+    "seconds": 0.7,
+    "scroll": false
+   },
+   {
+    "title": "Step 3 of 9: Choose the schema",
+    "line": "demo_lh has one schema with tables, dbo. I picked it for you.",
+    "words": 21,
+    "buttonWords": 11,
+    "buttons": 4,
+    "bottom": 308,
+    "key": "schema",
+    "taps": 2,
+    "seconds": 1.12,
+    "scroll": false
+   },
+   {
+    "title": "Step 4 of 9: The map",
+    "line": "Here is how your tables connect. Next I count each link in the rows.",
+    "words": 101,
+    "buttonWords": 7,
+    "buttons": 3,
+    "bottom": 793,
+    "key": "map",
+    "taps": 3,
+    "seconds": 1.68,
+    "scroll": false
+   },
+   {
+    "title": "Step 5 of 9: Check against the rows",
+    "line": "Let me count each key and link in the rows, so nothing is built on a guess.",
+    "words": 27,
+    "buttonWords": 9,
+    "buttons": 3,
+    "bottom": 281,
+    "key": "check",
+    "taps": 4,
+    "seconds": 2.11,
+    "scroll": false
+   },
+   {
+    "title": "Step 6 of 9: Your decisions",
+    "line": "One link needs your decision. The count supports it, and you decide.",
+    "words": 45,
+    "buttonWords": 12,
+    "buttons": 5,
+    "bottom": 400,
+    "key": "decide",
+    "taps": 6,
+    "seconds": 3,
+    "scroll": false
+   },
+   {
+    "title": "Step 7 of 9: Doubled totals",
+    "line": "Where would a total count twice? I show each amount and where it belongs.",
+    "words": 22,
+    "buttonWords": 8,
+    "buttons": 3,
+    "bottom": 281,
+    "key": "totals",
+    "taps": 8,
+    "seconds": 3.8,
+    "scroll": false
+   },
+   {
+    "title": "Step 8 of 9: Dry run",
+    "line": "Bronze to silver to gold. Try a dry run: nothing is created.",
+    "words": 20,
+    "buttonWords": 19,
+    "buttons": 7,
+    "bottom": 361,
+    "key": "dry_run",
+    "taps": 10,
+    "seconds": 4.49,
+    "scroll": false
+   },
+   {
+    "title": "Step 8 of 9: Dry run",
+    "line": "Bronze to silver to gold. Try a dry run: nothing is created.",
+    "words": 193,
+    "buttonWords": 19,
+    "buttons": 7,
+    "bottom": 787,
+    "key": "dry_runs_done",
+    "taps": 13,
+    "seconds": 5.5,
+    "scroll": false
+   },
+   {
+    "title": "Step 9 of 9: Confirm and create",
+    "line": "I suggest these names. Confirm them, and then you create each one with its own button.",
+    "words": 28,
+    "buttonWords": 10,
+    "buttons": 3,
+    "bottom": 346,
+    "key": "create",
+    "taps": 14,
+    "seconds": 5.98,
+    "scroll": false
+   },
+   {
+    "title": "Step 9 of 9: Confirm and create",
+    "line": "Confirmed. Each button creates one item in Fabric, on a second tap. Nothing is deleted.",
+    "words": 36,
+    "buttonWords": 8,
+    "buttons": 4,
+    "bottom": 392,
+    "key": "confirmed",
+    "taps": 15,
+    "seconds": 6.38,
+    "scroll": false
+   }
+  ],
+  "calls": [
+   {
+    "name": "start",
+    "step": "",
+    "ms": 2
+   },
+   {
+    "name": "start",
+    "step": "",
+    "ms": 2
+   },
+   {
+    "name": "start",
+    "step": "map",
+    "ms": 24
+   },
+   {
+    "name": "start",
+    "step": "check",
+    "ms": 3
+   },
+   {
+    "name": "validate_plan",
+    "step": "",
+    "ms": 45
+   },
+   {
+    "name": "start",
+    "step": "decide",
+    "ms": 41
+   },
+   {
+    "name": "start",
+    "step": "decide",
+    "ms": 36
+   },
+   {
+    "name": "start",
+    "step": "totals",
+    "ms": 3
+   },
+   {
+    "name": "validate_plan",
+    "step": "",
+    "ms": 95
+   },
+   {
+    "name": "start",
+    "step": "dry_run",
+    "ms": 3
+   },
+   {
+    "name": "create_pipeline",
+    "step": "",
+    "ms": 45
+   },
+   {
+    "name": "create_semantic_model",
+    "step": "",
+    "ms": 34
+   },
+   {
+    "name": "create_data_agent",
+    "step": "",
+    "ms": 155
+   },
+   {
+    "name": "start",
+    "step": "create",
+    "ms": 2
+   },
+   {
+    "name": "start",
+    "step": "create",
+    "ms": 2
+   }
+  ]
+ },
+ {
+  "path": "lazy",
+  "width": 390,
+  "steps": [
+   {
+    "title": "Step 1 of 9: Choose the workspace",
+    "line": "Hi! You have one workspace I can use, demo. Shall we start there?",
+    "words": 22,
+    "buttonWords": 16,
+    "buttons": 4,
+    "bottom": 410,
+    "key": "workspace",
+    "taps": 0,
+    "seconds": 0.26,
+    "scroll": false
+   },
+   {
+    "title": "Step 2 of 9: Choose the source",
+    "line": "demo has one source, demo_lh. I picked it for you.",
+    "words": 19,
+    "buttonWords": 8,
+    "buttons": 3,
+    "bottom": 320,
+    "key": "source",
+    "taps": 1,
+    "seconds": 0.63,
+    "scroll": false
+   },
+   {
+    "title": "Step 3 of 9: Choose the schema",
+    "line": "demo_lh has one schema with tables, dbo. I picked it for you.",
+    "words": 21,
+    "buttonWords": 11,
+    "buttons": 4,
+    "bottom": 320,
+    "key": "schema",
+    "taps": 2,
+    "seconds": 0.98,
+    "scroll": false
+   },
+   {
+    "title": "Step 4 of 9: The map",
+    "line": "Here is how your tables connect. Next I count each link in the rows.",
+    "words": 101,
+    "buttonWords": 7,
+    "buttons": 3,
+    "bottom": 710,
+    "key": "map",
+    "taps": 3,
+    "seconds": 1.52,
+    "scroll": false
+   },
+   {
+    "title": "Step 5 of 9: Check against the rows",
+    "line": "Let me count each key and link in the rows, so nothing is built on a guess.",
+    "words": 27,
+    "buttonWords": 9,
+    "buttons": 3,
+    "bottom": 343,
+    "key": "check",
+    "taps": 4,
+    "seconds": 1.87,
+    "scroll": false
+   },
+   {
+    "title": "Step 6 of 9: Your decisions",
+    "line": "One link needs your decision. The count supports it, and you decide.",
+    "words": 45,
+    "buttonWords": 12,
+    "buttons": 5,
+    "bottom": 535,
+    "key": "decide",
+    "taps": 5,
+    "seconds": 2.43,
+    "scroll": false
+   },
+   {
+    "title": "Step 7 of 9: Doubled totals",
+    "line": "Where would a total count twice? I show each amount and where it belongs.",
+    "words": 22,
+    "buttonWords": 8,
+    "buttons": 3,
+    "bottom": 315,
+    "key": "totals",
+    "taps": 6,
+    "seconds": 2.78,
+    "scroll": false
+   },
+   {
+    "title": "Step 8 of 9: Dry run",
+    "line": "Bronze to silver to gold. Try a dry run: nothing is created.",
+    "words": 20,
+    "buttonWords": 19,
+    "buttons": 7,
+    "bottom": 373,
+    "key": "dry_run",
+    "taps": 7,
+    "seconds": 3.13,
+    "scroll": false
+   },
+   {
+    "title": "Step 8 of 9: Dry run",
+    "line": "Bronze to silver to gold. Try a dry run: nothing is created.",
+    "words": 151,
+    "buttonWords": 19,
+    "buttons": 7,
+    "bottom": 969,
+    "key": "dry_runs_done",
+    "taps": 10,
+    "seconds": 4.06,
+    "scroll": true
+   },
+   {
+    "title": "Step 9 of 9: Confirm and create",
+    "line": "I suggest these names. Confirm them, and then you create each one with its own button.",
+    "words": 28,
+    "buttonWords": 10,
+    "buttons": 3,
+    "bottom": 380,
+    "key": "create",
+    "taps": 11,
+    "seconds": 4.48,
+    "scroll": false
+   },
+   {
+    "title": "Step 9 of 9: Confirm and create",
+    "line": "Confirmed. Each button creates one item in Fabric, on a second tap. Nothing is deleted.",
+    "words": 36,
+    "buttonWords": 8,
+    "buttons": 4,
+    "bottom": 426,
+    "key": "confirmed",
+    "taps": 12,
+    "seconds": 4.83,
+    "scroll": false
+   }
+  ],
+  "calls": [
+   {
+    "name": "start",
+    "step": "source",
+    "ms": 2
+   },
+   {
+    "name": "start",
+    "step": "schema",
+    "ms": 2
+   },
+   {
+    "name": "start",
+    "step": "map",
+    "ms": 28
+   },
+   {
+    "name": "start",
+    "step": "check",
+    "ms": 3
+   },
+   {
+    "name": "start",
+    "step": "decide",
+    "ms": 25
+   },
+   {
+    "name": "start",
+    "step": "totals",
+    "ms": 2
+   },
+   {
+    "name": "start",
+    "step": "dry_run",
+    "ms": 2
+   },
+   {
+    "name": "create_pipeline",
+    "step": "",
+    "ms": 45
+   },
+   {
+    "name": "create_semantic_model",
+    "step": "",
+    "ms": 28
+   },
+   {
+    "name": "create_data_agent",
+    "step": "",
+    "ms": 129
+   },
+   {
+    "name": "start",
+    "step": "create",
+    "ms": 2
+   },
+   {
+    "name": "start",
+    "step": "create",
+    "ms": 2
+   }
+  ]
+ },
+ {
+  "path": "lazy",
+  "width": 1280,
+  "steps": [
+   {
+    "title": "Step 1 of 9: Choose the workspace",
+    "line": "Hi! You have one workspace I can use, demo. Shall we start there?",
+    "words": 22,
+    "buttonWords": 16,
+    "buttons": 4,
+    "bottom": 348,
+    "key": "workspace",
+    "taps": 0,
+    "seconds": 0.24,
+    "scroll": false
+   },
+   {
+    "title": "Step 2 of 9: Choose the source",
+    "line": "demo has one source, demo_lh. I picked it for you.",
+    "words": 19,
+    "buttonWords": 8,
+    "buttons": 3,
+    "bottom": 308,
+    "key": "source",
+    "taps": 1,
+    "seconds": 0.66,
+    "scroll": false
+   },
+   {
+    "title": "Step 3 of 9: Choose the schema",
+    "line": "demo_lh has one schema with tables, dbo. I picked it for you.",
+    "words": 21,
+    "buttonWords": 11,
+    "buttons": 4,
+    "bottom": 308,
+    "key": "schema",
+    "taps": 2,
+    "seconds": 1.06,
+    "scroll": false
+   },
+   {
+    "title": "Step 4 of 9: The map",
+    "line": "Here is how your tables connect. Next I count each link in the rows.",
+    "words": 101,
+    "buttonWords": 7,
+    "buttons": 3,
+    "bottom": 793,
+    "key": "map",
+    "taps": 3,
+    "seconds": 1.61,
+    "scroll": false
+   },
+   {
+    "title": "Step 5 of 9: Check against the rows",
+    "line": "Let me count each key and link in the rows, so nothing is built on a guess.",
+    "words": 27,
+    "buttonWords": 9,
+    "buttons": 3,
+    "bottom": 281,
+    "key": "check",
+    "taps": 4,
+    "seconds": 2.01,
+    "scroll": false
+   },
+   {
+    "title": "Step 6 of 9: Your decisions",
+    "line": "One link needs your decision. The count supports it, and you decide.",
+    "words": 45,
+    "buttonWords": 12,
+    "buttons": 5,
+    "bottom": 400,
+    "key": "decide",
+    "taps": 5,
+    "seconds": 2.66,
+    "scroll": false
+   },
+   {
+    "title": "Step 7 of 9: Doubled totals",
+    "line": "Where would a total count twice? I show each amount and where it belongs.",
+    "words": 22,
+    "buttonWords": 8,
+    "buttons": 3,
+    "bottom": 281,
+    "key": "totals",
+    "taps": 6,
+    "seconds": 3.06,
+    "scroll": false
+   },
+   {
+    "title": "Step 8 of 9: Dry run",
+    "line": "Bronze to silver to gold. Try a dry run: nothing is created.",
+    "words": 20,
+    "buttonWords": 19,
+    "buttons": 7,
+    "bottom": 361,
+    "key": "dry_run",
+    "taps": 7,
+    "seconds": 3.44,
+    "scroll": false
+   },
+   {
+    "title": "Step 8 of 9: Dry run",
+    "line": "Bronze to silver to gold. Try a dry run: nothing is created.",
+    "words": 151,
+    "buttonWords": 19,
+    "buttons": 7,
+    "bottom": 722,
+    "key": "dry_runs_done",
+    "taps": 10,
+    "seconds": 4.47,
+    "scroll": false
+   },
+   {
+    "title": "Step 9 of 9: Confirm and create",
+    "line": "I suggest these names. Confirm them, and then you create each one with its own button.",
+    "words": 28,
+    "buttonWords": 10,
+    "buttons": 3,
+    "bottom": 346,
+    "key": "create",
+    "taps": 11,
+    "seconds": 4.96,
+    "scroll": false
+   },
+   {
+    "title": "Step 9 of 9: Confirm and create",
+    "line": "Confirmed. Each button creates one item in Fabric, on a second tap. Nothing is deleted.",
+    "words": 36,
+    "buttonWords": 8,
+    "buttons": 4,
+    "bottom": 392,
+    "key": "confirmed",
+    "taps": 12,
+    "seconds": 5.36,
+    "scroll": false
+   }
+  ],
+  "calls": [
+   {
+    "name": "start",
+    "step": "source",
+    "ms": 2
+   },
+   {
+    "name": "start",
+    "step": "schema",
+    "ms": 4
+   },
+   {
+    "name": "start",
+    "step": "map",
+    "ms": 21
+   },
+   {
+    "name": "start",
+    "step": "check",
+    "ms": 3
+   },
+   {
+    "name": "start",
+    "step": "decide",
+    "ms": 35
+   },
+   {
+    "name": "start",
+    "step": "totals",
+    "ms": 2
+   },
+   {
+    "name": "start",
+    "step": "dry_run",
+    "ms": 5
+   },
+   {
+    "name": "create_pipeline",
+    "step": "",
+    "ms": 50
+   },
+   {
+    "name": "create_semantic_model",
+    "step": "",
+    "ms": 26
+   },
+   {
+    "name": "create_data_agent",
+    "step": "",
+    "ms": 176
+   },
+   {
+    "name": "start",
+    "step": "create",
+    "ms": 3
+   },
+   {
+    "name": "start",
+    "step": "create",
+    "ms": 2
+   }
+  ]
+ },
+ {
+  "path": "shop",
+  "width": 390,
+  "steps": [
+   {
+    "title": "Step 1 of 9: Choose the workspace",
+    "line": "Hi! You have one workspace I can use, demo. Shall we start there?",
+    "words": 22,
+    "buttonWords": 16,
+    "buttons": 4,
+    "bottom": 410,
+    "key": "workspace",
+    "taps": 0,
+    "seconds": 0.26,
+    "scroll": false
+   },
+   {
+    "title": "Step 4 of 9: The map (sample)",
+    "line": "Here is how the shop's tables connect. Next I count each link.",
+    "words": 71,
+    "buttonWords": 7,
+    "buttons": 2,
+    "bottom": 615,
+    "key": "the_map",
+    "taps": 1,
+    "seconds": 0.77,
+    "scroll": false
+   },
+   {
+    "title": "Step 5 of 9: Check against the rows (sample)",
+    "line": "I counted each key and link in the shop's rows.",
+    "words": 39,
+    "buttonWords": 5,
+    "buttons": 2,
+    "bottom": 403,
+    "key": "check_against_the_rows",
+    "taps": 2,
+    "seconds": 1.18,
+    "scroll": false
+   },
+   {
+    "title": "Step 6 of 9: Your decisions (sample)",
+    "line": "1 decision open. Does orders.ship_to_id point at addresses? Accept or reject.",
+    "words": 59,
+    "buttonWords": 10,
+    "buttons": 5,
+    "bottom": 546,
+    "key": "your_decisions",
+    "taps": 3,
+    "seconds": 1.59,
+    "scroll": false
+   },
+   {
+    "title": "Step 7 of 9: Doubled totals (sample)",
+    "line": "Where would a total count twice? Here is the amount and where it belongs.",
+    "words": 40,
+    "buttonWords": 5,
+    "buttons": 2,
+    "bottom": 368,
+    "key": "doubled_totals",
+    "taps": 4,
+    "seconds": 2,
+    "scroll": false
+   },
+   {
+    "title": "Step 8 of 9: Dry run (sample)",
+    "line": "Bronze to silver to gold. This is what a dry run would build.",
+    "words": 22,
+    "buttonWords": 6,
+    "buttons": 2,
+    "bottom": 253,
+    "key": "dry_run",
+    "taps": 5,
+    "seconds": 2.38,
+    "scroll": false
+   },
+   {
+    "title": "Step 9 of 9: Confirm and create (sample)",
+    "line": "This is the sample, so nothing is created. Try it on your own data.",
+    "words": 24,
+    "buttonWords": 11,
+    "buttons": 3,
+    "bottom": 320,
+    "key": "confirm_and_create",
+    "taps": 6,
+    "seconds": 2.73,
+    "scroll": false
+   }
+  ],
+  "calls": [
+   {
+    "name": "start",
+    "step": "",
+    "ms": 73
+   },
+   {
+    "name": "start",
+    "step": "check",
+    "ms": 22
+   },
+   {
+    "name": "start",
+    "step": "decide",
+    "ms": 10
+   },
+   {
+    "name": "start",
+    "step": "totals",
+    "ms": 8
+   },
+   {
+    "name": "start",
+    "step": "dry_run",
+    "ms": 8
+   },
+   {
+    "name": "start",
+    "step": "create",
+    "ms": 8
+   }
+  ]
+ },
+ {
+  "path": "shop",
+  "width": 1280,
+  "steps": [
+   {
+    "title": "Step 1 of 9: Choose the workspace",
+    "line": "Hi! You have one workspace I can use, demo. Shall we start there?",
+    "words": 22,
+    "buttonWords": 16,
+    "buttons": 4,
+    "bottom": 348,
+    "key": "workspace",
+    "taps": 0,
+    "seconds": 0.27,
+    "scroll": false
+   },
+   {
+    "title": "Step 4 of 9: The map (sample)",
+    "line": "Here is how the shop's tables connect. Next I count each link.",
+    "words": 71,
+    "buttonWords": 7,
+    "buttons": 2,
+    "bottom": 740,
+    "key": "the_map",
+    "taps": 1,
+    "seconds": 0.74,
+    "scroll": false
+   },
+   {
+    "title": "Step 5 of 9: Check against the rows (sample)",
+    "line": "I counted each key and link in the shop's rows.",
+    "words": 39,
+    "buttonWords": 5,
+    "buttons": 2,
+    "bottom": 299,
+    "key": "check_against_the_rows",
+    "taps": 2,
+    "seconds": 1.16,
+    "scroll": false
+   },
+   {
+    "title": "Step 6 of 9: Your decisions (sample)",
+    "line": "1 decision open. Does orders.ship_to_id point at addresses? Accept or reject.",
+    "words": 59,
+    "buttonWords": 10,
+    "buttons": 5,
+    "bottom": 400,
+    "key": "your_decisions",
+    "taps": 3,
+    "seconds": 1.6,
+    "scroll": false
+   },
+   {
+    "title": "Step 7 of 9: Doubled totals (sample)",
+    "line": "Where would a total count twice? Here is the amount and where it belongs.",
+    "words": 40,
+    "buttonWords": 5,
+    "buttons": 2,
+    "bottom": 263,
+    "key": "doubled_totals",
+    "taps": 4,
+    "seconds": 2.04,
+    "scroll": false
+   },
+   {
+    "title": "Step 8 of 9: Dry run (sample)",
+    "line": "Bronze to silver to gold. This is what a dry run would build.",
+    "words": 22,
+    "buttonWords": 6,
+    "buttons": 2,
+    "bottom": 241,
+    "key": "dry_run",
+    "taps": 5,
+    "seconds": 2.46,
+    "scroll": false
+   },
+   {
+    "title": "Step 9 of 9: Confirm and create (sample)",
+    "line": "This is the sample, so nothing is created. Try it on your own data.",
+    "words": 24,
+    "buttonWords": 11,
+    "buttons": 3,
+    "bottom": 281,
+    "key": "confirm_and_create",
+    "taps": 6,
+    "seconds": 2.87,
+    "scroll": false
+   }
+  ],
+  "calls": [
+   {
+    "name": "start",
+    "step": "",
+    "ms": 13
+   },
+   {
+    "name": "start",
+    "step": "check",
+    "ms": 12
+   },
+   {
+    "name": "start",
+    "step": "decide",
+    "ms": 10
+   },
+   {
+    "name": "start",
+    "step": "totals",
+    "ms": 9
+   },
+   {
+    "name": "start",
+    "step": "dry_run",
+    "ms": 14
+   },
+   {
+    "name": "start",
+    "step": "create",
+    "ms": 9
+   }
+  ]
+ }
+]

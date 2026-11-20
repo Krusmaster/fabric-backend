@@ -297,3 +297,14 @@ def test_the_cards_send_plain_words_only():
     assert "function plainAsk" in js and "plainAsk(text).slice(0, 8000)" in js
     assert "sayInChat(s.say" not in js
     assert "sayInChat(plainAsk(askOf(s))" in js
+
+
+def test_sm1_each_sample_step_says_its_own_sentence():
+    """SM1 (docs/SMOOTH/AUDIT.md): on the synthetic shop the card fell back to the coach's line, which was the step
+    before's: step 7 said "A few links need you" and step 9 "Try a dry run". Each step now has its own sentence."""
+    said = {}
+    for key in ("map", "check", "decide", "totals", "dry_run", "create"):
+        said[key] = sf.guide(sample=True, step=key)["say"]
+        assert said[key] and len(said[key].split()) <= 15, (key, said[key])
+    assert len(set(said.values())) == len(said)
+    assert "decision" not in said["totals"] and "dry run" not in said["create"]

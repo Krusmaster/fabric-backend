@@ -8,7 +8,7 @@ in docs/COACHING.md.
 What this module does. `coach(tool, call, answer, checks, steps)` reads where the user is on the path from the tool just
 called, its arguments and its answer (the plan state of next_rules.state), and returns:
 
-- the stage: "Step N of 8: <stage>", one of STAGES;
+- the stage: "Step N of 9: <step>", the start path's own numbering (step_of maps the eight STAGES onto the nine steps);
 - one mascot line in plain words: what happens now and why (the mascots and their voice are the site's: Onto points
   the way, the Thinker reads and checks, the Builder builds);
 - ONE primary next step and at most two secondary ones, each as next_rules shapes a step (label, tool, arguments, say,

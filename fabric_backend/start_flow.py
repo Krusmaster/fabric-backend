@@ -653,6 +653,16 @@ def doubled_lines(findings: list[dict]) -> tuple[list[str], list[str]]:
     return lines, advice
 
 
+SAMPLE_SAY = {
+    "map": "Here is how the shop's tables connect. Next I count each link.",
+    "check": "I counted each key and link in the shop's rows.",
+    "decide": "Nothing needs your decision on the shop.",
+    "totals": "Where would a total count twice? Here is the amount and where it belongs.",
+    "dry_run": "Bronze to silver to gold. This is what a dry run would build.",
+    "create": "This is the sample, so nothing is created. Try it on your own data.",
+}
+
+
 def _sample(step: str | None, c: dict | None = None) -> dict:
     """The same path on the synthetic shop (demo.py: the engine's output on seed.py's shop). Nothing in Fabric is read
     or created; each step shows what the tool answered on the shop, and `after` moves on. WB12: the decisions made on
@@ -732,6 +742,9 @@ def _sample(step: str | None, c: dict | None = None) -> dict:
            "note": "Synthetic shop sample (fabric_backend/seed.py): no Fabric is read and nothing is created.",
            "actions": actions, **pic}
     out["done_line"] = _finished(out["path"])
+    # SM1: each sample step says its own sentence, as on your own data. Without one the card fell back to the coach's
+    # line, which on the sample is the step before's (step 7 said "A few links need you", step 9 "Try a dry run").
+    out["say"] = SAMPLE_SAY.get(now, "")
     if now == "decide" and decisions:
         out["say"] = ((f"{len(waiting)} decision open. " if len(waiting) == 1 else f"{len(waiting)} decisions open. ")
                       if waiting else "Every decision is answered. ") + \
