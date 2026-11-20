@@ -35,6 +35,10 @@ DIST_ENV = "KRUSGRAPH_WORKLOAD_DIST"
 DEFAULT_DIST = "/app/workload-dist"
 SCOPE_META = "krusgraph-engine-scope"
 SCOPES_META = "krusgraph-engine-scopes"      # n176: every accepted scope, space separated; the editor picks its workload's
+# WB14 (#108): "Save to lakehouse Files" in the editor, off unless KRUSGRAPH_ONELAKE_SAVE is on (docs/ONELAKE-SAVE-SETUP.md).
+# A switch on the hosting server, not in the workload manifest: turning it on or off needs no new package.
+ONELAKE_SAVE_ENV = "KRUSGRAPH_ONELAKE_SAVE"
+ONELAKE_SAVE_META = "krusgraph-onelake-save"
 
 CLOSE_SCRIPT = "window.close();"
 CLOSE_HASH = "'sha256-" + base64.b64encode(hashlib.sha256(CLOSE_SCRIPT.encode()).digest()).decode() + "'"
@@ -80,6 +84,11 @@ def engine_scopes() -> list[str]:
     return [f"{uri}/{scope}" for uri in split_uris(os.environ.get("KRUSGRAPH_WORKLOAD_APP_ID_URI", ""))]
 
 
+def onelake_save_on() -> bool:
+    """WB14: the editor's "Save to lakehouse Files" switch; on only for 1, on, true or yes. Off by default."""
+    return os.environ.get(ONELAKE_SAVE_ENV, "").strip().lower() in {"1", "on", "true", "yes"}
+
+
 def engine_scope() -> str:
     """The first (primary) scope; "" when the workload app is not configured."""
     scopes = engine_scopes()
@@ -115,6 +124,8 @@ class Editor:
         body = index.read_text(encoding="utf-8")
         meta = (f'<meta name="{SCOPE_META}" content="{html.escape(engine_scope(), quote=True)}">'
                 f'<meta name="{SCOPES_META}" content="{html.escape(" ".join(engine_scopes()), quote=True)}">')
+        if onelake_save_on():
+            meta += f'<meta name="{ONELAKE_SAVE_META}" content="on">'
         body = body.replace("<head>", "<head>" + meta, 1) if "<head>" in body else meta + body
         return body.encode("utf-8")
 
