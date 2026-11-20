@@ -510,7 +510,7 @@ def _amounts(req: dict, u: dict, P: _Plan, schema: str, m: str) -> dict:
     unchecked = [j for j in joins if j["state"] == "not_checked"] + ([out["key"]] if out["key"]["state"] == "not_checked" else [])
     if unchecked:
         out["checked"] = False
-        out["notes"].append("Not counted yet: run validate_plan (or this tool with validate=true) before trusting it.")
+        out["notes"].append("Not counted yet: validate_plan (or this tool with validate=true) counts it against the rows.")
     else:
         out["checked"] = True
     return out
@@ -619,8 +619,8 @@ def next_steps(call: dict, answer: dict) -> list[dict]:
     if call.get("sample") or not call.get("workspace") or not call.get("source"):
         return [{"label": "Run it on my lakehouse", "primary": True,
                  "why": "The same list against your own SAP tables: names and counts only, nothing is created.",
-                 "say": "Run requirements_draft on my lakehouse with the same requirements list.",
-                 "ask": "Run requirements_draft on my lakehouse with the same requirements list."}]
+                 "say": "The same requirements list on my lakehouse (requirements_draft with my workspace and source).",
+                 "ask": "Match the same requirements list on my lakehouse."}]
     base = {k: call[k] for k in ("workspace", "source", "schema") if call.get(k)}
     tables = (answer.get("feeds") or {}).get("gold_views_draft", {}).get("tables") or []
     out = []

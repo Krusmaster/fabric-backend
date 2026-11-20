@@ -447,6 +447,22 @@ def answer(review: dict, limit: int) -> str:
         out["note"] += " The Markdown report was left out to fit one answer."
         text = json.dumps(out, indent=1, ensure_ascii=False)
     if len(text) > limit:
-        raise ReviewFileError(f"The review of {len(review['snapshot']['tables'])} tables does not fit in one answer "
-                              f"({len(text)} characters); limit it with tables=[...] and keep one file per area.")
+        return json.dumps(split(review, out, len(text), limit), indent=1, ensure_ascii=False)
     return text
+
+
+GROUP_MAX = 10
+
+
+def split(review: dict, out: dict, size: int, limit: int) -> dict:
+    """DIR1: a review too large for one answer is a successful answer, not an error (the directory's review asks that a
+    tool succeeds with valid input): what needs attention, the summary, and the tables in groups of GROUP_MAX, each the
+    `tables` of one review file. Nothing is left out silently; no file is offered that the user could not pass back."""
+    names = sorted(review["snapshot"]["tables"], key=str.lower)
+    groups = [names[i:i + GROUP_MAX] for i in range(0, len(names), GROUP_MAX)]
+    return {"file_name": None, "summary": out.get("summary"), "attention": out.get("attention"),
+            "split": {"tables": len(names), "characters": size, "limit": limit,
+                      "groups": [{"n": i, "tables": g} for i, g in enumerate(groups, 1)]},
+            "note": (f"The review file of {len(names)} tables would be {size:,} characters, more than one answer holds "
+                     f"({limit:,}), so it is kept as {len(groups)} files: review_plan with `tables` set to one group "
+                     "returns that group's file. Nothing was created or changed in the source.")}

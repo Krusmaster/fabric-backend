@@ -17,7 +17,7 @@
   "sha256": "c4b636177996891cfdcf007460ddd8efe688cf7459cb65e9710634b544ca6293"
  },
  "gold": {
-  "raises": "PlanInputError: materialized lake views need a lakehouse created with schemas (Lakehouse schemas); this one has none. Create a lakehouse with schemas and add the tables as shortcuts, or use create_views for T-SQL views."
+  "raises": "PlanInputError: materialized lake views need a lakehouse created with schemas (Lakehouse schemas); this one has none. Create a lakehouse with schemas and add the tables as shortcuts, or T-SQL views with create_views."
  },
  "graphql": {
   "bytes": 43087,
@@ -174,8 +174,8 @@
   "VehicleTemperatures": "SELECT TOP (10) [VehicleTemperatureID], [VehicleRegistration], [ChillerSensorNumber], [RecordedWhen], [Temperature], [FullSensorData], [IsCompressed], DATALENGTH([CompressedSensorData]) AS [CompressedSensorData (bytes)] FROM [dbo].[VehicleTemperatures]"
  },
  "semantic_model": {
-  "bytes": 273089,
-  "sha256": "8648c4040c5ffab9c50f3683c9917529eb0f004754393c4ca228998af6329f00"
+  "bytes": 273109,
+  "sha256": "a64f106702e5e263cc1a01219e0e40d60435c442a70ae2a348415b6112006cd3"
  },
  "silver": {
   "bytes": 85183,

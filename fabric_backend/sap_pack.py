@@ -552,7 +552,7 @@ def draft(plan, source_name: str = "sap", export: str = "none", variant: str | N
         r["in_plan"] = in_plan.get((r["source"], tuple(c.lower() for c in r["source_cols"]), r["target"]), "no (confirmed or keys override it)")
     out = {"summary": f"{len(m.tables)} SAP table(s) recognised, {len(rels)} pack relationship(s) apply, {len(m.not_applied)} listed "
                       f"but not applied, {len(m.missing_tables)} pack table(s) missing that would complete them",
-           "status": "documented in public sources, not verified against data: run validate_plan with the same keys/confirmed",
+           "status": "documented in public sources, not verified against data; validate_plan with the same keys/confirmed verifies it",
            "variant_hint": m.variant_hint or "no table that only one variant has",
            "tables": tables, "relationships": rels, "not_applied": m.not_applied, "missing_tables": m.missing_tables,
            "missing_columns": m.missing_columns, "client_dropped": m.client_dropped,

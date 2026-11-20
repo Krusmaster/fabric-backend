@@ -133,7 +133,7 @@ def _step(label: str, tool: str, arguments: dict, why: str, ask: str = "") -> di
     shown = ", ".join(f"{k}={v!r}" for k, v in arguments.items()
                       if k in ("source", "schema", "detail", "fixes", "validate", "name", "dry_run", "tables"))
     return {"label": label, "tool": tool, "arguments": dict(arguments), "why": why,
-            "say": f"{label}: run {tool}" + (f" with {shown}" if shown else "") + ".", "ask": ask or f"{label}."}
+            "say": f"{label} ({tool}" + (f" with {shown}" if shown else "") + ").", "ask": ask or f"{label}."}
 
 
 def _decide(base: dict, n: int, call: dict) -> dict:
@@ -145,7 +145,7 @@ def _decide(base: dict, n: int, call: dict) -> dict:
     args["step"] = "decide"
     label = f"Decide the {n} open {'link' if n == 1 else 'links'}"
     return {"label": label, "why": WHY["decide"],
-            "say": f"{label}: run start with " + ", ".join(f"{k}={json.dumps(v, ensure_ascii=False)}" for k, v in args.items()) + ".",
+            "say": f"{label} (start with " + ", ".join(f"{k}={json.dumps(v, ensure_ascii=False)}" for k, v in args.items()) + ").",
             "ask": f"{label}: show each with Accept, Reject and Skip and the counts underneath.",
             "start": args}
 

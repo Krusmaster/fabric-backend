@@ -78,73 +78,54 @@ from . import mcp_apps_words as _mcp_apps_words  # noqa: E402  (n172: the cards'
 from . import mcp_apps_next as _mcp_apps_next  # noqa: E402  (n218: next steps and the check rows; only while a card listens)
 from . import start_flow as _start_flow  # noqa: E402  (n219: Start Krusgraph)
 from . import after_create as _after_create, verify_build as _verify  # noqa: E402  (n229: next steps, the gate, the verifier)
+from . import directory as _directory  # noqa: E402  (DIR1: answers describe options, and are bounded in size)
 
+# DIR1 (20 Nov 2026): the instructions describe the server, its tools and their order as facts. They tell the model
+# nothing about how to behave (claude.com/docs/connectors/building/review-criteria, "Avoid prompt-injection patterns").
 mcp = MCPServer("fabric-backend", version=_package_version(), extensions=_mcp_apps.extensions(), instructions=(
-    "Tables in a Microsoft Fabric lakehouse/warehouse → a GraphQL API with inferred keys and relationships, "
-    "plus Rayfin connector entities. When the user's first message is vague ('start', 'start Krusgraph', 'help', "
-    "'what can you do', 'check my data', 'help me with my SAP data in Fabric'), offer Start Krusgraph: call the start "
-    "tool and follow its steps one at a time; each result's Coach block says the step in plain words and its one next "
-    "step: say that, offer that step, nothing more; "
-    "a user without Fabric data can see it on the synthetic shop ('Show me on the synthetic shop sample', sample=true). "
-    "Start with list_workspaces (or list_sources if you know the workspace), then plan_backend (nothing is deployed; "
-    "it also suggests composite keys), sample_rows when a column's meaning is unclear, validate_plan to check keys and "
-    "relationships against the rows (create_backend does not run it), then create_backend. Before query_graphql, describe_backend gives the exact field "
-    "names. Every inferred key/relationship carries the rule that produced it (K0–K5, R0–R5, or \"SAP pack\" for SAP tables such as "
-    "VBAK/VBAP: the SAP pack is Krusgraph's list of known SAP keys and links, and that is how to explain it; sap_pack_draft "
-    "shows what the pack recognises and what is missing); "
-    "ambiguous columns are reported, never guessed. From the same plan, without creating anything: semantic_model_draft "
-    "(a Power BI model in TMDL, Direct Lake) when a report is the goal; join_path when the user asks how two tables "
-    "connect or wants the SQL for it; data_dictionary for hand-over documentation; dbt_schema when the team tests with dbt; "
-    "plan_drift before re-running create_backend on an existing API, to see what would change. One plan, five Fabric pieces: "
-    "create_backend (the API for GraphQL), create_semantic_model (a Power BI semantic model item from the TMDL draft), "
-    "create_ontology (a Fabric IQ ontology item: entity types with keys, relationship types, bindings), create_views (wide T-SQL views in a schema of "
-    "their own on the SQL endpoint), create_data_agent (a Fabric data agent with the plan as instructions and examples) — all "
-    "answer with what they would create until dry_run=false. After a Create that succeeded the answer's next_steps list what the "
-    "data product still lacks, in order; offer them, and never one listed as already built. verify_build then reads back what was "
-    "built, compares it with the dry run and counts the report's figures again from the rows: a check by rules, not by AI. Show its "
-    "lines as Krusgraph's; you may add your own review after them, under a heading of your own and labelled as yours, never "
-    "changing a state the rules gave. A dry run with a gate says why the build would be of little use: do its first step before "
-    "Create. create_report adds a Power BI report bound to an existing semantic model, its page drawn from the model's own measures (cards, a column chart by month, a bar chart, a table; empty_page=true for a blank page); a report of that name is left alone. Creating a semantic model, ontology, data agent, notebook "
-    "or pipeline needs a permission the operator may not have granted the app; without it the tool answers kind consent naming "
-    "the scope, and the dry run still works. app_starter gives a Lovable prompt, connection details, queries and "
-    "the Supabase edge function for an app on a created API; app_readiness lists what that API still needs before an app can use "
-    "it (introspection, permissions, keys, relationships) with the next step per item. lineage shows which GraphQL APIs, "
-    "semantic models, views and data agents in the workspace build on a source's tables and what a change to one table "
-    "reaches; plan_drift names those objects for the tables and columns a re-run would drop. analyze_schema reads an unknown lakehouse as a graph (table roles, central tables, "
-    "subject areas, cycles, which relationships can be active); suggest_relationships when the plan lacks links: it ranks "
-    "candidate columns and checks the best against the data, suggesting only. From understanding to building: "
-    "silver_notebook_draft and create_silver_notebook give a Fabric PySpark notebook that writes de-duplicated silver "
-    "tables with every reference checked and a quarantine table, never over the source; drift_monitor_draft and "
-    "create_drift_monitor a nightly notebook and pipeline that compare the plan with the last one and message a "
-    "webhook; answer_query_draft turns a question (Swedish or English) into T-SQL over the safest join path, or "
-    "GraphQL for an existing API, and query_graphql with question= runs it. gold_views_draft and create_gold_views give "
-    "materialized lake views over the silver tables, one wide view per fact table with the plan's keys and relationships as data "
-    "quality rules; compare_semantic_model checks an existing Power BI semantic model against the plan (missing, contradicted, "
-    "cardinality, direction, active); export_item_definitions gives what the creating tools would create as files in Fabric's Git "
-    "format, for the user's own repository. Columns that look like personal data by name are masked in sample_rows and left out "
-    "of drafted queries and gold views unless show_personal_data=true. Alongside Microsoft's own Fabric MCP servers (Fabric Core "
-    "and the local Fabric MCP Server for workspaces, items and files; Fabric IQ MCP for questions to semantic models; Power BI "
-    "Modeling MCP for editing a model), this server is the part that works out how the tables relate and builds from that plan. "
-    "This server reads Microsoft Fabric only; a Databricks adapter (Draft only: Unity Catalog, informational constraints, a "
-    "Lakeflow pipeline, metric views) runs in the local stdio server, see /docs#databricks-draft-only. "
-    "A call that cannot be completed answers with error (plain words), "
-    "kind (a stable code such as not_found, no_access, capacity, sign_in, consent, schema_not_found, timeout, "
-    "rate_limited with retry_after) and "
-    "hint (the next step that fixes it). Words: \"check shop\", \"run a check\" or \"check the keys\" mean "
-    "validate_plan on that schema (plan_backend first when there is no plan yet), not app_readiness; app_readiness only "
-    "when the user names an API for GraphQL or asks what an app needs. When a word could be a schema, a source or an API, "
-    "ask which. Five first questions that pay off on a lakehouse nobody has documented: "
-    "(1) analyze_schema — which tables are facts, which are dimensions, what are the subject areas; (2) plan_backend — the keys "
-    "and relationships with the rule behind each; (3) validate_plan — are the keys unique and do the references hold; "
-    "(4) suggest_relationships — which columns look like references but are in no relationship; (5) data_dictionary — the "
-    "hand-over document with everything above. review_plan keeps the plan, the decisions about it and the checks as a file "
-    "for the user's own repository; passed back as previous it applies the decisions again and marks checks on changed "
-    "tables stale. Shared parameters: workspace (list_workspaces), source (list_sources; lakehouse, warehouse or SQL "
-    "database) and api take a name or an id; confirmed lists relationships the user confirmed and is not an approval flag; "
-    "an entry has source, source_cols, target, target_cols (default source_cols) and optional field_name and reverse_name; "
-    "tables narrows what is shown or included while the plan is still made from the whole schema. "
-    + _mcp_apps_next.AFTER_RESULT + " A create that answers started (kind timeout) was sent once: do not send it again; the "
-    "same tool with check set reads how it went. "
+    "Krusgraph reads tables in Microsoft Fabric (lakehouse, warehouse, SQL database, mirrored database), infers their "
+    "keys and relationships by fixed rules, checks them against the rows, and builds Fabric items from that plan: an API "
+    "for GraphQL, a Power BI semantic model and report, a Fabric IQ ontology, T-SQL views, silver and gold notebooks with a "
+    "pipeline, and a Fabric data agent. It runs with the signed-in user's own Microsoft sign-in and permissions. "
+    "Start Krusgraph (the start tool, also the prompt of that name) is a guided path for a first or vague message "
+    "('start', 'start Krusgraph', 'help', 'what can you do', 'check my data', 'help me with my SAP data in Fabric'): "
+    "workspace, source, schema, map, check, decisions, doubled totals, dry run, and creating only after the user confirms "
+    "the names; each start answer holds one step, its choices and a Coach block with the step in plain words and the "
+    "possible next step. A user without Fabric data can see the path on the synthetic shop sample (start with sample=true). "
+    "The usual order of the tools: list_workspaces, list_sources, plan_backend (proposes keys and relationships; nothing "
+    "is deployed), validate_plan (counts keys and references against the rows; create_backend does not run it), then a "
+    "creating tool. sample_rows shows a few rows when a column's meaning is unclear; describe_backend gives the exact "
+    "field names for query_graphql. Every inferred key or relationship carries the rule that produced it (K0-K5, R0-R5, "
+    "or \"SAP pack\" for SAP tables such as VBAK/VBAP: the SAP pack is Krusgraph's list of known SAP keys and links; "
+    "sap_pack_draft shows what it recognises and what is missing); ambiguous columns are reported, never guessed. "
+    "Drafts from the same plan create nothing: semantic_model_draft (TMDL, Direct Lake), ontology_draft, join_path (how "
+    "two tables connect, with the SQL), data_dictionary (hand-over documentation), dbt_schema, gold_views_draft, "
+    "silver_notebook_draft, drift_monitor_draft, export_item_definitions (Fabric's Git format), analyze_schema (table "
+    "roles, subject areas), suggest_relationships (candidate links counted against the data), plan_drift (what a re-run "
+    "of create_backend on an existing API would change), lineage (what builds on a source's tables) and review_plan "
+    "(the plan, the decisions and the checks as a file for the user's own repository). "
+    "The creating tools (create_backend, create_semantic_model, create_report, create_ontology, create_views, "
+    "create_data_agent, create_silver_notebook, create_gold_views, create_pipeline, create_drift_monitor, "
+    "publish_catalog) answer with a dry run of what they would create, and change Fabric only with dry_run=false; none "
+    "deletes an item. A create that answered started (kind timeout) was sent once; the same tool with check set reads how "
+    "it went. After a create that succeeded, the answer's next_steps list what the data product still lacks, in order, "
+    "and already_built what exists. verify_build reads back what was built and compares it with the dry run, by rules, not "
+    "by AI. A dry run with a gate states why the build would be of little use and which step comes first. Creating a "
+    "semantic model, ontology, data agent, notebook or pipeline needs a permission the operator may not have granted; "
+    "without it the tool answers kind consent naming the scope, and the dry run still works. app_starter and "
+    "app_readiness cover an app on a created API. Columns that look like personal data by name are masked in sample_rows "
+    "and left out of drafted queries and gold views unless show_personal_data=true. Krusgraph is independent and works "
+    "next to Microsoft's own Fabric MCP servers; it is the part that works out how the tables relate and builds from "
+    "that plan. A call that cannot be completed answers with error (plain words), kind (a stable code such as "
+    "not_found, no_access, capacity, sign_in, consent, schema_not_found, timeout, rate_limited with retry_after) and hint "
+    "(what fixes it). Words: \"check shop\", \"run a check\" or \"check the keys\" mean validate_plan on that schema "
+    "(plan_backend makes the plan when there is none yet); app_readiness is for an API for GraphQL or what an app needs. "
+    "A word that could be a schema, a source or an API is ambiguous until the user says which. Shared parameters: "
+    "workspace (list_workspaces), source (list_sources) and api take a name or an id; confirmed lists relationships the "
+    "user confirmed and is not an approval flag (an entry has source, source_cols, target, target_cols and optional "
+    "field_name and reverse_name); tables narrows what is shown or included while the plan is still made from the whole "
+    "schema. "
+    + _mcp_apps_next.AFTER_RESULT + " "
     + _tool_status.instructions_sentence() + " " + _switches.SENTENCE))
 
 
@@ -580,6 +561,17 @@ def _with_flow(fn, name: str, sig, args, kwargs):
     return json.dumps(data, indent=2)
 
 
+def _directory_bounded(fn):
+    """DIR1: what the host receives from a tool without a card: the same text, with each instruction to call a tool said
+    as an option and an answer past directory.ANSWER_MAX folded (directory.py). The module's function is unchanged."""
+    import functools
+
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        return _directory.bounded(fn(*args, **kwargs))
+    return wrapper
+
+
 def _titled_tool(register):
     """The Claude directory reads a tool's name from annotations.title, not only from the tool's title: copy the
     title into the annotations of every tool, so each listing shows a human-readable name. Every tool is registered
@@ -598,13 +590,14 @@ def _titled_tool(register):
                 return guarded
             extra = _mcp_apps.registration(name)                # n137: structuredContent for the cards, flag on only
             if extra:
-                shown = guarded
+                shown = guarded                                 # DIR1: mcp_apps.structured makes it neutral and bounded
                 if name in _mcp_apps_build.ACTION_TOOLS:        # n169: the Builder's and the Thinker's buttons
                     shown = _mcp_apps_build.with_actions(name, guarded, _item_names, _workspace_id_ctx)
                 kw = {**kwargs, **extra}
                 register(*args, title=title, annotations=annotations, **kw)(_mcp_apps.structured(shown, name))
                 return guarded                                  # the module's function still answers text
-            return register(*args, title=title, annotations=annotations, **kwargs)(guarded)
+            register(*args, title=title, annotations=annotations, **kwargs)(_directory_bounded(guarded))
+            return guarded
         return wrap
     return tool
 
@@ -836,7 +829,7 @@ def list_tables(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = 
             return json.dumps({**_schema_choice(source, schemas),
                                "summary": f"{schema!r} has no tables in {source}. "
                                           + _schema_choice(source, schemas)["summary"].replace("Which one should be planned?", "Which one should be listed?"),
-                               "hint": "Ask the user which schema they mean, then call list_tables with schema set to it."}, indent=2)
+                               "hint": "The schema is the user's choice; list_tables with schema set to one of these lists its tables."}, indent=2)
         raise
     schema = p.schema.schema                                   # n175: the name the metadata returns
     keep = _compact.match_tables(p.schema, tables)
@@ -967,7 +960,7 @@ def _schema_choice(source: str, schemas: list[dict]) -> dict:
             "summary": f"{source} has {len(schemas)} {'schema' if len(schemas) == 1 else 'schemas'} with tables: {listed}. "
                        "Which one should be planned?",
             "schemas": schemas,
-            "hint": "Ask the user which schema they mean, then call plan_backend again with schema set to it. Nothing was "
+            "hint": "The schema is the user's choice; plan_backend with schema set to one of these plans it. Nothing was "
                     "planned: picking one would plan tables the user may not mean."}
 
 
@@ -1282,7 +1275,7 @@ def _create_backend_from_plan(p, item, headers, workspace, name, writable, table
             return json.dumps({
                 "error": f"updating {name!r} would remove {len(lost)} relationship(s) the API has today; nothing was written.",
                 "kind": "would_remove", "relationships_lost": lost, "keep_with_confirmed": keep,
-                "hint": "To keep them, call create_backend again with confirmed=keep_with_confirmed (added to any confirmed "
+                "hint": "They are kept when create_backend runs again with confirmed=keep_with_confirmed (added to any confirmed "
                         "you already pass). To drop them on purpose, call it with allow_removals=true."}, indent=2)
     env = definition(p, name, workspace, source_id, source_type, writable=writable, tables=tables)
     if dry_run:
@@ -2955,7 +2948,7 @@ def _schemas_only(info: dict) -> str | None:
     return json.dumps({
         "error": f"materialized lake views need a lakehouse created with schemas; {info.get('item_name')!r} has none.",
         "kind": "unsupported",
-        "hint": "Create a lakehouse with Lakehouse schemas, add the tables to it as shortcuts and plan that lakehouse; or use create_views "
+        "hint": "Create a lakehouse with Lakehouse schemas, add the tables to it as shortcuts and plan that lakehouse; or T-SQL views with create_views "
                 "for T-SQL views on the SQL analytics endpoint, which needs no schemas."}, indent=2)
 
 
@@ -3361,8 +3354,8 @@ def create_pipeline(workspace: _p.Workspace, source: _p.Source, name: _p.Pipelin
                        "scopes_read": _jobs.SCOPES_READ}
         code = _jobs.confirm_code(ws, name, run_once, spec)       # n220: nothing runs that the person did not confirm
         out["jobs"]["confirm"] = code
-        out["jobs"]["ask"] = ("Show the person exactly what runs and when (jobs.words) and ask. Only after they say yes, call "
-                              f"again with dry_run=false and confirm_jobs={code!r}.")
+        out["jobs"]["ask"] = ("What runs and when is in jobs.words, for the person to confirm. After their yes, the same "
+                              f"call with dry_run=false and confirm_jobs={code!r} starts it; without it nothing runs.")
         missing = _execute_missing(ctx, name, ws)
         if missing:
             out["jobs"]["permission"] = missing
@@ -3398,7 +3391,7 @@ def create_pipeline(workspace: _p.Workspace, source: _p.Source, name: _p.Pipelin
         if r.get("status") != "Succeeded" or not r.get("id"):
             if r.get("status") == "Succeeded":
                 out.update({"error": f"Fabric created the notebook {n['name']!r} but its id could not be read, so the pipeline was not created.",
-                            "kind": "timeout", "hint": "Run create_pipeline again in a minute: it finds the notebook by name and updates it in place."})
+                            "kind": "timeout", "hint": "create_pipeline again in a minute finds the notebook by name and updates it in place."})
                 return json.dumps(out, indent=2, default=str)
             return _step_failed(out, n["name"], r, NOTEBOOK_SCOPE, f"creating the notebook {n['name']!r}")
         ids[n["name"]] = r["id"]
@@ -3686,12 +3679,12 @@ def _verify_fix_steps(fixes: list[dict], args: dict, items: dict) -> list[dict]:
         step = {"label": f["label"], "who": "builder", "why": f["how"], "item": f["item"]}
         if f.get("action") == "refresh_model":
             a = {**common, "name": f["item"], "refresh": True, "dry_run": False}
-            step["ask"] = (f"Refresh the semantic model {f['item']} once: run create_semantic_model with {shown(a)}. It only "
-                           "refreshes a model that exists; ask me to confirm first.")
+            step["ask"] = (f"Refresh the semantic model {f['item']} once (create_semantic_model with {shown(a)}), after my "
+                           "confirmation. It only refreshes a model that exists.")
         elif f.get("action") == "run_pipeline":
             a = {**common, "name": f["item"], "run_once": True, "dry_run": True}
-            step["ask"] = (f"Run the pipeline {f['item']} once: first run create_pipeline with {shown(a)} to show what would run, "
-                           "then ask me before anything starts.")
+            step["ask"] = (f"Run the pipeline {f['item']} once: first a dry run (create_pipeline with {shown(a)}) that shows "
+                           "what would run; nothing starts before my yes.")
         else:
             step["ask"] = f"{f['label']} for {f['item']}: {f['how']} Tell me the steps in Fabric."
         out.append(step)
@@ -3766,7 +3759,7 @@ def _verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx
 
     def not_read(e: BaseException) -> str:
         if isinstance(e, TimeLimit):
-            return f"{_budget.NOT_CHECKED}: the call's time budget ran out before it was read; run verify_build again for this item alone"
+            return f"{_budget.NOT_CHECKED}: the call's time budget ran out before it was read; verify_build for this item alone reads it"
         status = getattr(getattr(e, "response", None), "status_code", None)
         if status in (401, 403):
             return f"Fabric refused reading its definition (HTTP {status}); reading a definition needs Item.ReadWrite.All and write permission on the item"

@@ -1,4 +1,4 @@
 Coach (step 4 of 9: The map)
-Say in one short sentence, in plain words: Here is how your tables connect. Next I count each link in the rows. Where a card shows this result, do not repeat its lists or counts.
-Offer one next step: Show the map = plan_backend(workspace="demo", source="demo_lh", schema="sap_silver").
-No rule codes, key strings or file text unless the user asks; end with the one next step.
+Where the user is, in plain words: Here is how your tables connect. Next I count each link in the rows.
+Possible next step for the user: Show the map (plan_backend(workspace="demo", source="demo_lh", schema="sap_silver")).
+Where a card is drawn, it already shows this result's lists and counts.

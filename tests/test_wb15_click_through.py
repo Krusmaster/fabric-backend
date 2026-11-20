@@ -278,7 +278,7 @@ def test_the_step_sentences_are_short_and_the_lead_asks_for_one_sentence():
         assert a["who"] in ("onto", "thinker", "builder")
     from fabric_backend import mcp_apps_next as nxt
     lead = nxt.start_lead(sf.guide(**B))
-    assert "do not repeat, list or summarise" in lead and "one short sentence" in lead
+    assert "the card already shows this step" in lead and "The step's question for the user" in lead   # DIR1: facts
 
 
 def test_step_9_is_never_a_dead_end():

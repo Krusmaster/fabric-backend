@@ -244,7 +244,7 @@ def test_each_card_ends_with_one_primary_step_chosen_from_the_plan_state(sap):
     st = next_rules.steps("validate_plan", SAP, sap["summary"], sap["checks"])
     assert [s["label"] for s in st] == ["Decide the 1 open link", "Show what points at nothing", "Use the line amounts"]
     assert st[0]["primary"] is True and sum(1 for s in st if s.get("primary")) == 1
-    assert st[0]["start"]["step"] == "decide" and "run start with" in st[0]["say"]
+    assert st[0]["start"]["step"] == "decide" and "(start with" in st[0]["say"]
     assert st[1]["arguments"]["fixes"] is True and st[1]["arguments"]["tables"] == ["sap_vbap"]
     assert "line amounts" in st[2]["why"]
 

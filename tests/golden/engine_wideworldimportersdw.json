@@ -958,7 +958,7 @@
   "sha256": "e881634c7da0f9232dc72066f6c54a919f15f50d112c165f339f3c0dc25394bc"
  },
  "gold": {
-  "raises": "PlanInputError: materialized lake views need a lakehouse created with schemas (Lakehouse schemas); this one has none. Create a lakehouse with schemas and add the tables as shortcuts, or use create_views for T-SQL views."
+  "raises": "PlanInputError: materialized lake views need a lakehouse created with schemas (Lakehouse schemas); this one has none. Create a lakehouse with schemas and add the tables as shortcuts, or T-SQL views with create_views."
  },
  "graphql": {
   "bytes": 20338,
@@ -1496,8 +1496,8 @@
   "Transaction Type": "SELECT TOP (10) [Transaction Type Key], [WWI Transaction Type ID], [Transaction Type], [Valid From], [Valid To], [Lineage Key] FROM [dbo].[Transaction Type]"
  },
  "semantic_model": {
-  "bytes": 124796,
-  "sha256": "e903ad961548e7b22e333f882098d62272f31e049943696ea5c50c3058226f84"
+  "bytes": 124816,
+  "sha256": "06bd1be4f8672e5c93f89091ea8f95cc1ca3b95368baffaba762e8f4cb22ace7"
  },
  "silver": {
   "bytes": 39740,

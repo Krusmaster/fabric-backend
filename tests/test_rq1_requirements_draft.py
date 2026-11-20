@@ -300,7 +300,7 @@ def test_the_card_words_and_steps_with_the_flag_on(monkeypatch):
     assert d["kg_card"]["title"] == "Requirements" and len(d["kg_card"]["lines"]) == 5
     assert d["kg_card"]["lines"][0] == "R1 Answerable now: Revenue per customer and month. key and joins counted"
     assert [s["label"] for s in d["next"]] == ["Run it on my lakehouse"]
-    assert "Run it on my lakehouse" in r.content[-1].text or "Run requirements_draft" in " ".join(c.text for c in r.content)
+    assert "Match the same requirements list on my lakehouse" in " ".join(c.text for c in r.content)
 
 
 def test_create_data_agent_adds_the_answerable_requirements_as_example_queries(monkeypatch, demo):

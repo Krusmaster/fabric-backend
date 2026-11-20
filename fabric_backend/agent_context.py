@@ -396,7 +396,7 @@ def build(plan: Plan, source_name: str, schema: str, personal_data: dict | None 
         tables_short.append(head)
     safe_lines = [f"- {e['source']} -> {e['target']}: {e['on']} ({e['name']}, rule {plan.label(e['rule'])}, many-to-one; {e['checked']})"
                   for e in j["safe"]] or ["- None. " + ("No relationship held when counted." if j["validated"] else
-                                                        "Nothing was counted: run create_data_agent with validate=true.")]
+                                                        "Nothing was counted (create_data_agent with validate=true counts the joins).")]
     path_lines = [f"- {' -> '.join(p)}" for p in safe_paths(j["safe"])]
     unsafe_lines = [f"- {e['source']} -> {e['target']}: {e['on']} (rule {plan.label(e['rule'])}): {e['why']}" for e in j["not_safe"]]
     if plan.ambiguous:

@@ -92,6 +92,12 @@ def call_result(text: str, extra: dict | None = None, lead: str | None = None, c
     `structuredContent` when the text is a JSON object (an answer that is not one has no structuredContent). n170:
     `extra` (the pictures' data, mcp_apps_pictures.extras) goes into structuredContent only; the text is unchanged."""
     from mcp.types import CallToolResult, TextContent
+
+    from . import directory                                  # DIR1: every text a host receives describes, never instructs
+    text = directory.neutral(text) if not text.lstrip().startswith("{") else text
+    extra = directory.neutral_value(extra) if extra else extra
+    lead = directory.neutral(lead) if lead else lead
+    coach_text = directory.neutral(coach_text) if coach_text else coach_text
     try:
         data = json.loads(text)
     except (TypeError, ValueError):
@@ -127,6 +133,8 @@ def structured(fn, name: str | None = None):
             stash = pictures.end(token)
         if not isinstance(out, str):
             return out
+        from . import directory                                      # DIR1: options, not instructions; bounded in size
+        out = directory.bounded(out)
         extra = {}
         try:
             answer = json.loads(out)

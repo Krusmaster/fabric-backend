@@ -1,6 +1,6 @@
 Coach (step 8 of 9: Semantic model)
-Say in one short sentence, in plain words: That was a dry run: nothing was created. Say yes and it is created in Fabric with these names. Where a card shows this result, do not repeat its lists or counts.
-Offer one next step: Create the semantic model in Fabric = create_semantic_model(workspace="demo", source="demo_lh", schema="sap_silver", name="sap_silver_model", dry_run=false).
-It creates items in Fabric: run it only after the user says yes to these names.
-Only if asked, also: Create the data agent (dry run first).
-No rule codes, key strings or file text unless the user asks; end with the one next step.
+Where the user is, in plain words: That was a dry run: nothing was created. Say yes and it is created in Fabric with these names.
+Possible next step for the user: Create the semantic model in Fabric (create_semantic_model(workspace="demo", source="demo_lh", schema="sap_silver", name="sap_silver_model", dry_run=false)).
+That step creates items in Fabric; Krusgraph creates nothing without dry_run=false and the user's yes to the names.
+Other options: Create the data agent (dry run first).
+Where a card is drawn, it already shows this result's lists and counts.

@@ -110,7 +110,7 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", gold_schema: str
     gold_schema, silver_schema = (gold_schema or "").strip(), (silver_schema or "").strip()
     if not info.get("schemas_enabled", True):
         raise PlanInputError("materialized lake views need a lakehouse created with schemas (Lakehouse schemas); this one has none. "
-                             "Create a lakehouse with schemas and add the tables as shortcuts, or use create_views for T-SQL views.")
+                             "Create a lakehouse with schemas and add the tables as shortcuts, or T-SQL views with create_views.")
     for label, value in (("gold_schema", gold_schema), ("silver_schema", silver_schema)):
         if not _IDENT.match(value or ""):
             raise PlanInputError(f"{label}: letters, digits and underscores, starting with a letter")

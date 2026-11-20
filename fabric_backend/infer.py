@@ -204,7 +204,7 @@ class Plan:
         if failed:                                                     # n172: said plainly, never as "not supported"
             lines.append(f"{len(failed)} candidate link(s) could not be counted because the counting query could not run: "
                          + ", ".join(f"{x['source']}.{'+'.join(x['source_cols'])} -> {x['target']}" for x in failed)
-                         + "; not counted, neither confirmed nor rejected: plan again to count, or confirm it and run validate_plan")
+                         + "; not counted, neither confirmed nor rejected: planning again counts it; a confirmed link is counted by validate_plan")
         if self.keyless:
             lines.append("no key (query only; can reference others, cannot be referenced): " + ", ".join(self.keyless))
         if self.ambiguous:

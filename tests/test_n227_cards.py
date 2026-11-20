@@ -33,7 +33,7 @@ from pathlib import Path
 import pytest
 
 import fabric_backend.deploy  # noqa: F401  (the module; `fabric_backend.deploy` by attribute is the function)
-from fabric_backend import (mcp_apps, mcp_apps_build as build, mcp_apps_next as nxt, mcp_apps_result as result,
+from fabric_backend import (directory, mcp_apps, mcp_apps_build as build, mcp_apps_next as nxt, mcp_apps_result as result,
                             mcp_apps_review, mcp_apps_start, mcp_apps_words as words, mcp_server, server, start_flow)
 
 import golden_support as gs
@@ -366,14 +366,14 @@ def test_a_created_ontology_carries_its_picture_and_its_notes_in_plain_words(fab
 def test_the_text_lead_is_a_numbered_list_in_plain_words(fabric):
     r, d = _sc("plan_backend", **SRC)
     lead = r.content[0].text
-    user, model = lead.split("For the assistant, not for the user:")
+    user, model = lead.split("What each number is:")              # DIR1: facts, no instructions to the model
     assert "Next steps:\n1. Check against the rows\n2. Show the doubled totals\n3. Review keys and links\nReply 1, 2 or 3." in user
     assert not words.TOOL_NAME.search(user) and "run " not in user
     assert "1 = validate_plan" in model and "2 = validate_plan (detail='full')" in model and "3 = review_plan" in model
     assert nxt.AFTER_CARD in model and lead.endswith("The full answer follows as JSON.")
     assert json.loads(r.content[1].text)["relationships"]                # the JSON answer follows, unchanged
     r2, _ = _sc("validate_plan", **SRC)
-    user2 = r2.content[0].text.split("For the assistant")[0]
+    user2 = r2.content[0].text.split("What each number is:")[0]
     # WB13 (#91): the most useful step first (the shop's one open link), then the builds, then the doubled totals
     assert ("1. Decide the 1 open link\n2. Build a semantic model (shop_model_2)\n3. Create an ontology (shop_ontology)" in user2
             and "5. Use the line amounts\nReply 1, 2, 3, 4 or 5." in user2)
@@ -394,12 +394,13 @@ def test_the_instructions_ask_for_no_repeat_and_no_added_claim_without_threats()
     assert nxt.AFTER_RESULT in hosted
     for text in (nxt.AFTER_RESULT, nxt.AFTER_CARD):
         assert not COERCIVE.search(text), COERCIVE.search(text)
-        assert "no need to repeat" in text or "repeating them is not needed" in text
-        assert "add no reason, source or name" in text and "please" in text.lower()
+        # DIR1 (directory review criteria): stated as facts about the display and the answer, not as requests
+        assert "as buttons" in text and "holds no reason, source or name beyond what" in text
+        assert not directory.DIRECTIVE.search(text) and "please" not in text.lower()
     assert "the SAP pack is Krusgraph's list of known SAP keys and links" in hosted
     assert "come from public sources" not in hosted                      # what Claude turned into "SAP's own documentation"
-    assert "do not send it again" in hosted and "check set reads how it went" in hosted
-    assert "add no reason, source or name that is not in it" in mcp_server.INSTRUCTIONS
+    assert "was sent once" in hosted and "check set reads how it went" in hosted
+    assert "holds no reason, source or name beyond what it states" in mcp_server.INSTRUCTIONS
     assert asyncio.run(server.mcp.list_tools())                          # the server still lists its tools
 
 
@@ -432,7 +433,7 @@ def test_the_start_path_names_no_tool_in_what_a_person_reads():
     assert lost["step"]["key"] == "map" and lost["unknown_step"]["asked"] == "bogus" and lost["say"].startswith("I don't know a step called “bogus”")
     assert "would already propose that link (rule R5)" in start_flow.guide(sample=True)["found"]["note"]   # F1 B4
     confirm = start_flow.guide(workspace="demo", source="demo_lh", schema="shop", step="create")
-    assert "call start" not in confirm["say"] and 'call start with step="create"' in confirm["then"]
+    assert "call start" not in confirm["say"] and 'After a yes: start with step="create"' in confirm["then"]
 
 
 def test_no_card_names_a_tool_in_its_own_sentences():

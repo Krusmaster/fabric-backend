@@ -430,7 +430,7 @@ TOOLS = {
 }
 NOT_ON_DATABRICKS = {
     "analysis_plan": ("its counting statements are written for the Fabric SQL analytics endpoint and SQL Server, and have not run "
-                      "on Databricks SQL", "Mirror the catalog into Fabric and use analysis_plan there (Planned for Databricks)."),
+                      "on Databricks SQL", "With the catalog mirrored into Fabric, analysis_plan works there (Planned for Databricks)."),
     "analysis_notebook_draft": ("the analysis notebook is a Fabric notebook for a lakehouse",
                                 "Mirror the catalog into Fabric and draft the notebook there."),
     "create_backend": ("an API for GraphQL item is a Fabric object; Databricks has no equivalent item",
@@ -439,7 +439,7 @@ NOT_ON_DATABRICKS = {
     "rayfin_connector": ("Rayfin connectors read Fabric items (Fabric Apps)",
                          "Mirror the catalog into Fabric and generate the connector there."),
     "ontology_draft": ("a Fabric IQ ontology binds to tables of a Fabric item",
-                       "Use plan_backend and data_dictionary for the model here, or mirror the catalog into Fabric."),
+                       "plan_backend and data_dictionary describe the model here; a catalog mirrored into Fabric gets the rest."),
     "semantic_model_draft": ("a Power BI semantic model in Direct Lake mode reads a Fabric SQL analytics endpoint",
                              "databricks_metric_view_draft gives Databricks' own semantic layer (metric views) from the same plan."),
     "silver_notebook_draft": ("the silver notebook is a Fabric notebook for a lakehouse",

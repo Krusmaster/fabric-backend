@@ -1,5 +1,5 @@
 Coach (step 8 of 9: Dry run)
-Say in one short sentence, in plain words: Bronze to silver to gold. Try a dry run: nothing is created. Where a card shows this result, do not repeat its lists or counts.
-Offer one next step: Dry run: silver and gold = create_pipeline(workspace="demo", source="demo_lh", schema="sap_silver", name="sap_silver_pipeline").
-Only if asked, also: Dry run: semantic model; Dry run: an API for GraphQL.
-No rule codes, key strings or file text unless the user asks; end with the one next step.
+Where the user is, in plain words: Bronze to silver to gold. Try a dry run: nothing is created.
+Possible next step for the user: Dry run: silver and gold (create_pipeline(workspace="demo", source="demo_lh", schema="sap_silver", name="sap_silver_pipeline")).
+Other options: Dry run: semantic model; Dry run: an API for GraphQL.
+Where a card is drawn, it already shows this result's lists and counts.

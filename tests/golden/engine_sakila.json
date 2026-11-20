@@ -818,7 +818,7 @@
   "sha256": "3ab6a1a4c11ab98a0699274a4b7ac66098d23d3ef3124dda9a928db8f62a525a"
  },
  "gold": {
-  "raises": "PlanInputError: materialized lake views need a lakehouse created with schemas (Lakehouse schemas); this one has none. Create a lakehouse with schemas and add the tables as shortcuts, or use create_views for T-SQL views."
+  "raises": "PlanInputError: materialized lake views need a lakehouse created with schemas (Lakehouse schemas); this one has none. Create a lakehouse with schemas and add the tables as shortcuts, or T-SQL views with create_views."
  },
  "graphql": {
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/graphqlApi/definition/1.0.0/schema.json",
@@ -2183,8 +2183,8 @@
   "store": "SELECT TOP (10) [store_id], [manager_staff_id], [address_id], [last_update] FROM [dbo].[store]"
  },
  "semantic_model": {
-  "bytes": 52658,
-  "sha256": "95034f732208f935ddb776ea557ae66981a8ac521fba7edd245c8571890c1ef5"
+  "bytes": 52678,
+  "sha256": "430fb00020dc3d5ef06b6e129bb1f96287b526d74484e31d66067d7d2e176e30"
  },
  "silver": {
   "bytes": 37976,

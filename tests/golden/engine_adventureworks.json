@@ -74,7 +74,7 @@
   "sha256": "c1d3071c8f593e1cf5b8bc5504fef10924c8828118490d8881f113c87c902f2c"
  },
  "gold": {
-  "raises": "PlanInputError: materialized lake views need a lakehouse created with schemas (Lakehouse schemas); this one has none. Create a lakehouse with schemas and add the tables as shortcuts, or use create_views for T-SQL views."
+  "raises": "PlanInputError: materialized lake views need a lakehouse created with schemas (Lakehouse schemas); this one has none. Create a lakehouse with schemas and add the tables as shortcuts, or T-SQL views with create_views."
  },
  "graphql": {
   "bytes": 60095,
@@ -227,8 +227,8 @@
   "WorkOrderRouting": "SELECT TOP (10) [WorkOrderID], [ProductID], [OperationSequence], [LocationID], [ScheduledStartDate], [ScheduledEndDate], [ActualStartDate], [ActualEndDate], [ActualResourceHrs], [PlannedCost], [ActualCost], [ModifiedDate] FROM [dbo].[WorkOrderRouting]"
  },
  "semantic_model": {
-  "bytes": 326838,
-  "sha256": "3f397807dbe27488633bb26f14b3b59408fe47d594e514c54e65c8370a734011"
+  "bytes": 326858,
+  "sha256": "6504a31f0a0ebd4cc1c14bee2722bc62dc0dc547aadb40b45e5a8dae3b29fe85"
  },
  "silver": {
   "bytes": 131346,

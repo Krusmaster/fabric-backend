@@ -232,7 +232,7 @@ def test_the_plan_cards_words_are_short_sentences_from_the_plan(fabric):
     assert c["builder"] == "After the check I can build a semantic model, an ontology or an API from this plan. Each shows a dry run first."
     assert words.KEY not in json.loads(r.content[-1].text)                   # structuredContent only: the text is unchanged
     text_actions = json.loads(r.content[-1].text)["actions"]                 # text clients keep the full next step
-    assert any('run validate_plan with workspace="demo"' in a["say"] for a in text_actions)
+    assert any('(validate_plan with workspace="demo"' in a["say"] for a in text_actions)
 
 
 def test_the_plan_check_cards_words(fabric):

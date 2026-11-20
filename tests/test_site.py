@@ -1542,7 +1542,7 @@ def test_the_first_question_only_reads_and_needs_no_workspace_name():
             assert tools[name].annotations.read_only_hint is True, name
     params = [p for p in inspect.signature(server.list_workspaces).parameters if p != "ctx"]
     assert params == [] and "Takes no arguments" in server.list_workspaces.__doc__
-    assert "Start with list_workspaces" in server.mcp.instructions
+    assert "The usual order of the tools: list_workspaces" in server.mcp.instructions
     q = pages.FIRST_QUESTION
     assert "workspaces" in q and "lakehouse I choose" in q and "check the links against the rows" in q
     assert not any(w in q.lower() for w in ("create", "build", "deploy", "write"))
