@@ -1173,6 +1173,30 @@ built from this plan" with links to demo_lh_silver ... demo_lh_api in demo. Ever
 row check into silver) and `buildPlace.test.ts`. Nothing here was run against a live workspace. The editor changed (a
 redeploy brings it); the workload manifest did not, so no new package is needed.
 
+## Save to lakehouse Files
+
+Round WB14 (issue #108; Gustav's approval of 18 November 2026). Beside **Download** and **Copy** of every generated file
+(the draw.io map and data flow, the Data Science notebook, the catalog's handover files and `contracts/*.odcs.yaml`, the
+App package, `EDIT-WITH-AI.md`) the editor can offer **Save to lakehouse Files**: the file goes to
+`Files/krusgraph/<item name>/<file>` in the lakehouse the item already targets, written by the editor through OneLake's
+DFS API (`https://onelake.dfs.fabric.microsoft.com`) as the signed-in person, with a delegated Azure Storage token
+(`https://storage.azure.com/user_impersonation`, asked of the Fabric host with `acquireFrontendAccessToken`).
+
+- **A dry run first**: the full path and the size; nothing is written until **Save**.
+- **Never an overwrite without asking**: the create is conditional (`If-None-Match: "*"`); a file already there asks
+  **Replace** or **Keep the file there**.
+- **Off by default.** On only when the hosting server has `KRUSGRAPH_ONELAKE_SAVE=on`, which adds the meta tag
+  `krusgraph-onelake-save` to the editor's page (`fabric_backend/workload_host.py`), and only when the item targets a
+  lakehouse. No manifest change and no new package: the scope is an API permission of the workload's Entra app.
+- **Without the permission**: *Your admin has not granted storage access yet; use Download instead.* Download is
+  unchanged.
+- **Logs**: the status and OneLake's request id only.
+
+Code: `workload/Workload/app/items/ModelItem/onelakeSave.ts` (the path, the requests, the outcomes) and
+`SaveToLakehouse` in `fileOffer.tsx`; tests `onelakeSave.test.tsx`, `tests/test_wb14_onelake_save.py`, e2e flow 24.
+The permission to add, Gustav's click-list in Entra, how to switch it on, test on demo / demo_lh and switch it off or
+revoke it: [`docs/ONELAKE-SAVE-SETUP.md`](ONELAKE-SAVE-SETUP.md). Not yet run against Fabric.
+
 ## When something does not work
 
 | You see | Likely cause |
@@ -1192,6 +1216,7 @@ redeploy brings it); the workload manifest did not, so no new package is needed.
 | A card says `dry_run_first` (n180) | An Update was sent without its dry run's confirmation. Choose Update again: the dry run comes first, then Update in Fabric. |
 | A card says `source_not_ready` on the report (n179) | The semantic model was created moments before and Fabric did not give its definition yet. Choose Create again in a minute. |
 | `kind: schema_ambiguous` (n175) | Two schemas differ only by case; type the one you mean exactly as the answer lists it. |
+| *Your admin has not granted storage access yet; use Download instead.* (WB14) | The workload app lacks the delegated Azure Storage `user_impersonation` permission or its admin consent, or your workspace role cannot write to the lakehouse: `docs/ONELAKE-SAVE-SETUP.md`, step 1. |
 
 ## Files
 

@@ -11,6 +11,8 @@
  *   notification, navigation, dialog, settings, theme: recorded in window.__host for run.js to read
  * Query: ?framed=1 (frame.html, WB10) sends openBrowserTab to the top frame, which opens the tab;
  * ?fresh=1 clears the saved item (and W14's unsaved drafts) first; ?slowsave=<ms> makes each save take that long.
+ * ?onelake=1 (WB14) adds the meta tag the hosting server adds with KRUSGRAPH_ONELAKE_SAVE=on, so "Save to lakehouse Files"
+ * is offered; run.js answers OneLake's DFS calls in the browser (page.route), nothing leaves the machine.
  */
 import React from "react";
 import { createRoot } from "react-dom/client";
@@ -30,6 +32,13 @@ if (q.get("fresh")) {
   localStorage.removeItem(KEY);
   // W14: and the editor's unsaved drafts (autosave.ts), so a fresh run is not a recovery
   for (const k of Object.keys(localStorage)) if (k.startsWith(DRAFT_PREFIX)) localStorage.removeItem(k);
+}
+
+if (q.get("onelake")) {
+  const m = document.createElement("meta");
+  m.name = "krusgraph-onelake-save";
+  m.content = "on";
+  document.head.appendChild(m);
 }
 
 type Host = { notifications: unknown[]; navigations: unknown[]; saves: number; dialogs: unknown[]; tabs: unknown[] };

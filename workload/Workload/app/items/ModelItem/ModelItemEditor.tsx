@@ -79,7 +79,8 @@ import { accessLine } from "./accessWords";
 import { DrawioContext, DrawioFile, DrawioSource } from "./drawioDownload";
 import { VerifyAnswer, VerifyContext, VerifySource } from "./verifyBuilt";
 import { CatalogContext, CatalogPanel, CatalogSource } from "./CatalogPanel";
-import { FileContext, FileLink, FileSource } from "./fileOffer";
+import { FileContext, FileLink, FileSource, OneLakeContext, OneLakeSaveSource } from "./fileOffer";
+import { STORAGE_SCOPE, saveEnabled } from "./onelakeSave";
 import type { CatalogAnswer } from "./catalogWords";
 import {
   LeftoversAnswer, OutOfDate, ProductRow, RetireAnswer, StatusAnswer, createdAtOf, healthFor, outOfDate, planOf, withAdopted, withOwner,
@@ -1373,6 +1374,24 @@ export function ModelItemEditor(props: PageProps) {
     [workloadClient]
   );
 
+  // WB14 (#108): "Save to lakehouse Files" beside Download, only when the hosting server's switch is on
+  // (KRUSGRAPH_ONELAKE_SAVE -> the meta tag krusgraph-onelake-save) and the item targets a lakehouse: the chosen target,
+  // else a lakehouse source. The Storage token is the signed-in user's, asked of the Fabric host (onelakeSave.ts).
+  const saveOn = saveEnabled(typeof document === "undefined" ? undefined : document);
+  const src = def.source;
+  const lakehouse = src?.target
+    ? { workspaceId: src.target.workspaceId ?? src.workspaceId, lakehouseId: src.target.itemId, lakehouseName: src.target.displayName }
+    : src && /lakehouse/i.test(src.itemType || "") ? { workspaceId: src.workspaceId, lakehouseId: src.itemId, lakehouseName: src.displayName } : undefined;
+  const saveItemName = itemMeta?.displayName ?? "";
+  const oneLakeSource = useMemo<OneLakeSaveSource | undefined>(
+    () => (saveOn && lakehouse && saveItemName ? {
+      target: { ...lakehouse, itemName: saveItemName },
+      token: async () => (await workloadClient.auth.acquireFrontendAccessToken({ scopes: [STORAGE_SCOPE] })).token,
+    } : undefined),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [workloadClient, saveOn, lakehouse?.workspaceId, lakehouse?.lakehouseId, lakehouse?.lakehouseName, saveItemName]
+  );
+
   // WB10 (#64): the Data Science starter's Dry run and Create; what Create made joins outputs.json like any output
   const starterSource = useMemo<StarterSource>(
     () => ({
@@ -1389,6 +1408,7 @@ export function ModelItemEditor(props: PageProps) {
 
   return (
     <FileContext.Provider value={fileSource}>
+    <OneLakeContext.Provider value={oneLakeSource}>
     <StarterContext.Provider value={starterSource}>
     <DrawioContext.Provider value={drawioSource}>
     <VerifyContext.Provider value={verifySource}>
@@ -1408,6 +1428,7 @@ export function ModelItemEditor(props: PageProps) {
     </VerifyContext.Provider>
     </DrawioContext.Provider>
     </StarterContext.Provider>
+    </OneLakeContext.Provider>
     </FileContext.Provider>
   );
 }

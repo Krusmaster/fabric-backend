@@ -38,6 +38,12 @@ host's `openBrowserTab` hands to the top frame to open, as Fabric's host does: o
 GET of the same link answers 410. Flow **21**: the Data Science starter's **Dry run** says what would be created
 and that Krusgraph trains no model; **Create** sends one notebook to the doubles (#64).
 
+WB14 adds flow **24** at 390 px, light and dark: with `?onelake=1` (the meta tag the hosting server adds with
+`KRUSGRAPH_ONELAKE_SAVE=on`) **Save to lakehouse Files** under the map shows the dry run (the full path
+`demo_lh › Files/krusgraph/shop_model/…`, no call sent), **Save** sends create (with `If-None-Match: "*"`), append and
+flush, a second Save gets 409 and asks **Replace**, and Replace overwrites. OneLake's endpoint is answered in the browser
+(`page.route`); nothing leaves the machine.
+
 A network failure is made in the browser (`page.route(...).abort()`). What the doubles cannot show: a data agent
 (the double has no route for it, so its card shows Try again), real Fabric ids (Look for leftovers expects GUIDs),
 Fabric's own frame (the iframe's width, theme, the picker's look). `tests/test_w13_workload_e2e.py` checks the scenarios

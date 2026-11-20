@@ -475,6 +475,67 @@ async function main() {
       await ctx.close();
       return r;
     });
+
+    // WB14 (#108): Save to lakehouse Files at 390 px, light and dark. OneLake's DFS endpoint is answered here in the
+    // browser: the first create 201 (then append 202, flush 200), a second create with If-None-Match 409, Replace 201.
+    await step("24 WB14: Save to lakehouse Files (dry run, Save, already there, Replace) at 390 px, light and dark", async () => {
+      const out = [];
+      for (const dark of [false, true]) {
+        await scenario("shop");
+        const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, colorScheme: dark ? "dark" : "light" });
+        const r = await ctx.newPage();
+        r.on("pageerror", (e) => errors.push(e.message));
+        const calls = [];
+        const there = new Set();
+        await r.route("https://onelake.dfs.fabric.microsoft.com/**", async (route) => {
+          const req = route.request();
+          const h = req.headers();
+          const u = new URL(req.url());
+          if (req.method() === "OPTIONS") return route.fulfill({ status: 200, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "PUT, PATCH" } });
+          const cors = { "access-control-allow-origin": "*", "access-control-expose-headers": "x-ms-request-id", "x-ms-request-id": `e2e-${calls.length + 1}` };
+          calls.push(`${req.method()} ${u.search} ${h["if-none-match"] ? "if-none-match" : ""} ${(h.authorization || "").startsWith("Bearer ") ? "bearer" : "no-token"}`.trim());
+          if (u.searchParams.get("resource") === "file") {
+            if (h["if-none-match"] === "*" && there.has(u.pathname)) return route.fulfill({ status: 409, headers: cors, body: '{"error":{"code":"PathAlreadyExists"}}' });
+            there.add(u.pathname);
+            return route.fulfill({ status: 201, headers: cors });
+          }
+          return route.fulfill({ status: u.searchParams.get("action") === "append" ? 202 : 200, headers: cors });
+        });
+        await r.goto(`${BASE}/index.html?fresh=1&onelake=1`); await settle(r, 1200);
+        await button(r, "Choose a source").click(); await settle(r);
+        await button(r, "Find keys and relationships").click();
+        await button(r, /Check against the rows/).waitFor({ timeout: 30000 }); await settle(r);
+        const mode = dark ? "dark" : "light";
+        const save = r.getByRole("button", { name: "Save to lakehouse Files" }).first();
+        expectTrue(await save.count() > 0, "no Save to lakehouse Files button");
+        await save.scrollIntoViewIfNeeded(); await save.click(); await settle(r, 800);
+        const scope = r.locator(".kg-file-save").first();
+        const dry = await scope.innerText();
+        expectTrue(calls.length === 0, `the dry run sent ${calls.length} calls`);
+        expectTrue(dry.includes("Dry run: Save would write") && /demo_lh › Files\/krusgraph\/shop_model\/.+\.drawio/.test(dry), `dry run said: ${dry}`);
+        await scope.screenshot({ path: path.join(OUT, `24-dry-run-phone-${mode}.png`) });
+        await scope.getByRole("button", { name: "Save", exact: true }).click(); await settle(r, 1200);
+        const saved = await scope.innerText();
+        expectTrue(saved.includes("Saved to demo_lh › Files/krusgraph/shop_model/"), `after Save: ${saved}`);
+        expectTrue(calls.length === 3 && calls[0].startsWith("PUT ?resource=file if-none-match bearer"), `calls: ${calls.join(" | ")}`);
+        await scope.getByRole("button", { name: "Save to lakehouse Files" }).click(); await settle(r, 600);
+        await scope.getByRole("button", { name: "Save", exact: true }).click(); await settle(r, 1200);
+        const exists = await scope.innerText();
+        expectTrue(exists.includes("is already in demo_lh › Files/krusgraph/shop_model/") && exists.includes("Replace"), `second save: ${exists}`);
+        expectTrue(calls.length === 4, `the 409 sent more: ${calls.join(" | ")}`);
+        await scope.screenshot({ path: path.join(OUT, `24-already-there-phone-${mode}.png`) });
+        await scope.getByRole("button", { name: "Replace", exact: true }).click(); await settle(r, 1200);
+        const replaced = await scope.innerText();
+        expectTrue(replaced.includes("Saved to") && calls.length === 7 && !calls[4].includes("if-none-match"), `Replace: ${replaced}; ${calls.join(" | ")}`);
+        const overflow = await r.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+        expectTrue(overflow <= 0, `horizontal overflow ${overflow} px`);
+        expectTrue(await r.getByRole("button", { name: "Download as draw.io" }).first().isEnabled(), "Download is not there beside Save");
+        await shot(r, `24-saved-phone-${mode}`);
+        out.push(`${mode}: dry run with the path and no call; Save sent ${calls.slice(0, 3).map((c) => c.split(" ")[0]).join(", ")}; a second Save got 409 and asked Replace; Replace overwrote (${calls.length} calls); overflow ${overflow} px`);
+        await ctx.close();
+      }
+      return out.join("; ");
+    });
   }
 
   await browser.close();
