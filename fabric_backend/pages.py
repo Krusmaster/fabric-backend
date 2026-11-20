@@ -60,6 +60,13 @@ PAGES = {
                 "Krusgraph for Fabric, Krusgraph for Claude, Krusgraph for Lovable or Krusgraph Open Source: who each is for, what it needs, where your data passes, its status and what it lacks today.", "product"),
     "/sap": ("sap.html", "SAP tables: keys and order-to-cash links — {{PRODUCT}}",
              "Keys with MANDT and the order-to-cash links for VBAK, VBAP and their neighbours, each citing a public SAP page, from {{PRODUCT}}'s SAP pack.", "product"),
+    # SRC1: the source systems the packs describe, their raw tables and the data products the engine proposes (sources_page.py)
+    "/sources": ("sources.html", "SAP, Salesforce and Dynamics 365 tables — {{PRODUCT}}",
+                 "Which raw tables {{PRODUCT}} knows for SAP, Salesforce and Dynamics 365, how they land in Fabric, and the data products the engine proposes on synthetic demo data. Built from public documentation; nothing verified against a customer's system yet.", "usecases"),
+    "/sources/salesforce": ("sources_salesforce.html", "Salesforce tables and data products — {{PRODUCT}}",
+                            "The Salesforce standard objects {{PRODUCT}} knows, how a Copy job lands them in Fabric, and the data products the engine proposes on a synthetic demo. Not verified against any org.", "usecases"),
+    "/sources/dynamics365": ("sources_dynamics365.html", "Dynamics 365 tables and data products — {{PRODUCT}}",
+                             "The Dataverse and Business Central tables {{PRODUCT}} knows, how they land in Fabric, and the data products the engine proposes on a synthetic demo. Not verified against any environment.", "usecases"),
     "/use-cases": ("use_cases.html", "Use cases — {{PRODUCT}}",
                    "Start from an undocumented lakehouse, a join to check or an app to build. Three synthetic examples drawn as maps show what {{PRODUCT}} proposes and what still needs your judgement.", "usecases"),
     "/use-cases/build": ("use_cases_build.html", "What you can build from a plan — {{PRODUCT}}",
@@ -1153,6 +1160,10 @@ def render(path: str) -> str:
     if "{{SAP_" in body:                                                  # n188: /sap, from the SAP pack itself
         sv = sap_vars()
         body = re.sub(r"\{\{(SAP_\w+)\}\}", lambda m: sv[m.group(1)], body)
+    if "{{SRC_" in body:                                                  # SRC1: /sources, from the packs and the engine
+        from .sources_page import page_vars as src_vars
+        srv = src_vars(path)
+        body = re.sub(r"\{\{(SRC_\w+)\}\}", lambda m: srv[m.group(1)], body)
     if "{{START_CONNECT}}" in body:                                       # n149: the client chooser, on /start (it was the home page's)
         body = body.replace("{{START_CONNECT}}", connect_menu_html("start"))
     if "{{TRY_IN_CLAUDE}}" in body:                                       # n170: one click from the site into Claude

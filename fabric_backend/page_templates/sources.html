@@ -1,0 +1,43 @@
+<div data-page="sources">
+{{SRC_STYLE}}
+<section class="hero wrap choose-hero">
+  <p class="eyebrow">Source systems</p>
+  <h1>SAP, Salesforce and Dynamics 365: the raw tables {{PRODUCT}} knows</h1>
+  <p class="lede">Which raw tables {{PRODUCT}} recognises by name, how they land in Microsoft Fabric, and which data products the engine proposes from them. Every list on this page is read from the knowledge packs and from the engine's own run, not typed by hand.</p>
+  <div class="card soft src-honest-box"><p>{{SRC_HONEST_TOP}}</p></div>
+</section>
+
+<section class="wrap" aria-labelledby="src-three-h" style="padding-top:0">
+  <h2 id="src-three-h">Three sources</h2>
+  {{SRC_CARDS}}
+</section>
+
+<section class="wrap" aria-labelledby="src-table-h">
+  <h2 id="src-table-h">Source, raw tables, data products</h2>
+  <p class="intro">Each data product is a group of tables the engine proposes on a synthetic demo, with the tables it uses and the question it answers. On your own tables it proposes again from what it finds there.</p>
+  {{SRC_TABLE}}
+</section>
+
+<section class="wrap" aria-labelledby="src-cross-h">
+  <h2 id="src-cross-h">Across sources</h2>
+  {{SRC_CROSS}}
+</section>
+
+<section class="wrap" id="sap" aria-labelledby="src-sap-h">
+  <h2 id="src-sap-h">SAP</h2>
+  <p class="intro">{{SRC_SAP_COUNT}} tables and released CDS views of SAP ERP (ECC) and SAP S/4HANA. Every key starts with the client <code>MANDT</code>, and the names are German abbreviations. The keys and links of <code>VBAK</code> and <code>VBAP</code>, each with its numbered source, are on <a href="/sap">the SAP page</a>.</p>
+  <h3>How SAP data reaches Fabric</h3>
+  {{SRC_SAP_ROUTES}}
+  <h3>Data products on the {{SRC_SAP_DEMO}}-table SAP demo</h3>
+  <p class="muted">Proposed by the engine from the planned relationships of the synthetic SAP-shaped demo (order to cash only).</p>
+  {{SRC_SAP_PRODUCTS}}
+  <h3>The tables, by module</h3>
+  {{SRC_SAP_TABLES}}
+</section>
+
+<section class="wrap" aria-labelledby="src-honest-h">
+  <h2 id="src-honest-h">What is verified, and what is not</h2>
+  {{SRC_HONEST}}
+  <p class="src-ctas"><a class="btn primary" href="/start">Use it in Claude</a><a class="btn secondary" href="/check">{{LABEL_CHECK}}</a></p>
+</section>
+</div>
