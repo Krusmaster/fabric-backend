@@ -5,6 +5,11 @@
 # run's artifact, tags the commit workload-pkg/<version> (versions only grow; never below 1.0.1396) and opens or
 # updates one issue "New workload package ready: <name> <version>" with the diff and the portal steps.
 #
+# MOD1 (20 November 2026): this workflow builds the LIVE workload, Org.Krusgraph (--name Org.Krusgraph below), for an
+# update of what is active in the tenant. The upload-ready Krusgraph.Modeler package is built by ci.yml's workload job on
+# every push and pull request, without any repository variable (docs/MODELER-GO-LIVE.md). The two never build the same
+# name, so they cannot offer conflicting packages.
+#
 # The frontend app id comes from the repository variable KRUSGRAPH_WORKLOAD_APP_ID (a public client id, not a secret;
 # Settings > Secrets and variables > Actions > Variables). Without it the run only says so.
 name: Workload package
@@ -45,6 +50,8 @@ jobs:
     permissions: { contents: write, issues: write }
     env:
       APP_ID: ${{ vars.KRUSGRAPH_WORKLOAD_APP_ID }}
+      # the live development workload; Krusgraph.Modeler comes from ci.yml's workload job
+      LIVE_NAME: Org.Krusgraph
       GH_TOKEN: ${{ github.token }}
       OFFER_UNCHANGED: ${{ inputs.offer_unchanged || false }}
     steps:
@@ -71,7 +78,7 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p "$RUNNER_TEMP/package"
-          python tools/workload_package.py --frontend-app-id "$APP_ID" --previous-ref "$PREVIOUS_REF" \
+          python tools/workload_package.py --frontend-app-id "$APP_ID" --name "$LIVE_NAME" --previous-ref "$PREVIOUS_REF" \
             --out "$RUNNER_TEMP/package" --full-tests --summary-json "$RUNNER_TEMP/summary.json" \
             | tee "$RUNNER_TEMP/package/diff.txt"
           python tools/workload_package_ci.py outputs --summary "$RUNNER_TEMP/summary.json" | tee -a "$GITHUB_OUTPUT"

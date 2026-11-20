@@ -1,6 +1,6 @@
 """Round n176 (split out by WP1, 18 November 2026, from tests/test_workload_publish.py): the package names.
 
-The package builds as Org.Krusgraph (default) or Krusgraph.Modeler and refuses every other Krusgraph.* name; the item type
+The package builds as Krusgraph.Modeler (the default since W12) or Org.Krusgraph and refuses every other Krusgraph.* name; the item type
 follows the name and is written once, by the build. These tests need only pytest (no server extras), so
 tools/workload_package.py runs them in a clean Azure Cloud Shell; the server tests of n176 stay in test_workload_publish.py."""
 import importlib.util
@@ -30,7 +30,7 @@ def _read(pkg: Path) -> dict[str, str]:
 
 
 @pytest.mark.parametrize("args, name", [
-    ([], "Org.Krusgraph"),
+    ([], "Krusgraph.Modeler"),                         # W12: the default is the permanent name
     (["--name", "Org.Krusgraph"], "Org.Krusgraph"),
     (["--name", "Krusgraph.Modeler"], "Krusgraph.Modeler"),
 ])
@@ -68,8 +68,8 @@ def test_the_name_is_written_once_in_the_sources():
     ("Krusgraph.Modeller", "reserve it in the tenant for good"),
     ("krusgraph.modeler", "reserve it in the tenant for good"),                     # the exact spelling only
     ("Krusgraph.Modeler.Model", "reserve it in the tenant for good"),
-    ("Org.Other", "must be Org.Krusgraph or Krusgraph.Modeler"),
-    ("", "must be Org.Krusgraph or Krusgraph.Modeler"),
+    ("Org.Other", "must be Krusgraph.Modeler or Org.Krusgraph"),
+    ("", "must be Krusgraph.Modeler or Org.Krusgraph"),
 ])
 def test_every_other_name_is_refused_before_anything_is_written(tmp_path, name, word):
     b = _builder()

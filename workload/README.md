@@ -19,5 +19,7 @@ HelloWorld item is now the Model item (`Workload/Manifest/items/ModelItem/`, `Wo
 manifest texts, and lines marked `Krusgraph:` (engine settings in `.env.template` and `webpack.config.js`, the dev
 server's forwarding of `/workload/v1`, the test set-up).
 
-The development workload name is `Org.Krusgraph`. Do not upload a `Krusgraph.*` name: the first upload reserves it
-for good, and that is the founder's decision.
+The package builds as `Krusgraph.Modeler` (W12; the one constant `WORKLOAD_NAME` in `scripts/build_package.py`), the
+permanent name the founder decided. The development workload `Org.Krusgraph` is built with `--name Org.Krusgraph` until
+it is retired. Only the founder uploads, and only by `docs/MODELER-GO-LIVE.md`: the first confirmed upload reserves the
+name for good. `scripts/validate_package.py <file>.nupkg` checks a package offline.

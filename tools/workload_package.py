@@ -444,7 +444,11 @@ def main(argv=None, *, build=None, test_runner=None, test_find=None, test_probe=
     build = build or load_build()
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--frontend-app-id", required=True, help="the workload Entra app's Application (client) ID")
-    ap.add_argument("--name", default=build.WORKLOAD_NAME, help=f"{build.WORKLOAD_NAME} (default) or {build.PUBLISHED_NAME}")
+    # MOD1 (20 November 2026): build_package.py's default is Krusgraph.Modeler since W12 (PR #26), the package CI keeps as
+    # an artifact for the first upload of that name. This tool updates the workload that is live in the tenant, so its
+    # default stays Org.Krusgraph (build_package.DEV_NAME); .github/workflows/workload-package.yml also passes it explicitly.
+    ap.add_argument("--name", default=build.DEV_NAME,
+                    help=f"{build.DEV_NAME} (default, the live workload) or {build.WORKLOAD_NAME} (the permanent name)")
     ap.add_argument("--bump", default="patch", choices=("patch", "minor", "major"), help="default patch")
     ap.add_argument("--version", help="this exact version instead of a bump (must be above the last package)")
     ap.add_argument("--previous", type=Path, help="the last package uploaded (.nupkg); default: the newest in --out")
@@ -543,7 +547,7 @@ def main(argv=None, *, build=None, test_runner=None, test_find=None, test_probe=
             out("Nothing was uploaded. To add it in Fabric:")
         for i, step in enumerate(portal_steps(path, name, version, first_upload=previous_files is None), 1):
             out(f"  {i}. {step}")
-        if name == build.PUBLISHED_NAME:
+        if name == build.WORKLOAD_NAME:
             for gap in build.publishing_gaps({k: v for k, v in new_files.items() if k.startswith("FE/")}):
                 out(f"Not ready for Microsoft's publishing review yet: {gap}.")
         return 0

@@ -70,8 +70,12 @@ One command, run from the repository root, in Azure Cloud Shell or anywhere with
 ```sh
 git clone https://github.com/Krusmaster/fabric-backend.git && cd fabric-backend
 python3 -m pip install --user pytest pillow             # for the manifest tests (step 3); Cloud Shell has pip
-bash tools/workload-package.sh --frontend-app-id <the workload app's Application (client) ID>
+bash tools/workload-package.sh --frontend-app-id <the workload app's Application (client) ID> --name Org.Krusgraph
 ```
+
+`--name Org.Krusgraph` builds the live workload; it is also this tool's default. Since PR #26 (W12, merged by round
+MOD1 on 20 November 2026) the default of `workload/scripts/build-package` itself is `Krusgraph.Modeler`, which Fabric
+cannot register yet (`docs/MODELER-GO-LIVE.md`), so the commands here name the workload explicitly.
 
 These three lines work in a clean Cloud Shell (Python 3.12) since round WP1. On 17 November they did not: the tool also
 ran workload tests that import the server (`starlette`, then the full server extras), and those stopped at collection
@@ -81,7 +85,7 @@ others as run in CI. To run those here too, install the server extras once from 
 
 ```sh
 python3 -m pip install --user -e '.[server,test]'
-bash tools/workload-package.sh --frontend-app-id <id> --full-tests
+bash tools/workload-package.sh --frontend-app-id <id> --name Org.Krusgraph --full-tests
 ```
 
 What it does, in order:
@@ -156,8 +160,10 @@ any portal endpoint; there is no browser automation either.
 workflow. The box "Open the issue even when only the version would change" is off by default.
 
 **What it does:**
-1. It builds `Org.Krusgraph` with `tools/workload_package.py --full-tests`, so every workload manifest test runs,
-   including the server-dependent ones.
+1. It builds `Org.Krusgraph` with `tools/workload_package.py --name Org.Krusgraph --full-tests`, so every workload
+   manifest test runs, including the server-dependent ones. It builds only `Org.Krusgraph`, the live workload; the
+   upload-ready `Krusgraph.Modeler` package comes from `ci.yml`'s workload job on every push, without the variable
+   below (see "Two packages" in `docs/MODELER-GO-LIVE.md`).
 2. It compares the package with a baseline:
    - before the first package, the manifest at `3610190`. That is `main` on 17 November with 1395 commits, most likely
      what 1.0.1395 was built from;

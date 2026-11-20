@@ -95,7 +95,7 @@ def test_second_build_bumps_the_patch_and_diffs_against_the_last_package(tmp_pat
 
 def test_the_diff_names_texts_images_item_types_and_the_app():
     b = _build()
-    vals = b.values(APP, "1.0.1", b.FRONTEND_URL)
+    vals = b.values(APP, "1.0.1", b.FRONTEND_URL, b.DEV_NAME)   # MOD1: the build's default is Krusgraph.Modeler since W12
     old = b.staged_files(vals)
     old["Org.Krusgraph.nuspec"] = b"<version>1.0.1</version>"
     new = dict(old)
@@ -235,6 +235,6 @@ def test_no_secret_no_portal_endpoint_and_nothing_under_deploy():
 def test_the_package_is_the_one_build_package_makes(tmp_path):
     _run(["--out", str(tmp_path / "a")])
     b = _build()
-    direct = b.build(APP, "1.0.500", b.FRONTEND_URL, tmp_path / "b")
+    direct = b.build(APP, "1.0.500", b.FRONTEND_URL, tmp_path / "b", name=b.DEV_NAME)   # the tool's default (MOD1)
     with zipfile.ZipFile(tmp_path / "a" / "Org.Krusgraph.1.0.500.nupkg") as x, zipfile.ZipFile(direct) as y:
         assert {n: x.read(n) for n in x.namelist()} == {n: y.read(n) for n in y.namelist()}
