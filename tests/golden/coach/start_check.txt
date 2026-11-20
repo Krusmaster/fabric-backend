@@ -1,4 +1,4 @@
-Coach (step 3 of 8: Check the links against the rows)
-Say in one or two short sentences, in plain words: Counting links against the rows, so nothing is built on a guess.
+Coach (step 5 of 9: Check against the rows)
+Say in one short sentence, in plain words: Let me count each key and link in the rows, so nothing is built on a guess. Where a card shows this result, do not repeat its lists or counts.
 Offer one next step: Check against the rows = validate_plan(workspace="demo", source="demo_lh", schema="sap_silver").
 No rule codes, key strings or file text unless the user asks; end with the one next step.

@@ -156,6 +156,17 @@ and only the founder uploads.
   own worktree, a green suite, no customer data, the sales-word test (`tests/test_site.py`, `SALES`), no deployment.
 - The code of conduct is the Contributor Covenant 2.1, `CODE_OF_CONDUCT.md`; reports go to hello@krusgraph.com.
 
+## The guided path is clicked through
+
+Gustav, 19 November 2026: the chat path worked and looked good on 12 November, and then five rounds in a week each
+changed the cards and tested only their own part. So no round may merge a change that breaks the path: the
+click-through `tests/test_wb15_click_through.py` (with `tests/wb15_click_through.js` and `tests/wb15_fake.py`) clicks
+the Start Krusgraph card's own buttons on the synthetic SAP demo from step 1 to the confirmation step, at 390 px, light
+and dark. It runs in CI's `test` job with the other browser tests and is a required check: in CI it fails, rather than
+skips, when Chromium does not start. A change to a card (`mcp_apps*.py`), to `start_flow.py`, `coach.py`, `next_rules.py`
+or to how the tools are wrapped in `server.py` keeps it green; when the path is meant to change, change the test in the
+same pull request and say why.
+
 ## Verified, and how
 
 When you state that something works, say where and when it was verified: unit tests, a local server, or the live

@@ -36,3 +36,12 @@ def _no_onelake(monkeypatch):
         status_code = 404
 
     monkeypatch.setattr(csn_onelake, "_http_get", lambda url, **kw: _Missing())
+
+
+@pytest.fixture(autouse=True)
+def _no_flow_kept():
+    """WB15: the guided path's shared state (flow_state.py) lives in memory; each test starts and ends with none."""
+    from fabric_backend import flow_state
+    flow_state.clear()
+    yield
+    flow_state.clear()

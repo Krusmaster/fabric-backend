@@ -139,7 +139,10 @@ def test_writes_need_the_dry_runs_names_and_a_second_confirmation(create, confir
     a = sf.guide(**CHOSEN, step="create", create=create, confirm=confirm)
     assert a["needs_confirmation"] is True
     assert not any(b["arguments"].get("dry_run") is False for b in _buttons(a))
-    assert "confirm" in a["say"]
+    assert "confirm" in a["say"].lower()
+    # WB15 (item 11): never a dead end: one button confirms the suggested names; it calls start, which creates nothing
+    [ok] = [b for b in a["actions"] if b["kind"] == "confirm"]
+    assert ok["tool"] == "start" and ok["arguments"]["confirm"] is True and ok["arguments"]["create"]
 
 
 def test_confirmed_names_are_created_and_nothing_else():
@@ -221,7 +224,7 @@ def test_the_card_walks_the_path_in_place(tmp_path):
     calls = _calls(out)
     assert calls[0] == {"name": "plan_backend", "arguments": CHOSEN}
     assert calls[1] == {"name": "start", "arguments": first["after"]["arguments"]}
-    assert "step 5 of 9" in out["text"] and "Check against the rows" in out["text"]     # the next step, drawn in place
+    assert "Step 5 of 9" in out["text"] and "Check against the rows" in out["text"]     # the next step, drawn in place
 
 
 @needs_browser

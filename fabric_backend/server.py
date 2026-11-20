@@ -69,6 +69,7 @@ from .discovery import package_version as _package_version  # noqa: E402
 from . import tool_status as _tool_status  # noqa: E402
 from . import tool_params as _p  # noqa: E402
 from . import mcp_apps as _mcp_apps  # noqa: E402  (n119: off unless KRUSGRAPH_MCP_APPS=1)
+from . import flow_state as _flow_state  # noqa: E402  (WB15: the guided path's shared state)
 from . import switches as _switches  # noqa: E402  (n123: both off unless the operator sets them)
 from . import mcp_apps_review as _mcp_apps_review  # noqa: E402  (n124: same flag)
 from . import mcp_apps_build as _mcp_apps_build  # noqa: E402  (n169: same flag)
@@ -511,7 +512,8 @@ def _instrumented(fn, name: str):
             refusal, notice = got.get("refusal"), got.get("notice")
         elif refusal is None and _entitlements.enabled():
             refusal = _entitlements.check(name, dry_run, (who or {}).get("tid"))
-        text = json.dumps(refusal, indent=2) if refusal is not None else _billing.with_notice(fn(*args, **kwargs), notice)
+        text = (json.dumps(refusal, indent=2) if refusal is not None
+                else _billing.with_notice(_with_flow(fn, name, sig, args, kwargs), notice))
         try:
             if _usage_metrics.enabled():                   # UM1: KRUSGRAPH_METRICS=off counts nothing at all
                 outcome = _usage.outcome_of(text)
@@ -521,6 +523,61 @@ def _instrumented(fn, name: str):
             pass
         return text
     return wrapper
+
+
+def _flow_who(ctx) -> str:
+    """WB15: who the guided path's shared state belongs to (flow_state.who_of)."""
+    try:
+        return _flow_state.who_of(_identity(ctx), Auth._bearer(ctx))
+    except Exception:  # noqa: BLE001 - no identity: the local state
+        return "local"
+
+
+def _with_flow(fn, name: str, sig, args, kwargs):
+    """WB15 (G): a building tool runs on the plan with the decisions made on the path: a rejected link or key is left
+    out (plan_scope, as the Fabric workload's review), an accepted link is passed as `confirmed` when the call gave
+    none, and the answer says it ("1 relationship left out by your decision"). Any other tool, or a call with no kept
+    decision, runs as it is."""
+    if name not in _flow_state.BUILD_TOOLS or _PLAN_SCOPE.get() is not None:
+        return fn(*args, **kwargs)
+    try:
+        bound = sig.bind_partial(*args, **kwargs).arguments
+    except TypeError:
+        return fn(*args, **kwargs)
+    who = _flow_who(bound.get("ctx"))
+    schema = bound.get("schema") or (sig.parameters["schema"].default if "schema" in sig.parameters else "dbo")
+    ws, src = bound.get("workspace"), bound.get("source")
+    gone = _flow_state.rejected(who, ws, src, schema)
+    links = _flow_state.accepted_links(who, ws, src, schema)
+    if not gone and not links:
+        return fn(*args, **kwargs)
+    if links and "confirmed" in sig.parameters and not bound.get("confirmed") \
+            and len(args) <= list(sig.parameters).index("confirmed"):
+        kwargs = {**kwargs, "confirmed": links}
+    left: list[str] = []
+
+    def adjust(plan):
+        kept, out = _flow_state.leave_out(plan, gone)
+        for x in out:
+            if x not in left:
+                left.append(x)
+        return kept
+    with plan_scope(adjust):
+        text = fn(*args, **kwargs)
+    try:
+        data = json.loads(text)
+    except (TypeError, ValueError):
+        return text
+    if not isinstance(data, dict) or data.get("error"):
+        return text
+    said = _flow_state.note(left, len(links))
+    if not said:
+        return text
+    data["your_decisions"] = {"left_out": left, "accepted": len(links), "note": said[:1].upper() + said[1:] + "."}
+    if isinstance(data.get("summary"), str):
+        head = data["summary"].rstrip()
+        data["summary"] = head + ("" if head.endswith((".", "!", "?")) else ".") + " " + data["your_decisions"]["note"]
+    return json.dumps(data, indent=2)
 
 
 def _titled_tool(register):
@@ -684,13 +741,23 @@ def start(workspace: _p.StartPick = "", source: _p.StartPick = "", schema: _p.St
     data', 'help me with my SAP data in Fabric'): workspace, source, schema, map, check, decide, doubled totals, a dry run of all builds with the data flow,
     then create after a second confirmation of the names. Returns JSON {step, path, actions: [{tool, arguments, say}],
     after}: each action is an existing tool; after is the next start call. Changes nothing. Errors: {error, kind, hint}."""
-    plan = plan if isinstance(plan, dict) else {}
+    plan = dict(plan) if isinstance(plan, dict) else {}
+    kept = {"seq": 0}
+    if not sample:                                         # WB15 (E, G): the shared state; the latest tap wins
+        who = _flow_who(ctx)
+        tapped = (step or "").strip().lower() == "decide" and bool(plan.get("decisions"))
+        if workspace and source and schema:
+            kept = _flow_state.record(who, workspace, source, schema, (step or "").strip().lower() or None,
+                                      plan.get("decisions"), plan.get("confirmed"), tapped)
+            plan["decisions"], plan["confirmed"] = kept["decisions"], kept["confirmed"]
     options = _start_options(workspace, source, schema, bool(sample), ctx)
     review = _start_review(workspace, source, schema, step, plan, bool(sample), ctx)
-    return json.dumps(_start_flow.guide(workspace=workspace, source=source, schema=schema, step=step,
-                                        keys=plan.get("keys"), confirmed=plan.get("confirmed"),
-                                        decisions=plan.get("decisions"), create=create, confirm=confirm,
-                                        sample=sample, options=options, review=review), indent=2)
+    out = _start_flow.guide(workspace=workspace, source=source, schema=schema, step=step,
+                            keys=plan.get("keys"), confirmed=plan.get("confirmed"),
+                            decisions=plan.get("decisions"), create=create, confirm=confirm,
+                            sample=sample, options=options, review=review)
+    out["seq"] = kept.get("seq") or 0
+    return json.dumps(out, indent=2)
 
 
 def _start_review(workspace: str, source: str, schema: str, step: str, plan: dict, sample: bool, ctx) -> dict | None:

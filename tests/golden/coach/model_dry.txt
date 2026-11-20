@@ -1,5 +1,5 @@
-Coach (step 6 of 8: Semantic model)
-Say in one or two short sentences, in plain words: That was a dry run: nothing was created. Say yes and it is created in Fabric with these names.
+Coach (step 8 of 9: Semantic model)
+Say in one short sentence, in plain words: That was a dry run: nothing was created. Say yes and it is created in Fabric with these names. Where a card shows this result, do not repeat its lists or counts.
 Offer one next step: Create the semantic model in Fabric = create_semantic_model(workspace="demo", source="demo_lh", schema="sap_silver", name="sap_silver_model", dry_run=false).
 It creates items in Fabric: run it only after the user says yes to these names.
 Only if asked, also: Create the data agent (dry run first).
