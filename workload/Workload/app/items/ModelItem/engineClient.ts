@@ -611,7 +611,7 @@ export function engineScope(
 
 export type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
-type Route = "review" | "check" | "build" | "schemas" | "pipeline-run" | "operation" | "product" | "health" | "access" | "drawio" | "verify" | "catalog" | "file" | "starter";
+type Route = "review" | "check" | "build" | "schemas" | "pipeline-run" | "operation" | "product" | "health" | "access" | "drawio" | "verify" | "catalog" | "file" | "starter" | "analysis";
 
 /** n197: send the request in the background (202 and an operation id) and read the operation until it ends; an engine
  * that answers at once (200, an older server, or no store for operations) is taken as it answers. */
@@ -995,6 +995,13 @@ export function file<T>(workloadClient: WorkloadClientAPI, body: object, fetchIm
  * unless dry_run is false and the dry run's confirm is sent back; never run by Krusgraph, never overwriting. */
 export function starter<T>(workloadClient: WorkloadClientAPI, body: object, fetchImpl?: Fetch): Promise<T> {
   return callOnce<T>(workloadClient, "starter", body, REQUEST_WAIT_MS, fetchImpl ?? ((u, i) => fetch(u, i)), false);
+}
+
+/** WB4: Recommended analyses (POST /workload/v1/analysis, fabric_backend/workload_api.run_analysis): analysis_plan's
+ * ranking of the SAP order-to-cash analyses on the item's reviewed plan, with the notebooks of the ready A7, A8 and A3.
+ * Read-only (counts only); it counts rows, so it goes through the background path like the check. */
+export function analysis<T>(workloadClient: WorkloadClientAPI, body: object, fetchImpl?: Fetch, opts: CallOptions = {}): Promise<T> {
+  return call<T>(workloadClient, "analysis", body, REQUEST_WAIT_MS, fetchImpl, opts);
 }
 
 /** n213: the organisation's trial or subscription (POST /workload/v1/access, fabric_backend/billing.py). Opening the item

@@ -1197,6 +1197,36 @@ Code: `workload/Workload/app/items/ModelItem/onelakeSave.ts` (the path, the requ
 The permission to add, Gustav's click-list in Entra, how to switch it on, test on demo / demo_lh and switch it off or
 revoke it: [`docs/ONELAKE-SAVE-SETUP.md`](ONELAKE-SAVE-SETUP.md). Not yet run against Fabric.
 
+## Recommended analyses
+
+Round WB4 (20 November 2026). Under **Next, with other Fabric workloads** (after a Create, and on the Data product page)
+the editor shows **Recommended analyses**: the analysis pack of round AP2 (`analysis_plan`, `docs/ANALYSIS-PLAN.md`)
+on this item's reviewed plan.
+
+- **Engine**: `POST /workload/v1/analysis` (`run_analysis` in `fabric_backend/workload_api.py`): the source and the
+  item's `review.json`. It plans the source with the review's keys and links, leaves out what the person rejected
+  (`apply_review`) and runs `analysis_plan.recommend` with the row counts, as the MCP tool does. Read-only: counts
+  only, nothing created, nothing run, no AI. Before the check has passed for a key or link it answers `waiting` and
+  reads nothing. On a schema without SAP order-to-cash tables it says so (`applies: false`). For a **ready** A7, A8 or
+  A3 the answer carries the notebook `analysis_notebook_draft` writes (`.ipynb` and the cells as code). The billing
+  gate counts it as a read (`billing.route_writes` is false).
+- **Editor**: `analysisPlan.ts` (pure: the cards) and `RecommendedAnalyses` in `NextStepsView.tsx`; the editor gives it
+  the engine call (`AnalysisContext`, `engine.analysis`). Ranked as the engine ranks them. Each card has a readiness
+  word (Ready, Partly ready, Not ready yet, Not applicable; the badge's colour only repeats it), one line "Recommended
+  because …", what is missing, and one action: for a ready A7, A8 or A3 **Download notebook (.ipynb)** and **Copy the
+  code**, as the Data Science starter; otherwise **Copy the request for Claude** (`analysis_notebook_draft` for a
+  partly ready A7, A8 or A3; `analysis_plan` for the rest). The not-ready analyses are in a fold that says what data
+  would make them ready and what to land first (`land_next`). The answer is kept in the tab per source, schema and
+  check, so the result view and the Data product page count the rows once.
+- **Not here**: Create in the workspace. AP2 built no create path for analysis notebooks (no Krusgraph tool creates
+  one), so the cards offer Download and Copy only; the person imports the notebook in Fabric and runs it. No manifest
+  change.
+
+Tests: `wb4Analyses.test.tsx` (the rules, the section, keyboard and screen-reader names; the engine's own answer on
+the SAP sample in `wb4Analysis.fixture.json`), `tests/test_wb4_analysis_route.py` (the route on the e2e engine's `sap`
+scenario: the 24-month synthetic SAP sample `sap_sd`), e2e flow 25 (the SAP sample at 390 px by keyboard only). Not
+yet run against Fabric.
+
 ## When something does not work
 
 | You see | Likely cause |
