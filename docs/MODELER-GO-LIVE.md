@@ -140,13 +140,13 @@ scopes in `<meta name="krusgraph-engine-scopes">`. An `Org.Krusgraph` Model stil
    `K r u s g r a p h . M o d e l e r`. Capital K, capital M, one dot, no spaces, 17 characters.
 4. Only if it matches exactly: **Confirm**. If anything differs: **Cancel** and stop.
 
-**Success:** the upload finishes and `Krusgraph.Modeler` is listed under **Govern → Workloads**, next to
+**Success:** the upload finishes and `Krusgraph.Modeler` is listed under **Govern → Configurations → Workloads**, next to
 `Org.Krusgraph`. If the name error from the ticket comes back, stop: nothing has been reserved, and the reply goes back
 to Microsoft.
 
 ## 7. Activate and try it in the company tenant
 
-1. Under **Govern → Workloads**, open **Krusgraph.Modeler**, select version `1.0.<N>` → **Add** (or **Activate**).
+1. Under **Govern → Configurations → Workloads**, open **Krusgraph.Modeler**, select version `1.0.<N>` → **Add** (or **Activate**).
 2. Open a workspace on a Fabric capacity → **+ New item** → **Krusgraph Model** (pick the one under Krusgraph.Modeler).
 3. Choose a lakehouse with the synthetic shop data and run **Review**.
 
@@ -155,7 +155,7 @@ shows keys and relationships on the map.
 
 ## 8. Tell the coordinator
 
-Send: the version uploaded, the time, a screenshot of **Govern → Workloads** with both workloads, and whether step 7
+Send: the version uploaded, the time, a screenshot of **Govern → Configurations → Workloads** with both workloads, and whether step 7
 worked. The next rounds then do: publish to selected test tenants, Microsoft's validator, and later the offer (the
 order is `docs/PUBLISHING-READINESS.md`).
 
@@ -164,7 +164,7 @@ order is `docs/PUBLISHING-READINESS.md`).
 ## If something goes wrong: rollback
 
 - **The name itself cannot be taken back** once confirmed. Everything below leaves it reserved, which is harmless.
-- **A bad version:** under **Govern → Workloads → Krusgraph.Modeler**, add the previous version again, or deactivate
+- **A bad version:** under **Govern → Configurations → Workloads → Krusgraph.Modeler**, add the previous version again, or deactivate
   Krusgraph.Modeler. `Org.Krusgraph` was never touched and keeps working.
 - **Sign-in errors in the editor:** check step 4's output first. To undo step 4, `~/workload-app-before.json` holds
   the old lists; put them back with the same `az rest --method PATCH` (body `{"spa": {"redirectUris": [<old list>]}}`)

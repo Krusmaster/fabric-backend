@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The workload package for the hosted editor (n168, n176; docs/WORKLOAD-DEV.md, docs/WORKLOAD-PUBLISH.md).
 
-Builds the NuGet package (.nupkg) that the founder uploads in Fabric (OneLake catalog -> Govern -> Workloads) from the
+Builds the NuGet package (.nupkg) that the founder uploads in Fabric (OneLake catalog -> Govern -> Configurations -> Workloads) from the
 templates in workload/Workload/Manifest, with the frontend at https://workload.krusgraph.com. Python's standard library
 only, so it runs in GitHub Actions and in Azure Cloud Shell without nuget, mono or npm. It does what the starter kit's
 scripts/Build/BuildManifestPackage.ps1 does (items moved to the root, {{PLACEHOLDERS}} replaced, the nuspec's file
@@ -429,8 +429,8 @@ def main(argv=None) -> int:
         return 1
     print(f"Built {path} ({path.stat().st_size} bytes): {a.name}, item type {item_type(a.name)}, "
           f"frontend {a.frontend_url.rstrip('/')}.")
-    print("Nothing was uploaded. Upload it yourself in Fabric: OneLake catalog -> Govern -> Workloads -> Upload workload "
-          "(docs/WORKLOAD-DEV.md, \"Hosted (no laptop)\").")
+    print("Nothing was uploaded. Upload it yourself in Fabric: OneLake catalog -> Govern -> Configurations -> Workloads -> "
+          "Publish -> Upload workload (docs/WORKLOAD-DEV.md, \"Hosted (no laptop)\"; docs/MODELER-GO-LIVE.md).")
     if a.name == WORKLOAD_NAME:
         print(f"{WORKLOAD_NAME}: the first upload asks you to confirm the name, and that cannot be undone. "
               "Follow docs/MODELER-GO-LIVE.md step by step.")
