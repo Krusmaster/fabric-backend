@@ -102,11 +102,11 @@ def test_each_plan_state_has_exactly_one_primary_step_that_is_new(name, tool, ca
 
 def test_a_creating_step_waits_for_the_users_yes():
     c = coach.coach("create_pipeline", {**B, "name": "sap_silver_pipeline", "dry_run": True}, {"would_create": []})
-    assert c["writes"] and "only after the user says yes" in c["text"]
+    assert c["writes"] and "the user's yes to the names" in c["text"]
     assert "tool" not in c["primary"]                              # a card never runs a creating call by itself
     assert '"dry_run": false' not in json.dumps(c["primary"]) or "tool" not in c["primary"]
     clean = coach.coach("validate_plan", B, CLEAN)
-    assert not clean["writes"] and clean["primary"]["say"].endswith("dry_run=True.")
+    assert not clean["writes"] and clean["primary"]["say"].endswith("dry_run=True).")
 
 
 def test_a_step_for_the_chat_still_names_its_call():
@@ -114,7 +114,7 @@ def test_a_step_for_the_chat_still_names_its_call():
     step = next_rules._decide(dict(B), 2, B)                       # a sentence that starts the start card's step 6
     c = coach.coach("validate_plan", B, BAD_KEY, steps=[step])
     assert c["primary"]["label"] == "Decide the 2 open links" and "tool" not in c["primary"]
-    assert 'Offer one next step: Decide the 2 open links = start(workspace="demo"' in c["text"] and 'step="decide"' in c["text"]
+    assert 'Possible next step for the user: Decide the 2 open links (start(workspace="demo"' in c["text"] and 'step="decide"' in c["text"]
 
 
 def test_the_same_state_gives_the_same_coach():
@@ -126,7 +126,7 @@ def test_the_same_state_gives_the_same_coach():
 def test_the_coach_block_is_short_stable_and_plain(name, tool, call, answer):
     text = coach.coach(tool, call, answer)["text"]
     assert len(text) <= coach.TEXT_MAX and text.startswith("Coach (step ")
-    assert "Offer one next step: " in text and text.count("\n") <= 5
+    assert "Possible next step for the user: " in text and text.count("\n") <= 5
     said = text.split("\n")[1]
     assert not JARGON.search(said)
     path = GOLDEN / f"{name}.txt"
@@ -166,7 +166,7 @@ def test_every_result_carries_the_coach_and_keeps_its_json_last(fabric, tool, ar
     texts = [c.text for c in r.content]
     assert json.loads(texts[-1])                                   # the JSON answer, last and unchanged in shape
     lead = "\n\n".join(texts[:-1])
-    assert lead.count("Coach (step ") == 1 and " = ." not in lead and "Offer one next step: " in lead
+    assert lead.count("Coach (step ") == 1 and " = ." not in lead and "Possible next step for the user: " in lead
     d = r.structured_content
     assert set(d["coach"]) == {"n", "of", "stage", "title", "who", "name", "pose", "line"}
     if tool != "start" and "next" in d:

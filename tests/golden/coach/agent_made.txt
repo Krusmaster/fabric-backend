@@ -1,4 +1,4 @@
 Coach (step 9 of 9: Done)
-Say in one short sentence, in plain words: That is the whole path: checked links, silver and gold, a semantic model and a data agent. Where a card shows this result, do not repeat its lists or counts.
-Offer one next step: Start again on another schema = start(workspace="demo", source="demo_lh").
-No rule codes, key strings or file text unless the user asks; end with the one next step.
+Where the user is, in plain words: That is the whole path: checked links, silver and gold, a semantic model and a data agent.
+Possible next step for the user: Start again on another schema (start(workspace="demo", source="demo_lh")).
+Where a card is drawn, it already shows this result's lists and counts.

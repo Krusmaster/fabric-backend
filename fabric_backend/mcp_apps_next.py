@@ -38,17 +38,15 @@ from . import mcp_apps_words as words
 MAX_STEPS = 4
 # n227: what the client model is asked to do after a card, in the result's lead and in the server's instructions. A
 # request with its reason, never a threat: the model decides; the sentence says what helps the user.
-AFTER_CARD = ("Where the client drew a card, the user has already read these lines and can press the steps, so repeating "
-              "them is not needed; where it drew none, show the numbered list as it is. Please say only what the answer "
-              "says: add no reason, source or name (for example where a key comes from, or what another vendor calls a "
-              "link) that is not in it.")
+# DIR1 (directory review criteria, 20 Nov 2026): facts about the answer and the card, no instructions to the model.
+AFTER_CARD = ("Where the client drew a card, these lines and steps are already on it as buttons; where it drew none, the "
+              "numbered list above is the user's choice of steps. The answer holds no reason, source or name beyond what "
+              "it states (for example where a key comes from, or what another vendor calls a link).")
 # The same request for the server's instructions (server.py and mcp_server.py), where no card is in sight yet.
-AFTER_RESULT = ("After a tool result: a client that draws the result as a card has already shown its lines and its next "
-                "steps as buttons, so there is no need to repeat them in the reply; a client that draws no card gets the "
-                "next steps as a numbered list to show as it is, and the user answers with a number. Say what the answer "
-                "says and no more: please add no reason, source or name that is not in it (for example where a key comes "
-                "from, or what another vendor calls a link); when the user asks for more than the answer holds, say that "
-                "the answer does not tell.")
+AFTER_RESULT = ("Tool results: a client that draws cards shows a result's lines and its possible next steps as buttons; "
+                "a client without cards gets the next steps as a numbered list, which the user can answer with a number. "
+                "An answer holds no reason, source or name beyond what it states (for example where a key comes from, or "
+                "what another vendor calls a link).")
 # Next steps may name only these tools: they read or draft; none creates anything in Fabric.
 STEP_TOOLS = ("validate_plan", "plan_backend", "review_plan", "semantic_model_draft", "list_tables", "join_path",
               "data_dictionary", "ontology_draft", "gold_views_draft")    # WB13 (#91): the gold views' draft reads
@@ -65,8 +63,8 @@ CHECK_MAX = 200                                                      # rows on t
 # WB13 (#92): on Gustav's phone the ontology's Turtle was printed in the chat and ran off the screen. The card keeps a
 # file behind a closed section; the lead asks the client model not to print it.
 FILE_TOOLS = ("ontology_draft", "create_ontology", "dbt_schema")
-FILES_STAY = (" Please do not print file contents from the JSON (the Turtle file, TMDL, SQL or YAML) in the reply: the "
-              "card keeps them behind a closed section such as Show the ontology file, and they run off a phone's screen.")
+FILES_STAY = (" The card keeps the file contents (the Turtle file, TMDL, SQL or YAML) behind a closed section such as "
+              "Show the ontology file; printed in a chat they run off a phone's screen.")
 
 
 def _carried(args: dict, *keys) -> dict:
@@ -77,7 +75,7 @@ def _step(label: str, tool: str, arguments: dict, about: str = "") -> dict:
     """`say` is what a text client reads (it names the tool and its arguments); `ask` is the same step in plain words,
     which the card shows and sends to the chat (n227: no tool name in what the user reads)."""
     shown = ", ".join(f"{k}={v!r}" for k, v in arguments.items() if k in ("source", "schema", "detail", "fixes", "validate", "name"))
-    say = f"{label}{(' ' + about) if about else ''}: run {tool}" + (f" with {shown}" if shown else "") + "."
+    say = f"{label}{(' ' + about) if about else ''} ({tool}" + (f" with {shown}" if shown else "") + ")."
     return {"label": label, "tool": tool, "arguments": dict(arguments), "say": say,
             "ask": f"{label}{(' ' + about) if about else ''}."}
 
@@ -127,7 +125,7 @@ def _from_answer(s: dict, call: dict) -> dict | None:
         if t in DRY_RUN_TOOLS:
             arguments["dry_run"] = True                              # a step never writes
         return {"label": label, "tool": t, "arguments": arguments,
-                "say": str(s.get("ask") or f"{label}: run {t} as a dry run."), "ask": words.plain(str(s.get("ask") or label + "."))}
+                "say": str(s.get("ask") or f"{label} ({t}, as a dry run)."), "ask": words.plain(str(s.get("ask") or label + "."))}
     if isinstance(s.get("ask"), str) and s["ask"].strip():
         return _say_step(label, s["ask"])
     return None
@@ -148,7 +146,7 @@ def error_steps(tool: str, args: dict, answer: dict) -> list[dict]:
         if tool in DRY_RUN_TOOLS:
             again["dry_run"] = True
         out.append({"label": "Try again", "tool": tool, "arguments": again,
-                    "say": f"Try again: run {tool}" + (" as a dry run." if tool in DRY_RUN_TOOLS else "."),
+                    "say": f"Try again ({tool}" + (", as a dry run)." if tool in DRY_RUN_TOOLS else ")."),
                     "ask": "Try that again" + (" as a dry run." if tool in DRY_RUN_TOOLS else ".")})
     if len(out) < ERROR_MAX:
         out.append(_say_step("Explain this and what to do", f"Explain Krusgraph's answer from {tool} and what I can do "
@@ -271,13 +269,11 @@ def numbered(next_steps: list[dict], actions: list | None = None) -> list[tuple[
 
 # WB12 (#69): under the start card Claude wrote the card's content again. The start answer's lead says the card shows
 # it and asks for one short sentence and the step's question; the JSON after it stays complete for clients without cards.
-START_AFTER_CARD = ("For the assistant, not for the user: where the client drew the Start Krusgraph card, the card already "
-                    "shows this step with its mascot, its choices and its buttons, and a button there runs the next step "
-                    "inside the same card. Please do not repeat, list or summarise what the card shows (no workspaces, "
-                    "sources, schemas, links, counts or step lists); reply with one short sentence at most, then the "
-                    "step's question: \u201c{q}\u201d. Name the step only as \u201c{head}\u201d. Where no card was drawn, "
-                    "say the question and show the choices as a short numbered list in plain words, without tool names "
-                    "or arguments.")
+START_AFTER_CARD = ("About the display: where the client drew the Start Krusgraph card, the card already shows this step "
+                    "with its mascot, its choices (workspaces, sources, schemas, links, counts) and its buttons, and a "
+                    "button there runs the next step inside the same card. The step's question for the user: "
+                    "\u201c{q}\u201d. The step's name: \u201c{head}\u201d. Where no card was drawn, the choices are "
+                    "in the JSON below.")
 
 
 def start_lead(answer: dict) -> str:
@@ -310,11 +306,11 @@ def lead(tool: str, answer: dict, next_steps: list[dict], actions: list | None =
         reply = ns[0] if len(ns) == 1 else ", ".join(ns[:-1]) + " or " + ns[-1]
         out.append("Next steps:\n" + "\n".join(f"{i}. {label}" for i, (label, _) in enumerate(todo, 1))
                    + f"\nReply {reply}.")
-        out.append("For the assistant, not for the user: " + "; ".join(f"{i} = {call}" for i, (_, call) in enumerate(todo, 1))
+        out.append("What each number is: " + "; ".join(f"{i} = {call}" for i, (_, call) in enumerate(todo, 1))
                    + ". The other arguments are in the JSON (actions, or the arguments of this call). " + AFTER_CARD
                    + (FILES_STAY if tool in FILE_TOOLS else ""))
     else:
-        out.append("For the assistant, not for the user: " + AFTER_CARD + (FILES_STAY if tool in FILE_TOOLS else ""))
+        out.append("About the display: " + AFTER_CARD + (FILES_STAY if tool in FILE_TOOLS else ""))
     out.append("The full answer follows as JSON.")
     return "\n\n".join(out)
 
@@ -423,7 +419,9 @@ NEXT_JS = r"""
   function plainAsk(text) {
     var t = String(text == null ? "" : text).trim();
     if (!FN_SAID.test(t)) return t;
-    var head = t.split(/:\s*run\b/i)[0].split(/\s+run\s+[a-z]+_[a-z_]+/i)[0].trim();
+    // DIR1: an option is written "Label (tool with name=value)"; the label part is what the chat gets
+    var head = t.split(/:\s*run\b/i)[0].split(/\s+run\s+[a-z]+_[a-z_]+/i)[0]
+      .split(/\s*\((?:[a-z]+_[a-z_]+|start)\b/i)[0].trim();
     head = head.replace(/[a-z_]+\([^)]*\)/gi, "").replace(/\b[a-z_]+=\S+/gi, "").replace(/[\s:,;]+$/, "").trim();
     return (head || "Go on with the next step") + ".";
   }

@@ -142,8 +142,8 @@
   "User": "SELECT TOP (10) [Id], [Username], [FirstName], [LastName], [Name], [Email], [IsActive], [ManagerId] FROM [salesforce].[User]"
  },
  "semantic_model": {
-  "bytes": 181175,
-  "sha256": "448e324e94f6b9a6634d0dcf8de16770c794da1460fa5bc29c7e4066b409c28c"
+  "bytes": 181195,
+  "sha256": "95aaebed6533168a22928693847695a5d372f8d3ed013a1fe7e78e988dcec9ea"
  },
  "silver": {
   "bytes": 52927,

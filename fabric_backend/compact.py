@@ -24,6 +24,8 @@ KEEP_WHOLE = ("columns", "source_cols", "target_cols", "target_columns", "key", 
 
 
 def pick_detail(detail: str | None, n_tables: int) -> str:
+    if detail is not None and not isinstance(detail, str):          # DIR1: a clear error, not an AttributeError
+        raise PlanInputError(f"detail: {detail!r} is not one of {', '.join(DETAILS)}")
     d = (detail or "auto").strip().lower()
     if d not in DETAILS:
         raise PlanInputError(f"detail: {detail!r} is not one of {', '.join(DETAILS)}")

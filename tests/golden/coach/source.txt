@@ -1,4 +1,4 @@
 Coach (step 3 of 9: Choose data)
-Say in one short sentence, in plain words: Hi! Pick your workspace and the lakehouse your tables are in, and I will show how its tables connect. Where a card shows this result, do not repeat its lists or counts.
-Offer one next step: Choose the schema = start(workspace="demo", source="demo_lh").
-No rule codes, key strings or file text unless the user asks; end with the one next step.
+Where the user is, in plain words: Hi! Pick your workspace and the lakehouse your tables are in, and I will show how its tables connect.
+Possible next step for the user: Choose the schema (start(workspace="demo", source="demo_lh")).
+Where a card is drawn, it already shows this result's lists and counts.

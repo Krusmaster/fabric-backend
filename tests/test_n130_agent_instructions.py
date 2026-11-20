@@ -54,7 +54,7 @@ def test_without_counts_no_join_is_called_safe_and_the_examples_use_one_table():
     out = agent_context.build(p, "shop_lh", "shop")
     assert out["context"]["safe_joins"] == [] and out["context"]["safe_paths"] == []
     assert len(out["context"]["not_safe_joins"]) == len(p.relationships)
-    assert "## Safe joins (checked, many-to-one)\n- None. Nothing was counted: run create_data_agent with validate=true." in out["datasource_instructions"]
+    assert "## Safe joins (checked, many-to-one)\n- None. Nothing was counted (create_data_agent with validate=true counts the joins)." in out["datasource_instructions"]
     assert "confirmed by you; not counted" in out["datasource_instructions"]
     assert 3 <= len(out["fewshots"]) <= 5 and all("JOIN" not in f["query"] for f in out["fewshots"])
     assert all(f["query"].startswith("-- One table, no join.\n") for f in out["fewshots"])

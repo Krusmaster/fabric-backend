@@ -105,7 +105,7 @@ def test_the_code_is_for_exactly_these_jobs(lakehouse):  # noqa: F811
     once = create(run_once=True)["jobs"]
     both = create(run_once=True, schedule={"every": "day", "at": "06:00"})["jobs"]
     assert once["confirm"] != both["confirm"] and once["confirm"].startswith("run-")
-    assert "say yes" in once["ask"] and once["confirm"] in once["ask"]
+    assert "After their yes" in once["ask"] and once["confirm"] in once["ask"]
     assert "confirm" not in create().get("jobs", {})                                     # nothing to confirm: no jobs
 
 

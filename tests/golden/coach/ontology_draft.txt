@@ -1,5 +1,5 @@
 Coach (step 4 of 9: Krusgraph reads the tables)
-Say in one short sentence, in plain words: Finding the keys and the links between your tables. I only read; nothing is changed. Where a card shows this result, do not repeat its lists or counts.
-Offer one next step: Check against the rows = validate_plan(workspace="demo", source="demo_lh", schema="sap_silver").
-Only if asked, also: Create the ontology (dry run first); Create the semantic model (dry run first).
-No rule codes, key strings or file text unless the user asks; end with the one next step.
+Where the user is, in plain words: Finding the keys and the links between your tables. I only read; nothing is changed.
+Possible next step for the user: Check against the rows (validate_plan(workspace="demo", source="demo_lh", schema="sap_silver")).
+Other options: Create the ontology (dry run first); Create the semantic model (dry run first).
+Where a card is drawn, it already shows this result's lists and counts.

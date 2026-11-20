@@ -84,7 +84,7 @@ def test_the_text_answer_leads_with_the_result_and_lists_the_same_next_steps(fab
         assert {k: v for k, v in shown.items() if k in plain} == plain                # the JSON answer, unchanged
         first, _, rest = lead.partition("\n\n")
         assert first and "Next steps:" in rest
-        user, _, model = lead.partition("For the assistant, not for the user:")
+        user, _, model = lead.partition("What each number is:")          # DIR1: facts, not instructions
         for s in d["next"]:                               # n227: numbered, in plain words; the call is in the model's paragraph
             # WB13 (#91): a step may be a sentence for the chat (no tool), e.g. Decide the open links on the start card
             assert re.search(rf"\n\d\. {re.escape(s['label'])}\n", user) and (not s.get("tool") or s["tool"] not in user), (tool, s)
@@ -277,7 +277,7 @@ def test_check_shop_reads_as_validate_plan_not_app_readiness():
     assert "keys and links" in v.title and '"check shop"' in v.description and "run a check" in v.description
     assert "validate_plan" in a.description and "Only for an API the user names" in a.description
     ins = server.mcp.instructions
-    assert '"check shop"' in ins and "not app_readiness" in ins and "ask which" in ins
+    assert '"check shop"' in ins and "validate_plan on that schema" in ins and "until the user says which" in ins
 
 
 def test_app_readiness_on_a_word_no_api_has_asks_which_one(fabric):

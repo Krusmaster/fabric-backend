@@ -181,18 +181,18 @@ def action(kind: str, label: str, who: str, tool: str | None = None, arguments: 
         out["say"] = f"Open it in Fabric: {url}"
         out["ask"] = out["say"]
     elif kind == "create":
-        out["say"] = (f"Create it: run {tool} with dry_run=false and the same arguments as the dry run: "
-                      f"{_shown(out['arguments'])}.")
+        out["say"] = (f"Create it ({tool} with dry_run=false and the same arguments as the dry run: "
+                      f"{_shown(out['arguments'])}).")
         out["ask"] = f"Create {name or 'it'} in Fabric, exactly as in the dry run."
     elif kind == "dry_run":
-        out["say"] = f"{label}{' named ' + name if name else ''}: run {tool} as a dry run with {_shown(out['arguments'])}."
+        out["say"] = f"{label}{' named ' + name if name else ''} ({tool} as a dry run with {_shown(out['arguments'])})."
         out["ask"] = f"{label}{' named ' + name if name else ''}, as a dry run first."
     elif kind == "status":
-        out["say"] = f"{label}: run {tool} with {_shown(out['arguments'])}; it only reads."
+        out["say"] = f"{label} ({tool} with {_shown(out['arguments'])}; it only reads)."
         out["ask"] = f"Check whether {name or 'it'} is in Fabric now, without creating anything."
     else:
         where = (arguments or {}).get("schema") or (arguments or {}).get("source")
-        out["say"] = f"{label}: run {tool} with {_shown(out['arguments'])}."
+        out["say"] = f"{label} ({tool} with {_shown(out['arguments'])})."
         out["ask"] = f"{label}{' for ' + str(where) if where else ''}."
     return out
 

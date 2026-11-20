@@ -116,8 +116,9 @@ def test_the_fan_out_sums_are_rounded_at_the_source():
 def test_the_lead_says_the_card_shows_it_and_asks_for_one_sentence(step):
     a = _sample(step)
     text = mcp_apps_next.lead("start", a, [], a.get("actions"))
-    assert "the card already shows this step" in text and "one short sentence at most" in text   # WB15 wording
-    assert "do not repeat, list or summarise" in text and "Where no card was drawn" in text
+    # DIR1: facts about the display, no instruction to the model (directory review criteria)
+    assert "the card already shows this step" in text and "The step's question for the user" in text
+    assert "About the display" in text and "Where no card was drawn" in text and "please" not in text.lower()
     assert text.endswith("The full answer follows as JSON.")
     assert "7 tables" not in text                        # the findings are on the card and in the JSON, not in the lead
 

@@ -76,7 +76,7 @@ def test_no_step_writes_and_the_names_it_suggests_are_free():
         if s.get("tool"):
             assert s["tool"] == "verify_build" or s["args"]["dry_run"] is True, s
     # the refresh is the one step that changes anything, and it is a sentence to confirm in the chat, never a tool call from a card
-    assert "tool" not in by["refresh"] and "ask me to confirm first" in by["refresh"]["ask"] and "refresh=true" in by["refresh"]["ask"]
+    assert "tool" not in by["refresh"] and "after my confirmation" in by["refresh"]["ask"] and "refresh=true" in by["refresh"]["ask"]
     assert "empty App item" in by["app"]["why"] and "one command" in by["app"]["why"] and "inside Fabric only" in by["app"]["why"]
     assert "tool" not in by["app"] and "rayfin_connector" in by["app"]["ask"]
 

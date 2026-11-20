@@ -167,28 +167,29 @@ def next_steps(created: str, args: dict, built: dict[str, list[str]] | None = No
         if key == "verify":
             if items:
                 va = {**common, "items": items}
-                step(key, tool="verify_build", args=va, ask=f"Verify what was built: run verify_build with {_shown(va)}.")
+                step(key, tool="verify_build", args=va, ask=f"Verify what was built (verify_build with {_shown(va)}).")
         elif key == "refresh":
             ra = {**common, "name": model, "refresh": True, "dry_run": False}
-            step(key, ask=f"Refresh the semantic model {model} once: run create_semantic_model with {_shown(ra)}. It updates "
-                          "the model in place with the same definition and then refreshes it once; ask me to confirm first.")
+            step(key, ask=f"Refresh the semantic model {model} once (create_semantic_model with {_shown(ra)}). It updates "
+                          "the model in place with the same definition and then refreshes it once, after my confirmation.")
         elif key == "pipeline":
             if not lakehouse:
                 steps.append({"step": key, "label": LABEL[key], "who": WHO[key], "state": "not available",
                               "why": "The pipeline writes silver tables into a lakehouse; this source is not one, so there is none to build."})
                 continue
             pa = {**common, "name": free(f"pipeline_{base}"), "dry_run": True}
-            step(key, ask=f"Show the pipeline as a dry run: run create_pipeline with {_shown(pa)}. Then offer me the two choices "
-                          "for the Create: Run once (run_once=true) and a Schedule (schedule), both off unless I choose them.",
+            step(key, ask=f"Show the pipeline as a dry run (create_pipeline with {_shown(pa)}), with the two choices for the "
+                          "Create: Run once (run_once=true) and a Schedule (schedule), both off unless I choose them.",
                  choices=["Run once", "Schedule"])
         elif key == "report":
             ra = {"workspace": args.get("workspace"), "model": model, "name": free(f"{model}_report"), "dry_run": True}
-            step(key, tool="create_report", args=ra, ask=f"Show a report on {model} as a dry run: run create_report with {_shown(ra)}.")
+            step(key, tool="create_report", args=ra, ask=f"Show a report on {model} as a dry run (create_report with {_shown(ra)}).")
         elif key == "data_agent":
             aa = {**common, "name": free(f"{base}_agent"), "dry_run": True}
-            step(key, ask=f"Show a data agent as a dry run: run create_data_agent with {_shown(aa)}. Say that it is experimental.")
+            step(key, ask=f"Show a data agent as a dry run (create_data_agent with {_shown(aa)}); the data agent tool is "
+                          "experimental.")
         elif key == "app":
-            step(key, ask="What does the Rayfin App (preview) take? Say it plainly: Krusgraph for Fabric makes an empty App item "
+            step(key, ask="What does the Rayfin App (preview) take? In short: Krusgraph for Fabric makes an empty App item "
                           "and a package with one command, and the App opens inside Fabric only. From this chat, rayfin_connector "
                           f"gives the connector's entities for {_shown({k: v for k, v in common.items() if k in ('workspace', 'source', 'schema')})}.")
         elif key == "drift_monitor":
@@ -196,14 +197,14 @@ def next_steps(created: str, args: dict, built: dict[str, list[str]] | None = No
                 continue
             da = {**common, "name": free(f"drift_monitor_{base}"), "dry_run": True}
             da.pop("keys", None), da.pop("confirmed", None)
-            step(key, ask=f"Show a drift monitor as a dry run: run create_drift_monitor with {_shown(da)}.")
+            step(key, ask=f"Show a drift monitor as a dry run (create_drift_monitor with {_shown(da)}).")
         elif key == "data_product":
             pa = {k: v for k, v in common.items() if k != "keys"}
-            step(key, ask=f"Draft the data product with an owner and a contract: run domain_draft with {_shown(pa)}, then ask me "
-                          "who owns it.")
+            step(key, ask=f"Draft the data product with an owner and a contract (domain_draft with {_shown(pa)}); the "
+                          "owner is mine to name.")
     da = {k: v for k, v in common.items() if k in ("workspace", "source", "schema", "keys", "confirmed")}
     more = [{"step": "dbt", "label": LABEL["dbt"], "who": WHO["dbt"], "why": WHY["dbt"], "draft": True,
-             "ask": f"Give me the dbt project as a draft, labelled as a draft: run dbt_schema with {_shown({**da, 'project': True})}."}]
+             "ask": f"Give me the dbt project as a draft, labelled as a draft (dbt_schema with {_shown({**da, 'project': True})})."}]
     for i, s in enumerate(steps, start=1):
         s["order"] = i
     return {"next_steps": steps, "more": more, "already_built": done,
@@ -218,8 +219,8 @@ def _fix_pipeline(args: dict, why: str, lakehouse: bool = True) -> dict:
     base = _base(str(args.get("source") or ""), common.get("schema"))
     pa = {**common, "name": f"pipeline_{base}", "dry_run": True}
     return {"step": "pipeline", "label": "Build the silver step first", "who": "builder", "why": why,
-            "ask": f"Show the pipeline as a dry run first: run create_pipeline with {_shown(pa)}. Its silver step writes the "
-                   "combined key columns; after it has run, build the semantic model again."}
+            "ask": f"Show the pipeline as a dry run first (create_pipeline with {_shown(pa)}). Its silver step writes the "
+                   "combined key columns; after it has run, the semantic model can be built again."}
 
 
 def model_gate(summary: dict, args: dict, lakehouse: bool = True, silver_there: bool | None = None, name: str | None = None) -> dict | None:
@@ -239,8 +240,8 @@ def model_gate(summary: dict, args: dict, lakehouse: bool = True, silver_there: 
             first = {"step": "keys", "label": "Add combined key columns first", "who": "builder",
                      "why": "A relationship takes one column per side; this source is not a lakehouse, so I cannot write the "
                             "combined key columns for you.",
-                     "ask": "Which relationships are not expressible and why? Run semantic_model_draft for the same source and list "
-                            "summary.not_expressible; then show the combined key column each needs (in a view or a table of the source)."}
+                     "ask": "Which relationships are not expressible and why (semantic_model_draft for the same source, its "
+                            "summary.not_expressible), and which combined key column does each need (in a view or a table of the source)?"}
         return {"gate": "relationships", "said": said + (" They use several columns per side (a composite key)." if composite else ""),
                 "first": first, "create": "Create anyway", "counts": {"active": a, "inactive": i, "not_expressible": n}}
     reads = summary.get("reads") if isinstance(summary.get("reads"), dict) else None
@@ -270,7 +271,7 @@ def ontology_gate(summary: dict, args: dict, lakehouse: bool = True, name: str |
     else:
         first = {"step": "keys", "label": "Give the keys first", "who": "thinker",
                  "why": "Without a key an entity is only a list of properties; tell me the key of each table and I use it.",
-                 "ask": "Which tables have no key in the plan? Run plan_backend for the same source and list them, then ask me for each key "
+                 "ask": "Which tables have no key in the plan (plan_backend for the same source)? I give each key myself "
                         "(the keys argument)."}
     return {"gate": "keyless", "said": said, "first": first, "create": "Create anyway",
             "counts": {"entity_types": total, "with_key": keyed}}

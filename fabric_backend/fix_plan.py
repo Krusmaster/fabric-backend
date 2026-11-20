@@ -357,7 +357,7 @@ def accept(spec: dict, entries: list[dict], accepted, plan=None) -> dict:
             raise PlanInputError(f"fixes: {e['id']!r} is for table {table}, which is not in tables; add {table} to tables "
                                  "or leave the fix out")
         raise PlanInputError(f"fixes: {e['id']!r} has no step in this notebook (its key or reference is not in the plan "
-                             "the notebook is built from); run validate_plan(fixes=true) again")
+                             "the notebook is built from); validate_plan(fixes=true) gives the current ids")
     for c in chosen:
         e, st = c["entry"], c["entry"]["silver"]
         t = by_table.get(st["table"])

@@ -592,7 +592,7 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                       "until the lakehouse has a combined key column (a gold view); Direct Lake allows no calculated column for it.")
     readme += ["", "## Uncertain, written down rather than guessed", "",
                "- Key uniqueness: `isKey` is set from the plan's inferred keys (rules K0–K5). Power BI refuses a one-side column with "
-               "duplicates when the model is framed; run `validate_plan` first.",
+               "duplicates when the model is framed; `validate_plan` counts duplicates before that.",
                f"- `schemaName`: {'written for every partition' if with_schema else 'omitted because a lakehouse without schemas exposes dbo without one'} "
                "(docs: direct-lake-power-bi-desktop.md; the REST property `defaultSchema` tells the two kinds of lakehouse apart). "
                "If this is wrong for your lakehouse, add or remove the `schemaName` lines.",

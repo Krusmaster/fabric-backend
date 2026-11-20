@@ -125,7 +125,7 @@ def _carry(call: dict, answer: dict) -> dict:
 
 def _sentence(label: str, tool: str, args: dict, ask: str = "") -> dict:
     shown = ", ".join(f"{k}={json.dumps(v, ensure_ascii=False)}" for k, v in args.items())
-    return {"label": label, "say": f"{label}: run {tool}" + (f" with {shown}" if shown else "") + ".",
+    return {"label": label, "say": f"{label} ({tool}" + (f" with {shown}" if shown else "") + ").",
             "ask": ask or f"{label}.", "why": "", "coach_tool": tool, "coach_arguments": dict(args)}
 
 
@@ -388,19 +388,22 @@ def _call_of(s: dict) -> str:
 
 
 def text(c: dict, primary: dict, secondary: list) -> str:
-    """The Coach block for the host model: short and stable, the same words for the same state."""
+    """The Coach block: short and stable, the same words for the same state. DIR1 (directory review criteria, 20 Nov
+    2026): it states where the user is and the options, as facts; it gives the model no instructions. The choice of what
+    to do next stays with the user and Claude."""
     lines = [f"Coach (step {c['n']} of {c['of']}: {c['title']})",
-             f"Say in one short sentence, in plain words: {c['line']} Where a card shows this result, do not repeat "
-             "its lists or counts.",
-             f"Offer one next step: {primary['label']} = {_call_of(primary)}."]
+             f"Where the user is, in plain words: {c['line']}",
+             f"Possible next step for the user: {primary['label']} ({_call_of(primary)})."]
     if c.get("writes"):
-        lines.append("It creates items in Fabric: run it only after the user says yes to these names.")
+        lines.append("That step creates items in Fabric; Krusgraph creates nothing without dry_run=false and the "
+                     "user's yes to the names.")
     if secondary:
-        lines.append("Only if asked, also: " + "; ".join(s["label"] for s in secondary) + ".")
-    lines.append("No rule codes, key strings or file text unless the user asks; end with the one next step.")
+        lines.append("Other options: " + "; ".join(s["label"] for s in secondary) + ".")
+    lines.append("Where a card is drawn, it already shows this result's lists and counts.")
     out = "\n".join(lines)
     if len(out) > TEXT_MAX:                                          # a long call: the label alone
-        lines[2] = f"Offer one next step: {primary['label']} ({primary.get('coach_tool') or primary.get('tool') or 'chat'})."
+        lines[2] = (f"Possible next step for the user: {primary['label']} "
+                    f"({primary.get('coach_tool') or primary.get('tool') or 'chat'}).")
         out = "\n".join(lines)[:TEXT_MAX]
     return out
 
