@@ -536,6 +536,66 @@ async function main() {
       }
       return out.join("; ");
     });
+
+    // WB4: Recommended analyses on the 24-month synthetic SAP sample (engine.py's `sap` scenario), at 390 px, by keyboard
+    // only (focus and Enter or Space, no mouse): nothing before the check; after it, A7 ranked first and Ready with its
+    // notebook, A8 Partly ready, the not-ready ones saying what data would make them ready; nothing created by the ranking.
+    await step("25 WB4: Recommended analyses on the SAP sample, keyboard only, at 390 px", async () => {
+      await scenario("sap");
+      const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 });
+      const r = await ctx.newPage();
+      r.on("pageerror", (e) => errors.push(e.message));
+      await r.goto(`${BASE}/index.html?fresh=1`); await settle(r, 1200);
+      const press = async (loc, key = "Enter") => { await loc.scrollIntoViewIfNeeded(); await loc.focus(); await r.keyboard.press(key); };
+      await press(button(r, "Choose a source")); await settle(r);
+      const sap = r.getByRole("radio", { name: /sap_sd/ });
+      expectTrue(await sap.count() === 1, "no sap_sd schema to choose");
+      if (!(await sap.isChecked())) await press(sap, "Space");
+      await press(button(r, "Find keys and relationships"));
+      await button(r, /Check against the rows/).waitFor({ timeout: 30000 });
+      const before = await (await fetch(`${BASE}/e2e/log`)).json();
+      expectTrue(!before.fabric_calls.some((c) => c.includes("/workload/v1/analysis")) && (await r.locator("section.kg-analysis").count()) === 0,
+        "Recommended analyses before the check");
+      await press(button(r, "Check against the rows")); await settle(r, 3000);
+      await press(button(r, /Accept all that passed/)); await settle(r, 600);
+      await press(button(r, "Next: choose what to build")); await settle(r);
+      for (const box of await r.getByRole("checkbox", { checked: true }).all()) await press(box, "Space");
+      await press(r.getByRole("checkbox", { name: "Semantic model" }).first(), "Space");
+      await press(button(r, "Preview", true)); await settle(r, 4000);
+      await press(button(r, /^Create/)); await settle(r, 6000);
+      const section = r.locator("section.kg-analysis").first();
+      await section.waitFor({ timeout: 30000 });
+      await section.locator("[data-analysis]").first().waitFor({ timeout: 30000 });
+      const order = await section.locator(".kg-analysis-card").evaluateAll((els) => els.map((e) => e.getAttribute("data-analysis")));
+      expectTrue(order.slice(0, 4).join(",") === "A7,A8,A3,A4" && order.length === 10, `ranked ${order.join(",")}`);
+      const word = async (id) => (await section.locator(`[data-analysis=${id}] .fui-Badge`).innerText()).trim();
+      expectTrue(await word("A7") === "Ready" && await word("A8") === "Partly ready", `readiness words ${await word("A7")}, ${await word("A8")}`);
+      const a7 = section.locator("[data-analysis=A7]");
+      expectTrue((await a7.innerText()).includes("Recommended because VBRP.NETWR"), "no Recommended because on A7");
+      const dl = a7.getByRole("button", { name: "Download notebook (.ipynb): A7 Demand and revenue forecasting" });
+      await press(dl); await settle(r, 1500);
+      const file = await a7.locator(".kg-file").getAttribute("data-file");
+      expectTrue(file === "a7_forecast_monthly.ipynb", `downloaded ${file}`);
+      await press(section.locator("details.kg-analysis-later > summary")); await settle(r, 400);
+      const a1 = section.locator("[data-analysis=A1]");
+      expectTrue(await a1.isVisible() && (await a1.innerText()).includes("What would make it ready: a cost"), "A1 does not say what would make it ready");
+      expectTrue(await word("A1") === "Not ready yet", `A1 says ${await word("A1")}`);
+      const focused = await r.evaluate(() => document.activeElement && document.activeElement.tagName);
+      expectTrue(focused === "SUMMARY", `focus on ${focused}`);
+      const snap = await section.ariaSnapshot();
+      for (const name of ['heading "Recommended analyses"', 'list "Ready and partly ready analyses, ranked"', 'group "A7 Demand and revenue forecasting: Ready"',
+        'button "Download notebook (.ipynb): A7 Demand and revenue forecasting"', 'group "A8 RFM segmentation (and clustering): Partly ready"']) {
+        expectTrue(snap.includes(name), `screen reader does not get ${name}`);
+      }
+      const overflow = await r.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expectTrue(overflow <= 0, `horizontal overflow ${overflow} px`);
+      const log = await (await fetch(`${BASE}/e2e/log`)).json();
+      await section.screenshot({ path: path.join(OUT, "25-analyses-phone.png") });
+      await ctx.close();
+      return `25-analyses-phone.png; ranked ${order.join(", ")}; A7 Ready, A8 Partly ready, A1 Not ready yet; keyboard: Enter on Download gave ${file}, ` +
+        `Enter on the summary opened the not-ready list; screen reader: ${snap.split("\n").filter((l) => /heading|group/.test(l)).slice(0, 3).map((l) => l.trim()).join(" | ")}; ` +
+        `items the doubles received: ${log.created.join(", ")}; overflow ${overflow} px`;
+    });
   }
 
   await browser.close();

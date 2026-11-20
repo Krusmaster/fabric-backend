@@ -142,3 +142,26 @@ To load it into a lakehouse (nothing in `dbo`, `sap_silver` or `sap_gold` is tou
    The notebook refuses `dbo` and the silver and gold schemas, and it replaces only tables it wrote itself (table
    property `krusgraph.demo`).
 5. Then run `analysis_plan` with `schema="sap_demo36"`, and `analysis_notebook_draft` for A7, A8 or A3.
+
+## 7. In the Fabric item
+
+Round WB4 (20 November 2026) brings the plan into the Krusgraph Model item in Fabric. Under **Next, with other Fabric
+workloads** (after a Create, and on the Data product page) the item shows **Recommended analyses**, once a key or link
+has passed **Check against the rows**:
+
+- The engine route `POST /workload/v1/analysis` runs `analysis_plan` on the item's reviewed plan (keys and links the
+  person rejected are left out) with the row counts. Read-only, counts only, no AI, the same rules and `rule_version`
+  as the tool.
+- The analyses keep the tool's ranking. Each says its readiness in a word (Ready, Partly ready, Not ready yet, Not
+  applicable), one line "Recommended because …", and what is missing. A not-ready analysis says what data would make it
+  ready, and the fold names what to land first.
+- A **ready** A7, A8 or A3 offers its notebook: **Download notebook (.ipynb)** and **Copy the code**, the same notebook
+  `analysis_notebook_draft` writes (section 4). There is no Create in the workspace: no Krusgraph tool creates an
+  analysis notebook, so the person imports it (Workspace, Import, Notebook) and runs it. Krusgraph runs nothing.
+- The other analyses offer the request to copy into Claude (`analysis_notebook_draft` for a partly ready A7, A8 or A3,
+  `analysis_plan` for the rest).
+
+On the 24-month sample `sap_sd` (the e2e engine's `sap` scenario): A7 Ready (with its notebook), A8 Partly ready, A3
+Ready (with its notebook; XYZ not yet), A4 Ready (its notebook is planned), six not ready. On a schema without SAP
+tables the section says there is nothing SAP to rank. Details for developers: `docs/WORKLOAD-DEV.md`, section
+"Recommended analyses". Not yet run in Fabric.

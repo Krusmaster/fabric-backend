@@ -73,7 +73,8 @@ import { DataProductPage, preloadParts } from "./lazyParts";   // n223: the Data
 import { OntoWait } from "./OntoWait";
 import { FlowSteps } from "./FlowSteps";
 import { flowSteps } from "./stepWords";
-import { NextStepsPanel, StarterAnswer, StarterContext, StarterSource } from "./NextStepsView";
+import { AnalysisContext, AnalysisSource, NextStepsPanel, StarterAnswer, StarterContext, StarterSource } from "./NextStepsView";
+import type { AnalysisAnswer } from "./analysisPlan";
 import { Wait, WaitSignal, checkLabel, newWait, reviewLabel, withSignal } from "./waitWords";
 import { accessLine } from "./accessWords";
 import { DrawioContext, DrawioFile, DrawioSource } from "./drawioDownload";
@@ -1406,8 +1407,18 @@ export function ModelItemEditor(props: PageProps) {
     [workloadClient]
   );
 
+  // WB4: Recommended analyses: analysis_plan on this item's reviewed plan (read-only; the engine answers only after the check)
+  const analysisSource = useMemo<AnalysisSource>(
+    () => ({
+      run: () => engine.analysis<AnalysisAnswer>(workloadClient, { ...sourceRequest(defRef.current), review: defRef.current.review }),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [workloadClient]
+  );
+
   return (
     <FileContext.Provider value={fileSource}>
+    <AnalysisContext.Provider value={analysisSource}>
     <OneLakeContext.Provider value={oneLakeSource}>
     <StarterContext.Provider value={starterSource}>
     <DrawioContext.Provider value={drawioSource}>
@@ -1429,6 +1440,7 @@ export function ModelItemEditor(props: PageProps) {
     </DrawioContext.Provider>
     </StarterContext.Provider>
     </OneLakeContext.Provider>
+    </AnalysisContext.Provider>
     </FileContext.Provider>
   );
 }

@@ -716,3 +716,20 @@
 .kg-file-fallback { display: flex; flex-direction: column; gap: 4px; }
 .kg-file-text { width: 100%; box-sizing: border-box; font-family: monospace; font-size: 12px; }
 .kg-next-starter-said { flex: 1 1 100%; }
+
+// WB4: Recommended analyses under the next steps: ranked cards with a readiness word (the badge's colour only repeats it)
+.kg-analysis { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.kg-analysis-list { padding: 0; }
+.kg-analysis-card {
+  display: flex; flex-direction: column; gap: 6px; padding: 12px 16px; border-radius: var(--borderRadiusLarge);
+  background: var(--colorNeutralBackground1); border: 1px solid var(--colorNeutralStroke2); box-shadow: var(--shadow2);
+  min-width: 0; overflow-wrap: anywhere;
+  h4 { margin: 0; }
+}
+.kg-analysis-rank { color: var(--colorNeutralForeground2); font-weight: var(--fontWeightSemibold); }
+.kg-analysis-later > summary { cursor: pointer; padding: 10px 0; min-height: 44px; box-sizing: border-box; }
+.kg-analysis-later > summary::-webkit-details-marker { margin-right: 6px; }
+.kg-analysis-problem { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+@container (max-width: 640px) {
+  .kg-analysis .kg-next-actions .fui-Button { min-height: 44px; flex: 1 1 100%; }
+}

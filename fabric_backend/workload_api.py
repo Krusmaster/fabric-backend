@@ -1113,6 +1113,97 @@ def run_starter(req: dict) -> dict:
             "note": "Created as you; nothing was run."}
 
 
+# ------------------------------------------------------------------ WB4: Recommended analyses -----------------------
+# POST /workload/v1/analysis: analysis_plan (round AP2) on the item's reviewed plan, for the "Recommended analyses" part
+# of Next, with other Fabric workloads. Read-only: the same rules and counts as the MCP tool (counts only, no row value
+# leaves the database), nothing created, nothing run, no AI. It answers only after the check has passed for at least one
+# key or link of the review (the next steps build on what was proven on the rows). For a ready A7, A8 or A3 it adds the
+# notebook analysis_notebook_draft writes, as .ipynb and as code, for the person to download or copy and run themselves.
+
+ANALYSIS_WAITING = "Check against the rows first: the analyses are recommended on keys and links proven on the rows."
+ANALYSIS_NOT_SAP = ("No SAP order-to-cash tables were found in this schema (billing, sales orders, customer or material "
+                    "master), so no analysis is recommended. The analysis pack reads SAP's tables by the SAP pack's names.")
+ANALYSIS_NOTEBOOKS = ("A7", "A8", "A3")
+
+
+def analysis_request(body) -> dict:
+    """The source and the item's review.json (its check must have passed for a key or link)."""
+    if not isinstance(body, dict):
+        raise BadRequest("the body must be a JSON object")
+    req = _source(body)
+    if not isinstance(body.get("review"), dict):
+        raise BadRequest("'review' (the item's review.json) is required: the analyses are ranked on the reviewed plan")
+    return {**req, "review": body["review"]}
+
+
+def analysis_proven(review: dict) -> bool:
+    """True when the check passed for at least one key or link the person did not reject (nextSteps.ts's rule)."""
+    return any(isinstance(it, dict) and it.get("review") != "rejected" and it.get("type") in ("key", "relationship")
+               and (it.get("check") or {}).get("status") == "passed" for it in review.get("items") or [])
+
+
+def _analysis_card(e: dict) -> dict:
+    keep = ("analysis", "name", "readiness", "score", "value", "because", "reasons", "missing", "caveats", "next_step")
+    return {**{k: e[k] for k in keep}, **({"not_applicable": True} if e.get("not_applicable") else {})}
+
+
+def _analysis_notebook(result: dict, analysis: str, info: dict) -> dict | None:
+    """The phase-1 notebook of a ready analysis as the editor offers it; None (and a logged cause) if it cannot be made."""
+    from . import analysis_notebook as _an
+    try:
+        s = _an.spec(result, analysis, info)
+        cells = _an.cells(s)
+    except Exception as exc:  # noqa: BLE001 — the recommendation stands without its notebook
+        log("analysis_notebook_failed", analysis=analysis, error=type(exc).__name__)
+        return None
+    stem = f"{analysis.lower()}_{s['output_table']}"
+    return {"filename": f"{stem}.ipynb", "name": f"krusgraph_{stem}", "ipynb": json.dumps(_an.ipynb(s), indent=1, ensure_ascii=False),
+            "code": "\n\n# ----\n\n".join(text for _kind, text in cells), "cells": len(cells),
+            "output": f"{s['output_schema']}.{s['output_table']}", "experiment": s["experiment"]}
+
+
+def run_analysis(req: dict) -> dict:
+    """analysis_plan's ranking on the plan the review left (rejected keys and links taken out), with the notebooks of the
+    ready phase-1 analyses. Read-only; nothing in Fabric changes."""
+    from . import server as S, review as R, analysis_plan as _ap
+    if not analysis_proven(req["review"]):
+        return {"waiting": ANALYSIS_WAITING, "recommendations": [], "note": NOTHING_CHANGED}
+    prev = R.read(req["review"])
+    carried = R.carried_arguments(prev)
+    k, c = carried["keys"] or None, carried["confirmed"] or None
+    s, execute = S._connected(req["workspace"], req["source"], req["schema"], None, **_csn_kw(req))
+    req = _exact(req, s.schema)
+    item = getattr(execute, "source_item", None) or {}
+    try:
+        counted = S._within_call(execute)
+        p = apply_review(S._hosted_plan(s, k, c, counted), prev)[0]
+        result = _ap.recommend(p, execute, max_items=20)
+    finally:
+        getattr(execute, "close", lambda: None)()
+    if not result["signals"]["pack_tables"]:
+        log("analysis", sap=False)
+        return _with_schema({"applies": False, "words": ANALYSIS_NOT_SAP, "recommendations": [], "note": NOTHING_CHANGED}, req)
+    info = {"workspace_id": req["workspace"], "item_id": item.get("id") or req["source"],
+            "item_name": item.get("displayName") or req["source_name"], "schema": s.schema,
+            "schemas_enabled": item.get("schemas_enabled", True)}
+    cards = []
+    for e in result["recommendations"]:
+        card = _analysis_card(e)
+        if e["analysis"] in ANALYSIS_NOTEBOOKS and e["readiness"] == "ready":
+            nb = _analysis_notebook(result, e["analysis"], info)
+            if nb:
+                card["notebook"] = nb
+        cards.append(card)
+    counts = result["signals"]["counts"]
+    log("analysis", sap=True, ready=sum(e["readiness"] == "ready" for e in cards))
+    return _with_schema({
+        "applies": True, "summary": result["summary"], "rule_version": result["rule_version"], "recommendations": cards,
+        "land_next": result["land_next"], "dataset": result["signals"]["dataset"],
+        "not_counted": sorted({n for v in counts.values() for n in (v.get("not_counted") or [])}) if isinstance(counts, dict) else [],
+        "note": NOTHING_CHANGED + " Rules over the reviewed plan and row counts, no AI: no row value left the database, and "
+                "Krusgraph runs no analysis and trains no model; the notebooks are for you to import and run."}, req)
+
+
 # n179: every schema of the source with its number of tables, empty ones included (shown greyed in the editor). The
 # role schemas SQL Server lists in SCHEMATA (db_owner, db_datareader, ...) and the system schemas are left out.
 SCHEMATA_SQL = """
@@ -2856,6 +2947,7 @@ def routes(cfg, validator=None, obo=None) -> list:
             Route(f"{PREFIX}/verify", endpoint(verify_request, run_verify, "verify"), methods=["POST", "OPTIONS"]),   # n229
             Route(f"{PREFIX}/catalog", endpoint(catalog_request, run_catalog, "catalog"), methods=["POST", "OPTIONS"]),   # CA1
             Route(f"{PREFIX}/starter", endpoint(starter_request, run_starter, "starter"), methods=["POST", "OPTIONS"]),   # WB10
+            Route(f"{PREFIX}/analysis", endpoint(analysis_request, run_analysis, "analysis"), methods=["POST", "OPTIONS"]),   # WB4
             Route(f"{PREFIX}/access", endpoint(access_request, None, "access"), methods=["POST", "OPTIONS"])]
 
 
