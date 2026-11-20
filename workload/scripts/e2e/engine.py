@@ -10,6 +10,7 @@ Scenarios (POST /e2e/scenario {"name": ...}, or --scenario):
     shop        the golden workspace (default)
     forbidden   Fabric answers 403 to every workspace read (the person has no access)
     big         the schema `shop` has the seven shop tables plus 240 more (a big schema)
+    sap         WB4: the lakehouse also has the schema `sap_sd`, the 24-month synthetic SAP sample (fabric_backend/sap_sample.py)
     The empty state uses the schema `dbo`, which the lakehouse has with no tables.
 
     python workload/scripts/e2e/engine.py --port 8765 --static <bundle dir>
@@ -77,6 +78,48 @@ def big_metadata(on: bool) -> None:
     gs._Cursor.execute = execute
 
 
+SAP = "sap_sd"
+
+
+def sap_database():
+    """WB4: the shop rows plus the synthetic SAP sample sap_sd (24 months, SAP-shaped, not SAP data) in its own schema."""
+    import golden_support as gs
+    from datetime import date
+    from fabric_backend import sap_sample
+    db = gs.shop_database()
+    db.execute(f"ATTACH DATABASE ':memory:' AS [{SAP}]")
+    for table, data in sap_sample.rows(SAP).items():
+        cols = sap_sample._cols(SAP, table)
+        db.execute(f"CREATE TABLE [{SAP}].[{table}] ({', '.join(f'[{c}] ' + ('TEXT' if ty == 'STRING' else ty) for c, ty in cols)})")
+        if data:
+            db.executemany(f"INSERT INTO [{SAP}].[{table}] VALUES ({','.join('?' * len(cols))})",
+                           [tuple(v.isoformat() if isinstance(v, date) else v for v in r) for r in data])
+    db.commit()
+    return db
+
+
+def sap_metadata() -> None:
+    """WB4: INFORMATION_SCHEMA as the lakehouse with the SAP sample has it: the schema list gets sap_sd, and its columns
+    come from fabric_backend.sap_sample (the double answers only the shop's otherwise). Wraps the double's own execute,
+    which big_metadata(False) has put back (one original for both scenarios)."""
+    import golden_support as gs
+    from fabric_backend import sap_sample
+    base = getattr(gs._Cursor, "_w13_execute", gs._Cursor.execute)
+    gs._Cursor._w13_execute = base
+    names = ["TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "DATA_TYPE", "ORDINAL_POSITION"]
+
+    def execute(self, sql: str):
+        if "INFORMATION_SCHEMA.COLUMNS" in sql and f"UPPER('{SAP}')" in sql:
+            self.conn.log.append(sql)
+            self._set(names, [tuple(r[n.lower()] for n in names) for r in sap_sample.schema(SAP).to_rows()])
+            return self
+        base(self, sql)
+        if "TABLE_COUNT" in sql:
+            self._rows = sorted(self._rows + [(SAP, len(sap_sample.SCHEMAS[SAP]))])
+        return self
+    gs._Cursor.execute = execute
+
+
 def app(static: str | None):
     import jwt
     import requests
@@ -109,7 +152,9 @@ def app(static: str | None):
         state["scenario"] = name
         state["fake"] = gs.FakeFabric()
         big_metadata(name == "big")
-        sys.modules["pyodbc"] = gs.fake_pyodbc(big_database() if name == "big" else None)
+        if name == "sap":
+            sap_metadata()
+        sys.modules["pyodbc"] = gs.fake_pyodbc(big_database() if name == "big" else sap_database() if name == "sap" else None)
     use("shop")
     server.limiter = None
 
