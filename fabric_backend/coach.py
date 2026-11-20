@@ -283,6 +283,25 @@ def plan(tool: str, call: dict | None, answer, checks: dict | None = None, steps
             "primary": _build_step(0, base, dry_run=True), "secondary": sec}
 
 
+# WB15 (B): one path and one total everywhere. The stages sit on the start path's nine steps (start_flow.STEPS), so a
+# card from any tool, the start card and the text Claude is asked to write all say "Step N of 9", and the number never
+# goes back: choose (1-3), the map (4), the check (5), your decisions (6), the dry runs and builds (8), done (9).
+STAGE_STEP = {"read": 4, "check": 5, "decide": 6, "build": 8, "model": 8, "agent": 8, "done": 9}
+
+
+def step_of(stage: str, tool: str, call: dict | None, answer) -> tuple[int, int]:
+    """(n, 9): the step of the start path this result is on."""
+    from .start_flow import KEYS as PATH
+    of = len(PATH)
+    st = answer.get("step") if tool == "start" and isinstance(answer, dict) else None
+    if isinstance(st, dict) and isinstance(st.get("n"), int):
+        return st["n"], of
+    if stage == "data":
+        base = _carry(call or {}, answer if isinstance(answer, dict) else {})
+        return (1 if not base.get("workspace") else 2 if not base.get("source") else 3), of
+    return STAGE_STEP.get(stage, 4), of
+
+
 def own_action(tool: str, answer) -> dict | None:
     """The answer's own primary button: an action marked primary (n227: Check against the rows on a plan), or a
     creating tool's first action (Create, Check status). None when the answer has none."""
@@ -332,6 +351,7 @@ def coach(tool: str, call: dict | None, answer, checks: dict | None = None, step
              "secondary": [x for x in rest if x.get("label") != lead.get("label")]}
     i = KEYS.index(p["stage"])
     key, title, who, pose = STAGES[i]
+    n, of = step_of(key, tool, call, answer)
     if p.get("error"):
         line, pose = LINE["error"], "explain"
     elif p.get("dry_run"):
@@ -344,7 +364,14 @@ def coach(tool: str, call: dict | None, answer, checks: dict | None = None, step
     build = tool != "review_plan"                                    # review_plan's card names no creating tool
     primary = _clean(p["primary"], primary=True, can_build=build)
     secondary = [_clean(s, can_build=build) for s in p["secondary"] if s.get("label") != primary.get("label")][:SECONDARY]
-    out = {"n": i + 1, "of": M, "stage": key, "title": title, "who": who, "name": NAMES[who], "pose": pose,
+    st = answer.get("step") if tool == "start" and isinstance(answer, dict) and isinstance(answer.get("step"), dict) else None
+    if st and not p.get("error"):                                    # WB15 (B, F): the start card's own step and words
+        from .start_flow import SHORT, WHO
+        title = SHORT.get(str(st.get("key")), title)
+        who = WHO.get(str(st.get("key")), who)
+        if isinstance(answer.get("say"), str) and answer["say"].strip():
+            line = answer["say"].strip()
+    out = {"n": n, "of": of, "stage": key, "title": title, "who": who, "name": NAMES[who], "pose": pose,
            "line": line, "primary": primary, "secondary": secondary,
            "writes": bool(p["primary"].get("writes"))}
     out["text"] = text(out, p["primary"], [s for s in p["secondary"]][:SECONDARY])
@@ -363,7 +390,8 @@ def _call_of(s: dict) -> str:
 def text(c: dict, primary: dict, secondary: list) -> str:
     """The Coach block for the host model: short and stable, the same words for the same state."""
     lines = [f"Coach (step {c['n']} of {c['of']}: {c['title']})",
-             f"Say in one or two short sentences, in plain words: {c['line']}",
+             f"Say in one short sentence, in plain words: {c['line']} Where a card shows this result, do not repeat "
+             "its lists or counts.",
              f"Offer one next step: {primary['label']} = {_call_of(primary)}."]
     if c.get("writes"):
         lines.append("It creates items in Fabric: run it only after the user says yes to these names.")

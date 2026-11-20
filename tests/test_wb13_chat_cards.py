@@ -86,7 +86,8 @@ def test_the_decision_is_kept_and_travels_into_steps_7_to_9(sap):
         c = sf.guide(**SAP, step=step, confirmed=plan_["confirmed"], decisions=plan_["decisions"])
         assert c["decided"] == ["sap_vbap.MANDT+VBELN → sap_vbak: accepted: the next steps use this link."]
     rejected = sf.guide(**SAP, step="totals", decisions=[{"item": VBAP, "review": "rejected"}])
-    assert "the other tools' rules may still propose it" in rejected["decided"][0]          # honest on your own data
+    # WB15 (G): a rejected link is now left out of every dry run and build on the path (flow_state.BUILD_TOOLS)
+    assert rejected["decided"][0].endswith("rejected: the next steps leave it out.")
 
 
 def test_the_start_tool_reads_the_review_on_step_6_and_deciding_writes_nothing(fabric, monkeypatch):
@@ -133,7 +134,8 @@ def test_the_start_card_has_the_map_on_steps_4_and_6_with_approved_and_open_link
     states = {r["id"]: r["review"] for r in a["map"]["relationships"]}
     assert states[VBAP[4:]] == "open"
     m4 = sf.guide(**SAP, step="map", review=sap["review"])
-    assert m4["map_mini"] and m4["found"]["summary"].startswith("17 keys and 24 relationships")
+    assert m4["map_mini"] and m4["found"]["summary"] == "17 tables, 24 links."                  # WB15: short
+    assert m4["found"]["note"].startswith("17 keys and 24 relationships")
     shop = sf.guide(sample=True, step="map")
     assert shop["map"]["tables"] and "map_mini" not in shop                  # 7 tables fit as they are
     assert {r["review"] for r in shop["map"]["relationships"]} == {"accepted", "open"}
@@ -257,7 +259,8 @@ def test_all_decided_leads_to_the_builds_dry_run_first(sap):
     model = st[1]
     assert model["tool"] == "create_semantic_model" and model["arguments"]["dry_run"] is True
     agent = st[3]
-    assert "tool" not in agent and "create_data_agent" in agent["say"] and "dry_run=True" in agent["say"]
+    # WB15 (H): the data agent's dry run runs from the card (tools/call), never as a sentence with arguments in the chat
+    assert agent["tool"] == "create_data_agent" and agent["arguments"]["dry_run"] is True
 
 
 def test_no_dead_end_and_no_loop_after_the_drafts(fabric):
@@ -340,6 +343,8 @@ def test_every_card_reports_its_content_height_also_after_details_open_and_close
     html, r = _cards(sap)[card]
     clicks = [{"css": "details.kg-full > summary"}, {"css": "details.kg-full > summary"}] if card != "review" else \
         [{"css": "details.kg-more > summary"}, {"css": "details.kg-more > summary"}]
+    if card == "start":                                  # WB15: on step 6 the map is under the one Details fold
+        clicks = [{"css": "details#details > summary"}] + clicks
     if card == "ontology":
         clicks += [{"css": "details.res-file > summary"}, {"css": "details.res-file > summary"}]
     out = _browse(tmp_path, html, {"result": _result(r), "args": SAP, "caps": {"serverTools": {}}, "width": 390,
@@ -351,8 +356,9 @@ def test_every_card_reports_its_content_height_also_after_details_open_and_close
     folds = {"validate": "Show every check (56)", "review": "Show every key and link (", "ontology": "Show the map (all 17",
              "start": "Show the map (all 17"}
     assert any(s.startswith(folds[card]) for s in out["details"]), out["details"]
-    opened, closed = out["phases"][1], out["phases"][2]
-    assert opened["content"] > out["phases"][0]["content"] and closed["content"] < opened["content"]   # it grew and shrank
+    base = 1 if card == "start" else 0
+    opened, closed = out["phases"][base + 1], out["phases"][base + 2]
+    assert opened["content"] > out["phases"][base]["content"] and closed["content"] < opened["content"]   # it grew and shrank
     assert not out["overflow"], "the card scrolls sideways at 390 px"
     dark = out["background"] in ("rgb(27, 27, 31)",)
     assert dark == (scheme == "dark"), out["background"]
@@ -383,4 +389,4 @@ def test_step_6_draws_accept_with_quarantine_reject_and_skip(tmp_path, sap):
     out = _browse(tmp_path, html, {"result": _result(r), "args": SAP, "caps": {"serverTools": {}}, "width": 390, "scheme": "light"})
     texts = [b["text"] for b in out["buttons"]]
     assert {"Accept with quarantine", "Reject", "Skip for now"} <= set(texts)
-    assert "Some rows point at nothing" in out["text"] and "values found in sap_vbak" in out["text"]
+    assert "values found in sap_vbak" in out["text"] and "Why" in out["text"]      # WB15: the reasons under Why

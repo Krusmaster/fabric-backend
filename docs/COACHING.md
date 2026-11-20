@@ -127,3 +127,13 @@ cards (the check card and the start card) in Chromium under a fake host at 390 p
 4. On the check: "Step 3" or "Step 4 of 8"; the table of keys and links is folded under Details.
 5. If links are open: Accept, Reject or Skip each one; then the build dry run ("Step 5 of 8: Build silver and gold").
 6. Turn Mascots off: the figure goes, the words stay.
+
+## WB15: one numbering (20 November 2026)
+
+Gustav's second phone test of 19 November showed "Step 1 of 8" next to the start card's "Step 2 of 9". The eight stages
+above are kept as the coach's stages, but every card and every Coach block now numbers them on the start path's nine
+steps (`coach.step_of`): Choose data is step 1, 2 or 3, the map 4, the check 5, the decisions 6, the doubled totals 7,
+the dry runs and builds 8 and done 9; the start card says its own step ("Step 7 of 9: Doubled totals"). The examples
+above with "of 8" are from CO1 and kept as history. The start card now draws the mascot at the top of each step itself
+(`mcp_apps_start.py`), as the demo chat does: one sentence, two or three buttons, Next, and one Details fold.
+

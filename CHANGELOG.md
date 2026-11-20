@@ -9,6 +9,17 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round WB15: **one living start card, after Gustav's second phone test of 19 November 2026** (`docs/CHAT-TEST-2026-11-19.md`,
+  second section). The guided path had regressed since 12 November: a new card after every choice, two numberings ("of
+  9" and "of 8"), small mascots and much text. Now a card button runs the next step inside the same card; one usable
+  workspace, source or schema comes chosen with Next on (A); one numbering, "Step N of 9", in the card, the Coach block
+  and the lead (B, F); a card that hands a step to the chat folds to "Moved on: step N" (C); the lead asks Claude not to
+  repeat the card (D); decisions are ordered by tap in a shared in-memory state (`flow_state.py`) and the buttons are off
+  while a call runs (E); every building tool leaves a rejected link out and says so ("23 relationships; 1 left out by
+  your decision") (G); the cards send plain words only, never a tool call (H); step 9 suggests the names and confirms
+  them (11). Per step: the mascot at the top, one sentence, two or three buttons, Next, and one Details fold. Tests:
+  the required click-through `tests/test_wb15_click_through.py` (390 px, light and dark, synthetic SAP demo); older card
+  tests follow the new numbering and layout; the coach goldens regenerated. Not yet run in claude.ai.
 - Round AP3: **`analysis_plan` counts customers on Fabric** (19-20 November 2026, the first live run of the analysis pack, `docs/LIVE-TEST.md`). The per-customer count named a column `top`, a reserved word in T-SQL, so it failed on the SQL analytics endpoint and A8 said "Only 0 customers"; the column is renamed, and a count that did not run is no longer read as zero (A8, A4 and A3 say which count did not run). `analysis_notebook_draft`'s "not ready" error now hints at `analysis_plan` and `land_next` instead of the keys. Tests: `tests/test_ap3_analysis_live.py`.
 - Round RQ1: **`requirements_draft`, a pasted requirements list matched to the checked SAP data by rules** (19 November
   2026). A list the business wrote (for example one Copilot summarised in a Copilot Workspace; nothing is read from the

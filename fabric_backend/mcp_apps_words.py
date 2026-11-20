@@ -677,4 +677,8 @@ def card(tool: str, answer: dict, stash: dict | None = None, call: dict | None =
 
 def extras(tool: str, answer: dict, stash: dict | None = None, call: dict | None = None) -> dict:
     c = card(tool, answer, stash, call)
+    yours = answer.get("your_decisions") if isinstance(answer, dict) else None
+    if c and isinstance(yours, dict) and isinstance(yours.get("note"), str) \
+            and not any(yours["note"].rstrip(".") in str(x) for x in [c.get("result")] + list(c.get("lines") or [])):   # WB15 (G)
+        c = {**c, "lines": ([plain(yours["note"])] + list(c.get("lines") or []))[:LINES_MAX]}
     return {KEY: c} if c else {}

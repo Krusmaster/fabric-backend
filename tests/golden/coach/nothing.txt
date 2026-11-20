@@ -1,4 +1,4 @@
-Coach (step 1 of 8: Choose data)
-Say in one or two short sentences, in plain words: Hi! Pick your workspace and the lakehouse your tables are in, and I will show how its tables connect.
+Coach (step 1 of 9: Choose data)
+Say in one short sentence, in plain words: Hi! Pick your workspace and the lakehouse your tables are in, and I will show how its tables connect. Where a card shows this result, do not repeat its lists or counts.
 Offer one next step: Choose a workspace = start().
 No rule codes, key strings or file text unless the user asks; end with the one next step.
