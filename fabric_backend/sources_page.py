@@ -382,7 +382,7 @@ html[data-mascots="off"] .src-fig{display:none}
 .src-prods li{margin:0 0 8px}
 .src-tables code,.src-prods code,.src-rels code{display:inline-block;margin:0 2px 2px 0;overflow-wrap:anywhere}
 .src-mod{border:1px solid var(--line);border-radius:var(--radius-s);background:var(--card);padding:10px 14px;margin:0 0 10px}
-.src-mod summary{cursor:pointer;font-weight:700;min-height:44px;display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.src-mod summary{font-weight:700;min-height:44px;display:flex;align-items:center;flex-wrap:wrap;gap:8px}
 .src-mod-t{flex:1 1 220px;min-width:0}
 .src-mod h4{margin:14px 0 6px}
 .src-honest-box{border-left:4px solid var(--sage, var(--line))}

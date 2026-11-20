@@ -179,6 +179,7 @@ OTHERS = "onto|thinker|builder|is|are|was"                                   # a
 def _old_pairings(text: str) -> list[str]:
     text = re.sub(r"--[\w-]+", "", text)                                    # CSS custom properties are not prose
     text = re.sub(r'class="[^"]*"', "", text)
+    text = re.sub(r'href="[^"]*"', "", text)                                 # SRC1: an address is not prose (learn.microsoft.com/.../maker/...)
     bad = []
     for kind in NEW:
         for fam in _wrong(kind):

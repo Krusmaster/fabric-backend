@@ -302,7 +302,7 @@ def test_home_hero_and_trust_row(client):
 
 # ------------------------------------------------------------------ SEO and agent discovery ---------------------
 
-PUBLIC = ["/", "/check", "/start", "/choose", "/sap", "/docs", "/lovable", "/local", "/use-cases", "/use-cases/build", "/privacy", "/trust", "/security", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms", "/cookies", "/accessibility",   # G1
+PUBLIC = ["/", "/check", "/start", "/choose", "/sap", "/sources", "/sources/salesforce", "/sources/dynamics365", "/docs", "/lovable", "/local", "/use-cases", "/use-cases/build", "/privacy", "/trust", "/security", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms", "/cookies", "/accessibility",   # G1
           "/blog", "/blog/fabric-totals-double-after-join",                                                  # n145
           "/blog/sap-sales-tables-in-fabric", "/blog/sap-tables-to-power-bi-report"]                          # D2
 
