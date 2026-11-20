@@ -1,0 +1,31 @@
+<div data-page="sources-salesforce">
+{{SRC_STYLE}}
+<section class="hero wrap choose-hero">
+  <p class="eyebrow"><a href="/sources">Source systems</a></p>
+  <h1>Salesforce: raw tables and data products</h1>
+  <p class="lede">{{SRC_SALESFORCE_COUNT}} standard objects of Salesforce for sales, marketing and service, as a Copy job lands them: one table per object, the field API names as columns. Every key is the 18-character <code>Id</code>.</p>
+  <div class="card soft src-honest-box" data-kgc-avoid><p>{{SRC_HONEST_TOP}}</p></div>
+</section>
+
+<section class="wrap" aria-labelledby="src-routes-h" style="padding-top:0">
+  <h2 id="src-routes-h">How Salesforce data reaches Fabric</h2>
+  {{SRC_SALESFORCE_ROUTES}}
+</section>
+
+<section class="wrap" aria-labelledby="src-products-h">
+  <h2 id="src-products-h">Data products on the {{SRC_SALESFORCE_DEMO}}-table demo</h2>
+  <p class="intro">Proposed by the engine from the planned relationships of the synthetic Salesforce demo; the names come from the pack's areas.</p>
+  {{SRC_SALESFORCE_PRODUCTS}}
+</section>
+
+<section class="wrap" aria-labelledby="src-tables-h">
+  <h2 id="src-tables-h">The tables, by module</h2>
+  {{SRC_SALESFORCE_TABLES}}
+</section>
+
+<section class="wrap" aria-labelledby="src-honest-h">
+  <h2 id="src-honest-h">What is verified, and what is not</h2>
+  {{SRC_SALESFORCE_HONEST}}
+  <p class="src-ctas"><a class="btn primary" href="/start">Use it in Claude</a><a class="btn secondary" href="/sources">All three sources</a></p>
+</section>
+</div>

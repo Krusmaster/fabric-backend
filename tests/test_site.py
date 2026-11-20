@@ -302,7 +302,7 @@ def test_home_hero_and_trust_row(client):
 
 # ------------------------------------------------------------------ SEO and agent discovery ---------------------
 
-PUBLIC = ["/", "/check", "/start", "/choose", "/sap", "/docs", "/lovable", "/local", "/use-cases", "/use-cases/build", "/privacy", "/trust", "/security", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms", "/cookies", "/accessibility",   # G1
+PUBLIC = ["/", "/check", "/start", "/choose", "/sap", "/sources", "/sources/salesforce", "/sources/dynamics365", "/docs", "/lovable", "/local", "/use-cases", "/use-cases/build", "/privacy", "/trust", "/security", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms", "/cookies", "/accessibility",   # G1
           "/blog", "/blog/fabric-totals-double-after-join",                                                  # n145
           "/blog/sap-sales-tables-in-fabric", "/blog/sap-tables-to-power-bi-report"]                          # D2
 
@@ -1084,7 +1084,8 @@ def test_the_home_page_shows_the_total_that_doubles_first_and_the_map_later(clie
     example = text[text.index('id="example"'):text.index("</section>", text.index('id="example"'))]
     assert f"{amount * 2:,.0f}".replace(",", " ") in example and f"{amount:,.0f}".replace(",", " ") in example
     docs = docs_all(client)                                   # n183: the status sentence moved to the docs' test status
-    assert "403" not in text and "cause unknown" not in text and "not yet reviewed" not in text
+    words = re.sub(r"\?v=[0-9a-f]+", "", text)              # SRC2: the asset hash (06dc67403b) is not a status
+    assert "403" not in words and "cause unknown" not in text and "not yet reviewed" not in text
 
 
 def test_the_same_promise_on_the_site_docs_llms_and_readme(client):
