@@ -263,11 +263,13 @@ def _code(pack: str, name: str) -> str:
     return f'<code data-pack="{e(pack)}" data-pack-table="{e(name)}" title="{e(title)}">{e(display_name(pack, name))}</code>'
 
 
-def _wrap(head: tuple[str, ...], rows: list[list[str]], label: str) -> str:
-    """A table that stacks into labelled blocks on a phone (each cell carries its column's name in data-label)."""
+def _wrap(head: tuple[str, ...], rows: list[list[str]], label: str, avoid: bool = True) -> str:
+    """A table that stacks into labelled blocks on a phone (each cell carries its column's name in data-label). SRC2:
+    data-kgc-avoid makes the "Try a demo" button step aside while it would cover the table (site.js); a table inside a
+    module's <details> leaves that to the <details>, since Chrome reports boxes for the content of a closed one."""
     body = "".join("<tr>" + "".join((f'<th scope="row" data-label="{e(head[i])}">{c}</th>' if i == 0 else
                                      f'<td data-label="{e(head[i])}">{c}</td>') for i, c in enumerate(r)) + "</tr>" for r in rows)
-    return (f'<div class="table-wrap src-stack" role="region" aria-label="{e(label)}"><table><thead><tr>'
+    return (f'<div class="table-wrap src-stack"{" data-kgc-avoid" if avoid else ""} role="region" aria-label="{e(label)}"><table><thead><tr>'
             + "".join(f'<th scope="col">{h}</th>' for h in head) + f"</tr></thead><tbody>{body}</tbody></table></div>")
 
 
@@ -300,9 +302,9 @@ def tables_html(key: str) -> str:
                        for r in mod["relationships"])
         traps = "".join(f'<li>{e(t["title"])}</li>' for t in mod["traps"])
         out.append(
-            f'<details class="src-mod"{" open" if i == 0 else ""}><summary><span class="src-mod-t">{e(mod["title"])}</span> '
+            f'<details class="src-mod" data-kgc-avoid{" open" if i == 0 else ""}><summary><span class="src-mod-t">{e(mod["title"])}</span> '
             f'<span class="pill">{len(mod["tables"])} tables</span></summary>'
-            + _wrap(("Table", "In plain words", "Level", "Key"), rows, "Tables of " + mod["module"])
+            + _wrap(("Table", "In plain words", "Level", "Key"), rows, "Tables of " + mod["module"], avoid=False)
             + (f'<h4>Main links ({len(mod["relationships"])} applied)</h4><ul class="src-rels">{rels}</ul>' if rels else "")
             + (f'<h4>Traps</h4><ul class="src-traps">{traps}</ul>' if traps else "")
             + "</details>")
@@ -340,7 +342,7 @@ def overview_html() -> tuple[str, str]:
         say = (f'The {s["name"]} pack knows {s["tables"]} tables in {s["modules"]} '
                f'{"module" if s["modules"] == 1 else "modules"}; on the {s["demo_tables"]}-table demo the engine proposes '
                f'{len(s["products"])} data products.')
-        cards += (f'<li class="card src-card" id="card-{s["key"]}"><div class="src-say"><span class="src-fig" aria-hidden="true">'
+        cards += (f'<li class="card src-card" id="card-{s["key"]}" data-kgc-avoid><div class="src-say"><span class="src-fig" aria-hidden="true">'
                   f'<span data-mascot="onto" data-pose="point" data-label=""></span></span>'
                   f'<p><span class="visually-hidden">Onto says: </span>{e(say)}</p></div>'
                   f'<h3>{e(s["name"])}</h3><p class="muted">{e(manifest(pack)["title"])}</p>'

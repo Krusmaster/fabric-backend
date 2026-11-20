@@ -1084,7 +1084,8 @@ def test_the_home_page_shows_the_total_that_doubles_first_and_the_map_later(clie
     example = text[text.index('id="example"'):text.index("</section>", text.index('id="example"'))]
     assert f"{amount * 2:,.0f}".replace(",", " ") in example and f"{amount:,.0f}".replace(",", " ") in example
     docs = docs_all(client)                                   # n183: the status sentence moved to the docs' test status
-    assert "403" not in text and "cause unknown" not in text and "not yet reviewed" not in text
+    words = re.sub(r"\?v=[0-9a-f]+", "", text)              # SRC2: the asset hash (06dc67403b) is not a status
+    assert "403" not in words and "cause unknown" not in text and "not yet reviewed" not in text
 
 
 def test_the_same_promise_on_the_site_docs_llms_and_readme(client):

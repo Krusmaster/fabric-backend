@@ -159,8 +159,7 @@ def _playwright() -> bool:
     return bool(shutil.which("node")) and subprocess.run(["node", "-e", "require('playwright')"], capture_output=True).returncode == 0
 
 
-@pytest.mark.skipif(not _playwright(), reason="node + playwright not available")
-def test_no_sideways_scroll_at_390_px_light_and_dark():
+def _run_browser(script):
     sock = socket.socket(); sock.bind(("127.0.0.1", 0)); port = sock.getsockname()[1]; sock.close()
     env = os.environ | {"PRODUCT_NAME": "Krusgraph", "MCP_PUBLIC_URL": "https://krusgraph.test/mcp", "CONTACT_EMAIL": "hello@krusgraph.test",
                         "ENTRA_CLIENT_ID": "00000000-0000-0000-0000-000000000000", "ENTRA_CLIENT_SECRET": "test-only", "KRUSGRAPH_PREVIEW": "1"}
@@ -174,12 +173,40 @@ def test_no_sideways_scroll_at_390_px_light_and_dark():
             except Exception:
                 time.sleep(0.25)
         from tests.test_browser import CHROMIUM
-        out = subprocess.run(["node", str(ROOT / "tests" / "browser_src1_sources.js"), base] + ([CHROMIUM] if CHROMIUM else []),
+        out = subprocess.run(["node", str(ROOT / "tests" / script), base] + ([CHROMIUM] if CHROMIUM else []),
                              capture_output=True, text=True, timeout=300)
         assert out.returncode == 0, out.stderr[-2000:]
-        res = json.loads(out.stdout.strip().splitlines()[-1])
+        return json.loads(out.stdout.strip().splitlines()[-1])
     finally:
         proc.terminate(); proc.wait(timeout=10)
+
+
+@pytest.mark.skipif(not _playwright(), reason="node + playwright not available")
+def test_no_sideways_scroll_at_390_px_light_and_dark():
+    res = _run_browser("browser_src1_sources.js")
     assert res["errors"] == []
     for key, r in res["pages"].items():
         assert r["scrollWidth"] <= r["width"] and r["wide"] == [], (key, r)
+
+
+def test_the_cards_and_tables_ask_the_demo_button_to_step_aside(pages):
+    """SRC2: every card, table and module block (a table inside a module's <details> through the <details>) carries data-kgc-avoid, so site.js hides the "Try a demo" button while
+    it would cover one (as on /check)."""
+    for p, r in pages.items():
+        mods = re.findall(r'<details class="src-mod"[^>]*>', r.text)
+        assert mods and all("data-kgc-avoid" in m for m in mods), p
+        outside = re.sub(r'<details class="src-mod".*?</details>', "", r.text, flags=re.S)
+        found = re.findall(r'<(?:li|div) class="(?:card[^"]*|table-wrap[^"]*)"[^>]*>', outside)
+        assert found and all("data-kgc-avoid" in m for m in found), (p, [m for m in found if "data-kgc-avoid" not in m])
+
+
+@pytest.mark.skipif(not _playwright(), reason="node + playwright not available")
+def test_the_demo_button_covers_no_card_or_table_at_390_768_1280_1440():
+    """SRC2: at 1280 px the button covered the top right corner of the Dynamics 365 card on /sources. Scrolled from top
+    to bottom at four widths, wherever the button is visible its box intersects no card and no table."""
+    res = _run_browser("browser_src1_pill.js")
+    assert res["errors"] == []
+    assert len(res["runs"]) == 12
+    for key, r in res["runs"].items():
+        assert r["pill"] and r["steps"] > 1, (key, r)
+        assert r["hits"] == [], (key, r["hits"])
