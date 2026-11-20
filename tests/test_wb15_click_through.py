@@ -296,4 +296,4 @@ def test_the_cards_send_plain_words_only():
     js = nxt.js()
     assert "function plainAsk" in js and "plainAsk(text).slice(0, 8000)" in js
     assert "sayInChat(s.say" not in js
-    assert "create_pipeline" in nxt.DRY_RUN_TOOLS and "create_data_agent" in nxt.DRY_RUN_TOOLS
+    assert "sayInChat(plainAsk(askOf(s))" in js

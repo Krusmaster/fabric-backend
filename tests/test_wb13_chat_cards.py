@@ -259,8 +259,8 @@ def test_all_decided_leads_to_the_builds_dry_run_first(sap):
     model = st[1]
     assert model["tool"] == "create_semantic_model" and model["arguments"]["dry_run"] is True
     agent = st[3]
-    # WB15 (H): the data agent's dry run runs from the card (tools/call), never as a sentence with arguments in the chat
-    assert agent["tool"] == "create_data_agent" and agent["arguments"]["dry_run"] is True
+    assert "tool" not in agent and "create_data_agent" in agent["say"] and "dry_run=True" in agent["say"]
+    assert agent["ask"] == "Create the data agent (dry run first)."     # WB15 (H): what a card sends: plain words
 
 
 def test_no_dead_end_and_no_loop_after_the_drafts(fabric):

@@ -105,8 +105,7 @@ def _failed(answer: dict) -> int:
 # writes nothing; Create stays behind its own card), a link (ui/open-link), or a sentence sent to the chat.
 # The build card's creating tools (mcp_apps_build.BUILD_TOOLS); create_pipeline has no card, its answer's next_steps are read
 # by the model from the JSON.
-DRY_RUN_TOOLS = ("create_semantic_model", "create_ontology", "create_backend", "create_report",
-                 "create_pipeline", "create_data_agent")   # WB15 (H): every dry run on the path runs from the card
+DRY_RUN_TOOLS = ("create_semantic_model", "create_ontology", "create_backend", "create_report")
 ERROR_MAX = 3
 
 
@@ -418,13 +417,13 @@ html[data-mascots="off"] .nx-coach .kg-say { grid-template-columns: minmax(0, 1f
 """
 
 NEXT_JS = r"""
-  // WB15 (H): what a card puts in the chat is plain words. A tool's name with its arguments ("run create_data_agent
-  // with source=...", "start(step=...)") made claude.ai warn about malicious content; only the label part is sent.
-  var FN_SAID = /\b[a-z_]+=(?:"|'|\[|\{|true\b|false\b|\d)|\brun [a-z]+_?[a-z_]*\b(?: with| as)|\b[a-z]+_[a-z_]+\(/i;
+  // WB15 (H): what a card puts in the chat is plain words. A tool's name with its arguments (a "run <tool> with
+  // name=value" sentence) made claude.ai warn about malicious content; only the label part is sent.
+  var FN_SAID = /\b[a-z_]+=(?:"|'|\[|\{|true\b|false\b|\d)|\brun [a-z]+_[a-z_]+\b|\b[a-z]+_[a-z_]+\(/i;
   function plainAsk(text) {
     var t = String(text == null ? "" : text).trim();
     if (!FN_SAID.test(t)) return t;
-    var head = t.split(/:\s*run\b/i)[0].split(/\s+run\s+[a-z_]+/i)[0].trim();
+    var head = t.split(/:\s*run\b/i)[0].split(/\s+run\s+[a-z]+_[a-z_]+/i)[0].trim();
     head = head.replace(/[a-z_]+\([^)]*\)/gi, "").replace(/\b[a-z_]+=\S+/gi, "").replace(/[\s:,;]+$/, "").trim();
     return (head || "Go on with the next step") + ".";
   }

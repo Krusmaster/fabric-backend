@@ -327,7 +327,7 @@ def test_the_plan_card_at_claudes_width(fabric, tmp_path, width, theme):
     c = d[words.KEY]
     assert out["title"] == "Plan"
     # CO1: the coach says the step in one mascot line; the three figures stay off and the summary is shown once
-    assert out["bubbles"] == {} and "Step 2 of 8: Krusgraph reads the tables" in out["text"]
+    assert out["bubbles"] == {} and "Step 4 of 9: Krusgraph reads the tables" in out["text"]
     assert out["verdictShown"] and out["text"].count("7 tables, 6 with a key.") == 1
     assert out["afterToggle"]["bubbles"] == {} and out["afterToggle"]["verdictShown"]
     # 3: no argument syntax in what the card shows outside "Show details"
@@ -402,7 +402,7 @@ def test_the_plan_check_card(fabric, tmp_path, theme):
     assert "Draft a semantic model" in out["more"]["text"] or "Draft a query" in out["more"]["text"]   # n227: plain labels
     # CO1: the coach's one line replaces the three figures; the summary and the counts are shown on the card
     assert out["bubbles"] == {} and out["verdictShown"] and out["countsShown"]
-    assert "Step 4 of 8: You decide the open links" in out["text"]
+    assert "Step 6 of 9: You decide the open links" in out["text"]
     assert out["afterToggle"]["verdictShown"] and out["afterToggle"]["countsShown"]
     for said in out["bubbles"].values():
         assert not words.WORDS_WITH_ARGUMENTS.search(said)
