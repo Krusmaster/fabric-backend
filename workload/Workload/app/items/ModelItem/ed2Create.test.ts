@@ -29,7 +29,9 @@ describe("build order", () => {
     expect(of("gold_views")).toEqual(["silver_notebook"]);
     expect(of("pipeline")).toEqual(["gold_views", "silver_notebook"]);
     expect(of("semantic_model")).toEqual(["gold_views", "pipeline", "silver_notebook"]);
-    expect(of("report")).toEqual(["gold_views", "pipeline", "semantic_model", "silver_notebook"]);
+    expect(of("report")).toEqual(["semantic_model"]);
+    expect(of("data_agent")).toEqual(["gold_views", "pipeline", "silver_notebook"]);
+    expect(dependsOn({ kind: "graphql" }, SIX)).toEqual([]);
     expect(dependsOn({ kind: "report", model: "existing" }, SIX)).not.toContain("semantic_model");
   });
 

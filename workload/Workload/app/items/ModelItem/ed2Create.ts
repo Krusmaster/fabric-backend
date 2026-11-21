@@ -2,9 +2,9 @@
  * ED2 (Gustav's editor test of 21 November 2026, part 2: the Dry run step and two Creates). A Create either finishes or
  * explains once. Pure functions, no React and no Fabric client (ed2Create.test.ts), deterministic, no AI:
  *
- * - build order: lakehouse -> silver -> gold -> pipeline -> model -> report, agent, API, ontology -> App. An output is
- *   sent only when every output of an earlier stage in this Create is built; when one fails, what comes after it is not
- *   sent and is listed once as "waiting for silver" (dependsOn, waitingCard);
+ * - build order: lakehouse -> silver -> gold -> pipeline -> model -> report and agent (BUILT_ON). An output is sent
+ *   only when what it is built on in this Create is built; when one fails, what is built on it is not sent and is
+ *   listed once as "waiting for silver" (dependsOn, waitingCard);
  * - the dry run's blocker: Create stays off while a blocker the dry run already knew about remains, with one line why
  *   and one button that fixes it (createBlocker);
  * - after a partial result: one "Fix and finish" at the top builds only what is missing, reusing what exists
@@ -19,13 +19,29 @@ import type { ReviewFile } from "./ModelItemDefinition";
 
 // ------------------------------------------------------------------ build order ------------------------------------
 
-/** The stages of a Create, in order. Every output waits for the outputs of all earlier stages that this Create has. */
+/** What each output is built on, as ED1's "Built on" lines say it: the lakehouse flow first (silver, then gold, then
+ * the pipeline over both), the semantic model on the tables the flow fills, its report on it, the data agent on the
+ * filled tables, the ontology on silver, the App on its API. The API for GraphQL reads the source's tables: it waits for
+ * nothing. Only outputs of this Create count. */
+export const BUILT_ON: Record<OutputKind, OutputKind[]> = {
+  silver_notebook: [],
+  gold_views: ["silver_notebook"],
+  pipeline: ["silver_notebook", "gold_views"],
+  semantic_model: ["silver_notebook", "gold_views", "pipeline"],
+  report: ["semantic_model"],
+  data_agent: ["silver_notebook", "gold_views", "pipeline"],
+  ontology: ["silver_notebook"],
+  graphql: [],
+  rayfin_app: ["graphql"],
+};
+
+/** The build order of the stages (for Fix and finish and the cards' order). */
 export const STAGES: OutputKind[][] = [
   ["silver_notebook"],
   ["gold_views"],
   ["pipeline"],
-  ["semantic_model"],
-  ["report", "data_agent", "graphql", "ontology"],
+  ["semantic_model", "graphql"],
+  ["report", "data_agent", "ontology"],
   ["rayfin_app"],
 ];
 
@@ -45,14 +61,11 @@ export function stageOf(kind: OutputKind): number {
   return STAGES.findIndex((s) => s.includes(kind));
 }
 
-/** The outputs of this Create that `o` waits for: those of every earlier stage. A report on an existing model of its
- * own (o.model) does not wait for this Create's semantic model. */
+/** The outputs of this Create that `o` waits for (BUILT_ON). A report on an existing model of its own (o.model) does
+ * not wait for this Create's semantic model. */
 export function dependsOn(o: Pick<OutputRequest, "kind" | "model">, all: Pick<OutputRequest, "kind">[]): OutputKind[] {
-  const at = stageOf(o.kind);
-  return all
-    .map((x) => x.kind)
-    .filter((k) => stageOf(k) < at)
-    .filter((k) => !(o.kind === "report" && o.model && k === "semantic_model"));
+  const have = new Set(all.map((x) => x.kind));
+  return BUILT_ON[o.kind].filter((k) => have.has(k)).filter((k) => !(o.kind === "report" && o.model && k === "semantic_model"));
 }
 
 /** A card whose output is not in Fabric after its step: refused, an error, no answer, stopped, or waiting for another. */

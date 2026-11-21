@@ -55,7 +55,7 @@ import {
 } from "./buildWords";
 import {
   CreateRunRecord, Known, heldCard, knownOf, markEarlier, namesWithOneSuffix, newCreateId, readRun, settlePending, startRun, stoppedCard,
-  inOrder, toRetry, waitsForRun, withOperation, withPending, withProgress,
+  inOrder, waitsForRun, withOperation, withPending, withProgress,
 } from "./createRun";
 import { PREPARING, Ticked, chosenProducts, ticked } from "./productSuggestions";
 import { SuggestedProductsPanel } from "./SuggestedProductsView";
@@ -63,6 +63,7 @@ import { Busy, EmptyView, ErrorBar, OutputsView, PreviewView, ResultView, Review
 import { MapData } from "./cardMap";
 import { Choice, acceptAll, totalsOf } from "./modelWords";
 import { notCheckedLine } from "./ed1Words";
+import { Blocker, freshestReview, staleLine, toFinish } from "./ed2Create";
 import { readAppRecord, rememberApp, withAppChoices } from "./appWords";
 import {
   MAX_WAIT_MS, POLL_MS, agentAfterRun, jobsBlocked, pipelineItem, recordRun, recordSchedule, runFinished, scheduleIds, stillRunning,
@@ -148,7 +149,14 @@ export function ModelItemEditor(props: PageProps) {
   /** n179: the lakehouse's schemas, listed after Choose lakehouse; the schema is picked, never typed */
   const [schemaList, setSchemaList] = useState<{ loading: boolean; list?: engine.SchemasAnswer; error?: engine.EngineError; wait?: Wait }>({ loading: false });
   const [choices, setChoices] = useState<OutputChoice[]>([]);
+  const choicesRef = useRef(choices);
+  choicesRef.current = choices;
   const [product, setProduct] = useState<{ on: boolean; name: string }>({ on: false, name: "" });
+  const productRef = useRef(product);
+  productRef.current = product;
+  /** ED2: the review the item was opened with (review.json), to say once when the dry run used a newer one */
+  const savedReview = useRef<ModelDefinition["review"]>();
+  const [staleNote, setStaleNote] = useState<string>();
   const [map, setMap] = useState<MapData>();
   const [mascotsOn, setMascotsOn] = useState(true);
   const [preview, setPreview] = useState<engine.ManyAnswer>();
@@ -184,7 +192,7 @@ export function ModelItemEditor(props: PageProps) {
     schema: d.source.schema,
     // n201: a read-only source's build writes to the chosen lakehouse, or the workspace's first (null). n221: the build's
     // workspace (this item's by default, buildPlace.ts) and the lakehouse there; review and check ignore it
-    target: targetRequest(d.source, metaRef.current?.workspaceId),
+    target: targetRequest(d.source, metaRef.current?.workspaceId, productRef.current.name.trim() || metaRef.current?.displayName),
   });
 
   /** n201: the source's real item type (the picker may name it otherwise) and what the review says about it. */
@@ -260,7 +268,8 @@ export function ModelItemEditor(props: PageProps) {
       const a = await engine.review(workloadClient, sourceRequest(d), d.review, {});
       setMap(a.map);
       setSuggested(a.suggested_products);                     // n222
-      setDef((x) => ({ ...withKind(exactSchema(x, a.schema_used), a), review: a.review, item: withCache(x.item, { map: a.map }) }));
+      // ED2: a re-read of the saved review never replaces a check the person ran meanwhile (the fresher one stays)
+      setDef((x) => ({ ...withKind(exactSchema(x, a.schema_used), a), review: freshestReview(x.review, a.review).review, item: withCache(x.item, { map: a.map }) }));
     } catch (e) {
       if (isBusy(e)) setNotice(BUSY_LINE);
     }
@@ -285,6 +294,7 @@ export function ModelItemEditor(props: PageProps) {
         for (const fn of again) {
           try { review = fn(review); } catch { /* an item the new review no longer has */ }
         }
+        review = freshestReview(x.review, review).review!;   // ED2: never older than a check run during the wait
         return { ...withKind(exactSchema(x, a.schema_used), a), review, item: withCache(x.item, { map: a.map }) };
       });
       if (!again.length) setDirty(false);
@@ -329,6 +339,7 @@ export function ModelItemEditor(props: PageProps) {
         // n221: the item's workspace is where the outputs go by default, so every request from now on needs it
         metaRef.current = { id: got.item.id, workspaceId: got.item.workspaceId, displayName: got.item.displayName };
         setDef(loaded);
+        savedReview.current = loaded.review;                    // ED2: what the item kept, to compare the dry run's with
         setSchema(loaded.source?.schema ?? "dbo");
         setChoices(choicesFor(loaded.outputs.outputs, loaded.source?.displayName ?? got.item.displayName,
           loaded.source ? { displayName: got.item.displayName, created: loaded.outputs.created } : undefined));
@@ -541,17 +552,49 @@ export function ModelItemEditor(props: PageProps) {
     await save(d);
   }
 
+  /** ED2: the data product sent with the dry run and Create: its name and its owner (the one chosen on the Data product
+   * page, else none: the engine then names the signed-in person, the same line everywhere). */
+  function productRequest(d: ModelDefinition): { name: string; owner?: string } | null {
+    const owner = d.outputs.product?.owner || undefined;
+    if (product.on) return { name: product.name.trim(), ...(owner ? { owner } : {}) };
+    return d.outputs.product ? { name: d.outputs.product.name, ...(owner ? { owner } : {}) } : null;
+  }
+
+  /** ED2: the one button under a dry run Create cannot start from: free names for a taken name, else leave those
+   * outputs out; then the dry run again, so Create starts only from a dry run without the blocker. */
+  async function fixBlocker(b: Blocker) {
+    const taken = (preview?.outputs ?? []).map((c) => c.name);
+    const next = choices.map((c) => {
+      if (!b.outputs.includes(c.type as engine.OutputKind)) return c;
+      if (b.fix === "leave_out") return { ...c, enabled: false };
+      return namesWithOneSuffix([c], taken)[0];
+    });
+    setChoices(next);
+    choicesRef.current = next;
+    await previewBuild(next);
+  }
+
+  /** ED2: Clean up earlier builds: the Data product page's delete dry run of exactly those items; nothing is deleted
+   * until the person confirms there. */
+  async function cleanUpEarlier(ids: string[]) {
+    go("product");
+    await retireFromPage("delete", ids, {});
+  }
+
   /** n174: every chosen output, one dry run each (the engine calls each MCP tool with dry_run=true). */
-  async function previewBuild() {
-    const d = { ...def, outputs: { ...def.outputs, outputs: choices } };
+  async function previewBuild(chosen: OutputChoice[] = choicesRef.current) {
+    const choices = chosen;
+    const d = { ...defRef.current, outputs: { ...defRef.current.outputs, outputs: choices } };
     setDef(d);
     // n222: the engine prepares the outputs side by side and says how many are prepared; the wait (n223) shows its words
     const a = await runEngine(PREPARING, (o) =>
-      engine.buildMany(workloadClient, sourceRequest(d), toRequests(choices, def.outputs.created), d.review, true, product.on ? { name: product.name.trim() } : null, d.outputs.created, d.outputs.pending ?? [],
+      engine.buildMany(workloadClient, sourceRequest(d), toRequests(choices, def.outputs.created), d.review, true, productRequest(d), d.outputs.created, d.outputs.pending ?? [],
         { ...o, products: chosenProducts(d) })
     );
     if (!a) return;
     setPreview(a);
+    setStaleNote(staleLine(savedReview.current, d.review));     // ED2: said once, when the saved review was older
+    if (d.review) savedReview.current = d.review;
     // n209: the App's choices, pages, package and one command, kept in outputs.json so an App built later shows them
     const kept = rememberApp(choices, a.outputs, new Date().toISOString());
     if (kept !== choices) {
@@ -754,7 +797,7 @@ export function ModelItemEditor(props: PageProps) {
     const d0 = defRef.current;
     const src = sourceRequest(d0);
     const outputs = resumeFrom ? resumeFrom.run.outputs : toRequests(choices, def.outputs.created);
-    const productReq = product.on ? { name: product.name.trim() } : d0.outputs.product ? { name: d0.outputs.product.name } : null;
+    const productReq = productRequest(d0);
     const run = resumeFrom?.run ?? startRun(newCreateId(), outputs, new Date().toISOString());
     const known: Known = resumeFrom?.known ?? { answers: {}, running: {}, progress: {} };
     const held = waitsForRun(outputs);
@@ -966,11 +1009,26 @@ export function ModelItemEditor(props: PageProps) {
     }
   }
 
-  /** n197 (2b): every red, unanswered or stopped card sent again, one after another. */
+  /** ED2: Fix and finish: only the outputs not built (failed, no answer, stopped, or waiting for one that failed), in
+   * the build order, through the same createEach as Create, starting from what this item built (reused, never sent
+   * again); a lakehouse the dry run planned is made by the first step that needs it. */
   async function createRest() {
-    for (const c of toRetry(cardsRef.current)) {
-      await retryCard(c);
+    const d = defRef.current;
+    const all = readRun(d.outputs.create_run)?.outputs ?? toRequests(choices, d.outputs.created);
+    const missing = toFinish(cardsRef.current).map((c) => all.find((o) => o.kind === c.output)).filter(Boolean) as engine.OutputRequest[];
+    if (!missing.length) return;
+    const src = sourceRequest(d);
+    setUpdating(true);
+    try {
+      const done = await createEach(missing, d.outputs.created, (o, made) => sendStep(requestFor(o, all, made), made, all, src, NOTHING_KNOWN),
+        (cards) => showCards(cardsRef.current.map((c) => cards.find((x) => x.output === c.output) ?? c)));
+      showCards(cardsRef.current.map((c) => done.cards.find((x) => x.output === c.output) ?? c));
+      const at = new Date().toISOString();
+      await update((x) => ({ ...x, outputs: { ...x.outputs, last_create: lastCreateOf(cardsRef.current, metaRef.current?.displayName ?? "", at) } }));
+    } finally {
+      setUpdating(false);
     }
+    await followRun(cardsRef.current, src, all);
   }
 
   /** n197: reopening an item with outputs lands on its result: the cards of its last Create (from the engine's
@@ -1277,13 +1335,14 @@ export function ModelItemEditor(props: PageProps) {
           onProduct={setProduct}
           stored={def.outputs.product}
           onOpen={openItem}
-          onPreview={previewBuild}
+          onPreview={() => void previewBuild()}
           jobsBlocked={jobsBlocked(preview?.outputs)}
           source={def.source}
           itemWorkspaceId={itemMeta?.workspaceId}
           onBuildIn={chooseBuildIn}
           onChooseTarget={chooseTarget}
           onPickModel={() => void pickReportModel()}
+          owner={def.outputs.product?.owner || preview?.product?.owner || dp.status?.you || null}
           extra={<SuggestedProductsPanel suggested={suggested} ticked={ticked(def)} disabled={!!busy || creating}
             onTicked={(list: Ticked[]) => void update((d) => ({ ...d, outputs: { ...d.outputs, products: list } }))} />}
         />
@@ -1292,6 +1351,7 @@ export function ModelItemEditor(props: PageProps) {
     {
       name: "preview",
       component: wrap(preview ? <PreviewView answer={preview} onCreate={() => void create()} creating={creating || !!busy} mascotsOn={mascotsOn} createLabel={createLabel(preview)}
+        stale={staleNote} onFixBlocker={(b) => void fixBlocker(b)}
         appChoices={choices.find((c) => c.type === "rayfin_app")?.app} onAppChoices={chooseApp}
         appRecord={readAppRecord(choices.find((c) => c.type === "rayfin_app")?.app_package, choices.find((c) => c.type === "rayfin_app")?.name)} /> : null),
     },
@@ -1309,7 +1369,8 @@ export function ModelItemEditor(props: PageProps) {
             onUpdate={updateCard}
             onNewName={newNameForCard}
             onRetry={retryCard}
-            onCreateRest={createRest}
+            onCreateRest={() => void createRest()}
+            onCleanUp={(ids) => void cleanUpEarlier(ids)}
             notice={notice}
             busy={updating || creating}
           />

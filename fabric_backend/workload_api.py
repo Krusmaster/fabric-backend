@@ -2207,6 +2207,16 @@ def _call(kind: str, o: dict, chosen: dict, req: dict, keys, confirmed, dry_run:
     return json.loads(text)
 
 
+def model_reads(answer: dict, req: dict) -> str:
+    """ED2: what the semantic model reads, in one line, the same in the dry run and the result (from the model's own
+    summary.reads: the silver tables when composite keys are combined, else the source's tables)."""
+    summary = answer.get("summary") if isinstance(answer.get("summary"), dict) else (answer.get("draft") or {}).get("summary") or {}
+    reads = summary.get("reads") if isinstance(summary, dict) else None
+    if isinstance(reads, dict) and reads.get("layer") == "silver":
+        return f"Reads: the silver tables in schema {reads.get('schema')} (Direct Lake)."
+    return f"Reads: the source tables of {req.get('source_name') or 'the source'}, schema {req.get('schema')} (bronze, Direct Lake)."
+
+
 def product_owner(req: dict) -> str | None:
     """ED2: the data product's owner: the one the person chose on Choose (product.owner), else the signed-in person
     (who(claims), set by the route), the same default the Choose step shows. None only without a signed-in name."""
@@ -2673,6 +2683,8 @@ def _build_many(req, S, rv, keys, confirmed, dry_run, scopes, app_id, chosen, ou
                     card["agent"] = agent_card(o, answer, chosen_jobs(req), req.get("after_run"), dry_run, workspace, headers, scopes)
                     if not dry_run and card["agent"].get("published"):
                         answer.setdefault("result", {})["published"] = True
+                if kind == "semantic_model" and not answer.get("error"):   # ED2: one line, what the model reads
+                    card["reads"] = model_reads(answer, req)
                 if kind == "pipeline":                             # n185: the two choices, what they will do or did
                     card["jobs"] = _jobs_card(o, answer, jobs_permission(scopes, app_id), dry_run)
                 if kind == "semantic_model" and not answer.get("error") and dry_run and would == "create":
