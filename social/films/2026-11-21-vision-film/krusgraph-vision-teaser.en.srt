@@ -1,0 +1,39 @@
+1
+00:00:00,150 --> 00:00:02,389
+Your SAP data is in Fabric.
+
+2
+00:00:02,539 --> 00:00:06,122
+Making it usable still takes weeks of data engineering.
+
+3
+00:00:06,372 --> 00:00:09,053
+What if you could just point at it, and tap?
+
+4
+00:00:09,303 --> 00:00:16,182
+Sign in with Microsoft. Krusgraph reads your estate, and the mascots show what's missing.
+
+5
+00:00:16,432 --> 00:00:20,226
+Every key and link is counted on the rows.
+
+6
+00:00:20,476 --> 00:00:26,261
+It catches the SAP traps, like an order total counted once per line.
+
+7
+00:00:26,511 --> 00:00:30,959
+Tap, and you see a dry run first. Nothing is written yet.
+
+8
+00:00:31,209 --> 00:00:35,033
+Then it's created, as a pull request you merge.
+
+9
+00:00:35,283 --> 00:00:38,258
+Designed so your data stays in Fabric.
+
+10
+00:00:38,608 --> 00:00:43,269
+Krusgraph. Get early access.

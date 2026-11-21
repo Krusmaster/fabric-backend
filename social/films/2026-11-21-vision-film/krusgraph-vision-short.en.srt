@@ -1,0 +1,15 @@
+1
+00:00:00,100 --> 00:00:03,583
+Making it usable still takes weeks of data engineering.
+
+2
+00:00:03,833 --> 00:00:09,218
+It catches the SAP traps, like an order total counted once per line.
+
+3
+00:00:09,468 --> 00:00:13,816
+Tap, and you see a dry run first. Nothing is written yet.
+
+4
+00:00:14,166 --> 00:00:18,627
+Krusgraph. Get early access.

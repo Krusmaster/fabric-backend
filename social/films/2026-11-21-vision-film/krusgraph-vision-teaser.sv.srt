@@ -1,0 +1,39 @@
+1
+00:00:00,150 --> 00:00:02,389
+Din SAP-data finns i Fabric.
+
+2
+00:00:02,539 --> 00:00:06,122
+Att göra den användbar tar fortfarande veckor av data engineering.
+
+3
+00:00:06,372 --> 00:00:09,053
+Tänk om du bara kunde peka på den och trycka?
+
+4
+00:00:09,303 --> 00:00:16,182
+Logga in med Microsoft. Krusgraph läser din miljö, och maskotarna visar vad som saknas.
+
+5
+00:00:16,432 --> 00:00:20,226
+Varje nyckel och länk räknas på raderna.
+
+6
+00:00:20,476 --> 00:00:26,261
+Den hittar SAP-fällorna, som en ordersumma som räknas en gång per rad.
+
+7
+00:00:26,511 --> 00:00:30,959
+Tryck, och du ser en provkörning först. Inget är skrivet än.
+
+8
+00:00:31,209 --> 00:00:35,033
+Sedan skapas det, som en pull request som du själv slår ihop.
+
+9
+00:00:35,283 --> 00:00:38,258
+Utformat så att dina data stannar i Fabric.
+
+10
+00:00:38,608 --> 00:00:43,269
+Krusgraph. Få tidig tillgång.

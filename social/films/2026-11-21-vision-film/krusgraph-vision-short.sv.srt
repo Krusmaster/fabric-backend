@@ -1,0 +1,15 @@
+1
+00:00:00,100 --> 00:00:03,583
+Att göra den användbar tar fortfarande veckor av data engineering.
+
+2
+00:00:03,833 --> 00:00:09,218
+Den hittar SAP-fällorna, som en ordersumma som räknas en gång per rad.
+
+3
+00:00:09,468 --> 00:00:13,816
+Tryck, och du ser en provkörning först. Inget är skrivet än.
+
+4
+00:00:14,166 --> 00:00:18,627
+Krusgraph. Få tidig tillgång.
