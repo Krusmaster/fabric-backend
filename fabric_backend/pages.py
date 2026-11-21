@@ -71,6 +71,9 @@ PAGES = {
                    "Start from an undocumented lakehouse, a join to check or an app to build. Three synthetic examples drawn as maps show what {{PRODUCT}} proposes and what still needs your judgement.", "usecases"),
     "/use-cases/build": ("use_cases_build.html", "What you can build from a plan — {{PRODUCT}}",
                          "What each {{PRODUCT}} tool returns for the synthetic shop plan: the API, views, ontology, semantic model and data agent, with each tool's test status.", "usecases"),
+    # BL2: what Krusgraph reads and the tenant settings each output needs (tenant_settings.py)
+    "/getting-started": ("getting-started.html", "Getting started: permissions and tenant settings — {{PRODUCT}}",
+                         "Before the first build: what {{PRODUCT}} reads and with which permission, the Microsoft Fabric tenant settings each output needs, the limits, and how to start with 20 tables.", "docs"),
     "/it": ("it.html", "For your IT department — {{PRODUCT}}",
             "For a BI lead to forward to IT: the delegated permissions the {{PRODUCT}} Entra app asks for and why, what is stored where and for how long, how to revoke access, and who stands behind it.", ""),
     "/pricing": ("pricing.html", "Pricing — {{PRODUCT}}",
@@ -1174,6 +1177,9 @@ def render(path: str) -> str:
     if "{{LEGAL_" in body:                                                # G1: /cookies and /accessibility (legal.py)
         lv = _legal().page_vars()
         body = re.sub(r"\{\{(LEGAL_\w+)\}\}", lambda m: lv[m.group(1)], body)
+    if "{{GS_BODY}}" in body:                                              # BL2: /getting-started (tenant_settings.py)
+        from .tenant_settings import page_html as gs_html
+        body = body.replace("{{GS_BODY}}", gs_html())
     if "{{UC_" in body:
         from .use_cases import page_vars
         uv = page_vars()
