@@ -7,6 +7,8 @@
   krusgraph sap --sample sap                   the SAP tables and links the SAP pack recognises (sap_pack_draft)
   krusgraph analysis --sample sap36            which SAP analyses the data supports, by rules (analysis_plan)
   krusgraph skill                              the agent instructions (SKILL.md) this command ships with
+  krusgraph demo faults                        the shop with five planted faults: what was planted, what Krusgraph
+                                               found and the receipt SQL that proves it (BL21, docs/demo/PLANTED-FAULTS-WALK.md)
 
 The structure follows HKUDS/CLI-Anything's harness conventions (read as documentation, no code copied): every command
 answers JSON (`--json`, the default when stdout is not a terminal) or text for a person (`--human`), introspection
@@ -221,6 +223,7 @@ def cmd_check(a) -> dict:
             "note": "Only reported, never used to fetch a token here. The ODBC driver signs in as the string says.",
         },
         "commands": {name: spec["help"] for name, spec in COMMANDS.items()},
+        "demos": {f"demo {k}": v for k, v in DEMOS.items()},
         "analysis_available": hasattr(analysis_plan, "recommend"),
         "exit_codes": {str(k): v for k, v in EXIT_CODES.items()},
         "skill": "krusgraph skill  (prints SKILL.md)",
@@ -301,6 +304,91 @@ def cmd_skill(a) -> dict:
     return {"path": "fabric_backend/skills/SKILL.md", "text": skill_text()}
 
 
+# ------------------------------------------------------------------ demo (BL21) ----------------------------------------
+
+DEMOS = {"faults": "the synthetic shop with five planted faults (fabric_backend/shop_faults.py, docs/PLANTED-FAULTS.md)"}
+
+
+def _receipt_item(item: str) -> str:
+    """shop_faults.flagged's item name -> receipt.build's item name for the same number."""
+    kind, _, rest = item.partition(":")
+    if kind == "key":
+        return item
+    if kind == "link":
+        src, _, target = rest.partition(" -> ")
+        return f"rel:{src}>{target}"
+    if kind == "amount":
+        header_col, _, line = rest.partition(" over ")
+        return f"amount:{header_col.split('.')[0]}<{line}"
+    if kind == "flat":
+        col, _, header = rest.partition(" per ")
+        return f"flat:{col}/{header}"
+    return item
+
+
+def cmd_demo(a) -> dict:
+    """BL21 (backlog C-37, C-38): build shop_faults locally in SQLite, run the plan and validate_plan's counting checks,
+    and per planted fault print what was planted, what Krusgraph said and the receipt SQL that counted it. What
+    Krusgraph "found" is the tool's own answer (shop_faults.check's flagged items, receipt.build's rows), never an
+    expected text: a fault the checks do not find is printed as "not found yet". Read-only, offline."""
+    from . import receipt, shop_faults
+    from .infer import plan as make_plan
+    r = shop_faults.check()
+    p = make_plan(shop_faults.schema())
+    rows = receipt.build(p, r["validate"], dialect="sqlite")
+    by_item: dict[str, list[dict]] = {}
+    for row in rows:
+        by_item.setdefault(row["item"], []).append(row)
+
+    def proof(item: str) -> list[dict]:
+        return [{"sentence": x["sentence"], "sql": x["sql"], "counts": x["counts"]}
+                for x in by_item.get(_receipt_item(item), []) if x["sql"]]
+
+    said = r["flagged"]
+    faults = []
+    for f in shop_faults.FAULTS:
+        got = said.get(f["item"])
+        faults.append({"id": f["id"], "table": f["table"], "item": f["item"], "planted": f["planted"],
+                       "found": got is not None, "status": "found" if got is not None else "not found yet",
+                       "krusgraph_said": got, "receipt": proof(f["item"]) if got is not None else []})
+    planted = {f["item"] for f in shop_faults.FAULTS}
+    also = [{"item": i, "krusgraph_said": said[i], "why": "the clean shop shows it too: not a planted fault "
+             "(shop_faults.CLEAN_FINDINGS)", "receipt": proof(i)} for i in sorted(said) if i in shop_faults.CLEAN_FINDINGS]
+    unexpected = [{"item": i, "krusgraph_said": said[i], "receipt": proof(i)} for i in sorted(said)
+                  if i not in planted and i not in shop_faults.CLEAN_FINDINGS]
+    found = sum(f["found"] for f in faults)
+    return {
+        "demo": a.demo, "sample": shop_faults.SCHEMA, "about": DEMOS[a.demo],
+        "summary": r["summary"],
+        "found": found, "not_found_yet": len(faults) - found, "planted": len(faults),
+        "faults": faults, "also_flagged": also, "unexpected": unexpected,
+        "receipt_dialect": "sqlite",
+        "note": "Synthetic rows, built in memory. What Krusgraph found is the checks' own answer; each receipt sql "
+                "re-runs read-only to its counts (docs/RECEIPTS.md). Nothing is written anywhere.",
+    }
+
+
+def _human_demo(r: dict) -> list[str]:
+    lines = [f"krusgraph demo {r['demo']}: {r['about']}", f"validate_plan: {r['summary']}",
+             f"{r['found']} of {r['planted']} planted faults found, {r['not_found_yet']} not found yet", ""]
+    for f in r["faults"]:
+        lines.append(f"{f['id']}  {f['table']}: {f['status'].upper()}")
+        lines.append(f"  planted:   {f['planted']}")
+        lines.append(f"  Krusgraph: {f['krusgraph_said'] if f['found'] else 'not found yet: no check flags it today'}")
+        for x in f["receipt"]:
+            lines.append(f"  receipt:   {x['sentence']}")
+            lines += ["    " + ln for ln in x["sql"].splitlines()]
+        lines.append("")
+    for x in r["also_flagged"]:
+        lines.append(f"also flagged, not planted: {x['item']} ({x['why']})")
+    if r["unexpected"]:
+        lines += [f"UNEXPECTED: {x['item']}: {x['krusgraph_said']}" for x in r["unexpected"]]
+    else:
+        lines.append("nothing else flagged: every other key is unique and every other link holds")
+    lines.append(r["note"])
+    return lines
+
+
 def skill_text() -> str:
     return (Path(__file__).parent / "skills" / "SKILL.md").read_text(encoding="utf-8")
 
@@ -350,6 +438,8 @@ def _human(command: str, src_info: dict | None, r: dict) -> str:
             lines.append(f"  {e['analysis']} {e['name']}: {e['readiness']} (score {e['score']})")
     elif command == "skill":
         return r["text"]
+    elif command == "demo":
+        return "\n".join(_human_demo(r))
     return "\n".join(str(x) for x in lines)
 
 
@@ -380,9 +470,20 @@ COMMANDS = {
               "examples": ["krusgraph skill --human"]},
 }
 
+# Listed apart from COMMANDS so SKILL.md's command list (tests/test_cl1_cli.py pins it to COMMANDS) is unchanged.
+EXTRA_COMMANDS = {
+    "demo": {"fn": cmd_demo, "source": False,
+             "help": "a demo on synthetic data: 'faults' finds the five planted faults with their receipt SQL (BL21)",
+             "examples": ["krusgraph demo faults --human", "krusgraph demo faults --json > faults.json"]},
+}
+
+
+def _spec(name: str) -> dict:
+    return COMMANDS.get(name) or EXTRA_COMMANDS[name]
+
 
 def _epilog(name: str) -> str:
-    ex = "\n".join(f"  {e}" for e in COMMANDS[name]["examples"])
+    ex = "\n".join(f"  {e}" for e in _spec(name)["examples"])
     codes = "\n".join(f"  {k}  {v}" for k, v in EXIT_CODES.items())
     return f"examples:\n{ex}\n\nexit codes:\n{codes}\n\nRead-only: nothing is written to Fabric. docs/CLI.md"
 
@@ -395,7 +496,7 @@ def build_parser() -> argparse.ArgumentParser:
                "exit codes:\n" + "\n".join(f"  {k}  {v}" for k, v in EXIT_CODES.items()) + "\n\ndocs/CLI.md; agents: krusgraph skill")
     ap.add_argument("--version", action="version", version=f"{PROG} {__version__}")
     sub = ap.add_subparsers(dest="command", required=True, metavar="COMMAND")
-    for name, spec in COMMANDS.items():
+    for name, spec in {**COMMANDS, **EXTRA_COMMANDS}.items():
         s = sub.add_parser(name, help=spec["help"], description=spec["help"], epilog=_epilog(name),
                            formatter_class=argparse.RawDescriptionHelpFormatter)
         out = s.add_mutually_exclusive_group()
@@ -417,6 +518,8 @@ def build_parser() -> argparse.ArgumentParser:
         if name == "plan":
             s.add_argument("--strict", action="store_true",
                            help="exit 6 when a key is not unique or a link has orphans (for CI jobs); the JSON is the same")
+        if name == "demo":
+            s.add_argument("demo", choices=sorted(DEMOS), help="which demo: " + "; ".join(f"{k}: {v}" for k, v in DEMOS.items()))
         if name == "relationships":
             s.add_argument("--mermaid", action="store_true", help="add the diagram in Mermaid")
         s.set_defaults(command=name)
@@ -442,7 +545,7 @@ def main(argv: list[str] | None = None) -> int:
             raise CliError(REFUSED, "refused_write", WRITE_REFUSAL,
                            "run the same command without --apply; to create something in Fabric use the MCP server's "
                            "create_* tools with dry_run=true first")
-        spec = COMMANDS[a.command]
+        spec = _spec(a.command)
         if spec["source"]:
             src = open_source(a)
             a._src = src
