@@ -1,0 +1,343 @@
+{
+ "round": "SM4",
+ "date": "2026-11-21",
+ "how": "python tools/smooth_measure.py --tools (synthetic SAP demo, fake Fabric, cards on)",
+ "before": {
+  "tools_listed": 48,
+  "dead_ends": 1,
+  "dead_end_cards": [
+   "create_report"
+  ],
+  "buttons_to_tools_outside_the_16": 5
+ },
+ "after": {
+  "tools": {
+   "default": 16,
+   "advanced": 48,
+   "listed": [
+    "start",
+    "plan_backend",
+    "validate_plan",
+    "review_plan",
+    "create_backend",
+    "create_ontology",
+    "create_semantic_model",
+    "create_report",
+    "create_data_agent",
+    "requirements_draft",
+    "create_pipeline",
+    "verify_build",
+    "lineage",
+    "describe_backend",
+    "query_graphql",
+    "publish_catalog"
+   ],
+   "hidden": [
+    "analysis_notebook_draft",
+    "analysis_plan",
+    "analyze_schema",
+    "answer_query_draft",
+    "app_readiness",
+    "app_starter",
+    "compare_semantic_model",
+    "create_drift_monitor",
+    "create_gold_views",
+    "create_silver_notebook",
+    "create_views",
+    "data_dictionary",
+    "dbt_schema",
+    "domain_draft",
+    "drift_monitor_draft",
+    "export_item_definitions",
+    "gold_views_draft",
+    "join_path",
+    "list_sources",
+    "list_tables",
+    "list_workspaces",
+    "ontology_draft",
+    "plan_drift",
+    "qlik_measures_draft",
+    "qlik_plan",
+    "qlik_reconcile_draft",
+    "rayfin_connector",
+    "sample_rows",
+    "sap_pack_draft",
+    "semantic_model_draft",
+    "silver_notebook_draft",
+    "suggest_relationships"
+   ]
+  },
+  "cards": {
+   "calls": 16,
+   "dead_ends": 0,
+   "buttons_to_unlisted_tools": 0,
+   "rows": [
+    {
+     "tool": "start",
+     "args": [],
+     "dead_end": false,
+     "buttons": [
+      "Choose another workspace"
+     ],
+     "unlisted": [],
+     "kind": null
+    },
+    {
+     "tool": "start",
+     "args": [
+      "sample"
+     ],
+     "dead_end": false,
+     "buttons": [
+      "Next: Decide",
+      "Next: Decide"
+     ],
+     "unlisted": [],
+     "kind": null
+    },
+    {
+     "tool": "start",
+     "args": [
+      "schema",
+      "source",
+      "step",
+      "workspace"
+     ],
+     "dead_end": false,
+     "buttons": [
+      "Show the map's answer",
+      "Every check against the rows",
+      "Doubled totals in full",
+      "Next: Decide"
+     ],
+     "unlisted": [],
+     "kind": null
+    },
+    {
+     "tool": "start",
+     "args": [
+      "schema",
+      "source",
+      "step",
+      "workspace"
+     ],
+     "dead_end": false,
+     "buttons": [
+      "Show the map's answer",
+      "Every check against the rows",
+      "Doubled totals in full",
+      "Next: Decide"
+     ],
+     "unlisted": [],
+     "kind": null
+    },
+    {
+     "tool": "start",
+     "args": [
+      "schema",
+      "source",
+      "step",
+      "workspace"
+     ],
+     "dead_end": false,
+     "buttons": [
+      "Dry run everything",
+      "Dry run: silver and gold",
+      "Dry run: semantic model",
+      "Dry run: an API for GraphQL",
+      "Dry run: a Fabric IQ ontology",
+      "Dry run: data agent",
+      "Next: Create"
+     ],
+     "unlisted": [],
+     "kind": null
+    },
+    {
+     "tool": "plan_backend",
+     "args": [
+      "schema",
+      "source",
+      "workspace"
+     ],
+     "dead_end": false,
+     "buttons": [
+      "Show the doubled totals",
+      "Review keys and links",
+      "Check against the rows"
+     ],
+     "unlisted": [],
+     "kind": null
+    },
+    {
+     "tool": "plan_backend",
+     "args": [
+      "detail",
+      "schema",
+      "source",
+      "workspace"
+     ],
+     "dead_end": false,
+     "buttons": [
+      "Show the doubled totals",
+      "Review keys and links",
+      "Check against the rows"
+     ],
+     "unlisted": [],
+     "kind": null
+    },
+    {
+     "tool": "create_backend",
+     "args": [
+      "name",
+      "schema",
+      "source",
+      "workspace"
+     ],
+     "dead_end": false,
+     "buttons": [
+      "Check against the rows",
+      "Create the semantic model (dry run first)",
+      "Create"
+     ],
+     "unlisted": [],
+     "kind": null
+    },
+    {
+     "tool": "ontology_draft",
+     "args": [
+      "schema",
+      "source",
+      "workspace"
+     ],
+     "dead_end": false,
+     "buttons": [
+      "Check against the rows",
+      "Create the ontology (dry run first)",
+      "Create the semantic model (dry run first)"
+     ],
+     "unlisted": [],
+     "kind": null
+    },
+    {
+     "tool": "create_ontology",
+     "args": [
+      "name",
+      "schema",
+      "source",
+      "workspace"
+     ],
+     "dead_end": false,
+     "buttons": [
+      "Check against the rows",
+      "Create the semantic model (dry run first)",
+      "Create"
+     ],
+     "unlisted": [],
+     "kind": null
+    },
+    {
+     "tool": "dbt_schema",
+     "args": [
+      "schema",
+      "source",
+      "workspace"
+     ],
+     "dead_end": false,
+     "buttons": [
+      "Check against the rows",
+      "Create the semantic model (dry run first)",
+      "Dry run the pipeline"
+     ],
+     "unlisted": [],
+     "kind": null
+    },
+    {
+     "tool": "dbt_schema",
+     "args": [
+      "project",
+      "schema",
+      "source",
+      "workspace"
+     ],
+     "dead_end": false,
+     "buttons": [
+      "Check against the rows",
+      "Create the semantic model (dry run first)",
+      "Dry run the pipeline"
+     ],
+     "unlisted": [],
+     "kind": null
+    },
+    {
+     "tool": "domain_draft",
+     "args": [
+      "schema",
+      "source",
+      "workspace"
+     ],
+     "dead_end": false,
+     "buttons": [
+      "Check against the rows",
+      "Create the semantic model (dry run first)",
+      "Dry run the pipeline",
+      "Create an API for GraphQL for order-to-cash",
+      "Build a semantic model for order-to-cash",
+      "Create an API for GraphQL for customer master",
+      "Build a semantic model for customer master"
+     ],
+     "unlisted": [],
+     "kind": null
+    },
+    {
+     "tool": "create_semantic_model",
+     "args": [
+      "name",
+      "schema",
+      "source",
+      "workspace"
+     ],
+     "dead_end": false,
+     "buttons": [
+      "Create the data agent (dry run first)",
+      "Build the silver step first",
+      "Create anyway"
+     ],
+     "unlisted": [],
+     "kind": null
+    },
+    {
+     "tool": "create_report",
+     "args": [
+      "model",
+      "name",
+      "workspace"
+     ],
+     "dead_end": false,
+     "buttons": [
+      "Explain this and what to do",
+      "Back to Start: your data"
+     ],
+     "unlisted": [],
+     "kind": null
+    },
+    {
+     "tool": "requirements_draft",
+     "args": [
+      "requirements",
+      "schema",
+      "source",
+      "workspace"
+     ],
+     "dead_end": false,
+     "buttons": [
+      "Dry run the pipeline for R1, R2",
+      "Dry run the semantic model for R1, R2",
+      "Data agent with R1, R2 as examples (dry run)"
+     ],
+     "unlisted": [],
+     "kind": null
+    }
+   ]
+  }
+ }
+}

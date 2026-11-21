@@ -146,3 +146,28 @@ tool) and lead me through it one step at a time").
 python tools/directory_measure.py                 # every tool on the three data sets, largest answer first
 python -m pytest -q tests/test_dir1_directory_readiness.py
 ```
+
+## SM4 (21 November 2026): the default listing
+
+Since round SM4 the hosted server's `tools/list` holds 16 tools by default (`fabric_backend/tool_listing.py`). The
+other 32 are still registered, still answer when called by name (a card's button, an old prompt), and keep their
+titles, `readOnlyHint`/`destructiveHint` annotations and descriptions; the operator setting `KRUSGRAPH_ADVANCED_TOOLS=1`
+lists all 48. `tests/test_dir1_directory_readiness.py` checks all 48 (with the setting on);
+`tests/test_sm4_fewer_doors.py` checks the 16. Nothing was submitted and the directory listing was not edited.
+
+**Listed by default (16):** `start`, `plan_backend`, `validate_plan`, `review_plan`, `requirements_draft`,
+`create_pipeline`, `create_semantic_model`, `create_data_agent`, `create_report`, `create_backend`, `create_ontology`,
+`publish_catalog`, `verify_build`, `lineage`, `describe_backend`, `query_graphql`.
+
+**Left out of the default listing (32):** `list_workspaces`, `list_sources`, `list_tables`, `sample_rows`,
+`analyze_schema`, `suggest_relationships`, `join_path`, `data_dictionary`, `dbt_schema`, `domain_draft`,
+`sap_pack_draft`, `rayfin_connector`, `compare_semantic_model`, `plan_drift`, `semantic_model_draft`, `ontology_draft`,
+`silver_notebook_draft`, `gold_views_draft`, `drift_monitor_draft`, `export_item_definitions`,
+`create_silver_notebook`, `create_gold_views`, `create_views`, `create_drift_monitor`, `analysis_plan`,
+`analysis_notebook_draft`, `app_starter`, `app_readiness`, `answer_query_draft`, `qlik_plan`, `qlik_measures_draft`,
+`qlik_reconcile_draft`.
+
+The table above ("Every tool") describes all 48 as they answer; it is unchanged. Of the 11 write tools, 7 are listed
+by default (the six data-product tools, `publish_catalog`, and none of the parts); `create_silver_notebook`,
+`create_gold_views`, `create_views` and `create_drift_monitor` are left out, since `create_pipeline` builds the silver
+and gold notebooks.

@@ -1,5 +1,10 @@
 """Shared test setup: no test reaches Fabric by accident."""
+import os
+
 import pytest
+
+# SM4: modules that read the listing when they are imported see every tool (see _every_tool_listed below)
+os.environ["KRUSGRAPH_ADVANCED_TOOLS"] = "1"
 
 
 @pytest.fixture(autouse=True)
@@ -45,3 +50,15 @@ def _no_flow_kept():
     flow_state.clear()
     yield
     flow_state.clear()
+
+
+@pytest.fixture(autouse=True)
+def _every_tool_listed(request, monkeypatch):
+    """SM4: by default tools/list holds 16 tools (fabric_backend/tool_listing.py). The older tests judge every tool as
+    a client lists it, so they run with KRUSGRAPH_ADVANCED_TOOLS=1; tests/test_sm4_* and the click-through of the
+    guided path (tests/test_wb15_click_through.py) run with the default listing."""
+    name = request.node.module.__name__.rsplit(".", 1)[-1] if request.node.module else ""
+    if name.startswith("test_sm4_") or name == "test_wb15_click_through":
+        monkeypatch.delenv("KRUSGRAPH_ADVANCED_TOOLS", raising=False)
+    else:
+        monkeypatch.setenv("KRUSGRAPH_ADVANCED_TOOLS", "1")

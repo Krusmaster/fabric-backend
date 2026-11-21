@@ -289,3 +289,38 @@ notebook; a lakehouse of that name used; no lakehouse in the workspace; the repo
 drawn; the owner; one grouping; today's check in the dry run) and `workload/Workload/app/items/ModelItem/ed2Create.test.ts`
 with `createEach.test.ts` (silver fails, gold is not created; Fix and finish sends only the missing outputs and reuses
 what exists; the same error once; the blocker and its button).
+
+## 11. After SM4: fewer doors (21 November 2026)
+
+PLAN.md row 3. Measured with `python tools/smooth_measure.py --tools` (the synthetic SAP demo behind
+`tools/directory_measure.py`'s fake Fabric, cards on, no write possible); raw numbers in
+`measure-tools-2026-11-21.json`.
+
+| Measure | Before (main, 21 Nov) | After SM4 |
+|---|---|---|
+| Tools in `tools/list` by default | 48 | **16** |
+| Tools with `KRUSGRAPH_ADVANCED_TOOLS=1` | (no such setting) | 48 |
+| Cards whose last state has no way on (a button for a listed tool, a hand-back to Start, or a link) | 1 (`create_report` on a missing model: only "Explain this") | **0** |
+| Card buttons for a tool outside the 16, judged against the 16 | 5 (`gold_views_draft`, `semantic_model_draft` on the dbt, domains and requirements cards) | **0** |
+
+What changed:
+- `fabric_backend/tool_listing.py` holds the default listing: start, plan_backend, validate_plan, review_plan,
+  requirements_draft, the six creating tools of a data product (create_pipeline, create_semantic_model,
+  create_data_agent, create_report, create_backend, create_ontology), publish_catalog, verify_build, lineage,
+  describe_backend and query_graphql. `describe_backend` stays beside `query_graphql`, because a query needs the API's
+  field names. `requirements_draft` (RQ1) is in the default listing. The `krusgraph` CLI (CL1) is not an MCP tool and
+  is not affected.
+- Every other tool is still registered and answers a call by its name; only `tools/list` leaves it out.
+  `KRUSGRAPH_ADVANCED_TOOLS=1` lists all 48 again. The n123 switches (`KRUSGRAPH_READ_ONLY`, `KRUSGRAPH_NO_ROW_VALUES`)
+  still apply on top.
+- A card's step for a draft becomes its creating tool's dry run (semantic_model_draft → create_semantic_model,
+  ontology_draft → create_ontology, the silver, gold and drift drafts → create_pipeline). A step for another unlisted
+  tool is left out. With the setting on, the steps are as before.
+- A card with no way on gets one step: **Back to Start: <step>**, a sentence for the chat that continues the living
+  Start Krusgraph card at the right step (data, check, decide, dry run or what next), with start's arguments, the
+  same way next_rules' "Decide the open links" does.
+- The server's instructions say, as facts, which tools are listed and that the others answer by name.
+
+Not done here: the drafts are not yet literal aliases (one code path) of their create tool's dry run; they keep their
+own answers and goldens, and only the cards' buttons point at the dry run. The local stdio server (`mcp_server.py`) is
+unchanged. The chat path is unchanged (`tests/test_wb15_click_through.py`).
