@@ -679,6 +679,10 @@ def daily_rules(plan, validation: dict, plan_mark: dict, schemas_enabled: bool =
                       "sql": spark(f"SELECT COALESCE(orphans, 0) AS n FROM ({rel}) AS r")})
     for n in validation.get("not_counted", []):
         skipped.append({"id": n.get("id", ""), "why": f"not proven: {n.get('evidence', 'not counted')}"})
+    # BL33: keys and links validate did not reach (max_items, scope or time) are not rules either; say so, as counts does
+    from .receipt import not_reached
+    for it in not_reached(plan, validation, {str(x.get("id", "")).lower() for x in skipped}):
+        skipped.append({"id": it["id"], "why": f"not proven: {it['reason']}"})
     levels = validation.get("amount_levels") or {}
     for f in levels.get("findings", []):
         for col in f["amount_columns"]:

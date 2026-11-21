@@ -149,7 +149,21 @@ def build(plan, validation: dict, generated_at=None, dialect="tsql") -> list[dic
 
     for nc in validation.get("not_counted", []):
         add("not counted", nc["id"], f"{nc['kind'].capitalize()} {nc['id']}: {nc['evidence']}.", None, None)
+    # BL33: a key or link validate did not reach (max_items, scope or time) is in neither list above; counts.summary
+    # calls it not counted, so the receipt lists it too, with no number, instead of leaving it out.
+    for it in not_reached(plan, validation, {r["item"].lower() for r in rows}):
+        add("not counted", it["id"], f"{_KIND[it['kind']].capitalize()} {it['id']}: {it['reason']}.", None, None)
     return rows
+
+
+_KIND = {"key": "key", "link": "relationship", "extended link": "extended relationship"}
+
+
+def not_reached(plan, validation: dict, listed: set[str]) -> list[dict]:
+    """counts.summary's not-counted items that the answer does not list (one count: BL33)."""
+    from . import counts
+    return [it for it in counts.summary(plan, validation)["items"]
+            if it["state"] == "not_counted" and it["id"].lower() not in listed]
 
 
 def _fence(sql: str) -> str:
