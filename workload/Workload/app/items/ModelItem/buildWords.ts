@@ -83,7 +83,11 @@ export function defaultName(kind: OutputKind, displayName: string): string {
 }
 
 /** The outputs as the engine takes them: the enabled ones, in the build's order (the model before its report). */
-export function toRequests(choices: OutputChoice[]): OutputRequest[] {
+export function toRequests(choices: OutputChoice[], created: CreatedItem[] = []): OutputRequest[] {
+  // ED1: a report with no model of its own and no semantic model ticked is built on the model this item built before
+  const modelOn = choices.some((c) => c.type === "semantic_model" && c.enabled);
+  const before = modelOn ? undefined : [...created].reverse().find((c) => c.output === "semantic_model" || c.type === "SemanticModel")?.name;
+  choices = choices.map((c) => (c.type === "report" && !c.model && before ? { ...c, model: before } : c));
   return choices
     .filter((c) => c.enabled && kindInfo(c.type))
     .sort((a, b) => ORDER.indexOf(a.type as OutputKind) - ORDER.indexOf(b.type as OutputKind))
@@ -98,16 +102,17 @@ export function toRequests(choices: OutputChoice[]): OutputRequest[] {
 }
 
 /** What a chosen output's problems are before any call: a bad name, two notebooks of one name, a report with no model. */
-export function choiceProblems(choices: OutputChoice[]): string[] {
+export function choiceProblems(choices: OutputChoice[], created: CreatedItem[] = []): string[] {
   const on = choices.filter((c) => c.enabled);
+  const builtBefore = created.some((c) => c.output === "semantic_model" || c.type === "SemanticModel");
   const out: string[] = [];
   if (!on.length) out.push("Choose at least one thing to build.");
   for (const c of on) {
     if (!validName(c.name)) out.push(`${kindInfo(c.type)?.label ?? c.type}: letters, digits and underscores only.`);
   }
   const report = on.find((c) => c.type === "report");
-  if (report && !report.model && !on.some((c) => c.type === "semantic_model")) {
-    out.push("A report needs a semantic model: choose Semantic model too, or name an existing model.");
+  if (report && !report.model && !builtBefore && !on.some((c) => c.type === "semantic_model")) {
+    out.push("A report needs a semantic model: tick Semantic model, or choose one under Change.");
   }
   const s = on.find((c) => c.type === "silver_notebook");
   const g = on.find((c) => c.type === "gold_views");
