@@ -44,8 +44,9 @@ def test_one_entry_per_item_with_a_description_tags_and_the_two_calls(fabric):
         assert i["calls"][0]["body"] == {"description": i["description"]}
         assert i["calls"][1]["body"] == {"tags": [f"<id of tag {t!r} from GET /v1/tags>" for t in i["tags"]]}
         assert 0 < len(i["description"]) == i["description_chars"] <= catalog.DESCRIPTION_MAX
-        assert i["tags"] == ["Krusgraph", "domain: customers", "domain: products"]
-    assert "counted: 6 of 6 keys unique, 7 of 7 relationships without orphans" in src["description"]
+        assert i["tags"] == ["Krusgraph", "krusgraph-checked", "domain: customers", "domain: products"]   # BL29: the checked tag
+        assert i["description"].endswith(cat["quality"]["line"])                                   # BL29: the dated line
+    assert cat["quality"]["line"].endswith(": keys 6 of 6 hold; links 7 of 7 hold.")
     assert "proposed domains: customers, products" in src["description"]
     api = cat["items"][1]["description"]
     assert "Customers" in api and "OrderItems" in api          # the ontology's entity names
@@ -77,7 +78,7 @@ def test_without_check_rows_nothing_is_counted_and_the_text_says_so(fabric):
     cat = _catalog()["catalog"]
     assert len(fabric.odbc.ddl) == queries
     assert not cat["facts"]["counted"]
-    assert all("not counted against the rows" in i["description"] for i in cat["items"][:3])
+    assert all(i["description"].endswith("Quality: not checked yet.") for i in cat["items"])     # BL29
     assert not any("counted" in r for r in cat["facts"]["relationships"])
 
 
