@@ -12,7 +12,8 @@ from fabric_backend import concepts, domains, ontology, pages, seed, server, too
 from fabric_backend.infer import plan
 
 CONCEPTS = ["/docs/concepts", "/docs/concepts/how-it-works", "/docs/concepts/ontologies", "/docs/concepts/data-products",
-            "/docs/concepts/how-they-connect", "/docs/concepts/where-it-runs", "/docs/concepts/vision"]
+            "/docs/concepts/how-they-connect", "/docs/concepts/where-it-runs", "/docs/concepts/vision",
+            "/docs/concepts/where-krusgraph-is-heading"]        # DOCV1
 VISION = ["One place for your Fabric data. Proof at every step.", "Where Krusgraph is today, and where it is going.",
           "Available today", "Check and create", "Map how your tables connect", "Count keys and links against the rows (up to 200 per call)",
           "Create Fabric items when you ask", "Next", "Check what comes in", "See if incoming data matches its source",
@@ -94,7 +95,7 @@ def test_the_pages_link_to_the_rdfxml_download_the_example_and_each_other(client
 
 
 def test_the_vision_is_html_with_the_text_verbatim_and_said_as_direction(client):
-    html = _main(client.get(CONCEPTS[-1]).text)
+    html = _main(client.get("/docs/concepts/vision").text)
     plain = _plain(html)
     for line in VISION:
         assert line in plain, line
