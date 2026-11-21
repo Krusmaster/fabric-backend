@@ -25,6 +25,21 @@ a few hundred rows per table, 6 964 rows in all (`sap_sd` 4 327, `sap_mm` 2 637)
 - **In Python**: `fabric_backend.sap_sample.source("sap_sd")` is the sample in SQLite; `python -m fabric_backend.sap_sample`
   prints what the engine finds on both, as JSON.
 
+## Not to be confused with: the SAP demo and the SAP full demo
+
+`fabric_backend/sap_demo.py` is a different, much smaller synthetic set, written by hand row by row for the checks
+(planted traps, `EXPECTED`) and for [LIVE-TEST-SAP.md](LIVE-TEST-SAP.md) part 0: 17 order-to-cash tables. Since round
+SAPD1 (21 November 2026) `sap_demo.tables(full=True)` adds 28 tables of procure to pay, finance (S/4HANA: `BKPF` and
+`ACDOCA`, cost and profit centers, the chart of accounts), the business partner and pricing (`PRCD_ELEMENTS`, `KONH`,
+`KONP`, `T685`): 45 tables, every name one the pack has, every value made up. On it the engine proposes five data
+products instead of two: procure-to-pay, order-to-cash, finance, customer master and pricing. [/sources](https://krusgraph.com/sources)
+shows them, computed from the rows, not typed in. Material master (`MARA`, `MAKT`) is no product of its own there: the
+engine places it with procure-to-pay, where most links to it come from. Planted in the full set: client 200's purchase
+order whose supplier has no data in client 200, an orphan purchase order item, a deleted item (`LOEKZ`), the invoice's
+gross amount on its header (`RBKP.RMWWR`), an invoice number in two fiscal years and again as a G/L document number,
+every `ACDOCA` line in two ledgers, a cost center with two validity periods, an account number in two charts of
+accounts, partner numbers that differ from customer numbers, and conditions with a statistical line and a tax rate.
+
 ## The tables, and where each name comes from
 
 Every standard table and every column of a standard table is a name the repository's SAP pack already has

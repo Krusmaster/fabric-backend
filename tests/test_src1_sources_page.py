@@ -92,12 +92,15 @@ def test_salesforce_products_match_the_pinned_doc_section(pages):
 
 
 def test_sap_products_are_what_test_domains_pins(pages):
+    """SAPD1: /sources shows the products of the SAP full demo (sap_demo.tables(full=True)), which
+    tests/test_sapd1_sap_full_demo.py pins; the small demo's two stay pinned by tests/test_domains.py."""
+    from fabric_backend import sap_demo
     got = dict(_products(pages["/sources"].text))
-    assert list(got) == ["order-to-cash", "customer master"]
+    assert tuple(got) == sap_demo.EXPECTED_FULL["products"]
     assert {"VBAK", "VBAP", "LIKP", "LIPS", "VBRK", "VBRP"} <= set(got["order-to-cash"])
-    assert {"KNA1", "ADRC"} <= set(got["customer master"])
-    assert sorted(got["order-to-cash"] + got["customer master"]) == sorted(
-        ["ADR6", "ADRC", "KNA1", "KNVK", "LIKP", "LIPS", "MAKT", "MARA", "T001", "TVKO", "VBAK", "VBAP", "VBEP", "VBFA", "VBPA", "VBRK", "VBRP"])
+    assert {"EKKO", "EKPO", "RBKP", "RSEG"} <= set(got["procure-to-pay"]) and {"ACDOCA", "BKPF"} <= set(got["finance"])
+    assert {"ADRC"} <= set(got["customer master"]) and set(got["pricing"]) == {"KONH", "KONP", "PRCD_ELEMENTS", "T685"}
+    assert sorted(t for ts in got.values() for t in ts) == sorted(sap_demo.tables(full=True))
 
 
 def test_every_product_has_a_question_and_no_question_is_stale():
