@@ -1694,3 +1694,34 @@ a.chip:hover{text-decoration:underline}
   .footer-links{row-gap:0}
   .site-footer p.muted{font-size:14px}
 }
+/* DOCV1: the hand-drawn sketch on /docs/concepts/where-krusgraph-is-heading (heading_sketch.py). The colours are the
+   palette's, so dark mode follows; the sketch keeps a readable size and scrolls sideways inside its own box on a phone. */
+.hs-figure{margin:20px 0 24px}
+.hs-scroll{overflow-x:auto;max-width:100%;border:1px solid var(--line);border-radius:var(--radius-s);background:var(--card);padding:8px;-webkit-overflow-scrolling:touch}
+.hs-scroll:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.hs-svg{display:block;width:100%;min-width:720px;height:auto}
+.hs-svg path{fill:none;stroke-linecap:round;stroke-linejoin:round}
+.hs-svg .hs-ink{stroke:var(--ink);stroke-width:1.6}
+.hs-svg .hs-strong{stroke-width:2.2}
+.hs-svg .hs-dash{stroke-dasharray:10 9;stroke-width:2}
+.hs-svg .hs-faint{stroke:var(--line-strong);stroke-width:1.4}
+.hs-svg .hs-under{stroke:var(--coral);stroke-width:3}
+.hs-svg .hs-h-sage{stroke:var(--sage);stroke-width:1.5;opacity:.75}
+.hs-svg .hs-h-lav{stroke:var(--lav);stroke-width:2}
+.hs-svg .hs-h-mustard{stroke:var(--mustard);stroke-width:2}
+.hs-svg .hs-h-gray{stroke:var(--muted);stroke-width:1.5;opacity:.55}
+.hs-svg .hs-dot-coral{fill:var(--coral)}.hs-svg .hs-dot-mustard{fill:var(--mustard)}.hs-svg .hs-dot-sage{fill:var(--sage)}
+.hs-svg text{font-family:var(--font-head);font-size:19px;fill:var(--ink)}
+.hs-svg .hs-b{font-weight:600}
+.hs-svg .hs-h{font-size:21px;font-weight:600}
+.hs-svg .hs-title{font-size:24px;font-weight:600}
+.hs-svg .hs-label{font-size:21px;fill:var(--muted)}
+.hs-svg .hs-big{font-size:23px}
+.hs-svg .hs-small{font-size:18px}
+.hs-svg .hs-q{font-size:19px;font-style:italic}
+.hs-svg .hs-note{font-size:17px;fill:var(--muted);font-style:italic}
+.hs-svg .hs-muted{fill:var(--muted)}
+.hs-svg .hs-ok{fill:var(--sage-ink)}
+.hs-svg .hs-miss{fill:var(--coral-ink)}
+.hs-cap{margin-top:10px}
+.hs-cap summary{cursor:pointer;font-weight:700}
