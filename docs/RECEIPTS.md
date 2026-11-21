@@ -56,6 +56,50 @@ samples with every cell value of those samples.
 
 On the local samples the statement is already in SQLite's form (`COUNT` instead of `COUNT_BIG`).
 
+## Run it as a notebook (in your own lakehouse)
+
+21 November 2026, round BL19 (backlog C-36 next step, P-27). Code: `fabric_backend/receipt_notebook.py`. Tests:
+`tests/test_bl19_receipt_notebook.py`. Verified by unit tests on 21 November 2026: every code cell ran against a fake
+`spark` that executes the statements on SQLite with the synthetic shop and SAP demo rows; not yet run in a Fabric or
+Databricks notebook.
+
+The strongest receipt is one the buyer re-runs in their own lakehouse, without Krusgraph and without a row leaving
+it. The same receipt therefore also comes as a notebook, `krusgraph-receipt.ipynb` (nbformat 4), which a reseller can
+also leave behind after a demo:
+
+- a title cell (time, source, how to run);
+- one small helper cell, `krusgraph_check`, in plain Python: it runs one statement with `spark.sql`, reads the first
+  row and prints, per count, "stated N, now M, same" or "changed";
+- per number, a markdown cell with Krusgraph's sentence and a code cell with the statement and the stated counts;
+  an item that was not counted gets the markdown cell only;
+- a summary cell: "56 of 56 numbers are the same as stated" on the SAP demo, or which numbers changed.
+
+The statements are `receipt.build(..., dialect=DATABRICKS)`: backtick quoting and `COUNT`, which Spark SQL in a Fabric
+or Databricks notebook reads. No `%pip`, no import, no network and no write: every statement is a `SELECT` that only
+counts. The notebook holds table names, column names and counts, never a row value (a test compares it with every cell
+value of both samples).
+
+Make one (the synthetic samples; the command prints, the shell writes the file):
+
+```bash
+python -m fabric_backend.receipt_notebook --sample sap > krusgraph-receipt.ipynb
+```
+
+For your own source, `receipt_notebook.ipynb(plan, validation)` takes the same plan and `validate_plan` answer as
+`receipt.build`. Nothing is uploaded: offering the notebook as a download in the chat card and the Model editor is the
+next step, after the smooth chain (those files are the chain's today).
+
+How a buyer runs it:
+
+1. In the Fabric workspace: New item, Import notebook, and choose `krusgraph-receipt.ipynb` (in Databricks: Import in
+   the workspace browser).
+2. Attach it to the lakehouse the numbers were counted on (Fabric: Lakehouses, Add, Existing lakehouse). Read access
+   is enough.
+3. Each statement names its tables as `` `schema`.`table` ``. If the tables sit under another schema or database
+   name in Spark, change the name in the cells (a find and replace), or make the receipt again from that schema.
+4. Run all. Every number prints `same` or `changed`; the last cell counts them. `changed` means the rows changed
+   since `generated_at`, or the statement ran on other tables.
+
 ## Next step (not in this round)
 
 "Show the query" beside each number in the chat card and in the Model editor, from `receipt.build`. Those files belong
