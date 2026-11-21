@@ -13,6 +13,9 @@ commands:
   - name: plan
     description: The keys and links checked against the rows (uniqueness, nulls, orphans); counts only, never row values.
     options: ["--sample", "--folder", "--odbc-from-env", "--schema", "--max-items", "--strict"]
+  - name: receipt
+    description: Every number plan states, with the exact SQL that counted it, so anyone can re-run it; counts only.
+    options: ["--sample", "--folder", "--odbc-from-env", "--schema", "--max-items"]
   - name: sap
     description: The SAP tables and links the SAP pack recognises, the missing tables and columns, and the traps.
     options: ["--sample", "--folder", "--columns", "--odbc-from-env", "--schema"]
@@ -71,6 +74,8 @@ Results by command:
   `target_columns`, `rule`), `ambiguous[]`.
 - `plan`: `passed`, `keys_failed`, `relationships_with_orphans`, `summary`, and `validation` with every key's and
   link's counts and `verdict`.
+- `receipt`: `summary`, `numbers`, `not_counted`, `rows[]` (`kind`, `item`, `sentence`, `sql`, `counts`, `dialect`,
+  `generated_at`) and `markdown`; `--human` prints the Markdown receipt (docs/RECEIPTS.md).
 - `sap`: `summary`, `tables`, `relationships`, `not_applied`, `missing_tables`, `missing_columns`, `traps`.
 - `analysis`: `summary` and `recommendations[]` (`analysis`, `name`, `readiness`, `score`, `because`, `missing`).
 
