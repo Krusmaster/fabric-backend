@@ -47,7 +47,7 @@ box-sizing:border-box;max-width:960px;padding:16px;overflow-wrap:anywhere}
 .kg-dp .kg-dp-actions{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
 .kg-dp button{font:inherit;min-height:32px;padding:4px 12px;border-radius:4px;border:1px solid var(--kg-line);background:var(--kg-bg);color:var(--kg-fg);cursor:pointer}
 .kg-dp button.kg-dp-primary{background:var(--kg-brand);border-color:var(--kg-brand);color:var(--kg-on-brand)}
-.kg-dp button.kg-dp-small{min-height:28px;padding:2px 10px;font-size:12px}
+.kg-dp button.kg-dp-small{padding:2px 10px}
 .kg-dp button.kg-dp-danger{border-color:var(--kg-bad);color:var(--kg-bad);background:var(--kg-bg)}
 .kg-dp button:disabled{opacity:.55;cursor:not-allowed}
 .kg-dp button:focus-visible,.kg-dp input:focus-visible,.kg-dp select:focus-visible{outline:2px solid var(--kg-focus);outline-offset:2px}
@@ -262,6 +262,18 @@ export function DataProductView(props: DataProductProps) {
   );
 }
 
+/** ED3: Fabric's own message for a failed row, behind one Details button (a button, so the keyboard reaches it like
+ * every other control). */
+function FailedDetails(props: { text: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="kg-dp-why">
+      <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)}>{open ? "Hide details" : "Details"}</button>
+      {open && <span> {props.text}</span>}
+    </span>
+  );
+}
+
 function ItemRows(props: { rows: ProductRow[]; chosen: string[]; toggle: (id: string) => void; busy: boolean; onOpen?: (row: ProductRow) => void; onFix?: () => void }) {
   const { chosen, toggle, busy } = props;
   const failed = props.rows.filter((x) => x.state === "failed");
@@ -279,7 +291,7 @@ function ItemRows(props: { rows: ProductRow[]; chosen: string[]; toggle: (id: st
             {f ? (
               <>
                 <span className="kg-dp-why">{f.line}</span>
-                {f.details && <details className="kg-dp-why"><summary>Details</summary>{f.details}</details>}
+                {f.details && <FailedDetails text={f.details} />}
                 {props.onFix && failed[0]?.key === x.key && (
                   <span className="kg-dp-actions"><button type="button" className="kg-dp-primary" onClick={() => props.onFix?.()} disabled={busy}>
                     {`Fix and finish (${failed.length} not built)`}</button></span>

@@ -70,7 +70,10 @@ describe("a failed row", () => {
     expect(failed.length).toBeGreaterThan(0);
     for (const li of failed) {
       expect(li.textContent).toContain(FAILED_LINE);
-      expect(li.querySelector("details summary")!.textContent).toBe("Details");
+      const d = Array.from(li.querySelectorAll("button")).find((b) => b.textContent === "Details")!;
+      expect(li.textContent).not.toContain("a long Fabric message");
+      act(() => d.click());
+      expect(li.textContent).toContain("a long Fabric message");
     }
     const buttons = Array.from(host.querySelectorAll("button")).filter((b) => b.textContent?.startsWith("Fix and finish"));
     expect(buttons.length).toBe(1);
