@@ -59,7 +59,11 @@ export function targetRequest(source: SourceDefinition, itemWorkspaceId?: string
   const ws = buildWorkspace(source, itemWorkspaceId);
   const t = source.target;
   const chosen = t && (t.workspaceId ?? source.workspaceId).toLowerCase() === ws.toLowerCase() ? t.itemId : null;
-  const make = !chosen && source.createLakehouse && validLakehouseName(source.createLakehouse) ? source.createLakehouse.trim() : undefined;
+  // ED1: in another workspace than the source's, with no lakehouse chosen, Create makes (or reuses) one named after the
+  // source by default: a visible default under Change, no checkbox to tick
+  const cross = ws.toLowerCase() !== source.workspaceId.toLowerCase();
+  const named = source.createLakehouse !== undefined ? source.createLakehouse : cross ? defaultLakehouseName(source.displayName) : undefined;
+  const make = !chosen && named && validLakehouseName(named) ? named.trim() : undefined;
   return { lakehouse: chosen, workspace: ws, where: buildIn(source), ...(make ? { create_lakehouse: make } : {}) };
 }
 
@@ -90,7 +94,19 @@ export function lakehouseLine(source: SourceDefinition, itemWorkspaceId?: string
   if (t.lakehouse) return `Silver and gold go to the lakehouse ${source.target?.displayName ?? t.lakehouse}.`;
   if (t.create_lakehouse)
     return `Create makes the lakehouse ${t.create_lakehouse} here first (with Lakehouse schemas), unless one of that name is there; the dry run makes nothing.`;
-  return "Silver and gold go to the first lakehouse of this workspace by name; if it has none, tick Make a lakehouse.";
+  return "Silver and gold go to the first lakehouse of this workspace by name.";
+}
+
+/** ED1 (Gustav, 21 November 2026): the one line the Choose step shows for where the build goes, a visible default that
+ * Change opens. It never contradicts what the dry run does: it reads the same targetRequest. */
+export function placeLine(source: SourceDefinition, itemWorkspaceId?: string): string {
+  const t = targetRequest(source, itemWorkspaceId);
+  const here = buildIn(source) === "source" ? "the source's workspace" : "this workspace";
+  if (t.lakehouse) return `Silver and gold go to ${source.target?.displayName ?? t.lakehouse} in ${here}.`;
+  if (t.create_lakehouse)
+    return `Silver and gold go to a lakehouse ${t.create_lakehouse} in ${here}. Create makes it if it is not there yet.`;
+  if (source.itemType === "Lakehouse" || /lakehouse/i.test(source.itemType)) return `Silver and gold go to ${source.displayName} in ${here}.`;
+  return `Silver and gold go to the first lakehouse of ${here}.`;
 }
 
 /** The data product's workspace (n198, n210: Delete only there): where its items were built, else where it builds. */

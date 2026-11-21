@@ -67,7 +67,8 @@ import {
   validName,
 } from "./buildWords";
 import { FlowView, PlanMap } from "./lazyParts";   // n223: loaded when first shown
-import { BUILD_IN_WORDS, BuildIn, buildIn, buildInLine, crossWorkspace, defaultLakehouseName, lakehouseLine, validLakehouseName } from "./buildPlace";
+import { BUILD_IN_WORDS, BuildIn, buildIn, buildInLine, crossWorkspace, defaultLakehouseName, placeLine, targetRequest, validLakehouseName } from "./buildPlace";
+import { builtOn, defaultsLine, notCheckedLine, productOwnerLine } from "./ed1Words";
 import { ChosenProductsView } from "./SuggestedProductsView";
 import { canRetry, progressLabel, toRetry } from "./createRun";
 import { AgentChoices, AgentPanel, JobsPanel, PipelineChoices } from "./JobsViews";
@@ -381,6 +382,7 @@ export function ReviewView(props: {
   const totals = totalsOf(props.review);
   const passed = acceptAllTargets(props.review, true).length;
   const failedCount = totals.keys.failed + totals.relationships.failed;
+  const notChecked = notCheckedLine(props.review?.items as never, totals.checked);
   return (
     <div className="krusgraph-view">
       <Title3>
@@ -403,11 +405,13 @@ export function ReviewView(props: {
           disabled={props.checking} onClick={props.onCheck}>
           {totals.checked ? "Check against the rows again" : "Check against the rows"}
         </Button>
-        {/* SM3: "Accept all that passed" is the only accept-all; each link is still accepted or rejected on its own */}
-        <Button disabled={!passed} onClick={() => props.onAcceptAll(true)}
-          title={totals.checked ? undefined : "Check against the rows first"}>
-          Accept all that passed the check ({passed})
-        </Button>
+        {/* SM3: "Accept all that passed" is the only accept-all; each link is still accepted or rejected on its own.
+            ED1: shown only when there is something to accept */}
+        {passed > 0 && (
+          <Button onClick={() => props.onAcceptAll(true)}>
+            Accept all that passed the check ({passed})
+          </Button>
+        )}
       </div>
       {totals.checked > 0 && (
         <div className="krusgraph-legend" aria-label="What the check found">
@@ -421,6 +425,8 @@ export function ReviewView(props: {
         </div>
       )}
 
+      {/* ED1: which items the check did not count, and why, in one line */}
+      {notChecked && <Caption1 as="p" data-ed1="not-checked">{notChecked.text}{notChecked.again ? " Krusgraph checks them again on its own." : ""}</Caption1>}
       {totals.checked > 0 && <ProofStrip review={props.review} />}
       {props.onNext && (
         <div className="kg-primary-row">
@@ -477,44 +483,45 @@ export function ReviewView(props: {
 // ------------------------------------------------------------------ 3. choose outputs (n174: every output) ----------
 
 /** n221: where the outputs are built. This item's workspace is the default, so a Model in a new workspace builds its
- * own data product there; the source's workspace builds beside the source, as before n221. */
+ * own data product there; the source's workspace builds beside the source, as before n221. ED1 (Gustav, 21 November
+ * 2026): one line says where silver and gold go (placeLine, the same targetRequest the dry run sends); the workspace, the
+ * lakehouse and its name are under Change. In another workspace with no lakehouse chosen, Create makes one named after
+ * the source (or uses it when it is there): no checkbox. */
 export function BuildInChoice(props: {
   source: SourceDefinition;
   itemWorkspaceId?: string;
   onBuildIn: (patch: { buildIn?: BuildIn; createLakehouse?: string | null }) => void;
   onChooseTarget?: () => void;
+  /** ED1: Change is open */
+  open?: boolean;
 }) {
   const { source } = props;
   const cross = crossWorkspace(source, props.itemWorkspaceId);
-  const make = source.createLakehouse;
+  const t = targetRequest(source, props.itemWorkspaceId);
+  const make = source.createLakehouse ?? (cross ? defaultLakehouseName(source.displayName) : undefined);
   return (
     <section className="krusgraph-build-in" aria-label="Build in">
-      <Field label="Build in">
-        <RadioGroup layout="horizontal" value={buildIn(source)} onChange={(_, d) => props.onBuildIn({ buildIn: d.value as BuildIn })}>
-          {(["item", "source"] as BuildIn[]).map((w) => <Radio key={w} value={w} label={BUILD_IN_WORDS[w]} />)}
-        </RadioGroup>
-      </Field>
-      <Caption1>{buildInLine(source, props.itemWorkspaceId)}</Caption1>
-      {cross && (
-        <>
-          <Body1>{lakehouseLine(source, props.itemWorkspaceId)}</Body1>
-          {props.onChooseTarget && (
+      <Body1 data-ed1="place">{placeLine(source, props.itemWorkspaceId)}</Body1>
+      {props.open && (
+        <div className="kg-change" aria-label="Where it is built">
+          <Field label="Build in">
+            <RadioGroup layout="horizontal" value={buildIn(source)} onChange={(_, d) => props.onBuildIn({ buildIn: d.value as BuildIn })}>
+              {(["item", "source"] as BuildIn[]).map((w) => <Radio key={w} value={w} label={BUILD_IN_WORDS[w]} />)}
+            </RadioGroup>
+          </Field>
+          <Caption1 as="p">{buildInLine(source, props.itemWorkspaceId)}</Caption1>
+          {cross && props.onChooseTarget && (
             <Button size="small" appearance="secondary" onClick={props.onChooseTarget}>
-              {source.target ? `Lakehouse for silver and gold: ${source.target.displayName}` : "Lakehouse for silver and gold: choose one"}
+              {source.target ? `Lakehouse for silver and gold: ${source.target.displayName}` : "Choose another lakehouse for silver and gold"}
             </Button>
           )}
-          {!source.target && (
-            <Checkbox checked={make !== undefined}
-              label="Make a lakehouse here for silver and gold (Create makes it, with Lakehouse schemas; the dry run makes nothing)"
-              onChange={(_, d) => props.onBuildIn({ createLakehouse: d.checked ? defaultLakehouseName(source.displayName) : null })} />
-          )}
-          {!source.target && make !== undefined && (
-            <Field label="Name of the lakehouse" validationState={validLakehouseName(make) ? "none" : "error"}
+          {cross && !t.lakehouse && make !== undefined && (
+            <Field label="Name of the lakehouse Create makes" validationState={validLakehouseName(make) ? "none" : "error"}
               validationMessage={validLakehouseName(make) ? undefined : "Letters, digits and underscores, starting with a letter"}>
               <Input value={make} onChange={(_, d) => props.onBuildIn({ createLakehouse: d.value })} />
             </Field>
           )}
-        </>
+        </div>
       )}
     </section>
   );
@@ -538,9 +545,14 @@ export function OutputsView(props: {
   onChooseTarget?: () => void;
   /** n222: the suggested data products panel, shown before Preview */
   extra?: React.ReactNode;
+  /** ED1: Change on the report's "Built on": a picker of the semantic models in the workspace (no free text) */
+  onPickModel?: () => void;
+  /** ED1: Change open from the start (tests) */
+  changeOpen?: boolean;
 }) {
+  const [changing, setChanging] = React.useState(!!props.changeOpen);
   const pipe = props.choices.find((c) => c.type === "pipeline" && c.enabled);
-  const problems = [...choiceProblems(props.choices), ...(pipe ? scheduleProblems(jobsOf(pipe).schedule) : [])];
+  const problems = [...choiceProblems(props.choices, props.created), ...(pipe ? scheduleProblems(jobsOf(pipe).schedule) : [])];
   const productOk = !props.product.on || /^[A-Za-z0-9][A-Za-z0-9 _.-]{0,79}$/.test(props.product.name.trim());
   // SM3: ticking or unticking the pipeline ticks its silver and gold notebooks with it, as the chat's pipeline has them
   const set = (kind: string, patch: Partial<OutputChoice>) =>
@@ -563,16 +575,21 @@ export function OutputsView(props: {
             <section key={k.kind} className="krusgraph-output" aria-label={k.label}>
               <Checkbox checked={c.enabled} label={<ItemTitle kind={k.kind}>{k.label}</ItemTitle>}
                 onChange={(_, d) => set(k.kind, { enabled: !!d.checked })} />
-              <Caption1>{k.what}</Caption1>
+              <Caption1 as="p">{k.what}</Caption1>
               {k.kind === "rayfin_app" && (
                 <Body1 className="krusgraph-app-before" data-say="builder"><strong>Builder:</strong> {APP_BEFORE_CREATE}</Body1>
               )}
               {c.enabled && (
                 <>
-                  <Field label={nameLabel(k.label)} validationState={valid ? "none" : "error"}
-                    validationMessage={valid ? undefined : "Letters, digits and underscores only"}>
-                    <Input value={c.name} onChange={(_, d) => set(k.kind, { name: d.value })} />
-                  </Field>
+                  {/* ED1: the name comes from the rule (<source>_<suffix>) and is shown; Change makes it a text box */}
+                  {changing ? (
+                    <Field label={nameLabel(k.label)} validationState={valid ? "none" : "error"}
+                      validationMessage={valid ? undefined : "Letters, digits and underscores only"}>
+                      <Input value={c.name} onChange={(_, d) => set(k.kind, { name: d.value })} />
+                    </Field>
+                  ) : (
+                    <Caption1 as="p" data-ed1="name">Name: {c.name}{valid ? "" : " (letters, digits and underscores only: change it under Change)"}</Caption1>
+                  )}
                   {act.action === "update" && <Badge appearance="tint" color="brand">Update: {act.reason}</Badge>}
                   {act.action === "new_name" && (
                     <div>
@@ -582,16 +599,23 @@ export function OutputsView(props: {
                       </Button>
                     </div>
                   )}
-                  {k.kind === "report" && (
-                    <Field label="Built on" hint="Empty: the semantic model chosen above. Or the name of a semantic model already in this workspace.">
-                      <Input value={c.model ?? ""} onChange={(_, d) => set(k.kind, { model: d.value })} />
-                    </Field>
+                  {/* ED1: what it is built on, as a visible default (the report on the model above) */}
+                  {(() => {
+                    const b = builtOn(k.kind, props.choices, props.created, props.source?.displayName);
+                    return b ? <Caption1 as="p" data-ed1="built-on" className={b.missing ? "kg-missing" : undefined}>{b.text}</Caption1> : null;
+                  })()}
+                  {!changing && defaultsLine(k.kind, c) && <Caption1 as="p" data-ed1="defaults">{defaultsLine(k.kind, c)}</Caption1>}
+                  {changing && k.kind === "report" && (
+                    <div className="krusgraph-choices">
+                      {props.onPickModel && <Button size="small" onClick={props.onPickModel}>Choose a semantic model in this workspace</Button>}
+                      {c.model && <Button size="small" onClick={() => set(k.kind, { model: "" })}>Use the semantic model above</Button>}
+                    </div>
                   )}
-                  {k.kind === "pipeline" && (
+                  {changing && k.kind === "pipeline" && (
                     <PipelineChoices jobs={jobsOf(c)} blocked={props.jobsBlocked} onChange={(j) => set(k.kind, { jobs: j })} />
                   )}
-                  {k.kind === "data_agent" && <AgentChoices agent={agentOf(c)} onChange={(a) => set(k.kind, { agent: a })} />}
-                  <PermissionsNote needs={k.needs} />
+                  {changing && k.kind === "data_agent" && <AgentChoices agent={agentOf(c)} onChange={(a) => set(k.kind, { agent: a })} />}
+                  {changing && <PermissionsNote needs={k.needs} />}
                 </>
               )}
             </section>
@@ -605,8 +629,15 @@ export function OutputsView(props: {
       </Body1>
       {props.source && props.onBuildIn && (
         <BuildInChoice source={props.source} itemWorkspaceId={props.itemWorkspaceId} onBuildIn={props.onBuildIn}
-          onChooseTarget={props.onChooseTarget} />
+          onChooseTarget={props.onChooseTarget} open={changing} />
       )}
+      {/* ED1: one Change for every default on this step: where it is built, the names, the report's model, the
+          pipeline's runs, the agent's layer and publishing, the permissions */}
+      <div>
+        <Button appearance="transparent" aria-expanded={changing} onClick={() => setChanging(!changing)}>
+          {changing ? "Done changing" : "Change"}
+        </Button>
+      </div>
       {props.stored && <ProductView product={props.stored} onOpen={props.onOpen} title="Data product built so far" />}
       <div className="krusgraph-outputs">
         {main.map(card)}
@@ -1136,7 +1167,7 @@ export function ProductView(props: {
     <section className="krusgraph-product" aria-label={`Data product ${p.name}`}>
       <Caption1>{props.title ?? "Data product"}</Caption1>
       <Subtitle2>{p.name}</Subtitle2>
-      <Body1>Owner: {p.owner ?? "nobody has chosen one yet"}. Plan {p.plan.plan_id ?? "?"}{p.plan.schema_fingerprint ? `, schema ${p.plan.schema_fingerprint}` : ""}.</Body1>
+      <Body1>{productOwnerLine(p)}</Body1>
       <ul className="krusgraph-list">
         {items.map((x) => (
           <li key={x.id || `${x.output}:${x.name}`}>
