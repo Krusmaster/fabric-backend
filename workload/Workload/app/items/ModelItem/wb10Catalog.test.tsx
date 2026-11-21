@@ -76,32 +76,27 @@ afterEach(() => {
 });
 
 describe("CatalogPanel (#58, #61)", () => {
-  it("has autocomplete off, a name of its own, the people picker and Me; an item's name is not prefilled", () => {
+  // ED3 (Gustav, 21 Nov 2026): the owner is asked once, on the Data product page; the catalog step uses it
+  it("asks for no owner of its own: the data product's owner, else the signed-in person; never an item's name", () => {
     const run = vi.fn(async () => ANSWER);
     act(() => root.render(
       <CatalogContext.Provider value={{ run, owner: "demo_lh_api9", people: PEOPLE, you: "Eva Berg", itemNames: ITEMS }}>
         <CatalogPanel />
       </CatalogContext.Provider>));
-    const input = host.querySelector("input[name=kg-catalog-owner]") as HTMLInputElement;
-    expect(input.getAttribute("autocomplete")).toBe("off");
-    expect(input.value).toBe("");                                      // the saved item name is not offered
-    const list = host.querySelector(`datalist#${input.getAttribute("list")}`);
-    expect(Array.from(list!.querySelectorAll("option")).map((o) => o.getAttribute("value"))).toEqual(["Eva Berg (eva@contoso.example)", "Data team"]);
-    const me = Array.from(host.querySelectorAll("button")).find((b) => b.textContent === "Me (Eva Berg)");
-    expect(me).toBeTruthy();
+    expect(host.querySelector("input[name=kg-catalog-owner]")).toBeNull();
+    expect(Array.from(host.querySelectorAll("button")).some((b) => b.textContent?.startsWith("Me ("))).toBe(false);
+    const line = host.querySelector("[data-ed3=owner]")!.textContent!;
+    expect(line).toContain("Owner: Eva Berg") ;
+    expect(line).not.toContain("demo_lh_api9");
   });
 
-  it("refuses an item's name typed in, and does not prepare with it", async () => {
+  it("prepares with the data product's owner", async () => {
     const run = vi.fn(async () => ANSWER);
     act(() => root.render(
-      <CatalogContext.Provider value={{ run, people: PEOPLE, you: "Eva Berg", itemNames: ITEMS }}><CatalogPanel /></CatalogContext.Provider>));
-    const input = host.querySelector("input[name=kg-catalog-owner]") as HTMLInputElement;
-    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
-    await act(async () => { setter.call(input, "demo_lh_api9"); input.dispatchEvent(new Event("input", { bubbles: true })); });
-    expect(host.textContent).toContain("is an item in this workspace, not a person or group");
+      <CatalogContext.Provider value={{ run, owner: "Data team", people: PEOPLE, you: "Eva Berg", itemNames: ITEMS }}><CatalogPanel /></CatalogContext.Provider>));
     const prepare = Array.from(host.querySelectorAll("button")).find((b) => b.textContent?.startsWith("Prepare"))!;
-    expect(prepare.hasAttribute("disabled")).toBe(true);
-    expect(run).not.toHaveBeenCalled();
+    await act(async () => { prepare.click(); });
+    expect(run).toHaveBeenCalledWith(expect.objectContaining({ owner: "Data team", dryRun: true }));
   });
 
   it("offers an item Krusgraph did not build unticked, and prepares again with it when ticked", async () => {

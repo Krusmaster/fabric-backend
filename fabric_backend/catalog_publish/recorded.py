@@ -44,4 +44,13 @@ def with_recorded(validation: dict | None, review: dict | None, now_iso: str) ->
     got, at = recorded(review)
     if got is None:
         return validation, now_iso
-    return {**(validation or {}), **got}, at or now_iso
+    # ED3 (Gustav: products' rules "not counted" while this step had just counted them): a key or link the recorded
+    # check did not reach takes this step's fresh count, and the time stated is then the newest of the two
+    fresh = validation or {}
+    have_k = {(k["table"].lower(), tuple(c.lower() for c in k["columns"])) for k in got["keys"]}
+    have_r = {(r["source"].lower(), tuple(c.lower() for c in r["columns"]), r["target"].lower()) for r in got["relationships"]}
+    more_k = [k for k in fresh.get("keys") or [] if (str(k.get("table", "")).lower(), tuple(str(c).lower() for c in k.get("columns") or [])) not in have_k]
+    more_r = [r for r in fresh.get("relationships") or []
+              if (str(r.get("source", "")).lower(), tuple(str(c).lower() for c in r.get("columns") or []), str(r.get("target", "")).lower()) not in have_r]
+    merged = {**fresh, "keys": got["keys"] + more_k, "relationships": got["relationships"] + more_r}
+    return merged, (now_iso if (more_k or more_r) else (at or now_iso))

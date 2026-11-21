@@ -37,10 +37,15 @@ SOURCES = {
                        "?view=rest-purview-purviewdataquality-2026-01-12-preview", "updated 2026-04-23, public preview"),
 }
 
+# ED3: quoted verbatim from learn.microsoft.com/en-us/purview/unified-catalog ("Learn about Microsoft Purview Unified
+# Catalog", ms.date 2026-10-13, updated 2026-11-12, read 21 November 2026), its "Retirement of Microsoft Purview data
+# governance capabilities only" notice; nothing added. A test keeps it word for word.
+PURVIEW_RETIRING_SOURCE = "https://learn.microsoft.com/en-us/purview/unified-catalog"
+PURVIEW_RETIRING_READ = "page dated 2026-10-13, updated 2026-11-12, read 21 November 2026"
 PURVIEW_RETIRING = ("Microsoft Purview Unified Catalog and classic Microsoft Purview data governance capabilities (formerly "
                     "Azure Purview) are being retired. Microsoft is consolidating its data governance capabilities in "
-                    "Microsoft Fabric. You can no longer create new accounts, and existing capabilities will remain in "
-                    "maintenance mode through November 12, 2027.")
+                    "Microsoft Fabric. New Microsoft Purview data governance accounts can no longer be created, and existing "
+                    "data governance capabilities will remain in maintenance mode through November 12, 2027.")
 
 # Who may do what, per action. `by`: you (the signed-in user, as Krusgraph writes), fabric_admin, domain_admin,
 # workspace_admin, reviewer (a certifier the Fabric admin named), purview_* (Unified Catalog roles). `krusgraph`: what
