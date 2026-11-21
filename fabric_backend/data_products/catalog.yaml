@@ -1,0 +1,550 @@
+# Catalog of classic data products (round DP1, 21 November 2026). Format: catalog.schema.json; loader:
+# fabric_backend/data_product_catalog.py; the plain-word version and the coverage per source: docs/DATA-PRODUCT-CATALOG.md.
+#
+# Written by this project from general data-modelling knowledge (facts and dimensions, grain, business keys). It does not
+# copy any licensed industry data model and quotes no other model's text. Column names in business_key are generic
+# names of our own, not any system's; the packs' mapping (mapping.yaml) says how each system's key maps to them.
+#
+# Per product: id, title (plain words), area, kind (master, transaction, plan, reference), grain (what one row is),
+# business_key (the columns that make one row unique), dimensions (the conformed dimensions it joins), measures (with
+# the level they belong to), traps, questions (2-3), and roles: the table roles a source needs for the product to be
+# complete (required) and the roles that add to it (optional).
+version: 0.1.0
+review_status: proposed
+
+products:
+
+# ------------------------------------------------------------------ master data and reference
+- id: customer
+  title: Customer
+  area: master_data
+  kind: master
+  grain: one customer (a party that buys and is billed), per client or tenant
+  business_key: [tenant_id, customer_number]
+  dimensions: [organisation, currency]
+  measures:
+  - {name: credit limit, level: customer and organisation}
+  traps:
+  - {kind: multi_company, text: "Customer data is often split into a general part and a part per company or sales area; one customer has one general row and several organisation rows."}
+  - {kind: identity, text: "The same customer can have one number in the ERP, another in the CRM and a third in the billing system; a name match is not a link."}
+  - {kind: personal_data, text: "Names, addresses, phone numbers and e-mail are personal data when the customer is a person."}
+  questions:
+  - How many active customers do we have per country and sales organisation?
+  - Which customers buy from more than one company in the group?
+  roles: {required: [master], optional: [extension, bridge, text]}
+
+- id: supplier
+  title: Supplier
+  area: master_data
+  kind: master
+  grain: one supplier (a party we buy from and pay), per client or tenant
+  business_key: [tenant_id, supplier_number]
+  dimensions: [organisation, currency]
+  measures: []
+  traps:
+  - {kind: multi_company, text: "Supplier data per company and per purchasing organisation sits in separate rows from the general data."}
+  - {kind: identity, text: "A business partner can be both customer and supplier under two different numbers."}
+  questions:
+  - How many suppliers do we buy from per purchasing organisation?
+  - Which suppliers are also customers?
+  roles: {required: [master], optional: [extension, bridge]}
+
+- id: product
+  title: Product or material
+  area: master_data
+  kind: master
+  grain: one product, material or item that is sold, bought or stocked
+  business_key: [tenant_id, product_number]
+  dimensions: [organisation]
+  measures:
+  - {name: standard price, level: product and organisation}
+  traps:
+  - {kind: text_per_language, text: "Descriptions sit in a text table with one row per language; joining it without a language filter multiplies the product."}
+  - {kind: leading_zeros, text: "Numeric product numbers may be stored with leading zeros in one system and without in another."}
+  questions:
+  - Which products sell the most per month?
+  - Which products have no sales in the last year?
+  roles: {required: [master], optional: [text, extension]}
+
+- id: employee
+  title: Employee or user
+  area: hr
+  kind: master
+  grain: one person who works for the organisation (an employee, or a user or sales representative in an application)
+  business_key: [tenant_id, employee_number]
+  dimensions: [organisation]
+  measures:
+  - {name: headcount, level: employee and date}
+  traps:
+  - {kind: versions, text: "HR data is kept as periods (valid from, valid to); a person has one row per period, and a count without a date filter counts every change."}
+  - {kind: identity, text: "An application user is not an HR employee: a user may be a system account or a queue, and an employee may have no user."}
+  - {kind: personal_data, text: "Every row is about a person."}
+  questions:
+  - How many people work in each organisation unit on a given date?
+  - Which sales representative owns the most open opportunities?
+  roles: {required: [master], optional: [version, extension]}
+
+- id: organisation
+  title: Organisation and company
+  area: master_data
+  kind: reference
+  grain: one organisation unit (a company or legal entity, a sales or purchasing organisation, a plant, a business unit, a team)
+  business_key: [tenant_id, organisation_type, organisation_code]
+  dimensions: [currency]
+  measures: []
+  traps:
+  - {kind: multi_company, text: "A code (company, plant, sales organisation) is unique only within its client or tenant; different unit types live in different tables."}
+  - {kind: hierarchy, text: "Units form hierarchies (company -> plant, business unit -> team) that a report has to choose a level of."}
+  questions:
+  - Which companies and plants belong to the group?
+  - Which business unit owns this record?
+  roles: {required: [master], optional: [bridge]}
+
+- id: chart_of_accounts
+  title: Chart of accounts (G/L accounts)
+  area: finance
+  kind: master
+  grain: one general ledger account in one chart of accounts
+  business_key: [tenant_id, chart_of_accounts, account_number]
+  dimensions: [organisation]
+  measures: []
+  traps:
+  - {kind: multi_company, text: "An account number means something only together with its chart of accounts; companies may use different charts."}
+  - {kind: hierarchy, text: "Reporting lines (balance sheet, profit and loss) are a hierarchy over the accounts, often kept outside the account table."}
+  questions:
+  - Which accounts make up revenue and cost of sales?
+  - Which accounts are used by a company but not in the group chart?
+  roles: {required: [master], optional: [extension, text]}
+
+- id: cost_centre
+  title: Cost centre and profit centre
+  area: finance
+  kind: master
+  grain: one cost centre or profit centre in one controlling area, for one validity period
+  business_key: [tenant_id, controlling_area, cost_object, valid_to]
+  dimensions: [organisation, employee]
+  measures: []
+  traps:
+  - {kind: versions, text: "Cost and profit centres are kept with validity periods; join on the period the transaction falls in, not on the code alone."}
+  questions:
+  - Which cost centres overspend their budget?
+  - Which profit centre does this revenue belong to?
+  roles: {required: [master], optional: [version, text]}
+
+- id: currency
+  title: Currency and exchange rate
+  area: reference
+  kind: reference
+  grain: one currency, and for rates one currency pair, rate type and date
+  business_key: [currency_code]
+  dimensions: [date]
+  measures:
+  - {name: exchange rate, level: currency pair and date}
+  traps:
+  - {kind: currency, text: "Amounts are in the document's own currency; a total over several currencies needs a conversion at a chosen date and rate type."}
+  questions:
+  - What is the revenue in the group currency per month?
+  roles: {required: [master], optional: []}
+
+- id: date
+  title: Date (calendar)
+  area: reference
+  kind: reference
+  grain: one calendar day
+  business_key: [calendar_date]
+  dimensions: []
+  measures: []
+  traps:
+  - {kind: fiscal_calendar, text: "The fiscal year and period may differ from the calendar year; the fiscal calendar is per company."}
+  - {kind: other, text: "Source systems rarely hold a date table; it is generated, and every fact joins it on its own date column (order date, delivery date, posting date)."}
+  questions:
+  - What is the revenue per month, quarter and fiscal period?
+  roles: {required: [], optional: [master]}
+
+# ------------------------------------------------------------------ order to cash
+- id: sales_order
+  title: Sales order (header and line)
+  area: sales
+  kind: transaction
+  grain: one line of a sales order (product, quantity, price); the header holds customer, dates and status
+  business_key: [tenant_id, order_number, line_number]
+  dimensions: [customer, product, organisation, date, currency, employee]
+  measures:
+  - {name: order line net value, level: line}
+  - {name: ordered quantity, level: line}
+  - {name: order total, level: header}
+  traps:
+  - {kind: header_amount_per_line, text: "The order total sits on the header and repeats on every line after a join; sum the line values instead."}
+  - {kind: status_filter, text: "Quotes, orders, returns and contracts often share one table and are told apart by a type column."}
+  - {kind: multi_company, text: "Order numbers are unique only per client, tenant or company."}
+  questions:
+  - What is the order intake per customer and month?
+  - Which order lines are not delivered yet?
+  - What is the average order value per sales organisation?
+  roles: {required: [header, line], optional: [schedule_line, status, bridge, flow]}
+
+- id: delivery
+  title: Delivery (outbound shipment)
+  area: supply_chain
+  kind: transaction
+  grain: one line of a delivery (a quantity of a product shipped from a plant for an order line)
+  business_key: [tenant_id, delivery_number, line_number]
+  dimensions: [customer, product, organisation, date]
+  measures:
+  - {name: delivered quantity, level: line}
+  - {name: days late, level: line, note: "actual goods issue date against the requested or promised date"}
+  traps:
+  - {kind: other, text: "The planned and the actual goods issue dates are different columns; the creation date is neither."}
+  - {kind: status_filter, text: "Outbound and inbound deliveries may share one table."}
+  questions:
+  - Which deliveries left later than the customer was promised?
+  - What share of order lines was delivered in full and on time?
+  roles: {required: [header, line], optional: [bridge, flow]}
+
+- id: invoice
+  title: Customer invoice (billing)
+  area: finance
+  kind: transaction
+  grain: one line of an invoice or credit memo sent to a customer
+  business_key: [tenant_id, invoice_number, line_number]
+  dimensions: [customer, product, organisation, date, currency]
+  measures:
+  - {name: invoiced net amount, level: line}
+  - {name: invoiced quantity, level: line}
+  - {name: invoice total, level: header}
+  traps:
+  - {kind: header_amount_per_line, text: "The invoice total sits on the header and repeats on every line after a join."}
+  - {kind: status_filter, text: "Credit memos, cancellations and drafts may sit in the same table; the type and status decide the sign and whether to count it."}
+  - {kind: currency, text: "Every invoice has its own currency."}
+  questions:
+  - What is the revenue per customer and month?
+  - Which products have the highest credit-memo share?
+  roles: {required: [header, line], optional: [bridge]}
+
+- id: open_item
+  title: Receivables and payables (open and cleared items)
+  area: finance
+  kind: transaction
+  grain: one open or cleared item on a customer or supplier account (an invoice, credit memo or payment line not yet or already settled)
+  business_key: [tenant_id, company, fiscal_year, document_number, line_number]
+  dimensions: [customer, supplier, organisation, date, currency]
+  measures:
+  - {name: open amount, level: item}
+  - {name: days overdue, level: item}
+  traps:
+  - {kind: double_count, text: "Open-item tables are copies of journal lines; adding them to the journal counts the money twice."}
+  - {kind: sign, text: "Debit and credit are a sign or an indicator column, not two amount columns."}
+  - {kind: other, text: "Special transactions (down payments, guarantees) sit among the ordinary items and are flagged."}
+  questions:
+  - Which customers have unpaid invoices past their due date?
+  - What do we owe our suppliers per due week?
+  roles: {required: [line], optional: [header, bridge]}
+
+- id: payment
+  title: Payment
+  area: finance
+  kind: transaction
+  grain: one incoming or outgoing payment, and which invoices it settles
+  business_key: [tenant_id, payment_number]
+  dimensions: [customer, supplier, organisation, date, currency]
+  measures:
+  - {name: paid amount, level: payment}
+  - {name: days to pay, level: invoice and payment}
+  traps:
+  - {kind: other, text: "One payment can settle several invoices and one invoice can be paid in parts: payment to invoice is many-to-many."}
+  - {kind: currency, text: "Payment and invoice may be in different currencies; the exchange difference is its own line."}
+  questions:
+  - How many days do customers take to pay?
+  - Which payments are not matched to an invoice?
+  roles: {required: [header], optional: [bridge, line]}
+
+# ------------------------------------------------------------------ finance
+- id: gl_journal_entry
+  title: General ledger journal entry
+  area: finance
+  kind: transaction
+  grain: one line of a journal entry (an account, an amount, a debit or credit) in one ledger
+  business_key: [tenant_id, ledger, company, fiscal_year, document_number, line_number]
+  dimensions: [chart_of_accounts, organisation, cost_centre, date, currency, customer, supplier]
+  measures:
+  - {name: amount in company currency, level: line}
+  - {name: amount in transaction currency, level: line}
+  traps:
+  - {kind: double_count, text: "Several ledgers can hold the same posting; filter on one ledger."}
+  - {kind: sign, text: "Debit and credit are a sign or an indicator column."}
+  - {kind: currency, text: "A line carries amounts in several currencies (transaction, company, group); do not add them."}
+  questions:
+  - What is the profit and loss per company and period?
+  - Which accounts moved most against last year?
+  roles: {required: [line], optional: [header]}
+
+- id: budget
+  title: Budget and plan
+  area: planning
+  kind: plan
+  grain: one planned amount for an account or cost centre (or a product and customer), a period and a plan version
+  business_key: [tenant_id, plan_version, period, account, cost_object]
+  dimensions: [chart_of_accounts, cost_centre, organisation, date, product, customer]
+  measures:
+  - {name: planned amount, level: plan line}
+  traps:
+  - {kind: versions, text: "Several plan versions (budget, forecast 1, forecast 2) sit in one table; summing over versions is wrong."}
+  - {kind: other, text: "The plan is often at a coarser grain (month, account group) than the actuals it is compared with."}
+  questions:
+  - Where do actual costs exceed the budget this quarter?
+  - How does the latest forecast compare with the budget?
+  roles: {required: [line], optional: [header, version]}
+
+# ------------------------------------------------------------------ procure to pay and supply chain
+- id: purchase_order
+  title: Purchase order (header and line)
+  area: procurement
+  kind: transaction
+  grain: one line of a purchase order (a product or service, quantity and price from a supplier)
+  business_key: [tenant_id, purchase_order_number, line_number]
+  dimensions: [supplier, product, organisation, date, currency]
+  measures:
+  - {name: ordered net value, level: line}
+  - {name: ordered quantity, level: line}
+  traps:
+  - {kind: soft_delete, text: "Deleted or blocked order lines may stay in the table with a deletion flag."}
+  - {kind: status_filter, text: "Requisitions, orders, contracts and scheduling agreements may share one table and a type column."}
+  questions:
+  - What do we spend per supplier and month?
+  - Which purchase order lines are overdue for delivery?
+  roles: {required: [header, line], optional: [schedule_line, flow]}
+
+- id: goods_receipt
+  title: Goods receipt
+  area: procurement
+  kind: transaction
+  grain: one received quantity of a product against a purchase order line, on a date
+  business_key: [tenant_id, receipt_document_number, fiscal_year, line_number]
+  dimensions: [supplier, product, organisation, date]
+  measures:
+  - {name: received quantity, level: line}
+  - {name: received value, level: line}
+  traps:
+  - {kind: double_count, text: "Receipts and their reversals are both rows; net them by movement type before counting."}
+  - {kind: other, text: "A purchase order history table mixes receipts with invoice receipts; the event type tells them apart."}
+  questions:
+  - Do suppliers deliver on the date they confirmed?
+  - What has been received but not invoiced yet?
+  roles: {required: [header, line], optional: [bridge]}
+
+- id: supplier_invoice
+  title: Supplier invoice
+  area: procurement
+  kind: transaction
+  grain: one line of an invoice received from a supplier, often matched to a purchase order line
+  business_key: [tenant_id, invoice_document_number, fiscal_year, line_number]
+  dimensions: [supplier, product, organisation, date, currency]
+  measures:
+  - {name: invoiced amount, level: line}
+  - {name: invoice gross amount, level: header}
+  traps:
+  - {kind: header_amount_per_line, text: "The gross amount sits on the header only."}
+  - {kind: multi_company, text: "Invoice document numbers repeat across fiscal years; the year is part of the key."}
+  questions:
+  - Which invoices differ from the purchase order price?
+  - What is the spend per supplier, invoiced rather than ordered?
+  roles: {required: [header, line], optional: []}
+
+- id: inventory_movement
+  title: Inventory movement and stock
+  area: supply_chain
+  kind: transaction
+  grain: one movement of a quantity of a product in or out of a location; stock on a date is the running sum (or a snapshot table)
+  business_key: [tenant_id, movement_document_number, fiscal_year, line_number]
+  dimensions: [product, organisation, date, supplier, customer]
+  measures:
+  - {name: moved quantity, level: line}
+  - {name: moved value, level: line}
+  - {name: stock on hand, level: "product, location and date", note: "a running sum or a snapshot, never a sum over snapshots"}
+  traps:
+  - {kind: sign, text: "Receipts and issues are one table with a movement type or a sign."}
+  - {kind: double_count, text: "Quantity and value may sit in two ledgers (an item ledger and a value ledger) that both list the same movement."}
+  - {kind: other, text: "Summing stock snapshots over several dates adds the same stock again."}
+  questions:
+  - How much stock do we hold per product and plant at month end?
+  - Which products have not moved for six months?
+  roles: {required: [line], optional: [header, snapshot]}
+
+- id: price
+  title: Price and condition
+  area: sales
+  kind: master
+  grain: one price (or discount) for a product, possibly per customer, price list and currency, valid for a period
+  business_key: [tenant_id, price_list, product_number, currency, valid_from]
+  dimensions: [product, customer, currency, date]
+  measures:
+  - {name: unit price, level: price row}
+  - {name: discount rate, level: price row}
+  traps:
+  - {kind: versions, text: "Prices are valid for a period; join on the document date, not on the product alone."}
+  - {kind: other, text: "A rate (per cent or per unit) and a value are different columns; adding all condition lines of a document is not its net value."}
+  questions:
+  - Which price did this customer get compared with the list price?
+  - How did the list price of a product change over the year?
+  roles: {required: [master], optional: [header, line]}
+
+# ------------------------------------------------------------------ CRM, marketing and service
+- id: crm_account
+  title: Account (CRM)
+  area: crm
+  kind: master
+  grain: one company (or person) the sales team works with, whether or not it has bought
+  business_key: [tenant_id, account_id]
+  dimensions: [employee, organisation]
+  measures:
+  - {name: number of employees, level: account}
+  - {name: annual revenue (as entered), level: account}
+  traps:
+  - {kind: identity, text: "A CRM account is not the ERP or billing customer; the link is an id field someone filled in, not the name."}
+  - {kind: soft_delete, text: "Deleted rows may land with a delete flag."}
+  - {kind: other, text: "An account can be a person in some systems (person accounts)."}
+  questions:
+  - Which accounts in our target segment have no open opportunity?
+  - How many accounts does each sales representative own?
+  roles: {required: [master], optional: [bridge]}
+
+- id: contact
+  title: Contact
+  area: crm
+  kind: master
+  grain: one person at an account or customer
+  business_key: [tenant_id, contact_id]
+  dimensions: [crm_account, customer, employee]
+  measures: []
+  traps:
+  - {kind: personal_data, text: "Every row is about a person."}
+  - {kind: identity, text: "The same person can be a contact on several accounts, and a lead before that."}
+  questions:
+  - Which contacts at our top accounts have had no activity in 90 days?
+  roles: {required: [master], optional: [bridge]}
+
+- id: lead
+  title: Lead
+  area: crm
+  kind: transaction
+  grain: one prospect (a person or company) not yet qualified
+  business_key: [tenant_id, lead_id]
+  dimensions: [employee, campaign, date]
+  measures:
+  - {name: number of leads, level: lead}
+  - {name: conversion rate, level: a set of leads}
+  traps:
+  - {kind: other, text: "A converted lead stays in the table with a converted flag and links to the account, contact and opportunity it became; count it once."}
+  - {kind: personal_data, text: "Leads are often people."}
+  questions:
+  - How many leads per source and month became opportunities?
+  - How long does a lead take to be qualified?
+  roles: {required: [master], optional: []}
+
+- id: opportunity
+  title: Opportunity (pipeline)
+  area: crm
+  kind: transaction
+  grain: one potential sale to an account, with its lines (products) when they are used
+  business_key: [tenant_id, opportunity_id]
+  dimensions: [crm_account, product, employee, date, currency, campaign, contact]
+  measures:
+  - {name: opportunity amount, level: header}
+  - {name: line amount, level: line}
+  - {name: weighted amount, level: header, note: amount times probability}
+  traps:
+  - {kind: header_amount_per_line, text: "The opportunity amount is the total of its lines; summing it after joining the lines counts it again."}
+  - {kind: other, text: "Pipeline, quotes, orders and invoices are stages of one sale; adding them double counts it."}
+  - {kind: currency, text: "Each opportunity may have its own currency."}
+  questions:
+  - What is the weighted pipeline per quarter and sales representative?
+  - What is our win rate per product?
+  roles: {required: [header], optional: [line, bridge]}
+
+- id: quote
+  title: Quote
+  area: sales
+  kind: transaction
+  grain: one line of a formal offer to a customer
+  business_key: [tenant_id, quote_number, line_number]
+  dimensions: [crm_account, customer, product, employee, date, currency]
+  measures:
+  - {name: quoted amount, level: line}
+  - {name: quote total, level: header}
+  traps:
+  - {kind: header_amount_per_line, text: "The quote total repeats on every line after a join."}
+  - {kind: versions, text: "A quote is revised; several revisions of one offer may be rows."}
+  questions:
+  - How many quotes turn into orders, and how fast?
+  - What discount do we give on quotes per product?
+  roles: {required: [header, line], optional: []}
+
+- id: case
+  title: Case or ticket (customer service)
+  area: service
+  kind: transaction
+  grain: one customer question, problem or request
+  business_key: [tenant_id, case_id]
+  dimensions: [crm_account, customer, contact, product, employee, date]
+  measures:
+  - {name: number of cases, level: case}
+  - {name: time to resolve, level: case}
+  traps:
+  - {kind: status_filter, text: "Open, resolved and cancelled cases share the table; reopened cases may count twice."}
+  questions:
+  - How long does it take to resolve a case per product?
+  - Which customers open the most cases?
+  roles: {required: [header], optional: [line]}
+
+- id: campaign
+  title: Marketing campaign
+  area: marketing
+  kind: transaction
+  grain: one campaign, and its members (the leads and contacts it reached)
+  business_key: [tenant_id, campaign_id]
+  dimensions: [lead, contact, date, employee]
+  measures:
+  - {name: campaign cost, level: campaign}
+  - {name: number of responses, level: campaign member}
+  traps:
+  - {kind: header_amount_per_line, text: "Campaign totals (pipeline, won value) are roll-ups of its opportunities; do not add them to the opportunities."}
+  questions:
+  - Which campaigns brought the most won business?
+  - What did each response cost?
+  roles: {required: [header], optional: [bridge]}
+
+- id: activity
+  title: Activity (calls, meetings, tasks, e-mails)
+  area: crm
+  kind: transaction
+  grain: one logged activity about a record (an account, a contact, an opportunity, a case)
+  business_key: [tenant_id, activity_id]
+  dimensions: [crm_account, contact, employee, date]
+  measures:
+  - {name: number of activities, level: activity}
+  traps:
+  - {kind: polymorphic, text: "One 'regarding' column points at different tables; its type column says which."}
+  questions:
+  - How many customer meetings did each sales representative have last month?
+  roles: {required: [header], optional: []}
+
+# ------------------------------------------------------------------ subscriptions
+- id: subscription
+  title: Subscription or contract
+  area: subscription
+  kind: transaction
+  grain: one subscription (or contract) with its charges, in the version valid on a date
+  business_key: [tenant_id, subscription_number, version]
+  dimensions: [customer, product, date, currency]
+  measures:
+  - {name: monthly recurring revenue (MRR), level: charge and date, note: "calculated, not a column"}
+  - {name: annual recurring revenue (ARR), level: charge and date, note: "calculated, not a column"}
+  - {name: quantity (seats), level: charge}
+  traps:
+  - {kind: versions, text: "Every change is a new version with an effective period; summing over all versions counts every change again."}
+  - {kind: other, text: "Amounts sit on the charges, not on the subscription header."}
+  - {kind: identity, text: "The customer billed may differ from the customer that signed (invoice account and account)."}
+  questions:
+  - What is the MRR per customer and month?
+  - How much recurring revenue did we lose to churn last quarter?
+  roles: {required: [header, line], optional: [version]}

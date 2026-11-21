@@ -1,0 +1,365 @@
+# The four knowledge packs' tables mapped to the catalog of data products (round DP1). Format: mapping.schema.json;
+# loader and check: fabric_backend/data_product_catalog.py (mapping_problems); report: docs/DATA-PRODUCT-CATALOG.md.
+#
+# Per pack table: the catalog product(s) it belongs to, its role there, how the pack's key columns map to the product's
+# business key (generic name: the pack's column), the confidence of the mapping, and the evidence the pack itself gives
+# for the table (verified: every source the pack cites for it was opened and read; unverified: none was). A table that
+# is no data product of its own is listed under not_a_data_product with a reason. Everything here rests on public
+# documentation and synthetic demos; nothing has been checked on a customer system.
+version: 0.1.0
+sources:
+  sap_tables: {title: "SAP ERP and S/4HANA tables", pack: sap, modules: [order_to_cash, finance, procure_to_pay, pricing, accounting_document, business_partner]}
+  sap_cds: {title: "SAP S/4HANA released CDS views", pack: sap, modules: [cds_master_data, cds_order_to_cash, cds_journal]}
+  salesforce: {title: "Salesforce standard objects", pack: salesforce, modules: [salesforce]}
+  dataverse: {title: "Dynamics 365 Sales and Customer Service (Dataverse)", pack: dynamics365, modules: [dataverse]}
+  business_central: {title: "Dynamics 365 Business Central", pack: dynamics365, modules: [business_central]}
+  younium_salesforce: {title: "Younium with Salesforce", pack: younium_salesforce, modules: [younium, salesforce]}
+not_in_pack:
+  sap_tables:
+    employee: "Employees are kept in the HR infotype tables (PA0001 and others), which are not in the pack (named from general knowledge; not checked)."
+    currency: "Currencies (TCURC) and exchange rates (TCURR) are not in the pack (named from general knowledge; not checked)."
+    goods_receipt: "The material documents (MKPF and MSEG in ECC, MATDOC in S/4HANA) are not in the pack; only the purchase order history EKBE shows receipts (named from general knowledge; not checked)."
+    inventory_movement: "The material documents (MKPF/MSEG, MATDOC) and the stock tables (MARD) are not in the pack (named from general knowledge; not checked)."
+    budget: "Plan data (ACDOCP in S/4HANA, the controlling totals tables in ECC) is not in the pack (named from general knowledge; not checked)."
+    payment: "A payment is a journal entry (BKPF/BSEG) of a payment document type; the payment program's tables (REGUH) are not in the pack (named from general knowledge; not checked)."
+    subscription: "Contracts are sales documents of their own category in VBAK; subscription billing is a separate SAP product, not in the pack."
+    price: "The condition tables that tie a condition record to a product, customer or price list (A004 and the like) are not in the pack (named from general knowledge; not checked)."
+    opportunity: "Leads, opportunities, cases and campaigns live in a CRM system, not in SAP ERP's tables; the pack has none."
+  sap_cds:
+    purchase_order: "The pack has CDS views for master data, order to cash and the journal only; purchasing, open items, pricing and controlling are read from the tables."
+  salesforce:
+    invoice: "Salesforce's standard objects have no invoice, payment or ledger; billing lives in another system (Younium in the younium_salesforce pack)."
+    delivery: "No delivery, purchasing or inventory objects among the standard objects in the pack."
+  dataverse:
+    delivery: "The Dataverse sales tables have no delivery, purchasing, ledger or inventory; those are in an ERP (Business Central, or Finance and Operations, which has no pack)."
+  business_central:
+    delivery: "Posted shipments (Sales Shipment Header 110 and Line 111) are not in the pack (named from general knowledge; not checked)."
+    goods_receipt: "Posted receipts (Purch. Rcpt. Header 120 and Line 121) are not in the pack; the item ledger's purchase entries show the quantities (named from general knowledge; not checked)."
+    supplier_invoice: "Posted purchase invoices (Purch. Inv. Header 122 and Line 123) are not in the pack (named from general knowledge; not checked)."
+    chart_of_accounts: "The G/L Account table (15) is not in the pack (named from general knowledge; not checked)."
+    currency: "Currency (4) and Currency Exchange Rate (330) are not in the pack (named from general knowledge; not checked)."
+    employee: "Employee (5200) is not in the pack; Salesperson/Purchaser stands in (named from general knowledge; not checked)."
+    budget: "G/L Budget Entry (96) is not in the pack (named from general knowledge; not checked)."
+    cost_centre: "Cost centres are dimension values (Dimension Value, 349), not in the pack; DIMENSION_SET_ENTRY resolves them per entry (named from general knowledge; not checked)."
+    payment: "Payments are customer ledger entries of document type Payment; there is no payment table of its own."
+  younium_salesforce:
+    gl_journal_entry: "Younium sends invoices to an accounting system; the ledger is not in the pack."
+packs:
+  sap:
+    tables:
+      ACDOCA:
+      - {product: gl_journal_entry, role: line, key: {tenant_id: RCLNT, ledger: RLDNR, company: RBUKRS, fiscal_year: GJAHR, document_number: BELNR, line_number: DOCLN}, confidence: high, evidence: unverified, note: "S/4HANA. One line per ledger."}
+      ADRC:
+      - {product: customer, role: extension, key: {tenant_id: CLIENT}, confidence: medium, evidence: unverified, note: "Addresses, also of suppliers, plants and documents, with periods."}
+      BKPF:
+      - {product: gl_journal_entry, role: header, key: {tenant_id: MANDT, company: BUKRS, fiscal_year: GJAHR, document_number: BELNR}, confidence: high, evidence: unverified, note: "No ledger in the key: one header for every ledger."}
+      BSAD:
+      - {product: open_item, role: line, key: {tenant_id: MANDT, company: BUKRS, fiscal_year: GJAHR, document_number: BELNR, line_number: BUZEI}, confidence: high, evidence: unverified, note: "Customer cleared items."}
+      - {product: payment, role: bridge, key: {tenant_id: MANDT, payment_number: AUGBL}, confidence: medium, evidence: unverified, note: "The clearing document (AUGBL) is the payment or the clearing that settled the item; the payment itself is a journal entry."}
+      BSAK:
+      - {product: open_item, role: line, key: {tenant_id: MANDT, company: BUKRS, fiscal_year: GJAHR, document_number: BELNR, line_number: BUZEI}, confidence: high, evidence: unverified, note: "Supplier cleared items."}
+      - {product: payment, role: bridge, key: {tenant_id: MANDT, payment_number: AUGBL}, confidence: medium, evidence: unverified, note: "The clearing document that settled the item."}
+      BSEG:
+      - {product: gl_journal_entry, role: line, key: {tenant_id: MANDT, company: BUKRS, fiscal_year: GJAHR, document_number: BELNR, line_number: BUZEI}, confidence: high, evidence: unverified, note: "The entry view: no ledger column. In S/4HANA the universal journal ACDOCA is the full line table."}
+      BSID:
+      - {product: open_item, role: line, key: {tenant_id: MANDT, company: BUKRS, fiscal_year: GJAHR, document_number: BELNR, line_number: BUZEI}, confidence: high, evidence: unverified, note: "Customer open items."}
+      BSIK:
+      - {product: open_item, role: line, key: {tenant_id: MANDT, company: BUKRS, fiscal_year: GJAHR, document_number: BELNR, line_number: BUZEI}, confidence: high, evidence: unverified, note: "Supplier open items."}
+      BUT000:
+      - {product: customer, role: master, key: {tenant_id: CLIENT, customer_number: PARTNER}, confidence: medium, evidence: unverified, note: "The business partner; a customer or supplier through its roles. The partner number is not the customer number."}
+      - {product: supplier, role: master, key: {tenant_id: CLIENT, supplier_number: PARTNER}, confidence: medium, evidence: unverified}
+      BUT020:
+      - {product: customer, role: extension, key: {tenant_id: CLIENT, customer_number: PARTNER}, confidence: medium, evidence: unverified, note: "Addresses of a business partner."}
+      BUT050:
+      - {product: customer, role: bridge, key: {tenant_id: CLIENT}, confidence: medium, evidence: unverified, note: "Relationships between partners (contact person of, parent of) with validity."}
+      BUT100:
+      - {product: customer, role: extension, key: {tenant_id: CLIENT, customer_number: PARTNER}, confidence: medium, evidence: unverified, note: "Roles: whether a partner is a customer, a supplier, or both."}
+      CEPC:
+      - {product: cost_centre, role: master, key: {tenant_id: MANDT, controlling_area: KOKRS, cost_object: PRCTR, valid_to: DATBI}, confidence: high, evidence: unverified, note: "Profit centres with validity periods."}
+      CSKS:
+      - {product: cost_centre, role: master, key: {tenant_id: MANDT, controlling_area: KOKRS, cost_object: KOSTL, valid_to: DATBI}, confidence: high, evidence: unverified, note: "Cost centres with validity periods."}
+      CVI_CUST_LINK:
+      - {product: customer, role: bridge, key: {tenant_id: CLIENT, customer_number: CUSTOMER}, confidence: high, evidence: unverified, note: "From business partner GUID to customer number."}
+      CVI_VEND_LINK:
+      - {product: supplier, role: bridge, key: {tenant_id: CLIENT, supplier_number: VENDOR}, confidence: high, evidence: unverified, note: "From business partner GUID to supplier number."}
+      EKBE:
+      - {product: purchase_order, role: flow, key: {tenant_id: MANDT, purchase_order_number: EBELN, line_number: EBELP}, confidence: high, evidence: unverified, note: "Purchase order history."}
+      - {product: goods_receipt, role: line, key: {tenant_id: MANDT, receipt_document_number: BELNR, fiscal_year: GJAHR, line_number: BUZEI}, confidence: medium, evidence: unverified, note: "The history rows of the goods-receipt event type are the receipts against an order; the material document tables themselves are not in the pack."}
+      EKET:
+      - {product: purchase_order, role: schedule_line, key: {tenant_id: MANDT, purchase_order_number: EBELN, line_number: EBELP}, confidence: high, evidence: unverified}
+      EKKO:
+      - {product: purchase_order, role: header, key: {tenant_id: MANDT, purchase_order_number: EBELN}, confidence: high, evidence: unverified, note: "Orders, contracts and scheduling agreements share the table."}
+      EKPO:
+      - {product: purchase_order, role: line, key: {tenant_id: MANDT, purchase_order_number: EBELN, line_number: EBELP}, confidence: high, evidence: unverified, note: "Deleted items stay with a deletion flag."}
+      I_BILLING_DOCUMENT:
+      - {product: invoice, role: header, key: {invoice_number: BILLING_DOCUMENT}, confidence: high, evidence: partly_verified}
+      I_BILLING_DOCUMENT_ITEM:
+      - {product: invoice, role: line, key: {invoice_number: BILLING_DOCUMENT, line_number: BILLING_DOCUMENT_ITEM}, confidence: high, evidence: partly_verified}
+      I_COMPANY_CODE:
+      - {product: organisation, role: master, key: {organisation_code: COMPANY_CODE}, confidence: high, evidence: partly_verified}
+      I_CUSTOMER:
+      - {product: customer, role: master, key: {customer_number: CUSTOMER}, confidence: high, evidence: partly_verified, note: "No client column in a CDS view."}
+      I_CUSTOMER_SALES_AREA:
+      - {product: customer, role: extension, key: {customer_number: CUSTOMER}, confidence: high, evidence: partly_verified}
+      I_DELIVERY_DOCUMENT:
+      - {product: delivery, role: header, key: {delivery_number: DELIVERY_DOCUMENT}, confidence: high, evidence: partly_verified}
+      I_DELIVERY_DOCUMENT_ITEM:
+      - {product: delivery, role: line, key: {delivery_number: DELIVERY_DOCUMENT, line_number: DELIVERY_DOCUMENT_ITEM}, confidence: high, evidence: partly_verified}
+      I_GL_ACCOUNT_LINE_ITEM_RAW_DATA:
+      - {product: gl_journal_entry, role: line, key: {ledger: SOURCE_LEDGER, company: COMPANY_CODE, fiscal_year: FISCAL_YEAR, document_number: ACCOUNTING_DOCUMENT, line_number: LEDGER_GL_LINE_ITEM}, confidence: high, evidence: partly_verified, note: "The view named for extracting the universal journal."}
+      I_JOURNAL_ENTRY:
+      - {product: gl_journal_entry, role: header, key: {company: COMPANY_CODE, fiscal_year: FISCAL_YEAR, document_number: ACCOUNTING_DOCUMENT}, confidence: high, evidence: partly_verified}
+      I_JOURNAL_ENTRY_ITEM:
+      - {product: gl_journal_entry, role: line, key: {ledger: LEDGER, company: COMPANY_CODE, fiscal_year: FISCAL_YEAR, document_number: ACCOUNTING_DOCUMENT, line_number: LEDGER_GL_LINE_ITEM}, confidence: high, evidence: partly_verified, note: "One row per line and ledger."}
+      I_PRODUCT:
+      - {product: product, role: master, key: {product_number: PRODUCT}, confidence: high, evidence: partly_verified}
+      I_PRODUCT_TEXT:
+      - {product: product, role: text, key: {product_number: PRODUCT}, confidence: high, evidence: partly_verified}
+      I_SALES_DOCUMENT:
+      - {product: sales_order, role: header, key: {order_number: SALES_DOCUMENT}, confidence: high, evidence: partly_verified, note: "All sales documents; the category tells them apart."}
+      - {product: quote, role: header, key: {quote_number: SALES_DOCUMENT}, confidence: high, evidence: partly_verified, note: "Quotations among them."}
+      I_SALES_DOCUMENT_ITEM:
+      - {product: sales_order, role: line, key: {order_number: SALES_DOCUMENT, line_number: SALES_DOCUMENT_ITEM}, confidence: high, evidence: partly_verified}
+      - {product: quote, role: line, key: {quote_number: SALES_DOCUMENT, line_number: SALES_DOCUMENT_ITEM}, confidence: high, evidence: partly_verified}
+      I_SALES_DOCUMENT_SCHEDULE_LINE:
+      - {product: sales_order, role: schedule_line, key: {order_number: SALES_DOCUMENT, line_number: SALES_DOCUMENT_ITEM}, confidence: high, evidence: partly_verified}
+      I_SALES_ORDER:
+      - {product: sales_order, role: header, key: {order_number: SALES_ORDER}, confidence: high, evidence: partly_verified, note: "The same rows as I_SalesDocument restricted to orders; use one of the two."}
+      I_SALES_ORDER_ITEM:
+      - {product: sales_order, role: line, key: {order_number: SALES_ORDER, line_number: SALES_ORDER_ITEM}, confidence: high, evidence: partly_verified}
+      I_SALES_ORGANIZATION:
+      - {product: organisation, role: master, key: {organisation_code: SALES_ORGANIZATION}, confidence: high, evidence: partly_verified}
+      I_SUPPLIER:
+      - {product: supplier, role: master, key: {supplier_number: SUPPLIER}, confidence: high, evidence: partly_verified}
+      KNA1:
+      - {product: customer, role: master, key: {tenant_id: MANDT, customer_number: KUNNR}, confidence: high, evidence: unverified}
+      KNB1:
+      - {product: customer, role: extension, key: {tenant_id: MANDT, customer_number: KUNNR}, confidence: high, evidence: unverified, note: "Customer per company code."}
+      KNVK:
+      - {product: contact, role: master, key: {tenant_id: MANDT, contact_id: PARNR}, confidence: high, evidence: unverified, note: "Contact persons of customers and suppliers."}
+      KNVV:
+      - {product: customer, role: extension, key: {tenant_id: MANDT, customer_number: KUNNR}, confidence: high, evidence: unverified, note: "One row per customer and sales area."}
+      KONH:
+      - {product: price, role: header, key: {tenant_id: MANDT}, confidence: high, evidence: unverified, note: "Condition record header; the record number KNUMH is its own key, the product and customer come from the access tables, which are not in the pack."}
+      KONP:
+      - {product: price, role: line, key: {tenant_id: MANDT}, confidence: high, evidence: unverified, note: "The rates of a condition record; which product and customer a record is for is in the condition tables, which are not in the pack."}
+      KONV:
+      - {product: price, role: line, key: {tenant_id: MANDT}, confidence: medium, evidence: unverified, note: "The conditions applied on a document line (ECC); joins sales orders and invoices through KNUMV."}
+      LFA1:
+      - {product: supplier, role: master, key: {tenant_id: MANDT, supplier_number: LIFNR}, confidence: high, evidence: unverified}
+      LFB1:
+      - {product: supplier, role: extension, key: {tenant_id: MANDT, supplier_number: LIFNR}, confidence: high, evidence: unverified, note: "Supplier per company code."}
+      LFM1:
+      - {product: supplier, role: extension, key: {tenant_id: MANDT, supplier_number: LIFNR}, confidence: high, evidence: unverified, note: "Supplier per purchasing organisation."}
+      LIKP:
+      - {product: delivery, role: header, key: {tenant_id: MANDT, delivery_number: VBELN}, confidence: high, evidence: unverified}
+      LIPS:
+      - {product: delivery, role: line, key: {tenant_id: MANDT, delivery_number: VBELN, line_number: POSNR}, confidence: high, evidence: unverified}
+      MAKT:
+      - {product: product, role: text, key: {tenant_id: MANDT, product_number: MATNR}, confidence: high, evidence: unverified, note: "One row per language."}
+      MARA:
+      - {product: product, role: master, key: {tenant_id: MANDT, product_number: MATNR}, confidence: high, evidence: unverified}
+      PRCD_ELEMENTS:
+      - {product: price, role: line, key: {tenant_id: MANDT}, confidence: medium, evidence: unverified, note: "The same in S/4HANA."}
+      RBKP:
+      - {product: supplier_invoice, role: header, key: {tenant_id: MANDT, invoice_document_number: BELNR, fiscal_year: GJAHR}, confidence: high, evidence: unverified}
+      RSEG:
+      - {product: supplier_invoice, role: line, key: {tenant_id: MANDT, invoice_document_number: BELNR, fiscal_year: GJAHR, line_number: BUZEI}, confidence: high, evidence: unverified}
+      SKA1:
+      - {product: chart_of_accounts, role: master, key: {tenant_id: MANDT, chart_of_accounts: KTOPL, account_number: SAKNR}, confidence: high, evidence: unverified}
+      SKB1:
+      - {product: chart_of_accounts, role: extension, key: {tenant_id: MANDT, account_number: SAKNR}, confidence: high, evidence: unverified, note: "Account per company code; the chart comes through the company code."}
+      T001:
+      - {product: organisation, role: master, key: {tenant_id: MANDT, organisation_code: BUKRS}, confidence: high, evidence: unverified, note: "Company codes; organisation_type is the table."}
+      T001W:
+      - {product: organisation, role: master, key: {tenant_id: MANDT, organisation_code: WERKS}, confidence: high, evidence: unverified, note: "Plants."}
+      T004:
+      - {product: chart_of_accounts, role: master, key: {tenant_id: MANDT, chart_of_accounts: KTOPL}, confidence: high, evidence: unverified, note: "The charts themselves."}
+      T024E:
+      - {product: organisation, role: master, key: {tenant_id: MANDT, organisation_code: EKORG}, confidence: high, evidence: unverified, note: "Purchasing organisations."}
+      TKA01:
+      - {product: organisation, role: master, key: {tenant_id: MANDT, organisation_code: KOKRS}, confidence: high, evidence: unverified, note: "Controlling areas."}
+      TSPA:
+      - {product: organisation, role: master, key: {tenant_id: MANDT, organisation_code: SPART}, confidence: high, evidence: unverified, note: "Divisions."}
+      TVKO:
+      - {product: organisation, role: master, key: {tenant_id: MANDT, organisation_code: VKORG}, confidence: high, evidence: unverified, note: "Sales organisations."}
+      TVTW:
+      - {product: organisation, role: master, key: {tenant_id: MANDT, organisation_code: VTWEG}, confidence: high, evidence: unverified, note: "Distribution channels."}
+      VBAK:
+      - {product: sales_order, role: header, key: {tenant_id: MANDT, order_number: VBELN}, confidence: high, evidence: partly_verified, note: "Orders, quotations, contracts and returns share the table; the document category tells them apart."}
+      - {product: quote, role: header, key: {tenant_id: MANDT, quote_number: VBELN}, confidence: high, evidence: partly_verified, note: "Quotations are VBAK rows of their own document category."}
+      VBAP:
+      - {product: sales_order, role: line, key: {tenant_id: MANDT, order_number: VBELN, line_number: POSNR}, confidence: high, evidence: partly_verified}
+      - {product: quote, role: line, key: {tenant_id: MANDT, quote_number: VBELN, line_number: POSNR}, confidence: high, evidence: partly_verified, note: "The items of quotation documents."}
+      VBEP:
+      - {product: sales_order, role: schedule_line, key: {tenant_id: MANDT, order_number: VBELN, line_number: POSNR}, confidence: high, evidence: partly_verified, note: "Confirmed quantities and dates per item."}
+      VBFA:
+      - {product: sales_order, role: flow, key: {tenant_id: MANDT, order_number: VBELV, line_number: POSNV}, confidence: high, evidence: unverified, note: "Document flow from an order to its deliveries and invoices; many-to-many."}
+      - {product: delivery, role: flow, key: {tenant_id: MANDT, delivery_number: VBELN, line_number: POSNN}, confidence: medium, evidence: unverified}
+      - {product: invoice, role: flow, key: {tenant_id: MANDT, invoice_number: VBELN, line_number: POSNN}, confidence: medium, evidence: unverified}
+      VBPA:
+      - {product: sales_order, role: bridge, key: {tenant_id: MANDT, order_number: VBELN, line_number: POSNR}, confidence: high, evidence: unverified, note: "Sold-to, ship-to, payer and other partners of a document."}
+      - {product: delivery, role: bridge, key: {tenant_id: MANDT, delivery_number: VBELN, line_number: POSNR}, confidence: medium, evidence: unverified, note: "The same table holds the partners of deliveries."}
+      - {product: invoice, role: bridge, key: {tenant_id: MANDT, invoice_number: VBELN, line_number: POSNR}, confidence: medium, evidence: unverified, note: "And of billing documents."}
+      VBRK:
+      - {product: invoice, role: header, key: {tenant_id: MANDT, invoice_number: VBELN}, confidence: high, evidence: unverified, note: "Invoices, credit memos and cancellations; the billing type decides."}
+      VBRP:
+      - {product: invoice, role: line, key: {tenant_id: MANDT, invoice_number: VBELN, line_number: POSNR}, confidence: high, evidence: unverified}
+      VBUK:
+      - {product: sales_order, role: status, key: {tenant_id: MANDT, order_number: VBELN}, confidence: high, evidence: unverified, note: "ECC only; folded into the document tables in S/4HANA."}
+      VBUP:
+      - {product: sales_order, role: status, key: {tenant_id: MANDT, order_number: VBELN, line_number: POSNR}, confidence: high, evidence: unverified, note: "ECC only."}
+    not_a_data_product:
+      ADR2: {kind: helper, reason: "Telephone numbers of an address: attributes of a customer, supplier or contact, personal data; not a data product of their own."}
+      ADR6: {kind: helper, reason: "E-mail addresses of an address: attributes, personal data; not a data product of their own."}
+      EBAN: {kind: outside_catalog, reason: "Purchase requisition: a classic product that is not in this version of the catalog."}
+      T685: {kind: helper, reason: "Condition types: a list that says what a condition line means (price, discount, freight); read with the price lines, not a data product of its own."}
+  salesforce:
+    tables:
+      ACCOUNT:
+      - {product: crm_account, role: master, key: {account_id: ID}, confidence: high, evidence: verified, note: "No tenant column: one org per landing."}
+      CAMPAIGN:
+      - {product: campaign, role: header, key: {campaign_id: ID}, confidence: high, evidence: verified}
+      CAMPAIGNMEMBER:
+      - {product: campaign, role: bridge, key: {campaign_id: CAMPAIGN_ID}, confidence: high, evidence: verified}
+      CASE:
+      - {product: case, role: header, key: {case_id: ID}, confidence: high, evidence: verified}
+      CONTACT:
+      - {product: contact, role: master, key: {contact_id: ID}, confidence: high, evidence: verified}
+      CONTRACT:
+      - {product: subscription, role: header, key: {subscription_number: ID}, confidence: medium, evidence: verified, note: "A contract with an account; no charges or versions of its own, so not a full subscription."}
+      EVENT:
+      - {product: activity, role: header, key: {activity_id: ID}, confidence: high, evidence: verified}
+      LEAD:
+      - {product: lead, role: master, key: {lead_id: ID}, confidence: high, evidence: verified, note: "Converted leads stay in the table."}
+      OPPORTUNITY:
+      - {product: opportunity, role: header, key: {opportunity_id: ID}, confidence: high, evidence: verified}
+      OPPORTUNITYCONTACTROLE:
+      - {product: opportunity, role: bridge, key: {opportunity_id: OPPORTUNITY_ID}, confidence: high, evidence: verified, note: "Contacts and their roles on an opportunity."}
+      OPPORTUNITYLINEITEM:
+      - {product: opportunity, role: line, key: {opportunity_id: OPPORTUNITY_ID}, confidence: high, evidence: verified, note: "The line's own ID is its key; there is no line number."}
+      ORDER:
+      - {product: sales_order, role: header, key: {order_number: ID}, confidence: high, evidence: verified}
+      ORDERITEM:
+      - {product: sales_order, role: line, key: {order_number: ORDER_ID, line_number: ID}, confidence: high, evidence: verified, note: "The line's own ID stands in for a line number."}
+      PRICEBOOK2:
+      - {product: price, role: header, key: {price_list: ID}, confidence: high, evidence: verified}
+      PRICEBOOKENTRY:
+      - {product: price, role: master, key: {price_list: PRICEBOOK2_ID, product_number: PRODUCT2_ID}, confidence: high, evidence: verified, note: "No validity period: a price book entry holds the current price."}
+      PRODUCT2:
+      - {product: product, role: master, key: {product_number: ID}, confidence: high, evidence: verified}
+      QUOTE:
+      - {product: quote, role: header, key: {quote_number: ID}, confidence: high, evidence: verified}
+      QUOTELINEITEM:
+      - {product: quote, role: line, key: {quote_number: QUOTE_ID, line_number: ID}, confidence: high, evidence: verified, note: "The line's own ID stands in for a line number."}
+      TASK:
+      - {product: activity, role: header, key: {activity_id: ID}, confidence: high, evidence: verified}
+      USER:
+      - {product: employee, role: master, key: {employee_number: ID}, confidence: medium, evidence: verified, note: "An application user, not an HR employee."}
+    not_a_data_product:
+      ASSET: {kind: outside_catalog, reason: "Installed base (a product a customer owns): a classic product that is not in this version of the catalog."}
+  dynamics365:
+    tables:
+      ACCOUNT:
+      - {product: crm_account, role: master, key: {account_id: ACCOUNTID}, confidence: high, evidence: verified, note: "No tenant column: one environment per landing."}
+      ACTIVITYPOINTER:
+      - {product: activity, role: header, key: {activity_id: ACTIVITYID}, confidence: high, evidence: verified}
+      BUSINESSUNIT:
+      - {product: organisation, role: master, key: {organisation_code: BUSINESSUNITID}, confidence: high, evidence: verified}
+      CONTACT:
+      - {product: contact, role: master, key: {contact_id: CONTACTID}, confidence: high, evidence: verified}
+      CUSTOMER:
+      - {product: customer, role: master, key: {tenant_id: COMPANY, customer_number: "NO"}, confidence: high, evidence: verified, note: "Per company."}
+      CUST_LEDGER_ENTRY:
+      - {product: open_item, role: line, key: {tenant_id: COMPANY, line_number: ENTRY_NO}, confidence: high, evidence: verified, note: "One row per customer ledger entry, open or closed."}
+      DETAILED_CUST_LEDG_ENTRY:
+      - {product: payment, role: bridge, key: {tenant_id: COMPANY}, confidence: medium, evidence: verified, note: "Applications of payments to invoices are rows here; there is no payment table of its own in the pack."}
+      - {product: open_item, role: line, key: {tenant_id: COMPANY, line_number: ENTRY_NO}, confidence: medium, evidence: verified, note: "The amounts that make up an entry's remaining amount."}
+      G_L_ENTRY:
+      - {product: gl_journal_entry, role: line, key: {tenant_id: COMPANY, line_number: ENTRY_NO}, confidence: high, evidence: verified, note: "One row per entry; the entry number is unique per company."}
+      INCIDENT:
+      - {product: case, role: header, key: {case_id: INCIDENTID}, confidence: high, evidence: verified}
+      INVOICE:
+      - {product: invoice, role: header, key: {invoice_number: INVOICEID}, confidence: high, evidence: verified}
+      INVOICEDETAIL:
+      - {product: invoice, role: line, key: {invoice_number: INVOICEID, line_number: INVOICEDETAILID}, confidence: high, evidence: verified}
+      ITEM:
+      - {product: product, role: master, key: {tenant_id: COMPANY, product_number: "NO"}, confidence: high, evidence: verified}
+      ITEM_LEDGER_ENTRY:
+      - {product: inventory_movement, role: line, key: {tenant_id: COMPANY, line_number: ENTRY_NO}, confidence: high, evidence: verified, note: "Quantities; the entry type tells purchases, sales and adjustments apart."}
+      - {product: goods_receipt, role: line, key: {tenant_id: COMPANY, line_number: ENTRY_NO}, confidence: medium, evidence: verified, note: "The entries of type purchase are the receipts."}
+      LEAD:
+      - {product: lead, role: master, key: {lead_id: LEADID}, confidence: high, evidence: verified}
+      OPPORTUNITY:
+      - {product: opportunity, role: header, key: {opportunity_id: OPPORTUNITYID}, confidence: high, evidence: verified}
+      OPPORTUNITYPRODUCT:
+      - {product: opportunity, role: line, key: {opportunity_id: OPPORTUNITYID}, confidence: high, evidence: verified}
+      PRICELEVEL:
+      - {product: price, role: header, key: {price_list: PRICELEVELID}, confidence: high, evidence: verified}
+      PRODUCT:
+      - {product: product, role: master, key: {product_number: PRODUCTID}, confidence: high, evidence: verified}
+      PRODUCTPRICELEVEL:
+      - {product: price, role: master, key: {price_list: PRICELEVELID, product_number: PRODUCTID}, confidence: high, evidence: verified}
+      PURCHASE_HEADER:
+      - {product: purchase_order, role: header, key: {tenant_id: COMPANY, purchase_order_number: "NO"}, confidence: high, evidence: verified, note: "Open purchase documents of every kind; DOCUMENT_TYPE decides."}
+      PURCHASE_LINE:
+      - {product: purchase_order, role: line, key: {tenant_id: COMPANY, purchase_order_number: DOCUMENT_NO, line_number: LINE_NO}, confidence: high, evidence: verified}
+      QUOTE:
+      - {product: quote, role: header, key: {quote_number: QUOTEID}, confidence: high, evidence: verified}
+      QUOTEDETAIL:
+      - {product: quote, role: line, key: {quote_number: QUOTEID, line_number: QUOTEDETAILID}, confidence: high, evidence: verified}
+      SALESORDER:
+      - {product: sales_order, role: header, key: {order_number: SALESORDERID}, confidence: high, evidence: verified}
+      SALESORDERDETAIL:
+      - {product: sales_order, role: line, key: {order_number: SALESORDERID, line_number: SALESORDERDETAILID}, confidence: high, evidence: verified}
+      SALESPERSON_PURCHASER:
+      - {product: employee, role: master, key: {tenant_id: COMPANY, employee_number: CODE}, confidence: medium, evidence: verified, note: "Sales people and purchasers, not HR employees."}
+      SALES_HEADER:
+      - {product: sales_order, role: header, key: {tenant_id: COMPANY, order_number: "NO"}, confidence: high, evidence: verified, note: "Open quotes, orders, invoices and credit memos share the table; DOCUMENT_TYPE decides."}
+      - {product: quote, role: header, key: {tenant_id: COMPANY, quote_number: "NO"}, confidence: high, evidence: verified, note: "The rows of document type quote."}
+      SALES_INVOICE_HEADER:
+      - {product: invoice, role: header, key: {tenant_id: COMPANY, invoice_number: "NO"}, confidence: high, evidence: verified, note: "Posted invoices."}
+      SALES_INVOICE_LINE:
+      - {product: invoice, role: line, key: {tenant_id: COMPANY, invoice_number: DOCUMENT_NO, line_number: LINE_NO}, confidence: high, evidence: verified}
+      SALES_LINE:
+      - {product: sales_order, role: line, key: {tenant_id: COMPANY, order_number: DOCUMENT_NO, line_number: LINE_NO}, confidence: high, evidence: verified}
+      - {product: quote, role: line, key: {tenant_id: COMPANY, quote_number: DOCUMENT_NO, line_number: LINE_NO}, confidence: high, evidence: verified}
+      SYSTEMUSER:
+      - {product: employee, role: master, key: {employee_number: SYSTEMUSERID}, confidence: medium, evidence: verified, note: "An application user, not an HR employee."}
+      TEAM:
+      - {product: organisation, role: master, key: {organisation_code: TEAMID}, confidence: medium, evidence: verified, note: "A team that can own records."}
+      TRANSACTIONCURRENCY:
+      - {product: currency, role: master, key: {currency_code: TRANSACTIONCURRENCYID}, confidence: medium, evidence: verified, note: "The currency row's id, not the ISO code; the code is a column of the row."}
+      VALUE_ENTRY:
+      - {product: inventory_movement, role: line, key: {tenant_id: COMPANY, line_number: ENTRY_NO}, confidence: high, evidence: verified, note: "Values of the same movements; joined with the item ledger it repeats them."}
+      VENDOR:
+      - {product: supplier, role: master, key: {tenant_id: COMPANY, supplier_number: "NO"}, confidence: high, evidence: verified, note: "Per company."}
+    not_a_data_product:
+      COUNTRY_REGION: {kind: helper, reason: "A list of countries: an attribute of customers, suppliers and addresses."}
+      DIMENSION_SET_ENTRY: {kind: helper, reason: "Resolves an entry's dimension set id to its dimension values (department, project...); belongs to whichever entry joins it, not a data product of its own."}
+  younium_salesforce:
+    inherit: {salesforce: salesforce}
+    tables:
+      ACCOUNTS:
+      - {product: customer, role: master, key: {customer_number: ID}, confidence: high, evidence: unverified, note: "The billed customer; EXTERNAL_CRM_ID points at the Salesforce account."}
+      CHARGES:
+      - {product: price, role: master, key: {price_list: CHARGE_PLAN_ID}, confidence: high, evidence: unverified, note: "The items of a charge plan."}
+      CHARGE_PLANS:
+      - {product: price, role: header, key: {price_list: ID}, confidence: medium, evidence: unverified, note: "A way of pricing one product."}
+      INVOICES:
+      - {product: invoice, role: header, key: {invoice_number: ID}, confidence: high, evidence: unverified, note: "Draft and posted invoices."}
+      INVOICE_LINES:
+      - {product: invoice, role: line, key: {invoice_number: INVOICE_ID, line_number: ID}, confidence: high, evidence: unverified}
+      PAYMENTS:
+      - {product: payment, role: header, key: {payment_number: ID}, confidence: high, evidence: unverified}
+      PRODUCTS:
+      - {product: product, role: master, key: {product_number: ID}, confidence: high, evidence: unverified}
+      SALES_ORDERS:
+      - {product: sales_order, role: header, key: {order_number: ID}, confidence: medium, evidence: unverified, note: "The document that creates or changes a subscription; its lines are the subscription's charges, not a line table of its own."}
+      SUBSCRIPTIONS:
+      - {product: subscription, role: header, key: {subscription_number: SUBSCRIPTION_NUMBER}, confidence: high, evidence: unverified}
+      SUBSCRIPTION_CHARGES:
+      - {product: subscription, role: line, key: {version: SUBSCRIPTION_VERSION_ID}, confidence: high, evidence: unverified, note: "The agreed price and quantity per version."}
+      SUBSCRIPTION_VERSIONS:
+      - {product: subscription, role: version, key: {subscription_number: SUBSCRIPTION_ID, version: ID}, confidence: high, evidence: unverified, note: "One row per activated change, with an effective period."}
+    not_a_data_product: {}

@@ -1,0 +1,218 @@
+{
+ "$schema": "http://json-schema.org/draft-07/schema#",
+ "title": "Krusgraph catalog of classic data products (round DP1)",
+ "description": "fabric_backend/data_products/catalog.yaml. Checked by data_product_catalog.catalog_problems, which also checks what a schema cannot say (dimensions are products of the catalog, ids are not repeated).",
+ "type": "object",
+ "required": [
+  "version",
+  "review_status",
+  "products"
+ ],
+ "additionalProperties": false,
+ "properties": {
+  "version": {
+   "type": "string",
+   "pattern": "^\\d+\\.\\d+\\.\\d+$"
+  },
+  "review_status": {
+   "enum": [
+    "proposed",
+    "reviewed"
+   ]
+  },
+  "products": {
+   "type": "array",
+   "minItems": 1,
+   "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+     "id",
+     "title",
+     "area",
+     "kind",
+     "grain",
+     "business_key",
+     "dimensions",
+     "measures",
+     "traps",
+     "questions",
+     "roles"
+    ],
+    "properties": {
+     "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+     },
+     "title": {
+      "type": "string",
+      "minLength": 1
+     },
+     "area": {
+      "enum": [
+       "master_data",
+       "reference",
+       "sales",
+       "finance",
+       "procurement",
+       "supply_chain",
+       "crm",
+       "marketing",
+       "service",
+       "subscription",
+       "hr",
+       "planning"
+      ]
+     },
+     "kind": {
+      "enum": [
+       "master",
+       "transaction",
+       "plan",
+       "reference"
+      ]
+     },
+     "grain": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What one row is."
+     },
+     "business_key": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+       "type": "string",
+       "pattern": "^[a-z][a-z0-9_]*$"
+      },
+      "description": "Generic column names that make one row unique."
+     },
+     "dimensions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+       "type": "string",
+       "pattern": "^[a-z][a-z0-9_]*$"
+      },
+      "description": "Ids of other products of the catalog that this one joins as conformed dimensions."
+     },
+     "measures": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "required": [
+        "name",
+        "level"
+       ],
+       "additionalProperties": false,
+       "properties": {
+        "name": {
+         "type": "string"
+        },
+        "level": {
+         "type": "string"
+        },
+        "note": {
+         "type": "string"
+        }
+       }
+      }
+     },
+     "traps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+       "type": "object",
+       "required": [
+        "kind",
+        "text"
+       ],
+       "additionalProperties": false,
+       "properties": {
+        "kind": {
+         "enum": [
+          "header_amount_per_line",
+          "versions",
+          "soft_delete",
+          "multi_company",
+          "currency",
+          "status_filter",
+          "double_count",
+          "sign",
+          "identity",
+          "personal_data",
+          "text_per_language",
+          "leading_zeros",
+          "hierarchy",
+          "fiscal_calendar",
+          "polymorphic",
+          "other"
+         ]
+        },
+        "text": {
+         "type": "string",
+         "minLength": 1
+        }
+       }
+      }
+     },
+     "questions": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+       "type": "string",
+       "pattern": "\\?$"
+      }
+     },
+     "roles": {
+      "type": "object",
+      "required": [
+       "required",
+       "optional"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "required": {
+        "type": "array",
+        "items": {
+         "enum": [
+          "header",
+          "line",
+          "master",
+          "extension",
+          "text",
+          "version",
+          "bridge",
+          "schedule_line",
+          "status",
+          "flow",
+          "snapshot"
+         ]
+        }
+       },
+       "optional": {
+        "type": "array",
+        "items": {
+         "enum": [
+          "header",
+          "line",
+          "master",
+          "extension",
+          "text",
+          "version",
+          "bridge",
+          "schedule_line",
+          "status",
+          "flow",
+          "snapshot"
+         ]
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ }
+}
