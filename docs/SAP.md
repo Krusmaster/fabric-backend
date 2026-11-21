@@ -118,6 +118,29 @@ A pack relationship is a suggestion with a source, not evidence. `validate_plan`
 it like for any other, and the test `test_validate_plan_checks_pack_relationships_against_rows` shows an item without
 its header and a customer of another client found that way.
 
+### Names with a prefix or suffix, and key columns (round BL8, 21 November 2026)
+
+Landed SAP tables usually carry more than the SAP name. Since round BL8 a table is found when its name is a pack
+table's own name with landing words before or after it, separated by `_`, `.` or `-`, without case: a system id (three
+characters, a letter first: `P01_VBAK`, `PRD-VBAK`), a client or a date (`VBAK_800`, `VBAK_20261121`), a version
+(`VBAK_v2`) or a landing word (`ecc_VBAK`, `bronze.sap_VBAK_prd`). The table still needs the pack's key columns. The
+match says why (`Match.name_reasons`): "VBAK matched as P01_VBAK, prefix P01_". Other words are not stripped
+(`VBAK_old_stuff`, `my_sales_VBAK` are not VBAK), an alias never takes a prefix (`dim_Customer` is not `I_Customer`),
+and the rule is the SAP pack's only: the other packs' names (Account, Contact) are ordinary words.
+
+A table under a name that says nothing (`debitors`) but with a pack table's whole key, the client first (`MANDT` +
+`KUNNR`), is recognised by its **key columns**: the longest key wins, then the table with most of its other known
+columns (amounts, currency, dates). This is reported as a suggestion (`Match.by_key_columns`, `sap_pack.recognise`),
+not applied: the pack's keys and links are not put on a table whose name says nothing, so the renamed corpus
+(`sap_renamed`) keeps its published scores. Applying it would move those scores and is a decision for a later round.
+
+Nothing is guessed when two tables point at one pack table. Two landings (`P01_VBAK` and `VBAK_800`) are both left out
+and reported in `Match.ambiguous`; a table by its own name (`VBAK`) wins over a prefixed copy, which is reported; a key
+that fits several tables (`MANDT` + `VBELN` is `VBAK`, `LIKP` and `VBRK`) is reported with the candidates. Two tables
+that match by name alone (`vbak` and `sap_vbak`) keep the answer they had before (the first with its key columns) and
+are reported too. `sap_pack.recognise(schema)` lists, per table, which pack table it is and how: name, alias, prefix or
+suffix, key columns or ambiguous. Tests: `tests/test_bl8_sap_names.py`.
+
 ### Joins that are not key joins (round n25)
 
 Two kinds of relationship are not an equality join on the target's key, and the pack says which with `kind`:

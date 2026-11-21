@@ -23,6 +23,10 @@ underscores too, and a table can list `aliases`: a released CDS view is written 
 found as `I_SalesDocument`, `i_salesdocument`, `I_SALES_DOCUMENT`, `cds_i_salesdocument` and, by its alias, as
 `SalesDocument` (pack_table). Columns were always compared that way (`SalesDocumentItem` is `SALES_DOCUMENT_ITEM`). When an extract has dropped the client
 column, the client is left out of keys and relationships on both sides, and the match says so.
+Since round BL8 a known SAP table is also found with landing words before or after its name (`P01_VBAK`, `VBAK_800`,
+`ecc_VBAK`; Match.name_reasons says why), a table under an unknown name with a pack table's key columns is reported as
+a suggestion (recognise, Match.by_key_columns; not applied), and two tables pointing at one pack table are reported in
+Match.ambiguous, never guessed.
 A pack is a suggestion with a source, not evidence: validate_plan checks its relationships against the rows.
 """
 from __future__ import annotations
@@ -222,7 +226,148 @@ def pack_table(name: str, pack: str = "sap") -> str | None:
     """The pack table a schema table's name means, or None: `bronze.SAP_VBAK` -> `VBAK`, `I_SalesDocument` and
     `SalesDocument` -> `I_SALES_DOCUMENT` (round n230: without underscores, and by the aliases a table lists)."""
     found = _names(pack).get(_norm(table_name(name)))
-    return found[0] if found else None
+    if found:
+        return found[0]
+    affixed = _affixed(name, pack)            # round BL8: `P01_VBAK`, `VBAK_800`, `ecc-VBAK` -> VBAK (the SAP pack only)
+    return affixed[0] if affixed else None
+
+
+# ---------------------------------------------------------------- round BL8: names with a prefix or suffix, key columns
+# A landed SAP table often carries the system id (`P01_VBAK`, SAP's SID: three characters, a letter first), the client
+# (`VBAK_800`), a landing word (`ecc_VBAK`, `bronze.sap_VBAK_prd`) or a date or version (`VBAK_20261121`, `VBAK_v2`).
+# Such a word is stripped from either end when what is left is a pack table's own name (never an alias: `dim_Customer`
+# is not I_CUSTOMER) and the table then needs the pack's key columns, as every match does. The SAP pack only: the other
+# packs' tables have ordinary names (Account, Contact) a prefix rule would find everywhere.
+AFFIX_PACKS = ("sap",)
+_AFFIX_WORDS = frozenset(_LEADING) | frozenset(("ecc", "erp", "r3", "bw", "prd", "prod", "dev", "qas", "qa", "tst", "test",
+                                                "hist", "history", "copy", "full", "delta", "current", "snapshot"))
+_SID = re.compile(r"[A-Za-z][A-Za-z0-9]{2}")       # an SAP system id: P01, PRD, ECC, S4H
+_VERSION = re.compile(r"[vV]\d+")
+KEY_RULE = "key columns"                            # how a table under an unknown name is recognised (reported only)
+
+
+def _affix_word(word: str) -> bool:
+    """A word a landing puts before or after an SAP table's name: a client or a date (digits), a system id, a version,
+    or a landing word."""
+    return word.isdigit() or bool(_SID.fullmatch(word) or _VERSION.fullmatch(word)) or word.lower() in _AFFIX_WORDS
+
+
+@lru_cache(maxsize=None)
+def _own_names(pack: str) -> dict[str, str]:
+    return {_norm(n): n for n in load(pack)["tables"]}
+
+
+def _affixed(name: str, pack: str = "sap") -> tuple[str, str, str] | None:
+    """(pack table, prefix, suffix) when name is a pack table's own name with landing words before or after it, the
+    separators `_`, `.` and `-` kept in prefix and suffix: `P01_VBAK` -> ("VBAK", "P01_", ""), `vbak_800` ->
+    ("VBAK", "", "_800"). The longest name wins (`VBAK_800` is VBAK, not a table called 800). None otherwise."""
+    if pack not in AFFIX_PACKS:
+        return None
+    spans = [(m.start(), m.end()) for m in re.finditer(r"[A-Za-z0-9]+", name)]
+    words = [name[a:b] for a, b in spans]
+    own = _own_names(pack)
+    for size in range(len(words) - 1, 0, -1):
+        for i in range(0, len(words) - size + 1):
+            j = i + size
+            if not all(_affix_word(w) for w in words[:i] + words[j:]):
+                continue
+            core = own.get(_norm("".join(words[i:j])))
+            if core:
+                return core, name[:spans[i][0]], name[spans[j - 1][1]:]
+    return None
+
+
+def _affix_reason(table: str, pack_name: str, prefix: str, suffix: str) -> str:
+    parts = ([f"prefix {prefix}"] if prefix else []) + ([f"suffix {suffix}"] if suffix else [])
+    return f"{pack_name} matched as {table}, {' and '.join(parts)}"
+
+
+def _known_columns(pt: dict) -> set[str]:
+    """The columns a pack table names besides its key: number, date, amount, currency, quantity and unit columns."""
+    out = set(pt.get("number_columns", [])) | set(pt.get("delta", [])) | set(pt.get("currency_columns", [])) \
+        | set(pt.get("unit_columns", [])) | {c for u in pt.get("unique_keys", []) for c in u}
+    for a in pt.get("amounts", []) + pt.get("quantities", []):
+        out |= {a[k] for k in ("column", "currency", "unit") if a.get(k)}
+    return {_norm(c) for c in out} - {_norm(c) for c in pt["key"]}
+
+
+def _by_key(table, pack: str, variant: str | None = None) -> dict:
+    """What a table under a name the pack does not know is by its columns: the pack tables whose whole key, the client
+    first, the table carries (MANDT + VBELN, MANDT + KUNNR), the longest key first, then the one with most of its other
+    known columns there. {"pack_table": name, "reason": ...} when one table is left, {"candidates": [...]} when several
+    are (reported, not guessed), {} when none."""
+    if pack not in AFFIX_PACKS:
+        return {}
+    have = _cols(table)
+    tables = load(pack)["tables"]
+    fits = [n for n, t in tables.items() if len(t["key"]) >= 2 and t["key"][0] in _BLANK_EXEMPT
+            and all(_norm(c) in have for c in t["key"])
+            and not (variant and t.get("variants") and variant not in t["variants"])]
+    if not fits:
+        return {}
+    longest = max(len(tables[n]["key"]) for n in fits)
+    fits = [n for n in fits if len(tables[n]["key"]) == longest]
+    score = {n: len(_known_columns(tables[n]) & set(have)) for n in fits}
+    best = max(score.values())
+    fits = sorted(n for n in fits if score[n] == best)
+    if len(fits) > 1:
+        return {"candidates": fits}
+    n = fits[0]
+    known = sorted(have[c] for c in _known_columns(tables[n]) & set(have))
+    return {"pack_table": n, "reason": f"{KEY_RULE}: {table.name} carries {n}'s key {' + '.join(tables[n]['key'])}"
+                                       + (f" and its columns {', '.join(known)}" if known else "")}
+
+
+def recognise(schema, pack: str = "sap", variant: str | None = None) -> list[dict]:
+    """Round BL8: per schema table, which pack table it is and why, in the schema's order. `how` is "name" (as since the
+    pack began), "alias" (n230), "prefix or suffix", "key columns" (a suggestion: the name says nothing, so match does
+    not apply it), "ambiguous" (two or more tables point at one pack table, or one table's key fits several: reported,
+    never guessed; `candidates` lists them) or None. A table matched by name still needs its key columns to be taken
+    by match; this answers what its name or columns say."""
+    out: list[dict] = []
+    names = _names(pack)
+    for t in schema:
+        hit = names.get(_norm(table_name(t.name)))
+        if hit:
+            out.append({"table": t.name, "pack_table": hit[0], "how": "alias" if hit[1] else "name",
+                        "reason": f"{hit[0]} by its {'alias' if hit[1] else 'name'}"})
+            continue
+        affixed = _affixed(t.name, pack)
+        if affixed:
+            out.append({"table": t.name, "pack_table": affixed[0], "how": "prefix or suffix",
+                        "reason": _affix_reason(t.name, *affixed)})
+            continue
+        k = _by_key(t, pack, variant)
+        if "candidates" in k:
+            out.append({"table": t.name, "pack_table": None, "how": "ambiguous", "candidates": k["candidates"],
+                        "reason": f"{KEY_RULE}: {t.name} carries the key of {', '.join(k['candidates'])}; not guessed"})
+        elif k:
+            out.append({"table": t.name, "pack_table": k["pack_table"], "how": KEY_RULE, "reason": k["reason"]})
+        else:
+            out.append({"table": t.name, "pack_table": None, "how": None, "reason": ""})
+    by: dict[str, list[dict]] = {}
+    for r in out:
+        if r["pack_table"]:
+            by.setdefault(r["pack_table"], []).append(r)
+    tier = {"name": 0, "alias": 0, "prefix or suffix": 1, KEY_RULE: 2}
+    for pt, rs in by.items():
+        top = min(tier[r["how"]] for r in rs)
+        first = [r for r in rs if tier[r["how"]] == top]
+        if top == 0:                       # its own name wins (several by name: match takes the first, as before BL8)
+            for r in rs:
+                if tier[r["how"]] > 0:
+                    r.update(how="ambiguous", candidates=[pt], pack_table=None,
+                             reason=f"{pt} is there by its name ({first[0]['table']}); {r['table']} also points at it and "
+                                    f"is not used")
+            continue
+        for r in rs:
+            if r not in first:             # a name with a prefix wins over key columns
+                r.update(how="ambiguous", candidates=[pt], pack_table=None,
+                         reason=f"{pt} is there as {first[0]['table']}; {r['table']} also points at it and is not used")
+            elif len(first) > 1:           # two landings of one table: not guessed
+                r.update(how="ambiguous", candidates=[pt], pack_table=None,
+                         reason=f"{', '.join(x['table'] for x in first)} all point at {pt}; not guessed")
+    return out
 
 
 _BLANK_EXEMPT = ("MANDT", "RCLNT", "CLIENT")   # the client: validate_plan never counted its blank as no reference
@@ -268,6 +413,9 @@ class Match:
     mirror_problems: list[dict] = field(default_factory=list)   # mirror metadata that could not be used, with why (n129)
     columns: dict[str, dict[str, str]] = field(default_factory=dict)   # schema table -> normalised column -> the schema's spelling (n230)
     by_alias: list[str] = field(default_factory=list)           # schema tables recognised by an alias, not the pack's own name (n230)
+    name_reasons: dict[str, str] = field(default_factory=dict)  # schema table -> why its name is a pack table, when it carries a prefix or suffix (BL8)
+    by_key_columns: list[dict] = field(default_factory=list)    # tables whose unknown name hides a pack table by its key columns: suggested, not applied (BL8)
+    ambiguous: list[dict] = field(default_factory=list)         # tables pointing at one pack table, or a key fitting several: reported, not guessed (BL8)
 
     def source_of(self, ids: list[str]) -> list[dict]:
         pack = load(self.pack)
@@ -332,8 +480,25 @@ def match(schema, pack: str = "sap", variant: str | None = None, mirror: dict | 
     taken: set[str] = set()
     names = _names(pack)
     by_alias: list[str] = []
+    recognised = recognise(schema, pack, variant)                          # BL8: prefix or suffix, key columns, ambiguity
+    affix = {r["table"]: r for r in recognised if r["how"] == "prefix or suffix"}
+    reasons: dict[str, str] = {}
+    by_name: dict[str, list[str]] = {}
+    for r in recognised:
+        if r["how"] in ("name", "alias"):
+            by_name.setdefault(r["pack_table"], []).append(r["table"])
+    grouped: dict[str, dict] = {}                                          # one entry per reason: two landings of VBAK are one
+    for r in recognised:
+        if r["how"] == "ambiguous":
+            grouped.setdefault(r["reason"], {"tables": [], "candidates": r["candidates"], "why": r["reason"]})["tables"].append(r["table"])
+    ambiguous = list(grouped.values())
+    ambiguous += [{"tables": ts, "candidates": [n], "why": f"{', '.join(ts)} all point at {n} by name; the first with its key "
+                                                         f"columns is used, as before round BL8"} for n, ts in by_name.items() if len(ts) > 1]
     for t in schema:
         name, alias = names.get(_norm(table_name(t.name)), (None, False))
+        if name is None and t.name in affix:
+            name = affix[t.name]["pack_table"]
+            reasons[t.name] = affix[t.name]["reason"]
         pt = p["tables"].get(name)
         if pt is None or name in taken:
             continue
@@ -370,6 +535,9 @@ def match(schema, pack: str = "sap", variant: str | None = None, mirror: dict | 
         by_alias += [t.name] if alias else []
     if len(found) < 2:
         return None
+    reasons = {t: r for t, r in reasons.items() if t in found}
+    by_key = [{"table": r["table"], "pack_table": r["pack_table"], "reason": r["reason"]} for r in recognised
+              if r["how"] == KEY_RULE and r["pack_table"] not in found.values()]
     by_pack = {v: k for k, v in found.items()}
     applied, not_applied, missing_cols = [], [], []
     missing_tables: set[str] = set()
@@ -448,7 +616,8 @@ def match(schema, pack: str = "sap", variant: str | None = None, mirror: dict | 
     if seen:                                                              # BSEG is not missing from an S/4HANA schema
         missing_tables = {n for n in missing_tables if not p["tables"][n].get("variants") or seen in p["tables"][n]["variants"]}
     return Match(pack, found, keys, applied, not_applied, sorted(missing_tables), missing_cols, dropped, hint, keyless,
-                 key_rules, {t: e for t, e in entries.items() if t in found}, mirror_problems, cols, by_alias)
+                 key_rules, {t: e for t, e in entries.items() if t in found}, mirror_problems, cols, by_alias,
+                 reasons, by_key, ambiguous)
 
 
 def match_any(schema, variant: str | None = None) -> Match | None:
