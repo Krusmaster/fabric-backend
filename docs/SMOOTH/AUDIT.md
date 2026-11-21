@@ -325,7 +325,33 @@ Not done here: the drafts are not yet literal aliases (one code path) of their c
 own answers and goldens, and only the cards' buttons point at the dry run. The local stdio server (`mcp_server.py`) is
 unchanged. The chat path is unchanged (`tests/test_wb15_click_through.py`).
 
-## 12. After SM5: several lakehouses, on a synthetic fixture (21 November 2026)
+
+## 12. After ED3, part 2: the Data product step, the catalog and the handover files (21 November 2026)
+
+The rest of Gustav's third editor test (points 5 to 8). Deterministic rules; nothing here uses AI.
+
+| # | Before | After |
+|---|---|---|
+| 5 | The drift monitor card: "a Krusgraph tool in Claude, not in this item" | SM3 already took the card off the Next page (it had no Dry run here); the result's verify step says in one line why there is no monitor of its own here (the pipeline's first step compares the source with the plan on every run). A Create of the drift monitor from the item is not built in this round |
+| 6a | "Nobody is the owner yet", and "Owner of the data products (optional)" with an empty picker and Me again under Publish to OneLake catalog | The owner is filled: the one chosen, else the signed-in person by default ("Owner: … (you, by default). Change it below."). Publish to OneLake catalog asks for no owner: it uses the data product's, set in one place |
+| 6b | "Built. The latest Create built it, but this item has no id saved for it. Look for leftovers below … Adopt adds it here." | When the page opens, an output the latest Create built without a saved id is looked up by Krusgraph's plan marker and added when the marker is this data product's plan and the name is the one Create gave it: "Found and added: …", once. Look for leftovers stays for every other case |
+| 6c | "Read Fabric again" as a main button | Fabric is read when the page opens and after every action; a small Refresh stays |
+| 6d | Failed rows (silver 409, report 404) repeated Fabric's long error | One line per failed row and one "Fix and finish (N not built)", ED2's action; Fabric's message under Details |
+| 6e | "Health: not checked yet since this Create"; "Last pipeline run: none recorded" | One "Check health now" button beside the health line; the last run is the one ED2's Run once records |
+| 7a | The preview proposed a description for the source `shop_lh`, which lives in its own workspace | The catalog step reads the workspace the data product was built in (the item's); only what this data product built is written by default. The source is never treated as built here, even when an earlier write left Krusgraph's plan marker on it, and is offered unticked: "shop_lh belongs to its own workspace; tick to describe it too". A ticked item in a workspace where writing is off is refused |
+| 7b | "Owner: <name> (<email>)" in descriptions | No e-mail address in any description, contract or handover text: the name only. The contact goes only into the Purview request's `add_by_hand.owner`, the data product's Owners a steward sets in Purview. Fabric items have no owner field; the owner is kept in this item (outputs.json) |
+| 7c | "customers: 5 tables … 4 of 4 keys unique" beside "5 of 5 keys unique" and one product while the plan has two | Cards, contracts and lines use ED2's one grouping (`domains.data_products`); every data product is listed; the recorded check is the source, and what it did not reach takes this step's fresh count |
+| 7d | The notebook's After text appended the data-product sentence to its starter text | One template for every item Krusgraph built: "Krusgraph <type> <name>. Data products … checked by Krusgraph: …" |
+| 8a | A pasted `contracts/customers.odcs.yaml` held the whole `purview.json` | Not reproduced: each Download and each Copy gives exactly its file (tested for every file); each file is valid YAML or JSON and none contains another. Most likely two pastes in one |
+| 8b | `purview.json` starts with a retirement statement | Kept, now word for word from learn.microsoft.com/en-us/purview/unified-catalog (ms.date 2026-10-13, updated 2026-11-12, read 21 November 2026): "Microsoft Purview Unified Catalog and classic Microsoft Purview data governance capabilities (formerly Azure Purview) are being retired. Microsoft is consolidating its data governance capabilities in Microsoft Fabric. New Microsoft Purview data governance accounts can no longer be created, and existing data governance capabilities will remain in maintenance mode through November 12, 2027." The file carries the page and the date |
+| 8c | The owner's e-mail in a Purview description | Only in `add_by_hand.owner` |
+| 8d | One "customers" contract for 5 tables | One contract per data product of the one grouping |
+| 8e | Products' rules "not counted" | A key or link the recorded check did not reach takes this step's fresh count (proven when it holds); any still not counted are said once, with why |
+| 8f | "Write 2 changes as me" disabled after ticking, with the operator's list in small text | Where writing is off, no checkbox; beside the disabled button: "Writing is off in this workspace while Krusgraph is in test; use the handover files." |
+
+Tests: `tests/test_ed3_catalog_handover.py` and `workload/Workload/app/items/ModelItem/ed3Product.test.tsx`.
+
+## 13. After SM5: several lakehouses, on a synthetic fixture (21 November 2026)
 
 PLAN.md row 4. Everything below ran locally on `tests/fixtures/multi_lakehouse.py`: one fake workspace, `mlh_demo`,
 with six lakehouses as SQLite files (`bronze_lh`, `silver_lh`, `gold_lh`, `sap_lh`, `crm_lh`, `sales_product_lh`),

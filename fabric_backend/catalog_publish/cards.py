@@ -162,9 +162,20 @@ def _fit(*versions: str) -> str:
     return v[:DESCRIPTION_MAX - 1].rsplit(" ", 1)[0] + "…"
 
 
+_EMAIL = re.compile(r"[^\s()<>,;]+@[^\s()<>,;]+")
+
+
+def owner_name(owner: str | None) -> str | None:
+    """ED3 (Gustav: 'Owner: <name> (<email>)' in a description): the owner's name only, never an e-mail address. A
+    value that is only an address gives no name at all."""
+    v = " ".join(_EMAIL.sub("", str(owner or "")).replace("()", "").replace("<>", "").split()).strip(" ,;")
+    return v or None
+
+
 def description(name: str, tables: list[str], schema: str, ev: dict, owner: str | None) -> str:
     ents = [words(entity_name(t)) for t in tables]
-    who = f" Owner: {owner}." if owner else ""
+    shown = owner_name(owner)
+    who = f" Owner: {shown}." if shown else ""
     head = f"Data product {name} ({schema}):"
     tail = f" Checked by Krusgraph: {ev['line']}.{who}" if ev["counted"] else f" Krusgraph: {ev['line']}.{who}"
     return _fit(f"{head} {', '.join(ents)}.{tail}", f"{head} {len(tables)} tables.{tail}", f"{head}{tail}")
@@ -201,7 +212,10 @@ def cards(p, schema: str, source: str = "", validation: dict | None = None, chec
     """{"products": [card], "unassigned": [...]}: one card per grouping domain_draft proposes. `owners` and `names`
     map a product's slug to the owner and the name the person chose."""
     owners, names = owners or {}, names or {}
-    d = _domains.draft(p, schema, source, validation)
+    # ED3 (Gustav: one 'customers' product of 5 tables while the plan has two): ED2's one grouping (domains.data_products,
+    # the plan's rules only), one ODCS contract per data product of it
+    d = _domains.data_products(p)
+    d["contracts"] = {x["slug"]: _domains.contract(p, x, d["interfaces"], schema, source, validation) for x in d["domains"]}
     d["domains_as_products"] = [{"name": (names.get(x["slug"]) or x["name"]).strip(), "tables": x["tables"]} for x in d["domains"]]
     out = []
     for dom in d["domains"]:
@@ -211,7 +225,8 @@ def cards(p, schema: str, source: str = "", validation: dict | None = None, chec
         out.append({
             "name": name, "slug": dom["slug"], "tables": dom["tables"],
             "description": description(name, dom["tables"], schema, ev, owner),
-            "owner": owner or "not chosen yet",
+            "owner": owner_name(owner) or "not chosen yet",
+            **({"owner_contact": owner} if owner and owner != owner_name(owner) else {}),
             "domain": {"proposed": dom["name"], "why": dom["name_reason"],
                        "note": "a proposal: a Fabric or domain admin creates the domain and assigns the workspace"},
             "tags": tags(name),

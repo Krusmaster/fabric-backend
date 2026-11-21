@@ -99,12 +99,14 @@ export function writeCount(a: CatalogAnswer): number {
   return a.diff.filter((r) => r.action === "write").length;
 }
 
+/** ED3: next to the disabled button, in plain words; no checkbox is shown then. */
+export const WRITING_OFF = "Writing is off in this workspace while Krusgraph is in test; use the handover files.";
+
 /** The write button's state and why: only after a dry run, with something to write, in an allowed workspace. */
 export function canWrite(a: CatalogAnswer | undefined, checked: boolean): { ok: boolean; why: string } {
   if (!a) return { ok: false, why: "Prepare first: you see what would be written before anything is." };
   if (!a.confirm || writeCount(a) === 0) return { ok: false, why: "Nothing for you to write: the rest is in the handover files." };
-  if (a.writable === false)
-    return { ok: false, why: "Writing is switched on only in the workspaces the Krusgraph operator lists (its demo workspace while this is tested). Use the handover files." };
+  if (a.writable === false) return { ok: false, why: WRITING_OFF };
   if (!checked) return { ok: false, why: "Tick that you checked the changes above." };
   return { ok: true, why: "" };
 }
@@ -124,7 +126,10 @@ export function approvals(a: CatalogAnswer): { who: string; steps: string[] }[] 
 
 export function ruleCounts(c: CatalogCard): string {
   const proven = c.quality_rules.filter((r) => r.status === "proven").length;
-  return `${proven} of ${c.quality_rules.length} quality rules proven by the row check`;
+  const notCounted = c.quality_rules.filter((r) => r.status === "not counted").length;
+  // ED3: the rules the check did not reach are said once, with why
+  return `${proven} of ${c.quality_rules.length} quality rules proven by the row check` +
+    (notCounted ? `; ${notCounted} not counted: the check did not reach ${notCounted === 1 ? "it" : "them"} (Check against the rows again counts them)` : "");
 }
 
 export function fileMime(path: string): string {

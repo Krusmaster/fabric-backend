@@ -62,13 +62,25 @@ def own_first_sentence(description: str | None) -> str:
     return first if first.endswith((".", "!", "?")) else first + "."
 
 
-def new_description(item: dict, texts) -> str:
-    """The item's own first sentence, then the data-product sentence (the longest of `texts` that fits), then
-    Krusgraph's plan marker if the item has one: 256 characters in all."""
+TYPE_WORDS = {"Notebook": "notebook", "DataPipeline": "pipeline", "SemanticModel": "semantic model", "Report": "report",
+              "GraphQLApi": "API for GraphQL", "Lakehouse": "lakehouse", "Ontology": "ontology", "DataAgent": "data agent",
+              "Warehouse": "warehouse", "SQLEndpoint": "SQL analytics endpoint", "AppBackend": "app"}
+
+
+def built_first_sentence(item: dict) -> str:
+    """ED3 (Gustav: the notebook's 'After' appended the data-product sentence to its starter text): one template for
+    every item Krusgraph built, whatever its description said before: 'Krusgraph <type> <name>.'"""
+    t = TYPE_WORDS.get(str(item.get("type") or ""), "item")
+    return f"Krusgraph {t} {item.get('displayName') or item.get('id')}."
+
+
+def new_description(item: dict, texts, built: bool = False) -> str:
+    """The item's first sentence (its own; ED3: for an item Krusgraph built, the one template), then the data-product
+    sentence (the longest of `texts` that fits), then Krusgraph's plan marker if the item has one: 256 characters."""
     _, with_mark, of = _mark_tools()
     texts = [texts] if isinstance(texts, str) else list(texts)
     m = of(item.get("description"))
-    first = own_first_sentence(item.get("description"))
+    first = built_first_sentence(item) if built else own_first_sentence(item.get("description"))
     room = DESCRIPTION_MAX - (len(_mark_text(m)) + 1 if m else 0)
     body = ""
     for t in texts:
@@ -85,21 +97,28 @@ def _mark_text(m: dict) -> str:
     return mark_text(m)
 
 
-def offer(item: dict, writes: list[dict]) -> dict:
-    """WB10: an item Krusgraph did not build, offered unticked: what would be written if the person ticks it."""
+SOURCE_WHY = "{name} belongs to its own workspace; tick to describe it too"
+
+
+def offer(item: dict, writes: list[dict], source: bool = False, other_workspace: bool = False) -> dict:
+    """WB10: an item Krusgraph did not build, offered unticked: what would be written if the person ticks it. ED3: the
+    source lakehouse in another workspace says so in one line."""
     name = item.get("displayName") or item["id"]
-    return {"item": name, "item_id": item["id"], "type": item.get("type"), "why": NOT_OURS_WHY.format(name=name),
+    why = SOURCE_WHY.format(name=name) if (source and other_workspace) else NOT_OURS_WHY.format(name=name)
+    return {"item": name, "item_id": item["id"], "type": item.get("type"), "why": why,
             "fields": [w["field"] for w in writes], "writes": [{k: w[k] for k in ("field", "before", "after")} for w in writes]}
 
 
 def item_writes(workspace_id: str, item: dict, text, tag_names: list[str], tenant_tags: list[dict] | None,
-                created_ids: set[str]) -> tuple[list[dict], list[dict], list[dict]]:
-    """(writes, kept, missing_tags) for one item {id, displayName, type, description, tags: [{id, displayName}]}."""
+                created_ids: set[str], built: bool | None = None) -> tuple[list[dict], list[dict], list[dict]]:
+    """(writes, kept, missing_tags) for one item {id, displayName, type, description, tags: [{id, displayName}]}.
+    ED3: `workspace_id` is the item's own workspace (a source lakehouse may live in another); `built`: whether this
+    data product built it (default: ours())."""
     writes, kept, missing = [], [], []
-    url = f"{FABRIC}/v1/workspaces/{workspace_id}/items/{item['id']}"
+    url = f"{FABRIC}/v1/workspaces/{item.get('workspace') or workspace_id}/items/{item['id']}"
     name = item.get("displayName") or item["id"]
     before = item.get("description") or ""
-    after = new_description(item, text)
+    after = new_description(item, text, ours(item, created_ids) if built is None else built)
     if after != before:
         writes.append({"operation": "Items_UpdateItem", "method": "PATCH", "url": url, "body": {"description": after},
                        "item": name, "item_id": item["id"], "type": item.get("type"), "field": "description",
@@ -165,6 +184,12 @@ def check_write(workspace_id: str, writes: list[dict], confirm: str | None) -> N
         raise NotAllowed(f"writing to the catalog is switched on only for the workspaces in {ALLOW_ENV} "
                          "(Kruse Consulting's demo workspace while it is tested); this one is not listed. "
                          "The dry run's writes and the handover files are yours to use.")
+    # ED3: a ticked item in another workspace (the source lakehouse) is written only where writing is on there too
+    other = sorted({w["url"].split("/workspaces/", 1)[1].split("/", 1)[0].lower() for w in writes if "/workspaces/" in w["url"]}
+                   - allowed)
+    if other:
+        raise NotAllowed(f"writing to the catalog is not switched on in the workspace of a ticked item ({', '.join(other)}); "
+                         "untick it, or use the handover files")
     want = confirm_of(workspace_id, writes)
     if not confirm:
         raise NotAllowed("send back the confirm value of the dry run, so what is written is what you saw")
