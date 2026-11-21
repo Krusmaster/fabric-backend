@@ -140,6 +140,39 @@ The synonym table is a list of assumptions, not knowledge of the schema: `land` 
 German and is mapped so; a schema that uses `land` for something else gets a wrong suggestion, which the `note` on the
 relationship and `plan.synonyms` make visible and `validate_plan` would count against the rows.
 
+## One count: holds, fails, no rows to check, not counted (round BL3, 21 November 2026; unit tests only)
+
+F1 (`docs/FINDINGS-13NOV.md` B5, B6, B10, B14, A4) found one plan giving four different counts of its links, and a
+review file that said "Nothing open" when every counting query had failed. `fabric_backend/counts.py` gives the plan's
+one count: `counts.summary(plan, validation)` puts every key and link in exactly one of four states, from
+`validate_plan`'s answer and nothing else.
+
+| State | Means |
+| --- | --- |
+| holds | counted, and the rows agree: a key unique in all its rows; a link whose every value is found in a target with a unique key |
+| fails | counted, and the rows disagree: duplicates or NULLs in a key; rows pointing at nothing; a target whose key is not unique; a join that repeats rows |
+| no rows to check | counted, with nothing to check: an empty table, a link column with no value in any row |
+| not counted | not counted in this answer: no check was run, a query failed, the time ran out, `max_items` or the scope left it out, or the check went stale |
+
+Only "holds" passes; the other three are open. "Not counted" is never folded into "holds", and a link to a non-unique
+target is never "holds", whatever its own verdict says. The links are the plan's relationships plus the joins the pack
+lists with a condition (`plan.extended`), said apart: on the SAP demo, "Keys: 17 of 17 hold. Links: 32 of 34 hold, 1
+fails, 1 has no rows to check (24 in the plan, 10 the SAP pack lists with a condition)." The plan's own open questions
+(a table without a key, a column that could point at several tables) are counted apart from the checks: on the shop,
+"Keys: 6 of 6 hold. Links: 6 of 6 hold. The plan also asks 1 open question."
+
+`review.py` now writes its check totals, each item's check status and its "Needs attention" list from this count, and
+keeps the count in the file (`counts`). A check that was not counted is listed with its reason ("3 checks were not
+counted: key:customers, ... Why: the counting query failed (PermissionError: ...)"); a check nobody asked for says to run `review_plan` with
+`validate=true`; a check with no rows to check is listed too. The report can only say "Nothing open" when every key and
+link holds and the plan asks no question (`tests/test_bl3_counts.py` asserts this, and that the count equals what
+`evidence_report.report`, `validate_plan`'s summary and the review say on the shop and the SAP demo).
+
+Not yet switched (the chain's files today, for a round after it): `validate_plan`'s summary line in `evidence.py`
+("32 of 34 relationships hold without orphans"), the check card's own tallies (`mcp_apps_next.check_rows`,
+`mcp_apps_words`, `mcp_apps_pictures`, `mcp_apps.py`), the start card's proof tiles (`mcp_apps_start.py`,
+`start_flow.py`), `fix_plan.py`'s finding count (B14), and the Model editor's review view (`workload_api.py`).
+
 ## Large schemas: time and answer size
 
 Measured on 26 October 2026 on synthetic schemas with 300 and 1 000 tables (`tests/test_compact_outputs.py::synth`:
