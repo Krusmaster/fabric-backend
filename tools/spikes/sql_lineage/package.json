@@ -1,0 +1,11 @@
+{
+  "name": "krusgraph-spike-sql-lineage",
+  "private": true,
+  "description": "Throwaway spike: mine join pairs from SQL with sqllens (see README.md). Not part of the server or the workload.",
+  "type": "module",
+  "license": "UNLICENSED",
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "sqllens": "1.11.0"
+  }
+}
