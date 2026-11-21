@@ -174,8 +174,8 @@
   "VehicleTemperatures": "SELECT TOP (10) [VehicleTemperatureID], [VehicleRegistration], [ChillerSensorNumber], [RecordedWhen], [Temperature], [FullSensorData], [IsCompressed], DATALENGTH([CompressedSensorData]) AS [CompressedSensorData (bytes)] FROM [dbo].[VehicleTemperatures]"
  },
  "semantic_model": {
-  "bytes": 273109,
-  "sha256": "a64f106702e5e263cc1a01219e0e40d60435c442a70ae2a348415b6112006cd3"
+  "bytes": 267044,
+  "sha256": "c0ca85b6e1fb41829d987d46329dddb8638ab09c72bee9a7631373bd57ee8123"
  },
  "silver": {
   "bytes": 85183,
