@@ -26,6 +26,8 @@ data and build from the plan. Start with the connection guide, or try the [guide
 [the example's map](/check?example=sample#check-map) without an account. The tool reference explains what each tool reads, returns or changes, and
 how far it has been tested.
 
+Where this is going: [a sketch of where Krusgraph is heading](#where-krusgraph-is-heading), with what is true today.
+
 **Data and access**
 
 Planning uses schema metadata. If you ask for data checks, samples or queries, the relevant counts or results pass through {{PRODUCT}} to Claude. Access depends on your Microsoft account and the permissions granted to the connector. [Read how data and access are handled](/privacy).
@@ -85,6 +87,8 @@ no row-level security of its own; it applies what the source enforces for the id
 ## Get started
 
 New to a Fabric lakehouse? Start with how its tables fit together. Connect the hosted server to Claude, then ask a first question. The [guided demo](/check?example=sample&guide=1) runs the engine on a synthetic shop in your browser. It needs no account. Onto leads four steps over its map. The first three show how the tables connect, the total that doubles and a suggestion to decide on. The fourth leads on to Power BI or an app.
+
+The start card's five steps are today's path; [Where Krusgraph is heading](#where-krusgraph-is-heading) sketches where it is going.
 
 > “Krusgraph har förändrat hur mitt team jobbar med data engineering. Det som tidigare tog lång tid kan vi nu bygga på en eftermiddag: hela flöden och ett ekosystem för vår data. Jag rekommenderar deras MCP-server till alla som jobbar med data engineering.”
 >
@@ -332,6 +336,39 @@ Where {{PRODUCT}} is today, and where it is going.
 
 Next and Vision are direction, not current features.
 <!-- /figure -->
+
+A sketch of the app we are drawing toward: [Where Krusgraph is heading](#where-krusgraph-is-heading).
+
+### Where Krusgraph is heading
+
+**Status: This is a sketch of where we are heading, not what ships today. Today every step is rules; whether Ask, Run and Use get an optional model is being decided. Data stays in your Fabric either way.**
+
+Onto drew it on the whiteboard: one sign-in, one approval, and a sensible default for everything else. Today's path is the five steps of the start card ([Connect](#connect)); this is where that path is going.
+
+<!-- figure:heading-sketch -->
+- **Your Fabric tenant** (a dashed line around everything): your data stays here. You sign in with Entra.
+- **Your estate:** bronze ✓, silver ✓ (keys 6/6), gold missing, model missing, catalog missing: what you want next to what is there.
+- **The mascots suggest:** “You have no gold for orders.” Buttons: Build gold + model, Add a key check, Show why. One tap is a dry run.
+- **Plan:** + 4 gold views, + a model on gold, + 12 tests, the rest are defaults. **Approve** turns it into a pull request in Fabric Git.
+- **One sign-in + one approval.** Everything else is a default.
+- **Behind the scenes:** Find → Ask → Build → Approve → Run → Use → Improve. Gray is rules (Find, Build, Improve), purple is where a model proposes (Ask, Run, Use), amber is you (Approve). Data rows are read only inside Fabric.
+<!-- /figure -->
+
+**What each pane does**
+
+- **Your estate** compares what you asked for with what is in your Fabric, layer by layer, and marks what is missing.
+- **The mascots suggest** names the next useful step in one line and offers it as a button; a tap shows a dry run and changes nothing.
+- **Plan** lists exactly what would be added; nothing is created until you press Approve, and then it arrives as a pull request in Fabric Git.
+
+**Three kinds of helper**
+
+- **Answer:** reads and replies. It writes nothing.
+- **Propose:** drafts something, such as a view, a test or a plan. A rule or a person decides whether it is used.
+- **Experiment:** tries an idea in a sandbox. A person promotes it, or it stays there.
+
+**What is never a helper.** The compiler, which turns a plan into Fabric items, and the approver are not agents. So the same plan gives the same result every time.
+
+You can try today's version: [use it in Claude](#connect), or start with the [guided demo](/check?example=sample&guide=1).
 
 ## Explore and check
 
