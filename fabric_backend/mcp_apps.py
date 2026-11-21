@@ -208,12 +208,22 @@ def _coach(name: str, call: dict, answer: dict, checks, todo, extra: dict) -> st
     if name == "requirements_draft":                         # RQ1: its own steps stay, each with its requirement ids
         todo = extra.get("next") or []
         return _c.text(c, todo[0], todo[1:1 + _c.SECONDARY]) if todo else c["text"]
-    if name == "start" or "next" not in extra:              # start draws its own buttons; a listing gets no buttons
+    if name == "start":                                     # start draws its own buttons
+        return c["text"]
+    if "next" not in extra:                                 # SM4: never a dead end: a card without steps hands back to Start
+        from . import tool_listing
+        if "meta" in registration(name, on=True) and not tool_listing.forward(
+                [a for a in answer.get("actions") or [] if isinstance(a, dict)]):
+            extra["next"] = [tool_listing.hand_back(name, call, answer)]
         return c["text"]
     if _c.own_action(name, answer) is not None:              # the card's own action (Check, Create) is the primary
         extra["next"] = list(c["secondary"]) if not answer.get("error") else []
     else:
         extra["next"] = _c.next_steps(c)
+    from . import tool_listing                              # SM4: a card whose steps lead nowhere listed hands back to Start
+    acts = [a for a in answer.get("actions") or [] if isinstance(a, dict)]
+    if "meta" in registration(name, on=True) and not tool_listing.forward(list(extra["next"]) + acts):
+        extra["next"] = list(extra["next"]) + [tool_listing.hand_back(name, call, answer)]
     return c["text"]
 
 

@@ -29,7 +29,17 @@ TOTAL_MAX = 140_000        # bytes of the whole result: text contents plus the c
 
 
 def _tools():
-    return asyncio.run(server.mcp.list_tools())
+    """SM4: every tool, as KRUSGRAPH_ADVANCED_TOOLS=1 lists them; the default listing is a subset of these."""
+    import os
+    old = os.environ.get("KRUSGRAPH_ADVANCED_TOOLS")
+    os.environ["KRUSGRAPH_ADVANCED_TOOLS"] = "1"
+    try:
+        return asyncio.run(server.mcp.list_tools())
+    finally:
+        if old is None:
+            os.environ.pop("KRUSGRAPH_ADVANCED_TOOLS", None)
+        else:
+            os.environ["KRUSGRAPH_ADVANCED_TOOLS"] = old
 
 
 def test_every_tool_has_a_title_and_the_right_annotations():

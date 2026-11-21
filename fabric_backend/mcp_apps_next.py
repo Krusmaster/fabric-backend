@@ -155,6 +155,21 @@ def error_steps(tool: str, args: dict, answer: dict) -> list[dict]:
 
 
 def steps(tool: str, args: dict, answer: dict, checks: dict | None = None) -> list[dict]:
+    """SM4: the steps below under the default listing (tool_listing.default_step): a draft's step becomes its creating
+    tool's dry run, a step for another unlisted tool is left out. With KRUSGRAPH_ADVANCED_TOOLS=1 they are unchanged."""
+    from . import tool_listing
+    out = [tool_listing.default_step(s) for s in _steps(tool, args, answer, checks)]
+    seen, keep = set(), []
+    for s in out:
+        if s is not None and (s.get("label"), s.get("tool")) not in seen:
+            seen.add((s.get("label"), s.get("tool")))
+            keep.append(s)
+    if out and out[0] is not None and out[0].get("primary") and keep and not keep[0].get("primary"):
+        keep[0] = {**keep[0], "primary": True}
+    return keep
+
+
+def _steps(tool: str, args: dict, answer: dict, checks: dict | None = None) -> list[dict]:
     """The card's next steps for one answer (2 to 4; 1 to 3 for an error or a refusal, n220; none for a question back
     to the user). WB13 (#91): after plan_backend the rules below; for every other tool next_rules.steps, the most useful
     step first, from the plan state (`checks`: validate_plan's check rows)."""

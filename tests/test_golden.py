@@ -268,9 +268,14 @@ def _listing(mcp) -> list[dict]:
     return out
 
 
-def test_hosted_tool_listing_and_instructions_are_unchanged():
+def test_hosted_tool_listing_and_instructions_are_unchanged(monkeypatch):
+    """SM4: `default` is what tools/list holds by default (names); `tools` is every tool's entry, as
+    KRUSGRAPH_ADVANCED_TOOLS=1 lists them."""
     from fabric_backend import server
-    check("hosted_listing", {"tools": _listing(server.mcp), "instructions": server.mcp.instructions})
+    monkeypatch.delenv("KRUSGRAPH_ADVANCED_TOOLS", raising=False)
+    default = [t["name"] for t in _listing(server.mcp)]
+    monkeypatch.setenv("KRUSGRAPH_ADVANCED_TOOLS", "1")
+    check("hosted_listing", {"default": default, "tools": _listing(server.mcp), "instructions": server.mcp.instructions})
 
 
 # ------------------------------------------------------------------ the local stdio server ------------------------
