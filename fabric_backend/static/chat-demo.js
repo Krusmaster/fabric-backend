@@ -720,7 +720,14 @@
         ', your agent drafts these files from your own tables when you ask. Files only; nothing runs: you run dbt when you decide to.';
       done('dbt', html, '', note);
       var slots = log.querySelectorAll('.kgf-slot'), slot = slots[slots.length - 1], f = KGF.build(document, x.flow);
-      if (slot && f) slot.appendChild(f);
+      if (slot && f) {
+        // DBTV1 (the founder, 21 November 2026: see the dbt flow larger, as the data flow): the same "Open larger"
+        var bar = document.createElement('div');
+        bar.className = 'kgd-bar';
+        bar.appendChild(largerButton(function (btn) { openDbtBig(btn, x.flow); }));
+        slot.appendChild(bar);
+        slot.appendChild(f);
+      }
     });
   }
 
@@ -782,10 +789,7 @@
       hint.hidden = true;
       bar.appendChild(hint);
       if (onLarger) {
-        var larger = mk('button', 'kgc-zoom kgd-larger', 'Open larger');
-        larger.type = 'button';
-        larger.addEventListener('click', function () { onLarger(larger); });
-        bar.appendChild(larger);
+        bar.appendChild(largerButton(onLarger));
       }
       root.appendChild(bar);
 
@@ -899,21 +903,31 @@
     return { build: build };
   })();
 
-  // "Open larger": the same diagram over the page, as wide as the window; Back to the chat or Esc returns
-  function openFlowBig(btn, f) {
+  // "Open larger": the same diagram over the page, as wide as the window; Back to the chat or Esc returns.
+  // DBTV1: one overlay and one button for every diagram that opens larger (the data flow, the dbt project's flow).
+  function largerButton(onLarger) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'kgc-zoom kgd-larger';
+    b.textContent = 'Open larger';
+    b.addEventListener('click', function () { onLarger(b); });
+    return b;
+  }
+  // title: the overlay's heading; label: what a screen reader calls it; content: the diagram, built for the overlay
+  function openWide(btn, title, label, content) {
     closeBig();
     big = document.createElement('div');
     big.className = 'kgd-big';
     big.setAttribute('role', 'dialog');
     big.setAttribute('aria-modal', 'true');
-    big.setAttribute('aria-label', 'The data flow, larger');
-    var panel = document.createElement('div'), head = document.createElement('div'), title = document.createElement('p');
+    big.setAttribute('aria-label', label);
+    var panel = document.createElement('div'), head = document.createElement('div'), heading = document.createElement('p');
     var back = document.createElement('button'), body = document.createElement('div');
     panel.className = 'kgd-big-panel'; head.className = 'kgc-big-head'; body.className = 'kgd-big-body';
-    title.textContent = 'The data flow';
+    heading.textContent = title;
     back.type = 'button'; back.className = 'kgc-back'; back.textContent = 'Back to the chat';
-    head.appendChild(title); head.appendChild(back);
-    body.appendChild(KGD.build(f, true, null));
+    head.appendChild(heading); head.appendChild(back);
+    body.appendChild(content);
     panel.appendChild(head); panel.appendChild(body); big.appendChild(panel);
     big._from = btn;
     big._inert = Array.prototype.filter.call(document.body.children, function (el) {
@@ -930,6 +944,18 @@
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     });
     back.focus({ preventScroll: true });
+  }
+
+  function openFlowBig(btn, f) {
+    openWide(btn, 'The data flow', 'The data flow, larger', KGD.build(f, true, null));
+  }
+  // DBTV1: the dbt project's flow, larger: the same boxes (each still opens its SQL or YAML), more room and larger text
+  function openDbtBig(btn, flow) {
+    var f = KGF.build(document, flow);
+    if (!f) return;
+    f.classList.add('kgf-wide');
+    f.setAttribute('aria-label', 'The dbt project\u2019s flow, larger');
+    openWide(btn, 'The dbt project\u2019s flow', 'The dbt project\u2019s flow, larger', f);
   }
 
   function dataFlow() {
