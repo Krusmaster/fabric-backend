@@ -11,15 +11,16 @@
  * Phone first: one column, each change as its own block (item, field, now, after), no table to scroll sideways.
  * The editor provides the call through CatalogContext; where nothing provides it the panel is not shown.
  */
-import React, { createContext, useContext, useId, useState } from "react";
-import { Badge, Body1, Button, Caption1, Checkbox, Field, Input, Subtitle2 } from "@fluentui/react-components";
+import React, { createContext, useContext, useState } from "react";
+import { Badge, Body1, Button, Caption1, Checkbox, Subtitle2 } from "@fluentui/react-components";
 import { BookDatabase20Regular, Edit20Regular } from "@fluentui/react-icons";
 import { FileActions } from "./fileOffer";
+import { ownerShown } from "./ed3Product";
 import { typeWord } from "./fabricIcons";
 import { TypeIcon, TypeName } from "./itemIcons";
 import {
   CatalogAnswer, CatalogCard, CatalogDiffRow, ENDORSE_LINE, OwnerPerson, STEP_INTRO, STEP_TITLE, approvals, canWrite, diffLine,
-  fileMime, fileName, ownerProblem, personValue, ruleCounts, shown, writeCount,
+  fileMime, fileName, ownerProblem, ruleCounts, shown, writeCount,
 } from "./catalogWords";
 
 export interface CatalogSource {
@@ -111,27 +112,16 @@ export function CatalogView(props: {
 }) {
   const a = props.answer;
   const gate = canWrite(a, props.checked);
-  const listId = `kg-catalog-people-${useId().replace(/[^A-Za-z0-9_-]/g, "")}`;
-  const people = props.people ?? [];
-  const bad = ownerProblem(props.owner, props.people, props.you, props.itemNames);
+  const bad = undefined as string | undefined;   // ED3: the owner is the data product's, checked where it is set
   return (
     <section className="kg-catalog" aria-labelledby="kg-catalog-title">
       <Subtitle2 as="h3" id="kg-catalog-title"><BookDatabase20Regular aria-hidden /> {STEP_TITLE}</Subtitle2>
       <Body1>{STEP_INTRO}</Body1>
-      {/* WB10: the same picker as the Data product page's Owner; autocomplete off and a name of its own, so the browser
-          never fills it with a value typed in another field (an item's name, live test of 18 Nov 2026) */}
-      <Field label="Owner of the data products (optional)" validationState={bad ? "error" : "none"} validationMessage={bad || undefined}
-        hint="A person or group with a role in this workspace">
-        <Input value={props.owner} onChange={(_, d) => props.onOwner(d.value)} name="kg-catalog-owner" autoComplete="off"
-          list={people.length ? listId : undefined} placeholder={people.length ? "Start typing a name" : "A person's or group's name or e-mail"} />
-      </Field>
-      {people.length > 0 && (
-        <datalist id={listId}>
-          {people.map((p) => <option key={`${p.type}:${p.name}:${p.upn ?? ""}`} value={personValue(p)}>{`${p.name}, ${p.type === "Group" ? "group" : p.role ?? "person"}`}</option>)}
-        </datalist>
-      )}
+      {/* ED3 (Gustav: the owner asked twice on one page): the data product's owner, changed in one place (Owner above) */}
+      <Caption1 data-ed3="owner">{props.owner
+        ? `Owner: ${props.owner}, the data product's owner (change it under Owner above). It is kept in this item; no e-mail address goes into a description.`
+        : "No owner yet: set it under Owner above."}</Caption1>
       <div className="kg-catalog-actions">
-        {props.you && <Button appearance="secondary" onClick={() => props.onOwner(props.you!)} disabled={props.busy}>Me ({props.you})</Button>}
         <Button appearance="primary" icon={<Edit20Regular />} onClick={props.onPrepare} disabled={props.busy || !!bad}>
           {a ? "Prepare again" : "Prepare (nothing is written)"}
         </Button>
@@ -170,12 +160,16 @@ export function CatalogView(props: {
             </ul>
           ) : (
             <div className="kg-catalog-write">
-              <Checkbox checked={props.checked} onChange={(_, d) => props.onChecked(!!d.checked)}
-                label="I checked the changes above" disabled={!a.confirm || writeCount(a) === 0} />
-              <Button appearance="primary" onClick={props.onWrite} disabled={!gate.ok || props.busy}>
+              {/* ED3: where writing is off, no checkbox to tick; the reason beside the button, in plain words */}
+              {a.writable !== false && (
+                <Checkbox checked={props.checked} onChange={(_, d) => props.onChecked(!!d.checked)}
+                  label="I checked the changes above" disabled={!a.confirm || writeCount(a) === 0} />
+              )}
+              <Button appearance="primary" onClick={props.onWrite} disabled={!gate.ok || props.busy}
+                aria-describedby={!gate.ok ? "kg-catalog-why" : undefined}>
                 Write {writeCount(a)} change{writeCount(a) === 1 ? "" : "s"} as me
               </Button>
-              {!gate.ok && <Caption1>{gate.why}</Caption1>}
+              {!gate.ok && <Caption1 id="kg-catalog-why">{gate.why}</Caption1>}
             </div>
           )}
         </>
@@ -190,9 +184,10 @@ export function CatalogPanel() {
   const [answer, setAnswer] = useState<CatalogAnswer>();
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string>();
-  // WB10: never prefilled with an item's name
-  const saved = source?.owner ?? "";
-  const [owner, setOwner] = useState(ownerProblem(saved, null, null, source?.itemNames) ? "" : saved);
+  // ED3: the data product's owner (else the signed-in person, by default): one owner, set in one place
+  const saved = ownerShown(source?.owner, source?.you).owner;
+  const owner = ownerProblem(saved, null, null, source?.itemNames) ? ownerShown(null, source?.you).owner : saved;
+  const setOwner = (_: string) => {};
   const [checked, setChecked] = useState(false);
   const [written, setWritten] = useState(false);
   const [include, setInclude] = useState<string[]>([]);

@@ -1,6 +1,6 @@
 """CA1: the product card in Microsoft Purview Unified Catalog's terms, for a Purview steward to create. Nothing here is
 sent: the APIs are public preview, documented with a service principal (not the signed-in user Krusgraph acts as), and
-Purview's data governance is being retired (apis.PURVIEW_RETIRING, on Learn 17 November 2026). A customer who uses it
+Purview's data governance is being retired (apis.PURVIEW_RETIRING, quoted word for word from Learn, read 21 November 2026). A customer who uses it
 until then gets the requests ready.
 
 Rule types are Purview's own names in its rule list (unified-catalog-data-quality-rules, updated 12 Nov 2026). The
@@ -48,7 +48,7 @@ def dq_rules(card: dict) -> list[dict]:
 def requests(card: dict) -> list[dict]:
     """The Unified Catalog requests for one card, in order, with the role each needs. Ids are placeholders."""
     gd = "{governance-domain-id}"
-    product = {"name": card["name"], "description": card["description"], "domain": gd}
+    product = {"name": card["name"], "description": card["description"], "domain": gd}   # ED3: no e-mail in it (cards.owner_name)
     out = [
         {"step": f"Governance domain for {card['domain']['proposed']}", "by": "purview_domain_creator",
          "method": "POST", "url": f"{ENDPOINT}/datagovernance/catalog/businessdomains?api-version={API}",
@@ -56,7 +56,9 @@ def requests(card: dict) -> list[dict]:
          "note": "only if no governance domain fits; one may already exist"},
         {"step": f"Data product {card['name']}", "by": "purview_steward", "method": "POST",
          "url": f"{ENDPOINT}/datagovernance/catalog/dataProducts?api-version={API}", "body": product,
-         "add_by_hand": {"owner": card["owner"], "documentation": card["contract"]["file"]},
+         # ED3: the owner goes only here, into the data product's Owners (contacts) a steward sets in Purview; the
+         # descriptions above carry the name at most, never an address
+         "add_by_hand": {"owner": card.get("owner_contact") or card["owner"], "documentation": card["contract"]["file"]},
          "note": "the endorsed flag is left out: endorsement is a person's decision"},
     ]
     for t in card["glossary"]:
@@ -75,6 +77,7 @@ def requests(card: dict) -> list[dict]:
 
 
 def handover(cards: list[dict]) -> dict:
-    return {"retiring": apis.PURVIEW_RETIRING, "source": apis.SOURCES["purview_unified_catalog"][0],
+    return {"retiring": apis.PURVIEW_RETIRING, "retiring_source": apis.PURVIEW_RETIRING_SOURCE,
+            "retiring_read": apis.PURVIEW_RETIRING_READ, "source": apis.SOURCES["purview_unified_catalog"][0],
             "auth": "the APIs are documented with a service principal and scope https://purview.azure.net/.default",
             "products": [{"name": c["name"], "requests": requests(c), "rules": dq_rules(c)} for c in cards]}
