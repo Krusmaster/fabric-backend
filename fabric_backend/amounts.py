@@ -554,3 +554,164 @@ def demo() -> dict:
     con.close()
     return {"finding": f, "before": ba["summed_over_lines"], "after": ba["summed_per_header"], "lines_total": lines,
             "sql_before": ba["sql_before"], "sql_after": ba["sql_after"], "explanation": LEVELS}
+
+
+# BL10 (21 November 2026, backlog C-16): the currency and the unit an amount or a quantity is in. A sum of NETWR over rows
+# in EUR and SEK is no amount, and a sum of KWMENG over pieces and kilograms is no quantity. These helpers find, by names
+# only, the currency or unit column that goes with a summed column: in its own table, or else in the header of the same
+# document (VBRP -> VBRK, EKPO -> EKKO, RSEG -> RBKP). level_measures.py uses them to keep every suggested sum within one
+# currency or one unit. docs/CURRENCY-AND-UNITS.md explains the rules.
+CURRENCY_REASON = "amounts in several currencies"
+UNIT_REASON = "quantities in several units"
+_CURRENCY_SAP = {"waers", "waerk", "hwaer", "hwae2", "hwae3", "rwcur", "rhcur", "rkcur", "rocur", "twaer", "kwaeh"}
+_CURRENCY_WORDS = {"currency", "valuta", "curr", "ccy", "valutakod"}
+_UNIT_SAP = {"meins", "vrkme", "bstme", "erfme", "lmein", "msehi", "gewei", "voleh", "runit"}
+_UNIT_WORDS = {"unit", "uom", "enhet"}
+# SAP amounts whose currency column has a fixed name (ACDOCA: WSL in RWCUR, HSL in RHCUR, KSL in RKCUR; BSEG/EKBE: WRBTR in
+# the document currency WAERS, DMBTR in the company code currency HWAER, which EKBE does not carry)
+_SAP_PAIR = {"wsl": "rwcur", "hsl": "rhcur", "ksl": "rkcur", "osl": "rocur", "dmbtr": "hwaer", "wrbtr": "waers"}
+_SAP_QUANTITY = {"menge", "kwmeng", "wmeng", "bmeng", "lfimg", "fkimg", "erfmg", "lsmeng", "kbmeng", "msl", "lgmng"}
+_SAP_UNIT_PRICE = {"netpr", "kbetr", "stprs", "verpr"}
+_SIGN = {"shkzg", "drcrk", "debit_credit", "debitcredit", "debet_kredit"}
+
+
+def _label(sql_type: str) -> bool:
+    """A text column (or one without a type): a currency or unit code is text, never a number or a date."""
+    base = (sql_type or "unknown").lower().split("(")[0].strip()
+    return base == "unknown" or not is_numeric(sql_type) and "date" not in base and "time" not in base
+
+
+def is_currency_column(column: str, sql_type: str = "nvarchar") -> bool:
+    """WAERS, WAERK, HWAER, RWCUR, currency, currency_code, CurrencyIsoCode, valuta (never currency_rate or
+    CurrencyRateDate)."""
+    if not _label(sql_type):
+        return False
+    words = _words(column)
+    if not words:
+        return False
+    if column.lower() in _CURRENCY_SAP:
+        return True
+    return words[-1] in _CURRENCY_WORDS or words[-1] in ("code", "iso", "isocode") and any(w in _CURRENCY_WORDS for w in words)
+
+
+def is_unit_column(column: str, sql_type: str = "nvarchar") -> bool:
+    """MEINS, VRKME, BSTME, unit, quantity_unit, uom, enhet (never unit_price or units_in_stock, which are numbers)."""
+    if not _label(sql_type):
+        return False
+    words = _words(column)
+    if not words:
+        return False
+    if column.lower() in _UNIT_SAP:
+        return True
+    return words[-1] in _UNIT_WORDS or words[-2:] == ["of", "measure"]
+
+
+def is_unit_price(column: str, sql_type: str = "decimal") -> bool:
+    """A price per unit, never summed: NETPR, KBETR, STPRS, unit_price, list_price."""
+    return column.lower() in _SAP_UNIT_PRICE and (is_numeric(sql_type) or (sql_type or "unknown").lower() == "unknown") \
+        or is_price(column, sql_type)
+
+
+def is_quantity_like(column: str, sql_type: str = "decimal") -> bool:
+    """A quantity by its name: quantity, qty, antal, and the SAP quantities MENGE, KWMENG, LFIMG, FKIMG."""
+    return is_quantity(column, sql_type) or column.lower() in _SAP_QUANTITY
+
+
+def sign_column(plan: Plan, table: str) -> str | None:
+    """The debit/credit indicator of a table (SHKZG, DRCRK, debit_credit), if it has one."""
+    t = plan.schema.tables.get(table)
+    for c in (t.columns if t else []):
+        if c.name.lower() in _SIGN:
+            return c.name
+    return None
+
+
+def _labels(plan: Plan, table: str, test) -> list[str]:
+    t = plan.schema.tables.get(table)
+    return [c.name for c in (t.columns if t else []) if test(c.name, c.data_type)]
+
+
+def _parts(plan: Plan, table: str, cols) -> list[str]:
+    """Key columns in lower case, a combined key column (MANDT_VBELN_key, combined_keys.py) read back as its parts when
+    every part is a column of the table."""
+    t = plan.schema.tables.get(table)
+    have = {c.name.lower() for c in (t.columns if t else [])}
+    out: list[str] = []
+    for c in cols:
+        low = c.lower()
+        parts = low[:-4].split("_") if low.endswith("_key") else []
+        out += parts if parts and all(x in have for x in parts) else [low]
+    return out
+
+
+def document_headers(plan: Plan, table: str) -> list[str]:
+    """The header tables of the same document: a relationship from `table` whose target key is part of `table`'s key and
+    is matched column for column (VBRP [MANDT, VBELN, POSNR] -> VBRK [MANDT, VBELN]). In plan order."""
+    own = set(_parts(plan, table, plan.keys.get(table, ([], ""))[0]))
+    out = []
+    for r in plan.relationships:
+        if r.source != table or r.target == table or r.target in out:
+            continue
+        hkey = _parts(plan, r.target, plan.keys.get(r.target, ([], ""))[0])
+        if hkey and set(hkey) <= own and len(hkey) < len(own) and sorted(_parts(plan, table, r.source_cols)) == sorted(hkey):
+            out.append(r.target)
+    return out
+
+
+def label_columns(plan: Plan, table: str, column: str, kind: str) -> dict:
+    """The currency (kind "currency") or unit (kind "unit") columns a summed column of `table` is in:
+
+        {"columns": [(table, column), ...], "where": "own" | "header" | "missing" | "none", "why": text}
+
+    - own table first: a fixed SAP pair (WSL -> RWCUR) when the table has it, otherwise every column of that kind;
+    - else the document header (document_headers), the same way;
+    - "missing": a fixed SAP pair whose currency is in no table here (EKBE.DMBTR is in the company code's currency);
+    - "none": no such column anywhere near; nothing to keep apart."""
+    test = is_currency_column if kind == "currency" else is_unit_column
+    pair = _SAP_PAIR.get(column.lower()) if kind == "currency" else None
+    for where, t in [("own", table)] + [("header", h) for h in document_headers(plan, table)]:
+        found = _labels(plan, t, test)
+        if pair:
+            hit = [c for c in found if c.lower() == pair]
+            if hit:
+                return {"columns": [(t, hit[0])], "where": where, "why": f"{table}.{column} is in the currency of {t}.{hit[0]}"}
+            continue
+        if found:
+            return {"columns": [(t, c) for c in found], "where": where,
+                    "why": f"{table}.{column} is in the {kind} of " + " and ".join(f"{t}.{c}" for c in found)}
+    if pair:
+        return {"columns": [], "where": "missing",
+                "why": f"{table}.{column} is in the currency of a {pair.upper()} column that is not in {table} or its header"}
+    return {"columns": [], "where": "none", "why": ""}
+
+
+def unit_counts_sql(schema: str, table: str, columns: list[str], dialect: Dialect = TSQL) -> str:
+    """One read-only query: the number of distinct values of each currency or unit column (u0, u1, ...). Counts only."""
+    q, count = dialect.quote, dialect.count
+    return "SELECT " + ", ".join(f"{count}(DISTINCT {q(c)}) AS u{i}" for i, c in enumerate(columns)) + \
+        f" FROM {dialect.table(schema, table)}"
+
+
+def unit_counts(plan: Plan, execute, max_items: int = 20) -> dict:
+    """{"table.column": distinct values} for every currency and unit column of the plan, read with one query per table
+    (at most `max_items` queries, tables in plan order). level_measures reads it as validation["unit_counts"]: a column
+    counted with one value keeps its plain sum. A query that fails leaves its columns uncounted."""
+    dialect = dialect_of(execute)
+    out: dict[str, int] = {}
+    asked = 0
+    for t in plan.schema:
+        cols = [c.name for c in t.columns if is_currency_column(c.name, c.data_type) or is_unit_column(c.name, c.data_type)]
+        if not cols:
+            continue
+        if asked >= max_items:
+            break
+        asked += 1
+        try:
+            row = execute(unit_counts_sql(plan.schema.schema or "dbo", t.name, cols, dialect))[0]
+        except Exception:                                           # noqa: BLE001 - an uncounted column stays guarded
+            continue
+        for i, c in enumerate(cols):
+            v = row.get(f"u{i}")
+            if v is not None:
+                out[f"{t.name}.{c}"] = int(v)
+    return out

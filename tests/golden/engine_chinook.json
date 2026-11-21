@@ -1271,8 +1271,8 @@
   "Track": "SELECT TOP (10) [TrackId], [Name], [AlbumId], [MediaTypeId], [GenreId], [Composer], [Milliseconds], [Bytes], [UnitPrice] FROM [dbo].[Track]"
  },
  "semantic_model": {
-  "bytes": 39399,
-  "sha256": "fce6fcf0fb65d7c8c18340d91e9c1d804532291410f03ccd29ddaf6f188e1c9a"
+  "bytes": 36877,
+  "sha256": "b75a2b20c0f65a110e63de55810c3f8a3dd75dea49b9d77453b0c27b485aeff4"
  },
  "silver": {
   "bytes": 26244,

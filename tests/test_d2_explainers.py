@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from starlette.testclient import TestClient
 
-from fabric_backend import browser_check, evidence, pages, sap_sample, semantic_model, server, sql_sums
+from fabric_backend import amounts, browser_check, evidence, pages, sap_sample, semantic_model, server, sql_sums
 from fabric_backend.infer import plan
 
 SALES_SLUG, BI_SLUG = "sap-sales-tables-in-fabric", "sap-tables-to-power-bi-report"
@@ -35,6 +35,7 @@ def measured():
     try:
         p = plan(src.schema, execute=src.execute)
         v = evidence.validate(p, src.execute)
+        v = {**v, "unit_counts": amounts.unit_counts(p, src.execute)}      # BL10: the sample has one currency, counted
         draft = semantic_model.draft(p, {"item_name": "sap_lh", "item_kind": "Lakehouse", "schema": "sap_sd",
                                          "schemas_enabled": True}, name="sap_sales", tables=MODEL_TABLES, validation=v)
         counts = {t: src.execute(f"SELECT COUNT(*) AS n FROM sap_sd.{t}")[0]["n"] for t in sap_sample.SCHEMAS["sap_sd"]}
