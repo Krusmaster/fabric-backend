@@ -24,6 +24,8 @@
       "models/staging/shop/stg_shop__products.sql",
       "profiles.example.yml",
       "tests/fct_order_items__unique_order_id_line_no.sql",
+      "tests/krusgraph_checks/fct_order_items__one_row_per_order_items_row.sql",
+      "tests/krusgraph_checks/shop__order_items__duplicate_order_id_line_no.sql",
       "tests/stg_shop__order_items__unique_order_id_line_no.sql"
      ],
      "flow": {
@@ -975,6 +977,8 @@
       "models/staging/shop/stg_shop__products.sql",
       "profiles.example.yml",
       "tests/fct_order_items__unique_order_id_line_no.sql",
+      "tests/krusgraph_checks/fct_order_items__one_row_per_order_items_row.sql",
+      "tests/krusgraph_checks/shop__order_items__duplicate_order_id_line_no.sql",
       "tests/stg_shop__order_items__unique_order_id_line_no.sql"
      ],
      "flow": {

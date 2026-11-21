@@ -91,7 +91,10 @@ def test_the_shop_project_has_its_files_and_every_yaml_file_parses(shop):
         "models/sources/shop.yml", "models/staging/shop/_stg_shop__models.yml",
         *[f"models/staging/shop/stg_shop__{t}.sql" for t in sorted(seed.SCHEMAS)],
         "profiles.example.yml",                                                   # n156: a profile without a secret
-        "tests/fct_order_items__unique_order_id_line_no.sql", "tests/stg_shop__order_items__unique_order_id_line_no.sql"]
+        "tests/fct_order_items__unique_order_id_line_no.sql",
+        "tests/krusgraph_checks/fct_order_items__one_row_per_order_items_row.sql",   # DBT1: tests from Krusgraph's checks
+        "tests/krusgraph_checks/shop__order_items__duplicate_order_id_line_no.sql",
+        "tests/stg_shop__order_items__unique_order_id_line_no.sql"]
     docs = {k: yaml.safe_load(v) for k, v in files.items() if k.endswith(".yml")}
     proj = docs["dbt_project.yml"]
     assert proj["name"] == proj["profile"] == "krusgraph_shop" and proj["config-version"] == 2
