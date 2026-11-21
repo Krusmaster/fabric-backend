@@ -2349,6 +2349,16 @@ REPORT_AFTER_CREATION = ("Open the report in the Fabric portal (the workspace's 
 # new model's definition (getDefinition, TMDL) right after it was created. A read that fails for any reason but the
 # sign-in or the permission is tried again after these pauses (seconds); then the report's card says why.
 MODEL_DEFINITION_PAUSES = (5, 15, 30)
+# ED2 (Gustav's editor test of 21 November 2026: "did not give the definition ... after 3 tries (HTTP 404 EntityNotFound)").
+# The Fabric editor's Create runs the report as a background operation (workload_api, n197), which has no 40-second
+# answer limit, so it waits longer: these pauses, about four minutes in all. A model created a moment earlier is still
+# being provisioned, and Fabric's long-running operations are polled with waits that grow (Long running operations,
+# learn.microsoft.com/rest/api/fabric/articles/long-running-operation, ms.date 14 March 2025: "Retry-After ... the
+# number of seconds a caller should wait"; its example polls again much later); getDefinition itself is such an
+# operation (Items - Get Semantic Model Definition, learn.microsoft.com/rest/api/fabric/semanticmodel/items/
+# get-semantic-model-definition). MODEL_WAIT holds the seconds the workload allows; None: the chat's 40-second answer.
+MODEL_DEFINITION_PAUSES_LONG = (5, 10, 20, 40, 60, 90)
+MODEL_WAIT = contextvars.ContextVar("krusgraph_model_wait", default=None)
 
 
 class _ModelNotReadable(Exception):
@@ -2362,7 +2372,8 @@ def _fresh_model_definition(workspace_id: str, model_id: str, headers: dict, giv
     reaches the chat; the tries made so far are what the answer reports."""
     import time as _time
     reason = ""
-    for attempt, pause in enumerate((0,) + tuple(MODEL_DEFINITION_PAUSES), start=1):
+    pauses = MODEL_DEFINITION_PAUSES_LONG if MODEL_WAIT.get() else MODEL_DEFINITION_PAUSES
+    for attempt, pause in enumerate((0,) + tuple(pauses), start=1):
         if pause and give_up_at is not None and _time.monotonic() + pause > give_up_at:
             raise _ModelNotReadable(attempt - 1, reason)
         if pause:
@@ -2377,7 +2388,7 @@ def _fresh_model_definition(workspace_id: str, model_id: str, headers: dict, giv
             reason = f"HTTP {status}" + (f" {code}" if code else "") + (f": {msg}" if msg else "")
         except RuntimeError as e:                     # a long-running getDefinition that ended Failed
             reason = str(e)[:300]
-    raise _ModelNotReadable(len(MODEL_DEFINITION_PAUSES) + 1, reason)
+    raise _ModelNotReadable(len(pauses) + 1, reason)
 @mcp.tool(title="Create a Power BI report on a semantic model (dry run by default)", annotations=WRITE)
 @safe
 @_lifecycle("report")
@@ -2425,15 +2436,16 @@ def create_report(workspace: _p.Workspace, model: _p.ReportModel, name: _p.Repor
     drawn = None
     if not empty_page:
         try:
+            wait = MODEL_WAIT.get()                         # ED2: the editor's background step waits longer
             tmdl = _mc.from_tmdl(_fresh_model_definition(workspace_id, model_item["id"], headers,
-                                                         give_up_at=began + CREATE_ANSWER_SECONDS - 10))
+                                                         give_up_at=began + (wait or CREATE_ANSWER_SECONDS) - 10))
         except _ModelNotReadable as e:
             return json.dumps({"error": f"Fabric did not give the definition of the semantic model {model_item['displayName']!r} after "
                                         f"{e.attempts} tries ({e.reason}). The report's visuals are drawn from that definition, so no "
                                         "report was created.", "kind": "source_not_ready",
                                "hint": "A semantic model created moments ago can take a while before its definition can be read. The "
-                                       "model itself exists. Choose Create again in a minute: what is built is skipped, and the report "
-                                       "is tried again."}, indent=2)
+                                       "model itself exists. Choose Try again on the report in a minute: only the report is sent "
+                                       "again."}, indent=2)
         except requests.HTTPError as e:
             status = int(getattr(e.response, "status_code", 0) or 0)
             if status in (401, 403):

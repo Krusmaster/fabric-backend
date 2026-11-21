@@ -92,7 +92,7 @@ def test_items_another_krusgraph_model_built_from_the_same_plan_are_skipped_not_
     assert not [c for c in _writes(fake) if "/jobs/" not in c[1]], _writes(fake)
 
 
-def test_items_built_from_another_plan_wait_for_a_choice_in_both_and_are_not_said_to_be_updated(make):
+def test_items_this_item_built_from_another_plan_are_updated_in_place_in_both(make):
     client, fake, priv = make(Defined())
     rv = _review(client, priv)
     _, made = _create(client, priv, rv, fake)
@@ -100,13 +100,19 @@ def test_items_built_from_another_plan_wait_for_a_choice_in_both_and_are_not_sai
     for it in fake.items:
         it["description"] = workload_api.MARK.sub("", it.get("description") or "").strip() + " " + old
     made = [{k: v for k, v in c.items() if k != "plan"} for c in made]   # outputs.json from before plans were recorded
+    # ED2: this item's own items (outputs.json) from an older plan are updated in place, said the same in both, no
+    # question; a report, never updated in place, still waits for a new name. An item only Krusgraph's description
+    # claims (another Model's) still waits for the choice.
     dry = _dry(client, priv, rv, created=made)
     fake.calls.clear()
     create, _ = _create(client, priv, rv, fake, created=made)
     for kind in dry:
-        assert dry[kind]["decision"]["action"] == create[kind]["decision"]["action"] == "choose", (kind, dry[kind], create[kind])
-        assert "different plan" in dry[kind]["decision"]["words"]
-    assert not _writes(fake), _writes(fake)
+        want = "update" if workload_api.KINDS[kind]["updates"] else "choose"
+        assert dry[kind]["decision"]["action"] == create[kind]["decision"]["action"] == want, (kind, dry[kind], create[kind])
+        if want == "update":
+            assert "older plan" in create[kind]["decision"]["words"] and create[kind]["would"] == "update"
+    again = _dry(client, priv, rv, created=made)                    # updated: now built from this plan, skipped
+    assert all(again[k]["decision"]["action"] == "skip" for k in again if workload_api.KINDS[k]["updates"]), again
 
 
 def test_a_foreign_item_is_red_in_both(make):
