@@ -31,7 +31,7 @@ outputs shown and 6 under More outputs; one accept-all (AUDIT.md section 8, `mea
 
 **SM4 is done** (21 November 2026): 16 tools listed by default (from 48), all 48 with `KRUSGRAPH_ADVANCED_TOOLS=1`;
 every hidden tool still answers by name; 0 cards without a way on (from 1) and 0 card buttons for an unlisted tool
-(AUDIT.md section 10, `measure-tools-2026-11-21.json`).
+(AUDIT.md section 11, `measure-tools-2026-11-21.json`).
 
 SM5-SM7 change the engine (`infer.py`, `graphs.py`, `server.py`'s write path). They come after SM2-SM4 because those
 three change what every later round's UI looks like, and the multi-source flow should be built straight into five steps.

@@ -321,11 +321,12 @@ def test_the_editor_dry_run_says_what_will_run_and_when_and_writes_nothing(make,
 def test_off_by_default_in_the_editor_nothing_runs(make, monkeypatch):
     client, fake, priv, job = _jobs_fabric(make, monkeypatch, wl.EVERY_SCOPE + " DataPipeline.Execute.All")
     dry, _ = wl._build(client, priv, _with_jobs(None))
-    assert _pipeline_card(dry.json())["jobs"]["words"][0].startswith("Nothing runs and nothing is scheduled")
+    # ED2: the editor ticks Run once by default; sent without it, the card says so and how to add a schedule, in one line
+    assert _pipeline_card(dry.json())["jobs"]["words"][0].startswith("Create does not run it: Run once is off.")
     out = wl._build(client, priv, _with_jobs(None), dry_run=False)[0].json()
     card = _pipeline_card(out)
     assert job.calls == [] and "run" not in card["jobs"] and out["note"].endswith("Nothing runs or is scheduled.")
-    assert card["portal_steps"][0] == pipeline.NOT_RUN
+    assert card["portal_steps"] == [wl.workload_api.RUN_STEP, wl.workload_api.NO_SCHEDULE_LINE]   # ED2: one step, one schedule line
 
 
 def test_without_the_scope_the_choices_are_disabled_with_the_steps_and_nothing_runs(make, monkeypatch):
