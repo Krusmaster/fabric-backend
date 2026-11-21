@@ -1,4 +1,4 @@
-Coach (step 8 of 9: Build silver and gold)
+Coach (step 4 of 5: Build silver and gold)
 Where the user is, in plain words: Bronze to silver to gold: you see a dry run first, and nothing is created until you say yes.
 Possible next step for the user: Build silver and gold (dry run first) (create_pipeline(workspace="demo", source="demo_lh", schema="sap_silver", name="sap_silver_pipeline", dry_run=true)).
 Where a card is drawn, it already shows this result's lists and counts.

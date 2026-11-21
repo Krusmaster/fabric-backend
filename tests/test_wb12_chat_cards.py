@@ -48,8 +48,8 @@ def test_step_6_has_accept_reject_and_skip_with_the_counted_evidence():
 
 def test_next_is_secondary_until_every_decision_is_answered_or_skipped():
     a = _sample("decide")
-    assert a["after"]["secondary"] is True and "Answer or skip" in a["after"]["why"]
-    assert a["say"].startswith("1 decision open.")
+    assert a["after"]["secondary"] is True and "leaves the open decision open" in a["after"]["why"]
+    assert a["say"] == "One link needs you."
     for x in [x for x in a["actions"] if x["kind"] == "decide"]:
         b = _start(**x["arguments"])                     # the button's own call, through the tool
         assert b["step"]["key"] == "decide" and b["found"]["decisions"][0]["state"] == x["decision"]
@@ -66,7 +66,7 @@ def test_the_decision_travels_into_steps_7_to_9():
         if b["step"]["key"] == "create":
             break
     assert b["step"]["key"] == "create"
-    real = sf.guide(**CHOSEN, step="totals", confirmed=accept["arguments"]["plan"]["confirmed"],
+    real = sf.guide(**CHOSEN, step="dry_run", confirmed=accept["arguments"]["plan"]["confirmed"],
                     decisions=accept["arguments"]["plan"]["decisions"])
     assert real["actions"][0]["arguments"]["confirmed"] == accept["arguments"]["plan"]["confirmed"]
     assert real["decided"][0].endswith("accepted: the next steps use this link.")
@@ -120,7 +120,8 @@ def test_the_lead_says_the_card_shows_it_and_asks_for_one_sentence(step):
     assert "the card already shows this step" in text and "The step's question for the user" in text
     assert "About the display" in text and "Where no card was drawn" in text and "please" not in text.lower()
     assert text.endswith("The full answer follows as JSON.")
-    assert "7 tables" not in text                        # the findings are on the card and in the JSON, not in the lead
+    # the findings are on the card and in the JSON, not in the lead (SM2: the step's one sentence may hold a count)
+    assert "links hold" not in text and "would count twice" not in text
 
 
 def test_the_tool_result_keeps_the_full_json_for_clients_without_cards(monkeypatch):
@@ -155,20 +156,21 @@ def test_step_4_says_r1_in_words_once_and_uses_an_arrow():
 # ------------------------------------------------------------------ 7 (#72): the footer once ------------------------------
 
 def test_the_footer_is_in_full_on_the_first_card_only():
-    assert sf.guide()["honest_open"] is True and _sample("map")["honest_open"] is True
-    for a in (sf.guide(workspace="ws"), sf.guide(**CHOSEN), _sample("check"), _sample("create")):
-        assert a["honest_open"] is False and a["honest_short"] == "Only step 9 writes." and "Only step 9 writes" in a["honest"]
+    assert sf.guide()["honest_open"] is True and _sample("check")["honest_open"] is True
+    assert sf.guide(**CHOSEN)["honest_open"] is True              # SM2: step 1 is one card, choosing or chosen
+    for a in (sf.guide(**CHOSEN, step="check"), _sample("decide"), _sample("create")):
+        assert a["honest_open"] is False and a["honest_short"] == "Only step 5 writes." and "Only step 5 writes" in a["honest"]
 
 
 # ------------------------------------------------------------------ 8 (#73): a short step list -----------------------------
 
-def test_finished_steps_fold_and_the_sample_skips_1_to_3():
-    a = _sample("totals")
+def test_finished_steps_fold_and_the_sample_skips_step_1():
+    a = _sample("dry_run")
     states = {p["key"]: p["state"] for p in a["path"]}
-    assert [states[k] for k in ("workspace", "source", "schema")] == ["skipped"] * 3
+    assert states["data"] == "skipped"
     assert all(p["note"] == "skipped (sample)" for p in a["path"] if p["state"] == "skipped")
-    assert a["done_line"] == "Done: 4-6; skipped on the sample: 1-3"
-    assert sf.guide(**CHOSEN, step="totals")["done_line"] == "Done: 1-6" and sf.guide()["done_line"] == ""
+    assert a["done_line"] == "Done: 2-3; skipped on the sample: 1"
+    assert sf.guide(**CHOSEN, step="dry_run")["done_line"] == "Done: 1-3" and sf.guide()["done_line"] == ""
 
 
 # ------------------------------------------------------------------ 9 (#74): no dead end on the sample -------------------
@@ -178,7 +180,7 @@ def test_step_9_on_the_sample_offers_my_data_and_the_dry_run_again():
     by = {x["label"]: x for x in a["actions"]}
     assert by["Start on my data"]["arguments"] == {} and by["Start on my data"]["tool"] == "start"
     assert by["Show the dry run again"]["arguments"] == {"sample": True, "step": "dry_run"}
-    assert _start(**by["Start on my data"]["arguments"])["step"]["key"] == "workspace"
+    assert _start(**by["Start on my data"]["arguments"])["step"]["key"] == "data"
 
 
 # ------------------------------------------------------------------ 10 (#75): the prompt's input -------------------------
@@ -205,13 +207,13 @@ def test_step_1_lists_the_workspaces_as_buttons(monkeypatch):
     monkeypatch.setattr(server, "_headers", lambda ctx: {})
     monkeypatch.setattr(server, "_workspaces", lambda h: [{"name": "sales", "id": "1", "capacity_id": "c"},
                                                           {"name": "Archive", "id": "2", "capacity_id": None}])
-    a = _start()
+    a = _start(step="workspace")                         # SM2: the list, as Change shows it (no choosing for you)
     picks = [x for x in a["actions"] if x["kind"] == "choose"]
     assert [(x["label"], x["arguments"], x["hint"]) for x in picks] == [
         ("sales", {"workspace": "sales"}, ""), ("Archive", {"workspace": "Archive"}, "no capacity: nothing can run here")]
     # WB15 (A): Archive has no capacity, so sales is the one usable workspace and comes chosen, with Next on
     assert a["say"] == "Hi! You have one workspace I can use, sales. Shall we start there?" and a["choices"]["search"] is False
-    assert a["after"]["arguments"] == {"workspace": "sales", "step": "source"}
+    assert a["after"]["arguments"] == {"workspace": "sales"}
     assert not any(x.get("tool") == "list_workspaces" for x in a["actions"])
     assert any(x.get("arguments") == {"sample": True} for x in a["actions"])          # the sample stays offered
 
@@ -229,13 +231,17 @@ def test_step_2_lists_the_sources_and_step_3_the_schemas_with_counts(monkeypatch
         {"workspace": "1", "sources": [{"name": "lh", "id": "a", "type": "Lakehouse"},
                                        {"name": "wh", "id": "b", "type": "Warehouse"}], "graphql_apis": []}))
     a = _start(workspace="ws")
+    assert a["stage"] == "source"                        # two sources: nothing is chosen for you
     assert [(x["label"], x["hint"], x["arguments"]) for x in a["actions"] if x["kind"] == "choose"] == [
         ("lh", "lakehouse", {"workspace": "ws", "source": "lh"}), ("wh", "warehouse", {"workspace": "ws", "source": "wh"})]
     monkeypatch.setattr(server, "_source_schemas", lambda w, s, ctx: [{"schema": "dbo", "tables": 0},
                                                                      {"schema": "shop", "tables": 7}])
-    b = _start(workspace="ws", source="lh")
+    b = _start(workspace="ws", source="lh", step="schema")
     picks = {x["label"]: x for x in b["actions"] if x["kind"] == "choose"}
-    assert picks["shop"]["hint"] == "7 tables" and picks["shop"]["arguments"] == CHOSEN and "disabled" not in picks["shop"]
+    assert picks["shop"]["hint"] == "7 tables" and picks["shop"]["arguments"] == {**CHOSEN, "step": "check"}
+    assert "disabled" not in picks["shop"]
+    c = _start(workspace="ws", source="lh")              # SM2: one usable schema is chosen: "ws › lh › shop ✓"
+    assert c["stage"] == "data" and c["line"] == "ws › lh › shop ✓" and c["picked"] == ["schema"]
     assert picks["dbo"]["disabled"] == "no tables"
 
 
@@ -248,7 +254,7 @@ def test_without_a_sign_in_step_1_keeps_its_listing_button():
 def test_an_empty_workspace_says_so_and_offers_another(monkeypatch):
     monkeypatch.setattr(server, "list_sources", lambda workspace, ctx=None: json.dumps({"sources": [], "graphql_apis": []}))
     a = _start(workspace="ws")
-    assert a["say"].startswith("ws has no lakehouse") and a["actions"][0]["arguments"] == {}
+    assert a["say"].startswith("ws has no lakehouse") and a["actions"][0]["arguments"] == {"step": "workspace"}
 
 
 def test_the_start_tool_is_listed_as_reaching_fabric():
@@ -263,7 +269,7 @@ def test_the_start_tool_is_listed_as_reaching_fabric():
                                          ({"workspace": "ws", "source": "lh"}, "Choose a schema first.")])
 def test_next_waits_for_the_choice(chosen, why):
     a = sf.guide(**chosen)
-    assert "after" not in a and a["next_waits"]["why"] == why and a["next_waits"]["label"].startswith("Next: ")
+    assert "after" not in a and a["next_waits"]["why"] == why and a["next_waits"]["label"].startswith("Next")
     assert "after" in sf.guide(**CHOSEN) and "next_waits" not in sf.guide(**CHOSEN)
 
 
@@ -293,7 +299,7 @@ def _render(tmp_path, answer: dict, width: int = 720, scheme: str = "light", cli
     return out
 
 
-SAMPLE_STEPS = ("map", "check", "decide", "totals", "dry_run", "create")
+SAMPLE_STEPS = ("check", "decide", "dry_run", "create")
 
 
 @needs_browser
@@ -317,10 +323,11 @@ def test_the_card_draws_the_decision_and_its_buttons(tmp_path):
     a = _sample("decide")
     out = _render(tmp_path, a, width=390)
     kinds = [(b["text"], b["kind"]) for b in out["buttons"]]
-    assert ("Accept", "decide") in kinds and ("Reject", "decide") in kinds and ("Skip for now", "decide") in kinds
+    assert ("Accept", "decide") in kinds and ("Reject", "decide") in kinds
+    assert ("Skip for now", "decide") not in kinds                # SM2: Next leaves it open; two buttons plus Next
     nxt = [b for b in out["buttons"] if b["text"].startswith("Next:")]
     assert nxt and "st-secondary" in nxt[0]["cls"]
-    assert "60 of 60 orders.ship_to_id values found in addresses.address_id (100%)." in out["text"]
+    assert "60 of 60 found (100%)." in out["text"]
     accept = [x for x in a["actions"] if x.get("decision") == "accepted"][0]
     after = _sample("decide", decisions=accept["arguments"]["plan"]["decisions"], confirmed=accept["arguments"]["plan"]["confirmed"])
     clicked = _render(tmp_path, a, clicks=[{"text": "Accept"}], reply=after)
@@ -332,17 +339,17 @@ def test_the_card_draws_the_decision_and_its_buttons(tmp_path):
 @needs_browser
 def test_the_card_draws_tiles_rules_folded_steps_and_the_short_footer(tmp_path):
     check = _render(tmp_path, _sample("check"), width=390)
-    for word in ("rows counted", "keys unique", "links holding", "orphans", "duplicate keys"):
+    # SM2: one line each for the map, the rows and the totals; the tiles, the sums, the grain line, the step list, the
+    # footer and the rule codes in words are under the one Details fold
+    for word in ("7 tables, 6 links, 1 needs you.", "6 of 6 links hold.", "1 amount would count twice."):
         assert word in check["text"], word
-    # WB15: the grain line, the step list, the footer and the rule codes in words are under the one Details fold
-    for word in ("2.2×", "1. Choose the workspace", "Steps 1-8 only read", "Only step 9 writes"):
+    for word in ("rows counted", "2.2×", "1. Your data", "Steps 1-4 only read", "Only step 5 writes", f"22{G}610.90"):
         assert word not in check["text"], word
     assert "Details" in check["text"]
-    first = _render(tmp_path, _sample("map"), width=390, clicks=[{"css": "details#details > summary"}])
-    assert "Steps 1-8 only read" in first["text"] and "R1: the column is named after the table it points at" in first["text"]
-    assert "→" in first["text"]
-    totals = _render(tmp_path, _sample("totals"), width=390)
-    assert f"22{G}610.90" in totals["text"] and "about 13.6x" in totals["text"]
+    first = _render(tmp_path, _sample("check"), width=390, clicks=[{"css": "details#details > summary"}])
+    assert "Steps 1-4 only read" in first["text"] and "R1: the column is named after the table it points at" in first["text"]
+    assert "→" in first["text"] and "rows counted" in first["text"] and "keys unique" in first["text"]
+    assert f"22{G}610.90" in first["text"] and "about 13.6x" in first["text"]
 
 
 @needs_browser
@@ -356,7 +363,7 @@ def test_the_card_lists_choices_disables_empty_ones_and_waits_for_the_choice(tmp
     many = {"step": "workspace", "items": [{"name": f"w{i}"} for i in range(12)]}
     searched = _render(tmp_path, sf.guide(options=many), width=390, clicks=[{"text": "w11"}], reply=sf.guide(workspace="w11"))
     calls = [m["params"] for m in searched["log"] if m.get("method") == "tools/call"]
-    assert calls == [{"name": "start", "arguments": {"workspace": "w11"}}] and "Step 2 of 9" in searched["text"]
+    assert calls == [{"name": "start", "arguments": {"workspace": "w11"}}] and "Step 1 of 5" in searched["text"]
 
 
 @needs_browser

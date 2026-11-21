@@ -1,4 +1,4 @@
-Coach (step 8 of 9: Semantic model)
+Coach (step 4 of 5: Semantic model)
 Where the user is, in plain words: For reports in Power BI: tables, links and measures. A dry run first, then it is created on your yes.
 Possible next step for the user: Create the semantic model (dry run first) (create_semantic_model(workspace="demo", source="demo_lh", schema="sap_silver", name="sap_silver_model", dry_run=true)).
 Where a card is drawn, it already shows this result's lists and counts.

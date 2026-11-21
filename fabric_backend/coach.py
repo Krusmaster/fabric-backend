@@ -8,7 +8,7 @@ in docs/COACHING.md.
 What this module does. `coach(tool, call, answer, checks, steps)` reads where the user is on the path from the tool just
 called, its arguments and its answer (the plan state of next_rules.state), and returns:
 
-- the stage: "Step N of 9: <step>", the start path's own numbering (step_of maps the eight STAGES onto the nine steps);
+- the stage: "Step N of 5: <step>", the start path's own numbering (step_of maps the eight STAGES onto the five steps);
 - one mascot line in plain words: what happens now and why (the mascots and their voice are the site's: Onto points
   the way, the Thinker reads and checks, the Builder builds);
 - ONE primary next step and at most two secondary ones, each as next_rules shapes a step (label, tool, arguments, say,
@@ -92,8 +92,8 @@ TOOL_STAGE = {
     "create_report": "model",
     "create_data_agent": "agent",
 }
-START_STAGE = {"workspace": "data", "source": "data", "schema": "data", "map": "read", "check": "check",
-               "decide": "decide", "totals": "decide", "dry_run": "build", "create": "build"}
+START_STAGE = {"workspace": "data", "source": "data", "schema": "data", "data": "data", "map": "read", "check": "check",
+               "decide": "decide", "totals": "check", "dry_run": "build", "create": "build", "done": "done"}
 # The build path after a clean check: (stage, creating tool, the name's key in start_flow.build_names, label)
 BUILD_PATH = (
     ("build", "create_pipeline", "Build silver and gold"),
@@ -217,6 +217,10 @@ def plan(tool: str, call: dict | None, answer, checks: dict | None = None, steps
     if tool == "start":                                              # the guided path's own step comes first
         acts = [a for a in answer.get("actions") or [] if isinstance(a, dict) and a.get("label")]
         after = answer.get("after") if isinstance(answer.get("after"), dict) else None
+        # SM2: what sits under Details (more) or beside the step (Change) is not the step's way on
+        acts = [a for a in acts if not a.get("more") and not (a.get("secondary") and a.get("kind") != "next")] or acts
+        if after and not any(a.get("primary") for a in acts) and not any(a.get("kind") in ("choose", "decide") for a in acts):
+            acts = [after] + acts
         if not acts and after:
             acts = [after]
         out = [_from_action(a) for a in acts]
@@ -283,10 +287,11 @@ def plan(tool: str, call: dict | None, answer, checks: dict | None = None, steps
             "primary": _build_step(0, base, dry_run=True), "secondary": sec}
 
 
-# WB15 (B): one path and one total everywhere. The stages sit on the start path's nine steps (start_flow.STEPS), so a
-# card from any tool, the start card and the text Claude is asked to write all say "Step N of 9", and the number never
-# goes back: choose (1-3), the map (4), the check (5), your decisions (6), the dry runs and builds (8), done (9).
-STAGE_STEP = {"read": 4, "check": 5, "decide": 6, "build": 8, "model": 8, "agent": 8, "done": 9}
+# WB15 (B): one path and one total everywhere. The stages sit on the start path's steps (start_flow.STEPS), so a
+# card from any tool, the start card and the text Claude is asked to write all say "Step N of 5" (SM2), and the number
+# never goes back: your data (1), the check with the map and the totals (2), your decisions (3), the dry runs and
+# builds (4), done (5).
+STAGE_STEP = {"read": 2, "check": 2, "decide": 3, "build": 4, "model": 4, "agent": 4, "done": 5}
 
 
 def step_of(stage: str, tool: str, call: dict | None, answer) -> tuple[int, int]:
@@ -298,8 +303,8 @@ def step_of(stage: str, tool: str, call: dict | None, answer) -> tuple[int, int]
         return st["n"], of
     if stage == "data":
         base = _carry(call or {}, answer if isinstance(answer, dict) else {})
-        return (1 if not base.get("workspace") else 2 if not base.get("source") else 3), of
-    return STAGE_STEP.get(stage, 4), of
+        return 1, of
+    return STAGE_STEP.get(stage, 2), of
 
 
 def own_action(tool: str, answer) -> dict | None:

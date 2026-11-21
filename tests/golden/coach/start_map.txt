@@ -1,4 +1,5 @@
-Coach (step 4 of 9: The map)
-Where the user is, in plain words: Here is how your tables connect. Next I count each link in the rows.
-Possible next step for the user: Show the map (plan_backend(workspace="demo", source="demo_lh", schema="sap_silver")).
+Coach (step 1 of 5: Your data)
+Where the user is, in plain words: Your data. Change it if it is wrong.
+Possible next step for the user: Next: Check (start(workspace="demo", source="demo_lh", schema="sap_silver", step="check")).
+Other options: Change; Show me on the synthetic shop sample.
 Where a card is drawn, it already shows this result's lists and counts.

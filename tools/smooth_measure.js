@@ -2,9 +2,10 @@
 // host (the same seams as tests/wb15_click_through.js); every tools/call goes to the real hosted tools on the synthetic
 // SAP demo, answered by tools/smooth_measure.py over HTTP on 127.0.0.1. Nothing reaches Fabric.
 //
-// Two paths, each at one viewport:
-//   careful: the WB15 click list (tap the choices, run the check, decide the link, find doubled totals, three dry runs)
-//   lazy:    only the primary button of each step (Next), then the three dry runs
+// Three paths, each at one viewport (SM2: the five steps):
+//   careful: Next past your data and the check, Accept the link, Next, Dry run everything, confirm, what now
+//   lazy:    only the primary button of each step (Next), then Dry run everything
+//   shop:    the synthetic shop from `start sample=true` (the prompt's "yes"): Next, then Dry run everything
 // Per step it records: seconds since the card opened, taps so far, the words a person sees (closed folds excluded,
 // button labels counted apart), the number of visible buttons, and whether the step scrolls.
 //
@@ -29,7 +30,7 @@ function hostCall(name, args) {
 (async () => {
   const browser = await chromium.launch();
   const t0 = Date.now();
-  const first = await hostCall('start', {});
+  const first = await hostCall('start', which === 'shop' ? { sample: true } : {});
   const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: shots ? 2 : 1 });
   const calls = [];
   await page.exposeFunction('hostCall', async (name, args) => {
@@ -76,11 +77,12 @@ function hostCall(name, args) {
     const s = await frame.evaluate(() => {
       const main = document.querySelector('main');
       const words = t => (t.match(/[\p{L}\p{N}][\p{L}\p{N}'’.+_\-→>]*/gu) || []).length;
-      const btns = Array.from(main.querySelectorAll('button')).filter(b => b.offsetParent !== null);
+      const btns = Array.from(main.querySelectorAll('button')).filter(b => b.offsetParent !== null && b.innerText.trim());   // a closed Details renders none
       const btnWords = btns.reduce((n, b) => n + words(b.innerText), 0);
       return { title: document.getElementById('title').textContent.trim(),
                line: ((document.querySelector('#coach .st-line') || {}).textContent || '').trim(),
                words: words(main.innerText) - btnWords, buttonWords: btnWords, buttons: btns.length,
+               labels: btns.map(b => b.innerText.trim()), text: main.innerText,
                bottom: Math.ceil(main.getBoundingClientRect().bottom) };
     });
     s.key = key; s.taps = taps; s.seconds = +((Date.now() - t0) / 1000).toFixed(2); s.scroll = s.bottom > H;
@@ -89,14 +91,13 @@ function hostCall(name, args) {
   };
   await record('workspace');
   if (which === 'shop') {
-    // the synthetic shop sample: tap the sample button, then the primary button of each step, every dry run on the way
-    await tap('button[data-kind="sample"]');
+    // the synthetic shop sample from its own start: the primary button of each step, Dry run everything on the way
+    steps.pop();
     for (let i = 0; i < 12; i++) {
       const key = await frame.evaluate(() => document.getElementById('title').textContent.trim());
       await record(key.replace(/^Step \d+ of \d+: /, '').replace(/ \(sample\)$/, '').toLowerCase().replace(/\W+/g, '_'));
-      const dry = await frame.evaluate(() => Array.from(document.querySelectorAll('button[data-kind="dry_run"]')).map(b => b.textContent.trim()));
-      for (const label of dry) await tap('button[data-kind="dry_run"]', label);
-      if (dry.length) await record('dry_runs_done');
+      const dry = await frame.evaluate(() => { const b = document.querySelector('button[data-kind="dry_run_all"]'); return !!(b && b.offsetParent); });
+      if (dry) { await tap('button[data-kind="dry_run_all"]'); await record('dry_runs_done'); }
       const next = await frame.evaluate(() => { const b = document.querySelector('button[data-kind="next"]'); return !!(b && !b.disabled && b.offsetParent); });
       if (!next) break;
       await tap('button[data-kind="next"]');
@@ -105,29 +106,23 @@ function hostCall(name, args) {
     process.stdout.write(JSON.stringify({ path: which, width: W, steps, calls }));
     return;
   }
+  steps[0].key = 'data';
   if (which === 'careful') {
-    await tap('button[data-kind="choose"]', 'demo'); await record('source');
-    await tap('button[data-kind="choose"]', 'demo_lh'); await record('schema');
-    await tap('button[data-kind="next"]', 'Next'); await record('map');
     await tap('button[data-kind="next"]', 'Next'); await record('check');
-    await tap('button[data-tool="validate_plan"]', 'Check');
     await tap('button[data-kind="next"]', 'Next'); await record('decide');
     await tap('button[data-kind="decide"]', 'Accept');
-    await tap('button[data-kind="next"]', 'Next'); await record('totals');
-    await tap('button[data-tool="validate_plan"]', 'Find doubled totals');
     await tap('button[data-kind="next"]', 'Next'); await record('dry_run');
   } else {
-    for (const key of ['source', 'schema', 'map', 'check', 'decide', 'totals', 'dry_run']) {
+    for (const key of ['check', 'decide', 'dry_run']) {
       await tap('button[data-kind="next"]', 'Next'); await record(key);
     }
   }
-  for (const label of ['Dry run: silver and gold', 'Dry run: semantic model', 'Dry run: data agent']) {
-    await tap('button[data-kind="dry_run"]', label);
-  }
+  await tap('button[data-kind="dry_run_all"]');
   await record('dry_runs_done');
   if (shots) await page.screenshot({ path: `${shots}/${which}-${W}-dry-runs-full.png`, fullPage: true });
   await tap('button[data-kind="next"]', 'Next'); await record('create');
   await tap('button[data-kind="confirm"]', 'Confirm'); await record('confirmed');
+  await tap('button[data-kind="next"]', 'Next'); await record('done');
   await browser.close();
   process.stdout.write(JSON.stringify({ path: which, width: W, steps, calls }));
 })().catch(e => { process.stderr.write(String(e && e.stack || e)); process.exit(1); });

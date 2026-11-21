@@ -1,4 +1,4 @@
-Coach (step 1 of 9: Choose the workspace)
+Coach (step 1 of 5: Your data)
 Where the user is, in plain words: Hi! Which workspace shall we start in?
 Possible next step for the user: List my workspaces (list_workspaces()).
 Other options: Show me on the synthetic shop sample.

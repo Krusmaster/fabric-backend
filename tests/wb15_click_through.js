@@ -74,7 +74,9 @@ async function look(c) {
       bottom: Math.ceil(main.getBoundingClientRect().bottom),
       decisions: document.querySelectorAll('.st-decision').length,
       doubled: !!document.querySelector('#answer .res-box ul'),
-      dryButtons: Array.from(document.querySelectorAll('#next button[data-kind="dry_run"]')).map(b => b.textContent.trim()),
+      dryButtons: Array.from(document.querySelectorAll('#next button[data-kind="dry_run_all"], #next button[data-kind="dry_run"]')).filter(b => b.offsetParent).map(b => b.textContent.trim()),
+      chosen: (document.querySelector('.st-chosen') || {}).textContent || '',
+      buttons: Array.from(document.querySelectorAll('main button')).filter(b => b.offsetParent && b.innerText.trim()).map(b => b.innerText.trim()),
       confirm: !!document.querySelector('button[data-kind="confirm"]'),
       creates: Array.from(document.querySelectorAll('button.st-create')).map(b => b.textContent.trim()),
       choices: document.querySelectorAll('button[data-kind="choose"]').length,
@@ -113,17 +115,11 @@ async function tap(c, css, text) {
     if (shots) await c.page.screenshot({ path: `${shots}/step-${String(out.steps.length).padStart(2, '0')}-${key}-${scheme}.png`, fullPage: false });
     return s;
   };
-  await record('workspace');
-  await tap(c, 'button[data-kind="choose"]', 'demo');            // Gustav tapped the workspace
-  await record('source');
-  await tap(c, 'button[data-kind="choose"]', 'demo_lh');         // the button that did nothing on his phone (Bug A)
-  await record('schema');
-  await tap(c, 'button[data-kind="next"]', 'Next');
-  await record('map');
+  // SM2: five steps. The workspace, the source and the schema each have one usable option, so the first card is
+  // "Your data: demo › demo_lh › dbo ✓"; the map, the row check and the doubled totals have run on their own on Check.
+  await record('data');
   await tap(c, 'button[data-kind="next"]', 'Next');
   await record('check');
-  await tap(c, 'button[data-tool="validate_plan"]', 'Check');
-  await idle(c);
   out.checkText = (await look(c)).text;
   await tap(c, 'button[data-kind="next"]', 'Next');
   await record('decide');
@@ -139,27 +135,28 @@ async function tap(c, css, text) {
   }
   out.decisionShown = await c.frame.evaluate(() => (document.querySelector('.st-decision') || {}).getAttribute('data-state'));
   await tap(c, 'button[data-kind="next"]', 'Next');
-  await record('totals');
-  out.totalsDetails = await c.frame.evaluate(() => document.getElementById('more').textContent);
-  await tap(c, 'button[data-tool="validate_plan"]', 'Find doubled totals');
-  await idle(c);
-  out.totalsText = await c.frame.evaluate(() => document.querySelector('#next .st-act .out').innerText);
-  await tap(c, 'button[data-kind="next"]', 'Next');
   await record('dry_run');
-  out.dryRuns = {};
-  for (const label of ['Dry run: silver and gold', 'Dry run: semantic model', 'Dry run: data agent']) {
-    await tap(c, 'button[data-kind="dry_run"]', label);
-    await idle(c);
-    out.dryRuns[label] = await c.frame.evaluate(lbl => {
-      const b = Array.from(document.querySelectorAll('button[data-kind="dry_run"]')).find(x => x.textContent.includes(lbl));
-      return b ? b.closest('.st-act').innerText : '';
-    }, label);
-  }
+  out.dryDetails = await c.frame.evaluate(() => document.getElementById('more').textContent);
+  await tap(c, 'button[data-kind="dry_run_all"]', 'Dry run everything');
+  await idle(c);
+  out.dryLines = await c.frame.evaluate(() => Array.from(document.querySelectorAll('#next .st-lines p')).map(p => p.textContent.trim()));
+  out.dryRuns = await c.frame.evaluate(() => {
+    const o = {};
+    for (const [tool, label] of [['create_pipeline', 'Dry run: silver and gold'], ['create_semantic_model', 'Dry run: semantic model'], ['create_data_agent', 'Dry run: data agent']]) {
+      const sec = document.querySelector(`#more section.st-dryout[data-tool="${tool}"]`);
+      o[label] = sec ? sec.textContent : '';
+    }
+    return o;
+  });
+  const after = await look(c);
+  after.key = 'dry_runs_done'; after.scroll = after.bottom > H; out.steps.push(after);
   if (shots) await c.page.screenshot({ path: `${shots}/dry-runs-${scheme}.png`, fullPage: false });
   await tap(c, 'button[data-kind="next"]', 'Next');
   await record('create');
   await tap(c, 'button[data-kind="confirm"]', 'Confirm');
   await record('confirmed');
+  await tap(c, 'button[data-kind="next"]', 'Next');
+  await record('done');
   out.calls = c.log.calls.map(x => ({ name: x.name, step: (x.args || {}).step || '', dry_run: (x.args || {}).dry_run }));
   out.messages = c.log.messages;
   out.errors = c.log.errors;
@@ -167,7 +164,7 @@ async function tap(c, css, text) {
 
   // ---- 2. a host that runs no tool from the card: plain words to the chat, and the card folds to one line ----
   const h = await openCard(browser, {}, first);
-  await tap(h, 'button[data-kind="choose"]', 'demo');
+  await tap(h, 'button[data-kind="next"]', 'Next');
   await h.page.waitForTimeout(400);
   const folded = await h.frame.evaluate(() => {
     const main = document.querySelector('main'), moved = document.getElementById('moved');
@@ -181,6 +178,7 @@ async function tap(c, css, text) {
   // every other kind of button on a host without tools: what it would put in the chat
   const said = [];
   for (const args of [{ workspace: 'demo', source: 'demo_lh', schema: 'dbo', step: 'decide' },
+                      { workspace: 'demo', source: 'demo_lh', schema: 'dbo', step: 'done' },
                       { workspace: 'demo', source: 'demo_lh', schema: 'dbo', step: 'dry_run' },
                       { workspace: 'demo', source: 'demo_lh', schema: 'dbo', step: 'create' }]) {
     const r = await hostCall('start', args);

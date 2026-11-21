@@ -1,4 +1,4 @@
-Coach (step 6 of 9: You decide the open links)
+Coach (step 3 of 5: You decide the open links)
 Where the user is, in plain words: A few links need you: I show the counts. The count supports it, and you decide.
 Possible next step for the user: Show what points at nothing (validate_plan(workspace="demo", source="demo_lh", schema="sap_silver", fixes=true, tables=["VBAP"])).
 Other options: Create the semantic model (dry run first); Draft the gold views.
