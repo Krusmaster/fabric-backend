@@ -54,7 +54,9 @@ print(json.dumps({"tools": out, "ro_size": len(json.dumps({"tools": ro}, separat
 
 
 def _listing(module: str, env: dict, calls: tuple = ()) -> dict:
-    base = {k: v for k, v in os.environ.items() if k not in SETTINGS}
+    """SM4: every tool is listed here (KRUSGRAPH_ADVANCED_TOOLS=1), as the switches judge all 48; the default listing
+    of 16 is tests/test_sm4_fewer_doors.py's, and its read-only cap is below."""
+    base = {k: v for k, v in os.environ.items() if k not in SETTINGS} | {"KRUSGRAPH_ADVANCED_TOOLS": "1"}
     run = subprocess.run([sys.executable, "-c", _LIST, module, *calls], env=base | env, cwd=ROOT,
                          capture_output=True, text=True, check=True)
     return json.loads(run.stdout)
@@ -83,6 +85,13 @@ def test_with_both_off_the_hosted_listing_is_unchanged(hosted):
     assert hosted["off"]["tools"] == golden and hosted["zero"]["tools"] == golden
     assert {t["name"] for t in golden} >= {"create_backend", "sample_rows"}  # the tool count is test_tool_count_texts.py's
     assert hosted["off"]["ro_size"] <= 83_000                                # the read-only listing cap (n26; n229: verify_build; CSN2: csn_path; Q2: the Qlik tools; AP2: analysis_plan and analysis_notebook_draft, about 4 800 characters; WB2: silver_schema on three read tools, about 450; RQ1: requirements_draft, about 1 400)
+
+
+def test_the_default_listing_s_read_only_cap_went_down():
+    """SM4: the read tools a client lists by default (9 of 16) fit in far less than the full listing's 83 000."""
+    default = _listing("server", {"KRUSGRAPH_ADVANCED_TOOLS": "0"})
+    assert len(default["tools"]) <= 16
+    assert default["ro_size"] <= 25_000                                      # SM4: 21 448 characters on 21 Nov 2026
 
 
 def test_read_only_removes_exactly_the_creating_tools(hosted):

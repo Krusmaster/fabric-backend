@@ -79,6 +79,7 @@ from . import mcp_apps_next as _mcp_apps_next  # noqa: E402  (n218: next steps a
 from . import start_flow as _start_flow  # noqa: E402  (n219: Start Krusgraph)
 from . import after_create as _after_create, verify_build as _verify  # noqa: E402  (n229: next steps, the gate, the verifier)
 from . import directory as _directory  # noqa: E402  (DIR1: answers describe options, and are bounded in size)
+from . import tool_listing as _tool_listing  # noqa: E402  (SM4: about 15 tools listed by default)
 
 # DIR1 (20 Nov 2026): the instructions describe the server, its tools and their order as facts. They tell the model
 # nothing about how to behave (claude.com/docs/connectors/building/review-criteria, "Avoid prompt-injection patterns").
@@ -92,7 +93,7 @@ mcp = MCPServer("fabric-backend", version=_package_version(), extensions=_mcp_ap
     "workspace, source, schema, map, check, decisions, doubled totals, dry run, and creating only after the user confirms "
     "the names; each start answer holds one step, its choices and a Coach block with the step in plain words and the "
     "possible next step. A user without Fabric data can see the path on the synthetic shop sample (start with sample=true). "
-    "The usual order of the tools: list_workspaces, list_sources, plan_backend (proposes keys and relationships; nothing "
+    "The usual order of the tools: list_workspaces, list_sources (start reads the same names itself), plan_backend (proposes keys and relationships; nothing "
     "is deployed), validate_plan (counts keys and references against the rows; create_backend does not run it), then a "
     "creating tool. sample_rows shows a few rows when a column's meaning is unclear; describe_backend gives the exact "
     "field names for query_graphql. Every inferred key or relationship carries the rule that produced it (K0-K5, R0-R5, "
@@ -126,7 +127,7 @@ mcp = MCPServer("fabric-backend", version=_package_version(), extensions=_mcp_ap
     "field_name and reverse_name); tables narrows what is shown or included while the plan is still made from the whole "
     "schema. "
     + _mcp_apps_next.AFTER_RESULT + " "
-    + _tool_status.instructions_sentence() + " " + _switches.SENTENCE))
+    + _tool_status.instructions_sentence() + " " + _switches.SENTENCE + " " + _tool_listing.sentence()))
 
 
 # ------------------------------------------------------------------ auth ---------------------
@@ -603,6 +604,18 @@ def _titled_tool(register):
 
 
 mcp.tool = _titled_tool(mcp.tool)
+
+# SM4 (fewer doors, docs/SMOOTH/PLAN.md row 3): tools/list holds tool_listing.DEFAULT unless KRUSGRAPH_ADVANCED_TOOLS=1.
+# Every tool stays registered, so a tools/call by name (a card's button, an old prompt) still answers. The setting is
+# read at every listing.
+_list_every_tool = mcp.list_tools
+
+
+async def _list_tools_sm4():
+    return _tool_listing.filter_tools(await _list_every_tool())
+
+
+mcp.list_tools = _list_tools_sm4
 
 
 # n219: Start Krusgraph, a guided path through the tools (start_flow.py). The tool reads no rows and runs no other tool: it
