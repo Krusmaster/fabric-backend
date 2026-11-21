@@ -175,7 +175,7 @@ def test_every_tool_answers_with_its_words_when_the_flag_is_on_and_as_before_whe
     r = mcp_apps.structured(server.list_workspaces, "list_workspaces")()
     assert r.structured_content[words.KEY]["result"] == "1 workspace: demo."
     # CO1: the Coach block for the host model comes first, the JSON answer last, unchanged
-    assert len(r.content) == 2 and r.content[0].text.startswith("Coach (step 1 of 9: Choose data)")
+    assert len(r.content) == 2 and r.content[0].text.startswith("Coach (step 1 of 5: Choose data)")
     assert json.loads(r.content[-1].text) == {k: v for k, v in r.structured_content.items() if k not in (words.KEY, "coach")}
     assert "next" not in r.structured_content                     # a card that ran it draws the words; nothing else is added
     s = mcp_apps.structured(server.list_sources, "list_sources")(workspace="demo")
@@ -430,7 +430,7 @@ def test_the_start_path_names_no_tool_in_what_a_person_reads():
     card = words.card("start", first, {}, {})
     assert card == {"title": "Start Krusgraph", "result": first["say"], "onto": first["say"]}
     lost = start_flow.guide(workspace="demo", source="demo_lh", schema="shop", step="bogus")       # F1 B13: the place is kept
-    assert lost["step"]["key"] == "map" and lost["unknown_step"]["asked"] == "bogus" and lost["say"].startswith("I don't know a step called “bogus”")
+    assert lost["step"]["key"] == "check" and lost["unknown_step"]["asked"] == "bogus" and lost["say"].startswith("I don't know a step called “bogus”")
     assert "would already propose that link (rule R5)" in start_flow.guide(sample=True)["found"]["note"]   # F1 B4
     confirm = start_flow.guide(workspace="demo", source="demo_lh", schema="shop", step="create")
     assert "call start" not in confirm["say"] and 'After a yes: start with step="create"' in confirm["then"]
@@ -596,7 +596,8 @@ def test_at_375_px_the_start_card_says_its_sentence_once_and_names_no_tool(tmp_p
         assert not TOOLS_SHOWN.search(out["text"]), (step, TOOLS_SHOWN.search(out["text"]).group(0))
         assert not any(TOOLS_SHOWN.search(b) for b in out["found"]["buttons"]), step
     off = _browse(tmp_path, mcp_apps_start.card_html(), {"args": {}, "result": _result(mcp_apps.call_result(json.dumps(start_flow.guide()))),
-                                                          "caps": CAPS, "clicks": [{"css": "#kg-toggle"}]})
+                                                          "caps": CAPS, "clicks": [{"css": "details#details > summary"},
+                                                                                   {"css": "#kg-toggle"}]})   # SM2: under Details
     assert off["text"].count(start_flow.guide()["say"]) == 1                                  # mascots off: on the card instead
 
 

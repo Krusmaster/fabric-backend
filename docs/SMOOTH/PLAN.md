@@ -22,6 +22,9 @@ Baseline, measured by SM1 (AUDIT.md):
 | 7 | **SM8 Demo workspace and the phone test** (needs Gustav's ok for Fabric writes in the **demo** workspace) | Lay out the demo workspace as (a) and (b): `bronze_lh`, `silver_lh`, `gold_lh`, `sap_lh`, `crm_lh` with the synthetic SAP and Salesforce rows (`sap_demo.write_csv`, `salesforce_demo.write_csv`); then Gustav's phone test, timed | **Start → model dry run in ≤ 6 taps and ≤ 90 s on Gustav's phone**, on (a) and on (b), recorded in `docs/CHAT-TEST-<date>.md` with the seconds per step. Nothing outside the demo tenant | |
 | 8 | **SM9 A second team** (after SM7) | Reference a shared entity from a second product (COMBINE-SOURCES.md section 5; DOMAINS-DESIGN.md part 4) | On the fixture, a third source (cases) is offered Sales' `dim_customer` with a counted overlap; one tap references it; no second customer table is built | |
 
+**SM2 is done** (21 November 2026): 4 taps and 2.8 s locally from Start to all three dry runs, at most 25 words and 3
+buttons plus Next per step, no step scrolls at 390 x 800 (AUDIT.md section 7, `measure-2026-11-21.json`).
+
 SM5-SM7 change the engine (`infer.py`, `graphs.py`, `server.py`'s write path). They come after SM2-SM4 because those
 three change what every later round's UI looks like, and the multi-source flow should be built straight into five steps.
 

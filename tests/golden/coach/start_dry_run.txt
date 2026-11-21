@@ -1,5 +1,4 @@
-Coach (step 8 of 9: Dry run)
-Where the user is, in plain words: Bronze to silver to gold. Try a dry run: nothing is created.
-Possible next step for the user: Dry run: silver and gold (create_pipeline(workspace="demo", source="demo_lh", schema="sap_silver", name="sap_silver_pipeline")).
-Other options: Dry run: semantic model; Dry run: an API for GraphQL.
+Coach (step 4 of 5: Dry run)
+Where the user is, in plain words: One tap dry-runs everything. Nothing is created.
+Possible next step for the user: Dry run everything (create_pipeline(workspace="demo", source="demo_lh", schema="sap_silver", name="sap_silver_pipeline")).
 Where a card is drawn, it already shows this result's lists and counts.

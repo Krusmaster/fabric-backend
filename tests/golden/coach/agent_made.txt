@@ -1,4 +1,4 @@
-Coach (step 9 of 9: Done)
+Coach (step 5 of 5: Done)
 Where the user is, in plain words: That is the whole path: checked links, silver and gold, a semantic model and a data agent.
 Possible next step for the user: Start again on another schema (start(workspace="demo", source="demo_lh")).
 Where a card is drawn, it already shows this result's lists and counts.

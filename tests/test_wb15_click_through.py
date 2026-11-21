@@ -18,6 +18,12 @@ possible) from step 1 to the confirmation step, at 390 px, light and dark, and c
 - on a host that runs no tool from the card, a button puts plain words in the chat (never a tool's name with its
   arguments) and the card folds to one line ("Moved on: step 1"), with no blank space under it.
 
+SM2 (docs/SMOOTH/PLAN.md, row 1) changed the path on purpose, in the same pull request as this test: five steps
+(Your data, Check, Decide, Dry run, Create) instead of nine. The first card is "demo › demo_lh › dbo ✓" (one usable
+option each, chosen by the start tool); Check has run the map, the row check and the doubled totals on its own and says
+them in one line each, the map under Details; one "Dry run everything" button runs the three dry runs; after Create a
+closing step offers Open in Fabric, Add a source and Schedule it. Every step fits 390 x 800, the dry run included.
+
 The unit tests below pin the parts: preselecting the one usable option, the shared state's latest-tap rule, the
 decisions flowing into the building tools, one numbering in the coach, and the plain-words guard.
 """
@@ -112,27 +118,37 @@ def test_every_click_advances_inside_the_same_card(run):
     assert run["errors"] == []
     assert run["messages"] == []                             # nothing went to the chat: no new card was needed
     keys = [s["key"] for s in run["steps"]]
-    assert keys == ["workspace", "source", "schema", "map", "check", "decide", "totals", "dry_run", "create", "confirmed"]
-    assert [c["name"] for c in run["calls"]].count("start") >= 10
+    assert keys == ["data", "check", "decide", "dry_run", "dry_runs_done", "create", "confirmed", "done"]
+    assert [c["name"] for c in run["calls"]].count("start") >= 8
 
 
 def test_one_total_and_the_numbers_only_go_up(run):
     ns = [s["n"] for s in run["steps"]]
-    assert ns == [1, 2, 3, 4, 5, 6, 7, 8, 9, 9]
-    assert {s["of"] for s in run["steps"]} == {9}
+    assert ns == [1, 2, 3, 4, 4, 5, 5, 5]
+    assert {s["of"] for s in run["steps"]} == {5}
 
 
 def test_the_header_matches_what_the_step_shows(run):
     by = {s["key"]: s for s in run["steps"]}
-    for key in ("workspace", "source", "schema", "map", "check", "decide", "totals", "dry_run", "create"):
+    for key in ("data", "check", "decide", "dry_run", "create"):
         assert by[key]["short"] == sf.SHORT[key], key
-    assert by["workspace"]["choices"] >= 1 and by["source"]["choices"] == 1
-    assert by["map"]["map"] and not any(s["map"] for s in run["steps"] if s["key"] != "map")   # the map on its own step
-    assert by["decide"]["decisions"] == 1 and by["totals"]["decisions"] == 0
-    assert "header amount" in run["totalsText"] and by["totals"]["n"] == 7
-    assert by["dry_run"]["dryButtons"] == ["Dry run: silver and gold", "Dry run: semantic model", "Dry run: data agent"]
+    assert by["data"]["chosen"] == "demo › demo_lh › dbo ✓" and by["data"]["choices"] == 0
+    assert "Change" in by["data"]["buttons"] and "Mascots: on" not in by["data"]["buttons"]
+    assert not any(s["map"] for s in run["steps"])                # the map is under Details, on tap
+    assert "17 tables, 24 links, 1 needs you." in run["checkText"]
+    assert "header amounts would count twice" in run["checkText"]
+    assert by["decide"]["decisions"] == 1 and by["check"]["decisions"] == 0
+    assert by["dry_run"]["dryButtons"] == ["Dry run everything"]
+    assert run["dryLines"] == ["✓ demo_lh_pipeline", "✓ demo_lh_model", "✓ demo_lh_agent"]
     assert by["create"]["confirm"] and not by["dry_run"]["confirm"]
     assert by["confirmed"]["creates"] and all(c.startswith("Create demo_lh_") for c in by["confirmed"]["creates"])
+    assert by["done"]["buttons"] == ["Open in Fabric", "Add a source", "Schedule it"]
+
+
+def test_sm2_two_or_three_buttons_plus_next_on_every_step(run):
+    for s in run["steps"]:
+        rest = [b for b in s["buttons"] if not b.startswith("Next") and b != "Details"]
+        assert len(rest) <= 3, (s["key"], s["buttons"])
 
 
 def test_the_mascot_is_visible_at_the_top_of_every_step(run):
@@ -141,17 +157,16 @@ def test_the_mascot_is_visible_at_the_top_of_every_step(run):
         assert s["line"] and len(s["line"]) <= 120, s["line"]   # one short sentence
 
 
-def test_each_step_but_the_map_fits_on_one_phone_screen(run):
+def test_every_step_fits_on_one_phone_screen_the_dry_run_included(run):
     for s in run["steps"]:
-        if s["key"] != "map":
-            assert not s["scroll"], (s["key"], s["bottom"], run["scheme"])
+        assert not s["scroll"], (s["key"], s["bottom"], run["scheme"])
 
 
 def test_rapid_alternating_decisions_end_in_the_last_tap_everywhere(run):
     assert [t["label"] for t in run["tapStates"]] == ["Accept", "Change to Reject", "Change to Accept", "Change to Reject"]
     assert all(t["offWhileRunning"] for t in run["tapStates"])
     assert run["decisionShown"] == "rejected"                 # the card
-    assert "sap_vbap.MANDT+VBELN → sap_vbak: rejected" in run["totalsDetails"]   # the next step
+    assert "sap_vbap.MANDT+VBELN → sap_vbak: rejected" in run["dryDetails"]   # the next step
     assert run["state"]["decisions"][-1] == {"item": VBAP, "review": "rejected", "reason": "decided on the start card"}
 
 
@@ -168,7 +183,7 @@ def test_no_button_puts_function_call_syntax_in_the_chat(run):
     h = run["handoff"]
     assert h["errors"] == []
     sent = [m["content"][0]["text"] for m in h["messages"]]
-    assert sent == ["Use demo."]
+    assert sent == ["Next: Check."]
     for text in sent + h["said"]:
         assert not FN_SAID.search(text), text
 
@@ -185,7 +200,7 @@ def test_a_card_that_hands_off_folds_to_one_line_without_blank_space(run):
 def test_one_usable_source_or_workspace_is_preselected_and_next_works():
     a = sf.guide(workspace="demo", options={"step": "source", "items": [{"name": "demo_lh", "hint": "lakehouse"}]})
     assert "next_waits" not in a
-    assert a["after"]["arguments"] == {"workspace": "demo", "source": "demo_lh", "step": "schema"}
+    assert a["after"]["arguments"] == {"workspace": "demo", "source": "demo_lh"}     # SM2: the schema is read next
     assert [x.get("selected") for x in a["actions"] if x["kind"] == "choose"] == [True]
     w = sf.guide(options={"step": "workspace", "items": [{"name": "demo", "hint": "1 lakehouse"},
                                                          {"name": "old", "hint": "no capacity: nothing can run here"}]})
@@ -194,7 +209,9 @@ def test_one_usable_source_or_workspace_is_preselected_and_next_works():
     assert "after" not in two and two["next_waits"]["why"] == "Choose a source first."
     s = sf.guide(workspace="demo", source="demo_lh", options={"step": "schema", "items": [
         {"name": "dbo", "tables": 17}, {"name": "empty", "tables": 0}]})
-    assert s["after"]["arguments"]["schema"] == "dbo"
+    assert s["after"]["arguments"]["schema"] == "dbo" and s["after"]["arguments"]["step"] == "check"
+    assert sf.only_choice("schema", {"step": "schema", "items": [{"name": "dbo", "tables": 17}, {"name": "e", "tables": 0}]}) == "dbo"
+    assert sf.only_choice("source", {"step": "source", "items": [{"name": "a"}, {"name": "b"}]}) is None
 
 
 def test_the_latest_tap_wins_and_older_arguments_never_undo_it():
@@ -217,9 +234,9 @@ def test_a_new_card_from_typed_text_continues_from_the_shared_state(monkeypatch)
     fake.install(monkeypatch)
     a = json.loads(server.start(**B, step="decide", plan={"decisions": [{"item": VBAP, "review": "rejected"}]}))
     assert a["found"]["decisions"][0]["state"] == "rejected"
-    b = json.loads(server.start(**B, step="totals"))             # Claude's call: no plan in its arguments
+    b = json.loads(server.start(**B, step="dry_run"))            # Claude's call: no plan in its arguments
     assert b["decided"] == ["sap_vbap.MANDT+VBELN → sap_vbak: rejected: the next steps leave it out."]
-    assert b["step"]["n"] == 7 and b["seq"] > a["seq"]
+    assert b["step"]["n"] == 4 and b["seq"] > a["seq"]
 
 
 def test_decisions_flow_into_every_building_tool(monkeypatch):
@@ -257,18 +274,19 @@ def test_an_accepted_link_is_passed_as_confirmed(monkeypatch):
 
 
 def test_one_numbering_for_the_coach_the_card_and_claudes_text():
-    for step, n in (("map", 4), ("check", 5), ("decide", 6), ("totals", 7), ("dry_run", 8), ("create", 9)):
+    for step, n, key in (("data", 1, "data"), ("map", 2, "check"), ("check", 2, "check"), ("decide", 3, "decide"),
+                         ("totals", 2, "check"), ("dry_run", 4, "dry_run"), ("create", 5, "create"), ("done", 5, "create")):
         a = sf.guide(**B, step=step)
         c = coach.coach("start", {**B, "step": step}, a)
-        assert (c["n"], c["of"], c["title"]) == (n, 9, sf.SHORT[step])
-        assert f"step {n} of 9" in c["text"]
+        assert (c["n"], c["of"], c["title"]) == (n, 5, sf.SHORT[key])
+        assert f"step {n} of 5" in c["text"]
         from fabric_backend import mcp_apps_next as nxt
-        assert f"Step {n} of 9: {sf.SHORT[step]}" in nxt.start_lead(a)
-        assert "of 8" not in c["text"] + nxt.start_lead(a)
-    # other tools sit on the same nine steps, and the build stages never go back below the decisions
-    assert coach.coach("validate_plan", B, {"totals": {}})["of"] == 9
-    assert coach.coach("create_data_agent", {**B, "name": "a", "dry_run": True}, {"would_create": []})["n"] == 8
-    assert coach.coach("list_sources", {"workspace": "demo"}, {"sources": []})["n"] == 2
+        assert f"Step {n} of 5: {sf.SHORT[key]}" in nxt.start_lead(a)
+        assert "of 9" not in c["text"] + nxt.start_lead(a)
+    # other tools sit on the same five steps, and the build stages never go back below the decisions
+    assert coach.coach("validate_plan", B, {"totals": {}})["of"] == 5
+    assert coach.coach("create_data_agent", {**B, "name": "a", "dry_run": True}, {"would_create": []})["n"] == 4
+    assert coach.coach("list_sources", {"workspace": "demo"}, {"sources": []})["n"] == 1
 
 
 def test_the_step_sentences_are_short_and_the_lead_asks_for_one_sentence():
@@ -289,6 +307,10 @@ def test_step_9_is_never_a_dead_end():
     assert not FN_SAID.search(confirm[0]["ask"])
     b = sf.guide(**B, step="create", create=confirm[0]["arguments"]["create"], confirm=True)
     assert [x["label"] for x in b["actions"]] == ["Create demo_lh_pipeline", "Create demo_lh_model", "Create demo_lh_agent"]
+    assert b["after"]["arguments"]["step"] == "done"              # SM2: what now, after Create
+    d = sf.guide(**B, step="done")
+    assert [x["label"] for x in d["actions"]] == ["Open in Fabric", "Add a source", "Schedule it"]
+    assert d["actions"][0]["url"].startswith("https://") and d["actions"][1]["arguments"]["step"] == "source"
 
 
 def test_the_cards_send_plain_words_only():
@@ -303,8 +325,22 @@ def test_sm1_each_sample_step_says_its_own_sentence():
     """SM1 (docs/SMOOTH/AUDIT.md): on the synthetic shop the card fell back to the coach's line, which was the step
     before's: step 7 said "A few links need you" and step 9 "Try a dry run". Each step now has its own sentence."""
     said = {}
-    for key in ("map", "check", "decide", "totals", "dry_run", "create"):
+    for key in ("check", "decide", "dry_run", "create"):
         said[key] = sf.guide(sample=True, step=key)["say"]
         assert said[key] and len(said[key].split()) <= 15, (key, said[key])
     assert len(set(said.values())) == len(said)
-    assert "decision" not in said["totals"] and "dry run" not in said["create"]
+    assert "decision" not in said["check"] and "dry run" not in said["create"]
+
+
+def test_sm2_the_sample_has_the_same_dry_run_button():
+    """SM2 (AUDIT.md D2): the sample's dry run is a button, as on your own data, and its answer is one line each."""
+    a = sf.guide(sample=True, step="dry_run")
+    allb = [x for x in a["actions"] if x["kind"] == "dry_run_all"]
+    assert len(allb) == 1 and allb[0]["arguments"]["confirm"] is True and allb[0]["primary"]
+    b = sf.guide(**allb[0]["arguments"])
+    assert b["lines"] == ["✓ shop_pipeline", "✓ shop_model", "✓ shop_agent"]
+    assert not [x for x in b["actions"] if x["kind"] == "dry_run_all"]
+    # from the sample's start: Next, Next and the dry run's button
+    s = sf.guide(sample=True)
+    assert s["step"]["n"] == 2 and s["after"]["arguments"]["step"] == "decide"
+    assert sf.guide(**s["after"]["arguments"])["after"]["arguments"]["step"] == "dry_run"

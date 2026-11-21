@@ -1,4 +1,4 @@
-Coach (step 5 of 9: Check the links against the rows)
+Coach (step 2 of 5: Check the links against the rows)
 Where the user is, in plain words: That did not work. I say why in one sentence, and we go on from where you are.
 Possible next step for the user: Show where we are (start(workspace="demo", source="demo_lh", schema="sap_silver")).
 Where a card is drawn, it already shows this result's lists and counts.

@@ -82,10 +82,10 @@ def test_the_decision_is_kept_and_travels_into_steps_7_to_9(sap):
     assert b["found"]["decisions"][0]["state"] == "accepted" and "secondary" not in b["after"]
     assert b["say"].startswith("Every decision is answered.")
     assert [x["label"] for x in b["actions"] if x["kind"] == "decide"] == ["Change to Reject"]
-    for step in ("totals", "dry_run", "create"):
+    for step in ("dry_run", "create"):
         c = sf.guide(**SAP, step=step, confirmed=plan_["confirmed"], decisions=plan_["decisions"])
         assert c["decided"] == ["sap_vbap.MANDT+VBELN → sap_vbak: accepted: the next steps use this link."]
-    rejected = sf.guide(**SAP, step="totals", decisions=[{"item": VBAP, "review": "rejected"}])
+    rejected = sf.guide(**SAP, step="dry_run", decisions=[{"item": VBAP, "review": "rejected"}])
     # WB15 (G): a rejected link is now left out of every dry run and build on the path (flow_state.BUILD_TOOLS)
     assert rejected["decided"][0].endswith("rejected: the next steps leave it out.")
 
@@ -103,7 +103,7 @@ def test_the_start_tool_reads_the_review_on_step_6_and_deciding_writes_nothing(f
     b = json.loads(server.start(**accept["arguments"]))
     assert b["found"]["decisions"][0]["state"] == "accepted" and writes == []      # deciding writes nothing to Fabric
     c = json.loads(server.start(**b["after"]["arguments"]))
-    assert c["step"]["key"] == "totals" and c["decided"][0].startswith("orders.ship_to_id → addresses: accepted")
+    assert c["step"]["key"] == "dry_run" and c["decided"][0].startswith("orders.ship_to_id → addresses: accepted")
 
 
 def test_one_rule_decides_what_waits_for_a_person():
@@ -133,10 +133,10 @@ def test_the_start_card_has_the_map_on_steps_4_and_6_with_approved_and_open_link
     assert a["map"]["tables"] and a["map_mini"]["mini"]["of_tables"] == 17
     states = {r["id"]: r["review"] for r in a["map"]["relationships"]}
     assert states[VBAP[4:]] == "open"
-    m4 = sf.guide(**SAP, step="map", review=sap["review"])
-    assert m4["map_mini"] and m4["found"]["summary"] == "17 tables, 24 links."                  # WB15: short
-    assert m4["found"]["note"].startswith("17 keys and 24 relationships")
-    shop = sf.guide(sample=True, step="map")
+    m4 = sf.guide(**SAP, step="check", review=sap["review"])                 # SM2: the map is on Check, on tap
+    assert m4["map_mini"] and m4["say"] == "17 tables, 24 links, 1 needs you."              # short
+    assert m4["found"]["summary"].startswith("17 keys and 24 relationships")
+    shop = sf.guide(sample=True, step="check")
     assert shop["map"]["tables"] and "map_mini" not in shop                  # 7 tables fit as they are
     assert {r["review"] for r in shop["map"]["relationships"]} == {"accepted", "open"}
     assert shop["map"]["rules"][0].startswith("R1: the column is named after the table it points at")
@@ -388,5 +388,5 @@ def test_step_6_draws_accept_with_quarantine_reject_and_skip(tmp_path, sap):
     html, r = _cards(sap)["start"]
     out = _browse(tmp_path, html, {"result": _result(r), "args": SAP, "caps": {"serverTools": {}}, "width": 390, "scheme": "light"})
     texts = [b["text"] for b in out["buttons"]]
-    assert {"Accept with quarantine", "Reject", "Skip for now"} <= set(texts)
-    assert "values found in sap_vbak" in out["text"] and "Why" in out["text"]      # WB15: the reasons under Why
+    assert {"Accept with quarantine", "Reject"} <= set(texts) and "Skip for now" not in texts   # SM2: Next leaves it open
+    assert "5 of 6 found (83%)." in out["text"] and "Why" in out["text"]      # WB15: the reasons under Why

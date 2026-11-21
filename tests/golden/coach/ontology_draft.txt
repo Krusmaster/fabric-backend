@@ -1,4 +1,4 @@
-Coach (step 4 of 9: Krusgraph reads the tables)
+Coach (step 2 of 5: Krusgraph reads the tables)
 Where the user is, in plain words: Finding the keys and the links between your tables. I only read; nothing is changed.
 Possible next step for the user: Check against the rows (validate_plan(workspace="demo", source="demo_lh", schema="sap_silver")).
 Other options: Create the ontology (dry run first); Create the semantic model (dry run first).

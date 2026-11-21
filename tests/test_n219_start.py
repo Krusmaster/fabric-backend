@@ -66,7 +66,7 @@ def _walk():
     a = sf.guide(**CHOSEN)
     while True:
         seen.append(a)
-        if "after" not in a or a["step"]["key"] == "dry_run":
+        if "after" not in a or a["stage"] == "dry_run":
             break
         nxt = a["after"]
         assert nxt["tool"] == "start"
@@ -74,15 +74,16 @@ def _walk():
     return seen
 
 
-EXPECTED = {"workspace": "list_workspaces", "source": "list_sources", "schema": "plan_backend", "map": "plan_backend",
-            "check": "validate_plan", "decide": "review_plan", "totals": "validate_plan", "dry_run": "create_pipeline"}
+# SM2: five steps; choosing (workspace, source, schema) are stages of step 1, the map and the totals are part of check
+EXPECTED = {"workspace": "list_workspaces", "source": "list_sources", "schema": "plan_backend", "data": "start",
+            "check": "validate_plan", "decide": "review_plan", "dry_run": "create_pipeline"}
 
 
 def test_each_step_returns_the_next_steps_button_with_the_right_tool_and_arguments():
     steps = _walk()
-    assert [s["step"]["key"] for s in steps] == list(EXPECTED)
+    assert [s["stage"] for s in steps] == list(EXPECTED)
     for s in steps:
-        key = s["step"]["key"]
+        key = s["stage"]
         first = _buttons(s)[0]
         assert first["tool"] == EXPECTED[key], key
         assert first["say"].startswith(first["label"]) and first["tool"] in first["say"]
@@ -91,12 +92,12 @@ def test_each_step_returns_the_next_steps_button_with_the_right_tool_and_argumen
             assert b["arguments"].get("dry_run") is not False, f"step {key} writes"
         if "after" in s:
             _accepts("start", s["after"]["arguments"])
-    by = {s["step"]["key"]: s for s in steps}
+    by = {s["stage"]: s for s in steps}
     assert _buttons(by["source"])[0]["arguments"] == {"workspace": "ws"}
     assert _buttons(by["schema"])[0]["arguments"] == {"workspace": "ws", "source": "lh"}     # no schema: every one listed
-    assert _buttons(by["map"])[0]["arguments"] == CHOSEN
-    assert _buttons(by["totals"])[0]["arguments"] == {**CHOSEN, "fixes": True}
-    assert by["map"]["after"]["arguments"] == {**CHOSEN, "step": "check"}
+    assert _buttons(by["check"])[0]["arguments"] == CHOSEN
+    assert any(b["arguments"] == {**CHOSEN, "fixes": True} for b in _buttons(by["check"]))   # the totals, on tap
+    assert by["data"]["after"]["arguments"] == {**CHOSEN, "step": "check"}
 
 
 def test_what_was_chosen_travels_with_the_steps():
@@ -107,21 +108,22 @@ def test_what_was_chosen_travels_with_the_steps():
     b = _buttons(a)[0]
     assert b["tool"] == "review_plan" and b["arguments"]["decisions"] == decisions and b["arguments"]["confirmed"] == confirmed
     after = a["after"]["arguments"]
-    assert after["plan"] == {"keys": keys, "confirmed": confirmed, "decisions": decisions} and after["step"] == "totals"
+    assert after["plan"] == {"keys": keys, "confirmed": confirmed, "decisions": decisions} and after["step"] == "dry_run"
     again = json.loads(server.start(**after))                     # the tool unpacks plan into the same choices
-    assert _buttons(again)[0]["arguments"] == {**CHOSEN, "keys": keys, "confirmed": confirmed, "fixes": True}
+    assert _buttons(again)[0]["arguments"] == {**CHOSEN, "keys": keys, "confirmed": confirmed, "name": "shop_pipeline"}
 
 
 def test_a_step_cannot_be_skipped_before_its_choice():
-    assert sf.guide(step="check")["step"]["key"] == "workspace"
-    assert sf.guide(workspace="ws", step="create")["step"]["key"] == "source"
-    assert sf.guide(workspace="ws", source="lh", step="totals")["step"]["key"] == "schema"
+    assert sf.guide(step="check")["stage"] == "workspace"
+    assert sf.guide(workspace="ws", step="create")["stage"] == "source"
+    assert sf.guide(workspace="ws", source="lh", step="totals")["stage"] == "schema"
+    assert {sf.guide(step="check")["step"]["key"], sf.guide(workspace="ws", step="create")["step"]["key"]} == {"data"}
 
 
 def test_each_step_says_whether_it_reads_or_writes():
     for s in _walk():
         assert all(p["does"] == ("writes" if p["key"] == "create" else "reads") for p in s["path"])
-        assert "Only step 9 writes" in s["honest"] and "no row values" in s["honest"]
+        assert "Only step 5 writes" in s["honest"] and "no row values" in s["honest"]
     assert not any(b["tool"] == "sample_rows" for s in _walk() for b in _buttons(s))
 
 
@@ -129,7 +131,10 @@ def test_the_dry_run_names_every_build_and_the_data_flow():
     a = sf.guide(**CHOSEN, step="dry_run")
     assert {w["tool"] for w in a["would_build"]} == WRITERS
     assert {b["tool"] for b in _buttons(a)} == WRITERS - {"create_report"}           # the report waits for its model
-    assert all(b["kind"] == "dry_run" and "dry_run" not in b["arguments"] for b in _buttons(a))
+    assert all(b["kind"] in ("dry_run", "dry_run_all") and "dry_run" not in b["arguments"] for b in _buttons(a))
+    [everything] = [b for b in _buttons(a) if b["kind"] == "dry_run_all"]      # SM2: one button for the three
+    assert [r["tool"] for r in everything["runs"]] == ["create_pipeline", "create_semantic_model", "create_data_agent"]
+    assert all("dry_run" not in r["arguments"] for r in everything["runs"])
     assert any("silver" in f and "gold" in f and "check" in f for f in a["data_flow"])
 
 
@@ -157,7 +162,7 @@ def test_confirmed_names_are_created_and_nothing_else():
 
 def test_the_synthetic_shop_runs_the_same_path_without_fabric():
     a = json.loads(server.start(sample=True))
-    assert a["sample"] is True and a["step"]["key"] == "map" and "links" in a["found"]
+    assert a["sample"] is True and a["step"]["key"] == "check" and "links" in a["found"]
     keys = []
     while True:
         keys.append(a["step"]["key"])
@@ -165,8 +170,8 @@ def test_the_synthetic_shop_runs_the_same_path_without_fabric():
             break
         assert a["after"]["arguments"]["sample"] is True
         a = json.loads(server.start(**a["after"]["arguments"]))
-    assert keys == ["map", "check", "decide", "totals", "dry_run", "create"]
-    totals = sf.guide(sample=True, step="totals")["found"]["doubled"]
+    assert keys == ["check", "decide", "dry_run", "create"]
+    totals = sf.guide(sample=True, step="totals")["found"]["doubled"]          # the totals are part of check
     assert totals and "summed over the joined" in totals[0]
     assert "nothing can be created" in sf.guide(sample=True, step="create")["found"]["note"]
     first = sf.guide()
@@ -220,11 +225,10 @@ def test_the_card_walks_the_path_in_place(tmp_path):
     first = sf.guide(**CHOSEN)
     second = sf.guide(**CHOSEN, step="check")
     out = _browse(tmp_path, {"args": CHOSEN, "result": _res(first), "caps": {"serverTools": {}}, "reply": _res(second),
-                             "clicks": [{"text": "Show the map"}, {"text": "Next: Check"}]})
+                             "clicks": [{"text": "Next: Check"}]})
     calls = _calls(out)
-    assert calls[0] == {"name": "plan_backend", "arguments": CHOSEN}
-    assert calls[1] == {"name": "start", "arguments": first["after"]["arguments"]}
-    assert "Step 5 of 9" in out["text"] and "Check against the rows" in out["text"]     # the next step, drawn in place
+    assert calls[0] == {"name": "start", "arguments": first["after"]["arguments"]}
+    assert "Step 2 of 5" in out["text"] and "Check against the rows" in out["text"]     # the next step, drawn in place
 
 
 @needs_browser
