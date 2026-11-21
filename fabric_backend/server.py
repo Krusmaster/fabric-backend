@@ -45,6 +45,7 @@ from . import views as _views, data_agent as _data_agent, app_starter as _app_st
 from . import lineage as _lineage, compact as _compact, sap_pack as _sap_pack
 from . import coverage as _coverage
 from . import multi_schema as _multi_schema  # SM5: a plan over several schemas of one item
+from . import combine as _combine  # SM7: several sources in one data product, matched by rules with counts
 from . import domains as _domains
 from . import limits as _limits, usage as _usage, entitlements as _entitlements
 from . import usage_metrics as _usage_metrics  # UM1: anonymous daily counts for /metrics
@@ -780,11 +781,13 @@ def start(workspace: _p.StartPick = "", source: _p.StartPick = "", schema: _p.St
                                   plan.get("confirmed"), False)
         plan["decisions"], plan["confirmed"] = kept["decisions"], kept["confirmed"]
     review = _start_review(workspace, source, schema, step, plan, bool(sample), ctx)
+    combined = _start_combine(workspace, source, schema, step, plan, bool(sample), ctx)
     out = _start_flow.guide(workspace=workspace, source=source, schema=schema, step=step,
                             keys=plan.get("keys"), confirmed=plan.get("confirmed"),
                             decisions=plan.get("decisions"), create=create, confirm=confirm,
                             sample=sample, options=options, review=review, picked=picked, suggested=suggested,
-                            targets=_start_targets(workspace, source, schema, step, bool(sample), ctx))
+                            targets=_start_targets(workspace, source, schema, step, bool(sample), ctx),
+                            combine=combined)
     out["seq"] = kept.get("seq") or 0
     return json.dumps(out, indent=2)
 
@@ -805,6 +808,103 @@ def _start_targets(workspace: str, source: str, schema: str, step: str, sample: 
         return None
     names = [str(x.get("name")) for x in listed if isinstance(x, dict) and x.get("type", "Lakehouse") == "Lakehouse" and x.get("name")]
     return _start_flow.layer_targets(c["source"], names)
+
+
+def _combine_counts(workspace: str, source: str, schema: str, ctx):
+    """SM7: (plan, combine.count's answer) for a plan over several schemas of one item: the match rules counted on the
+    rows of the one connection (counts only, no row value)."""
+    p, item, headers = _plan(workspace, source, schema, None, None, ctx)
+    execute = _execute_factory(item, auth.sql(ctx))
+    try:
+        from .dialects import of as _dialect_of
+        return p, _combine.count(p, execute, _dialect_of(execute))
+    finally:
+        getattr(execute, "close", lambda: None)()
+
+
+def _start_combine(workspace: str, source: str, schema: str, step: str, plan: dict, sample: bool, ctx) -> dict | None:
+    """SM7 (COMBINE-SOURCES.md): on Check, Decide and the dry run of a plan over several schemas, the proposed match of
+    their customers with its counts, and whether the person accepted it (the flow state's decisions). None elsewhere,
+    on one schema, or when no party table is found in two schemas; {error} when the rows cannot be counted."""
+    c = {"workspace": (workspace or "").strip() or None, "source": (source or "").strip() or None,
+         "schema": (schema or "").strip() or None}
+    if sample or not all(c.values()) or not _multi_schema.is_multi(c["schema"]):
+        return None
+    if _start_flow.current((step or "").strip().lower() or None, c) not in ("check", "decide", "dry_run", "create"):
+        return None
+    try:
+        p, found = _combine_counts(c["workspace"], c["source"], c["schema"], ctx)
+    except Exception as e:                                       # noqa: BLE001 - the card says it, nothing is joined
+        return {"error": (str(e) or type(e).__name__).splitlines()[0][:200]}
+    return _combine_view(p, found, plan.get("decisions"))
+
+
+def _combine_view(p, found: dict, decisions) -> dict | None:
+    """What start_flow.guide shows of a counted match (combine.py): the proposed candidate in words, and the accepted one."""
+    if len(found.get("party") or {}) < 2:
+        return None
+    best = next((x for x in found["candidates"] if x["id"] == found.get("proposed")), None)
+    chosen = _combine.accepted(found, decisions)
+    out = {"sources": sorted(found["party"]), "candidates": len(found["candidates"]), "queries": found["queries"]}
+    if best:
+        out["proposed"] = {"id": best["id"], "rule": best["rule"], "line": _combine.card_line(best),
+                           "evidence": _combine.evidence(best), "counts": best["counts"], "certainty": best["certainty"],
+                           "customers": _combine.customers(best)}
+    if chosen:
+        out["accepted"] = {"id": chosen["id"], "rule": chosen["rule"], "line": _combine.model_line(chosen, found["facts"]),
+                           "customers": _combine.customers(chosen)}
+    return out
+
+
+def _combined_model(workspace: str, source: str, schema: str, name: str, dry_run: bool, ctx) -> str | None:
+    """SM7: create_semantic_model over a plan of several schemas whose customer match the person accepted on the path
+    (the flow state): one Direct Lake model over the product lakehouse's conformed gold (dim_customer and each source's
+    facts re-keyed to it, no link between facts), with the gold SQL it reads. None when no match is accepted: the model
+    is drafted as before, each source apart."""
+    if not _multi_schema.is_multi(schema):
+        return None
+    decided = (_flow_state.state(_flow_who(ctx), workspace, source, schema) or {}).get("decisions") or []
+    if not any(str(d.get("item", "")).startswith(_combine.PREFIX) and d.get("review") == "accepted" for d in decided):
+        return None
+    p, found = _combine_counts(workspace, source, schema, ctx)
+    chosen = _combine.accepted(found, decided)
+    if chosen is None:
+        return json.dumps({"error": "The match you accepted is no longer found by the rules on these rows, so nothing is "
+                                    "combined.", "kind": "stale", "hint": "Open Decide on the start card again."}, indent=2)
+    if not dry_run:
+        return json.dumps({"error": "The combined model is a dry run in this version: its conformed gold is not built by "
+                                    "the pipeline yet.", "kind": "not_yet",
+                           "hint": "Run the gold SQL of the dry run in the product lakehouse first, or build each source "
+                                   "apart (reject the match)."}, indent=2)
+    _, info = _source_inputs(workspace, source, schema, None, None, ctx)
+    gold = "gold"
+    gs = _combine.model_schema(chosen, p, found["facts"], gold)
+    gp = make_plan(gs, packs=False)
+    ginfo = {**info, "schema": gold, "schemas_enabled": True}
+    draft = _semantic_model.draft(gp, ginfo, name)
+    rels = [{"from": f"{r.source}.{r.source_cols[0]}", "to": f"{r.target}.{r.target_cols[0]}"} for r in gp.relationships]
+    out = {"dry_run": True, "layers_to": f"model \u2192 {info['item_name']} ({gold})",
+           "combined": {"line": _combine.model_line(chosen, found["facts"]), "match": chosen["id"], "rule": chosen["rule"],
+                        "match_line": _combine.card_line(chosen), "customers": _combine.customers(chosen),
+                        "dimension": "dim_customer",
+                        "facts": [{"name": f["name"], "from": f["table"], "source": f["schema"]} for f in found["facts"]],
+                        "relationships": rels,
+                        "fact_to_fact": [x for x in rels if not x["to"].startswith("dim_customer.")],
+                        "personal_left_out": _combine.personal_left_out(p, chosen)},
+           "first": (f"Build the conformed gold first: the model reads {gold}.dim_customer and the fact views in "
+                     f"{info['item_name']}, which the gold SQL below creates. The pipeline does not run it yet."),
+           "gold_sql": _combine.gold_sql(chosen, p, found["facts"], gold),
+           "summary": draft["summary"],
+           "rest": {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{_out_ws(info['workspace_id'])}/semanticModels",
+                    "delegated_scope": "SemanticModel.ReadWrite.All or Item.ReadWrite.All"},
+           "parts": draft["parts"],
+           "note": "Matched by rules and counted on the rows; nothing is joined on a match you did not accept."}
+    text = json.dumps(out, indent=2)
+    if len(text) > MAX_RESULT_CHARS:
+        out["omitted"] = sorted(k for k in draft["parts"] if k.startswith("definition/tables/"))
+        out["parts"] = {k: v for k, v in draft["parts"].items() if not k.startswith("definition/tables/")}
+        text = json.dumps(out, indent=2)
+    return text
 
 
 def _start_review(workspace: str, source: str, schema: str, step: str, plan: dict, sample: bool, ctx) -> dict | None:
@@ -2358,6 +2458,9 @@ def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.M
     once after a create, and only refreshes a model that exists. Errors: {error, kind, hint}."""
     if (check or "").strip():                                # n227: how a started create went; reads only
         return _create_status("create_semantic_model", workspace, name, check, ctx)
+    combined = _combined_model(workspace, source, schema, name, dry_run, ctx)   # SM7: the match the person accepted
+    if combined is not None:
+        return combined
     began = time.monotonic()
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
     schema = p.schema.schema                                   # n175: the name the metadata returns

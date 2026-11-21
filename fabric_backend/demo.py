@@ -274,9 +274,10 @@ def demo_plan() -> dict:
 def demo_validation() -> dict:
     """What `validate_plan` answers for the demo: the same `evidence.validate` checks, run over `seed.rows()` loaded into
     an in-memory SQLite database (the only translation: COUNT_BIG → COUNT). Computed, not hand-written."""
-    from . import evidence
+    from . import budget, evidence
     s = schema("shop")
-    out = evidence.validate(plan(s, keys=DEMO_KEYS), _demo_db())
+    with budget.call(bounded=False):     # SM7: cached, so the same answer whoever calls first (a tool's budget stays out)
+        out = evidence.validate(plan(s, keys=DEMO_KEYS), _demo_db())
     out["suggested_keys"] = evidence.suggest_composite_keys(plan(s))        # what plan_backend suggests before any override
     out["computed"] = ("on the synthetic demo data (fabric_backend.seed.rows) in an in-memory SQLite database, with the same "
                        "checks validate_plan runs on a Fabric source")

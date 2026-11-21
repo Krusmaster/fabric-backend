@@ -5,6 +5,7 @@ Krusgraph card with tools/smooth_measure.js, on the careful path and the lazy pa
 
     python tools/smooth_measure.py [--shots DIR] [--out FILE.json]
     python tools/smooth_measure.py --tools [--out FILE.json]     # SM4: tools listed and the cards' dead ends, no browser
+    python tools/smooth_measure.py --combine [--out FILE.json]   # SM7: SAP + CRM on the fixture, layout (b), no browser
 
 The numbers are what docs/SMOOTH/AUDIT.md reports. They measure the product's own time on a laptop; a real host adds
 the model's turn, the network and the SQL endpoint's latency on top (see AUDIT.md).
@@ -23,7 +24,68 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tests"))
 
 
+def combine(argv: list[str]) -> int:
+    """SM7: SAP + CRM on the multi-lakehouse fixture, layout (b), server side (no browser, as SM6 measured layout (a)):
+    Start -> the two sources as one plan -> Decide -> Accept the match -> the dry run -> Dry run everything. Per tap:
+    the stage, the seconds so far, the card's words; then the match counts and what the model dry run combined."""
+    import time
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--out", default="")
+    ap.add_argument("--runs", type=int, default=3)
+    a = ap.parse_args(argv)
+    import pytest
+    from fixtures import multi_lakehouse as mlh
+    from fabric_backend import flow_state, server
+    runs = []
+    for _ in range(a.runs):
+        mp = pytest.MonkeyPatch()
+        mlh.install(mp, "b")
+        flow_state.clear()
+        try:
+            t0, taps, steps = time.monotonic(), 0, []
+
+            def note(card):
+                steps.append({"stage": card["stage"], "taps": taps, "seconds": round(time.monotonic() - t0, 2),
+                              "say": card.get("say"), "words": len(str(card.get("say") or "").split()),
+                              **({"line": card["lines"][0]} if card.get("lines") else {}),
+                              **({"combined": card["combined"]} if card.get("combined") else {})})
+            card = json.loads(server.start())
+            note(card)
+            both = next(x for x in card["actions"] if x["kind"] == "choose" and "+" in x["label"])
+            card = json.loads(server.start(**both["arguments"]))
+            taps += 1
+            note(card)
+            while card["stage"] != "dry_run":
+                tap = next((x for x in card["actions"] if x.get("decision") == "accepted"
+                            and str(x.get("item", "")).startswith("match:")), None) \
+                    if card["stage"] == "decide" and card.get("open_decisions") else None
+                card = json.loads(server.start(**(tap or card["after"])["arguments"]))
+                taps += 1
+                note(card)
+            everything = next(x for x in card["actions"] if x["kind"] == "dry_run_all")
+            answers = {r["tool"]: json.loads(getattr(server, r["tool"])(**r["arguments"])) for r in everything["runs"]}
+            taps += 1
+            model = answers["create_semantic_model"].get("combined") or {}
+            runs.append({"layout": "b", "taps": taps, "seconds": round(time.monotonic() - t0, 2), "steps": steps,
+                         "errors": [t for t, x in answers.items() if x.get("error")],
+                         "model": {"line": model.get("line"), "facts": len(model.get("facts") or []),
+                                   "relationships": len(model.get("relationships") or []),
+                                   "fact_to_fact": len(model.get("fact_to_fact") or [])},
+                         "writes": len(mlh.WRITES)})
+        finally:
+            mp.undo()
+            flow_state.clear()
+    text = json.dumps(runs, indent=1, ensure_ascii=False)
+    if a.out:
+        Path(a.out).write_text(text, encoding="utf-8")
+    for r in runs:
+        print(f"layout (b): {r['taps']} taps, {r['seconds']} s, errors={r['errors']}, writes={r['writes']} | {r['model']['line']}")
+    return 0
+
+
 def main() -> int:
+    if "--combine" in sys.argv[1:]:                          # SM7: SAP + CRM on the fixture, layout (b)
+        return combine([x for x in sys.argv[1:] if x != "--combine"])
     if "--tools" in sys.argv[1:]:                            # SM4: tools/smooth_measure_tools.py
         sys.path.insert(0, str(ROOT / "tools"))
         import smooth_measure_tools
