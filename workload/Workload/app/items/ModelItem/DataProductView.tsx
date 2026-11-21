@@ -5,6 +5,7 @@
  * tests/fixtures/n198/, which tests/test_n198_browser.py opens at 375 and 1280 px, light and dark, by keyboard).
  * Colour is never the only signal: every state has its word and a mark. Every action is a button in the tab order.
  */
+import { adoptedLine, failedLine, ownerLine, ownerShown } from "./ed3Product";
 import React, { useState } from "react";
 import { BuildCard } from "./engineClient";
 import { itemTypeLabel } from "./createWords";
@@ -46,6 +47,7 @@ box-sizing:border-box;max-width:960px;padding:16px;overflow-wrap:anywhere}
 .kg-dp .kg-dp-actions{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
 .kg-dp button{font:inherit;min-height:32px;padding:4px 12px;border-radius:4px;border:1px solid var(--kg-line);background:var(--kg-bg);color:var(--kg-fg);cursor:pointer}
 .kg-dp button.kg-dp-primary{background:var(--kg-brand);border-color:var(--kg-brand);color:var(--kg-on-brand)}
+.kg-dp button.kg-dp-small{min-height:28px;padding:2px 10px;font-size:12px}
 .kg-dp button.kg-dp-danger{border-color:var(--kg-bad);color:var(--kg-bad);background:var(--kg-bg)}
 .kg-dp button:disabled{opacity:.55;cursor:not-allowed}
 .kg-dp button:focus-visible,.kg-dp input:focus-visible,.kg-dp select:focus-visible{outline:2px solid var(--kg-focus);outline-offset:2px}
@@ -95,6 +97,12 @@ export interface DataProductProps {
   onRetire?: (scope: "soft" | "delete", ids: string[] | null, opts: { leftovers?: boolean; confirm?: string; typed?: string }) => void;
   onFindLeftovers?: () => void;
   onAdopt?: (id: string) => void;
+  /** ED3: what was found by the plan marker and added without asking, said once */
+  adopted?: string[];
+  /** ED3: Fix and finish on the result (ED2's one action for what a Create did not build) */
+  onFixAndFinish?: () => void;
+  /** ED3: one button in place of the health instructions */
+  onCheckHealth?: () => void;
   /** n225: the data product's plan (productWords.planOf, with the review's plan); derived from outputs when absent */
   plan?: string;
   /** n225: whether this list is saved in the item in Fabric; Save again when it is not */
@@ -112,7 +120,8 @@ export function DataProductView(props: DataProductProps) {
   const saved = savedWords(props.saved);
   const [chosen, setChosen] = useState<string[]>(props.initialChosen ?? []);
   const [typed, setTyped] = useState(props.initialTyped ?? "");
-  const [owner, setOwner] = useState(props.outputs.product?.owner ?? "");
+  // ED3: filled: the saved owner, else the signed-in person by default (ED2's rule); saved only when changed
+  const [owner, setOwner] = useState(ownerShown(props.outputs.product?.owner, props.status?.you).owner);
   const busy = !!props.busy;
   const people: Person[] = props.status?.people ?? [];
   // n225: with nothing chosen, Retire is this data product's: its plan's items, never those of another plan
@@ -125,16 +134,23 @@ export function DataProductView(props: DataProductProps) {
       <style>{PRODUCT_CSS}</style>
       <h2>Data product: {props.productName}</h2>
       <div className="kg-dp-facts">
-        <p>{ownerWords(props.outputs.product)}</p>
-        <p>{props.health ?? healthWords(undefined)}</p>
+        <p>{ownerLine(props.outputs.product?.owner, props.status?.you) ?? ownerWords(props.outputs.product)}</p>
+        <p>{props.health ?? healthWords(undefined)}
+          {props.onCheckHealth && /not checked yet/i.test(String(props.health ?? healthWords(undefined))) && (
+            <> <button type="button" className="kg-dp-small" onClick={() => props.onCheckHealth?.()} disabled={busy}>Check health now</button></>
+          )}
+        </p>
         <p>{lastRunWords(props.outputs)}</p>
         <p>{planWords(props.outputs, plan)}</p>
       </div>
       {props.busy && props.waiting ? props.waiting
         : <p className="kg-dp-muted" aria-live="polite">{props.busy ? `${props.busy}` : summary(rows)}</p>}
       {props.problem && <p className="kg-dp-note" role="alert">{props.problem}</p>}
+      {adoptedLine(props.adopted ?? []) && <p className="kg-dp-note" role="status">{adoptedLine(props.adopted ?? [])}</p>}
+      {/* ED3: read when the page opens and after every action; this small button is the manual refresh */}
       <div className="kg-dp-actions">
-        <button type="button" onClick={() => props.onRefresh?.()} disabled={busy}>Read Fabric again</button>
+        <button type="button" className="kg-dp-small" onClick={() => props.onRefresh?.()} disabled={busy}
+          aria-label="Read Fabric again">Refresh</button>
       </div>
 
       <section aria-labelledby="kg-dp-owner">
@@ -162,7 +178,7 @@ export function DataProductView(props: DataProductProps) {
           <div className="kg-dp-actions"><button type="button" className="kg-dp-primary" onClick={() => props.onSaveAgain?.()} disabled={busy}>Save again</button></div>
         )}
         <p className="kg-dp-muted">{plan ? `Every item plan ${plan} built, from every Create of this item.` : "Every item this item's Creates built."}</p>
-        <ItemRows rows={rows} chosen={chosen} toggle={toggle} busy={busy} onOpen={props.onOpen} />
+        <ItemRows rows={rows} chosen={chosen} toggle={toggle} busy={busy} onOpen={props.onOpen} onFix={props.onFixAndFinish} />
         {others.length > 0 && (
           <details data-other-plans="">
             <summary>{others.length} item(s) this item built from another plan: not part of this data product</summary>
@@ -246,18 +262,30 @@ export function DataProductView(props: DataProductProps) {
   );
 }
 
-function ItemRows(props: { rows: ProductRow[]; chosen: string[]; toggle: (id: string) => void; busy: boolean; onOpen?: (row: ProductRow) => void }) {
+function ItemRows(props: { rows: ProductRow[]; chosen: string[]; toggle: (id: string) => void; busy: boolean; onOpen?: (row: ProductRow) => void; onFix?: () => void }) {
   const { chosen, toggle, busy } = props;
+  const failed = props.rows.filter((x) => x.state === "failed");
   return (
     <ul>
       {props.rows.map((x) => {
         const s = STATE[x.state];
+        const f = x.state === "failed" ? failedLine(x) : undefined;
         return (
           <li key={x.key} className="kg-dp-row" data-state={x.state}>
             <span className={`kg-dp-state tone-${s.tone}`}><span className="kg-dp-mark" aria-hidden="true">{s.mark}</span>{s.label}</span>
             <TypeName type={x.type || KIND_TYPE[x.output ?? ""]} text={x.typeLabel} />
             <span className="kg-dp-name">{x.name}</span>
-            {x.why && <span className="kg-dp-why">{x.why}</span>}
+            {/* ED3: a failed row: one line and ED2's one action; Fabric's message under Details */}
+            {f ? (
+              <>
+                <span className="kg-dp-why">{f.line}</span>
+                {f.details && <details className="kg-dp-why"><summary>Details</summary>{f.details}</details>}
+                {props.onFix && failed[0]?.key === x.key && (
+                  <span className="kg-dp-actions"><button type="button" className="kg-dp-primary" onClick={() => props.onFix?.()} disabled={busy}>
+                    {`Fix and finish (${failed.length} not built)`}</button></span>
+                )}
+              </>
+            ) : x.why && <span className="kg-dp-why">{x.why}</span>}
             {(x.openable && x.id) || (x.id && x.state !== "removed") ? (
               <span className="kg-dp-actions">
                 {x.openable && x.id && <button type="button" onClick={() => props.onOpen?.(x)}>Open in Fabric<span className="kg-dp-sr">: {x.name}</span></button>}
