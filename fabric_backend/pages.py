@@ -553,7 +553,7 @@ def _md_to_html(md: str, figures: dict | None = None) -> str:
             i += 1
             rendered = _md_to_html("\n".join(inner))
             out.append(figures[f.group(1)](rendered) if figures and f.group(1) in figures else rendered); continue
-        m = re.match(r"^(#{1,3}) (.*)", ln)
+        m = re.match(r"^(#{1,4}) (.*)", ln)                               # DOCV2: #### for a part of a docs page
         if m:
             flush(); n = len(m.group(1)); text = inline(m.group(2))
             out.append(f"<h{n} id=\"{_slug(m.group(2))}\">{text}</h{n}>" if n > 1 else f"<h1>{text}</h1>"); i += 1; continue
@@ -1508,13 +1508,15 @@ def docs_page_html(path: str) -> str:
     from . import offering
     figs.update(offering.figures())                                          # n177: the workload's permissions and screenshots
     from . import heading_sketch
-    figs["heading-sketch"] = heading_sketch.figure                           # DOCV1: the sketch on "Where Krusgraph is heading"
+    figs.update(heading_sketch.figures())                                    # DOCV1/DOCV2: the sketches on "Where Krusgraph is heading"
     body = _md_to_html(pg["md"], figs)
     # links between the parts of the old page go to the page that has the heading now
     body = re.sub(r'href="#([^"]+)"', lambda m: f'href="{where[m.group(1)]}#{m.group(1)}"' if where.get(m.group(1), path) != path
                   else m.group(0), body)
     if pg["depth"]:                                                         # the page's own heading is its h1
         body = re.sub(r'^<h([23]) id="([^"]+)">(.*?)</h\1>', r'<h1 id="\2">\3</h1>', body, count=1)
+    if pg["depth"] == 2:                                                    # DOCV2: a #### under that h1 is its h2
+        body = re.sub(r"<(/?)h4\b", r"<\1h2", body)
     own = [(i, t) for _n, i, t in re.findall(r'<h([23]) id="([^"]+)">(.*?)</h\1>', body)]
     otp = ("" if not own else '<aside class="docs-otp"><nav aria-label="On this page"><p class="docs-otp-h">On this page</p><ul>'
            + "".join(f'<li><a href="#{i}">{re.sub(r"<[^>]+>", "", t)}</a></li>' for i, t in own) + "</ul></nav></aside>")
