@@ -10,6 +10,8 @@ notebooks, like pipeline.CHECK_CODE (no %pip, no import of this library, only th
                 column, a column nothing uses dropped, a changed type) is recorded and the run goes on.
   HEALTH_CODE   the check notebook, after the check: one row per check in `krusgraph`.`health` (`krusgraph_health` on a
                 lakehouse without schemas), with the previous run of the same plan as the baseline.
+  RULES_CODE    BL14: the nightly rules notebook (monitor.daily_rules_cells) runs the rules a validated plan proved
+                (daily_rules): one row per rule (check "proven"), the change against the last run, and since when a rule broke.
   ALERT_CODE    in both: the table write and the optional Teams / Power Automate alert. The webhook address is read from
                 the owner's Azure Key Vault at run time (notebookutils.credentials.getSecret), never written in code.
 
@@ -30,7 +32,7 @@ TABLE = ("krusgraph", "health")                    # schema, table on a lakehous
 TABLE_FLAT = "krusgraph_health"                    # on a lakehouse without schemas
 WORDS = ("green", "amber", "red", "not checked yet")
 NOT_CHECKED = "not checked yet"
-CHECKS = ("key", "orphans", "join_rows", "join_sums", "row_count", "freshness", "quarantine", "drift")
+CHECKS = ("key", "orphans", "join_rows", "join_sums", "row_count", "freshness", "quarantine", "drift", "proven")
 DEFAULTS = {"row_drop": 0.5, "warn_intervals": 2, "fail_intervals": 3, "interval_minutes": 1440}
 PLAN_ID = re.compile(r"^plan-[0-9a-f]{6,64}$")
 
@@ -89,14 +91,16 @@ def _line(r):
     return f"{r['status'].upper()} {r['check']} {r['object']}{rule}{n}{was}"
 
 
-def alert_card(title, rows, alert_on="fail"):
+def alert_card(title, rows, alert_on="fail", lines=None):
     """The Adaptive Card a Teams workflow ("When a Teams webhook request is received") posts to a channel, or a Power
-    Automate HTTP trigger forwards as an e-mail. Built from the health rows only, so it carries no row value."""
+    Automate HTTP trigger forwards as an e-mail. Built from the health rows only, so it carries no row value. `lines`
+    (BL14): the text to show instead of one line per shown row, made from the same rows (the daily rules' "since when")."""
     shown = [r for r in rows if r["status"] == "fail" or (alert_on == "warn" and r["status"] == "warn")]
+    texts = list(lines) if lines is not None else [_line(r) for r in shown]
     body = [{"type": "TextBlock", "text": title, "weight": "Bolder", "size": "Medium", "wrap": True}]
-    body += [{"type": "TextBlock", "text": _line(r), "wrap": True, "spacing": "Small"} for r in shown[:30]]
-    if len(shown) > 30:
-        body.append({"type": "TextBlock", "text": f"... and {len(shown) - 30} more in the health table.", "wrap": True})
+    body += [{"type": "TextBlock", "text": t, "wrap": True, "spacing": "Small"} for t in texts[:30]]
+    if len(texts) > 30:
+        body.append({"type": "TextBlock", "text": f"... and {len(texts) - 30} more in the health table.", "wrap": True})
     if rows:
         body.append({"type": "TextBlock", "text": f"Run {rows[0]['run_id']}, plan {rows[0]['plan_id']}.", "wrap": True,
                      "spacing": "Small", "isSubtle": True})
@@ -112,7 +116,7 @@ def _post(url, card):
         return r.status
 
 
-def alert(title, rows, key_vault, secret_name, alert_on, get_secret, post=None):
+def alert(title, rows, key_vault, secret_name, alert_on, get_secret, post=None, lines=None):
     """Posts the card when a check failed (or warned, with alert_on = "warn") and the owner set a Key Vault and a secret
     name. Returns what happened in words; never raises, so the run's own verdict decides, and the address (which carries
     its own signature) is never printed."""
@@ -128,7 +132,7 @@ def alert(title, rows, key_vault, secret_name, alert_on, get_secret, post=None):
     if not str(url or "").lower().startswith("https://"):
         return "No alert sent: the secret is not an https:// address (a Teams workflow or Power Automate HTTP trigger)."
     try:
-        status = (post or _post)(url, alert_card(title, rows, alert_on))
+        status = (post or _post)(url, alert_card(title, rows, alert_on, lines))
     except Exception as e:  # noqa: BLE001 - the address is never shown
         return f"The alert could not be sent ({type(e).__name__}); the address is not shown."
     return f"Alert sent (HTTP {status})." if int(status or 0) < 300 else f"The webhook answered HTTP {status}."
@@ -218,7 +222,7 @@ def previous_run(execute, exists, parts, plan_id, run_id):
     if not exists(name):
         return {}
     last = _one(execute, f"SELECT run_id FROM {name} WHERE plan_id = {_lit(plan_id)} AND run_id <> {_lit(run_id)} "
-                         f"ORDER BY checked_at DESC LIMIT 1")
+                         f"AND `check` <> 'proven' ORDER BY checked_at DESC LIMIT 1")      # BL14: the daily rules' runs apart
     if not last.get("run_id"):
         return {}
     rows = execute(f"SELECT `check` AS c, object AS o, rule AS r, `count` AS n FROM {name} "
@@ -329,6 +333,102 @@ def health_title(label, rows):
     return f"Krusgraph health for {label}: " + (f"{warns} warning(s)" if warns else "all checks passed")
 '''.strip("\n") + "\n"
 
+# BL14 (P-27): the proven rules as a daily check. The rule set (daily_rules below) is plain data made from a validated
+# plan; this code runs it, in the nightly rules notebook (monitor.daily_rules_cells) after ALERT_CODE. Each rule is one
+# read-only statement whose one row has a count `n`; the rule holds while n stays at or below what was counted when the
+# plan was validated. One row per rule in the health table (check "proven", the rule id in `rule`), never a row value.
+RULES_CODE = r'''
+def _rlit(v):
+    return "'" + str(v).replace("'", "''") + "'"
+
+
+def last_rules_run(execute, exists, parts, plan_id, run_id):
+    """{rule id: (status, count, checked_at)} of the latest earlier run of the daily rules of this plan; {} the first time."""
+    name = _hq(parts)
+    if not exists(name):
+        return {}
+    last = execute(f"SELECT run_id FROM {name} WHERE plan_id = {_rlit(plan_id)} AND `check` = 'proven' "
+                   f"AND run_id <> {_rlit(run_id)} ORDER BY checked_at DESC LIMIT 1")
+    if not last:
+        return {}
+    rows = execute(f"SELECT rule AS r, status AS s, `count` AS n, checked_at AS t FROM {name} WHERE plan_id = {_rlit(plan_id)} "
+                   f"AND `check` = 'proven' AND run_id = {_rlit(last[0]['run_id'])}")
+    return {r["r"]: (r["s"], None if r["n"] is None else int(r["n"]), r["t"]) for r in rows}
+
+
+def run_rules(rules, execute, ctx, last):
+    """One health row per rule: pass while the count is at or below the rule's `allowed`, else fail. A statement that
+    cannot run (a table gone) is a fail with an empty count. `last` is last_rules_run's answer, for the baseline."""
+    rows = []
+    for rule in rules:
+        before = last.get(rule["id"])
+        try:
+            got = execute(rule["sql"])
+            n = int((got[0].get("n") if got else 0) or 0)
+            status = "pass" if n <= rule["allowed"] else "fail"
+        except Exception:  # noqa: BLE001 - the rule cannot be checked; its reason is the table's own, never a value
+            n, status = None, "fail"
+        rows.append(health_row(ctx, "proven", rule["object"], rule["id"], status, n, before[1] if before else None))
+    return rows
+
+
+def change(row, last):
+    """The change against the last run, in words: "first run", "new break", "still broken", "fixed", "unchanged"."""
+    before = last.get(row["rule"])
+    if before is None:
+        return "first run" if row["status"] == "pass" else "new break"
+    if row["status"] == "fail":
+        return "still broken" if before[0] == "fail" else "new break"
+    return "fixed" if before[0] == "fail" else "unchanged"
+
+
+def _when(t):
+    if t is None:
+        return "?"
+    if isinstance(t, str):
+        t = datetime.fromisoformat(t.replace("Z", "+00:00"))
+    return t.strftime("%Y-%m-%d %H:%M") + " UTC"
+
+
+def broken_since(execute, exists, parts, plan_id, rule_id, now):
+    """When the rule's current break began: the earliest run of the unbroken row of fails up to now, and the last run it
+    passed (None when it never did). A rule that passes now has no "since"."""
+    name = _hq(parts)
+    history = execute(f"SELECT status AS s, checked_at AS t FROM {name} WHERE plan_id = {_rlit(plan_id)} AND `check` = 'proven' "
+                      f"AND rule = {_rlit(rule_id)} ORDER BY checked_at DESC LIMIT 400") if exists(name) else []
+    since, passed, runs = now, None, 1
+    for h in history:
+        if h["s"] == "fail":
+            since, runs = h["t"], runs + 1
+        else:
+            passed = h["t"]
+            break
+    return since, passed, runs
+
+
+def rule_lines(rules, rows, last, since):
+    """The alert's text, one line per broken rule: which rule, what it says, the count against what was counted, since
+    when, and the change against the last run. Built from the rule set and the counts only, so it carries no row value."""
+    by_id = {r["id"]: r for r in rules}
+    out = []
+    for row in rows:
+        if row["status"] != "fail":
+            continue
+        rule = by_id[row["rule"]]
+        s, passed, runs = since[row["rule"]]
+        n = "could not be counted (the statement failed: a table or column gone?)" if row["count"] is None else \
+            f"{row['count']} {rule['unit']}, allowed {rule['allowed']} (counted when the plan was validated)"
+        out.append(f"BROKE {row['rule']}: {rule['says']}. Now {n}; broken since {_when(s)} ({runs} run(s), {change(row, last)})"
+                   + (f"; last held {_when(passed)}." if passed is not None else "; it has not held since the daily check began."))
+    return out
+
+
+def rules_title(label, rows):
+    fails = sum(r["status"] == "fail" for r in rows)
+    return (f"Krusgraph daily rules for {label}: {fails} of {len(rows)} rule(s) broke" if fails else
+            f"Krusgraph daily rules for {label}: all {len(rows)} rule(s) hold")
+'''.strip("\n") + "\n"
+
 # The library runs the same text the notebooks run (the tests check that code). CHECK_CODE's helpers (_one, _tbl) come
 # first, as in the check notebook.
 _NS: dict = {}
@@ -338,7 +438,7 @@ def namespace() -> dict:
     """CHECK_CODE + ALERT_CODE + DRIFT_CODE + HEALTH_CODE executed together, as the notebooks execute them."""
     if not _NS:
         from .pipeline import CHECK_CODE
-        exec(compile(CHECK_CODE + ALERT_CODE + DRIFT_CODE + HEALTH_CODE, "<krusgraph health notebook code>", "exec"), _NS)
+        exec(compile(CHECK_CODE + ALERT_CODE + DRIFT_CODE + HEALTH_CODE + RULES_CODE, "<krusgraph health notebook code>", "exec"), _NS)
     return _NS
 
 
@@ -509,6 +609,101 @@ HEALTH_PARAMS_TEXT = (
     "ROW_COUNT_DROP = 0.5           # warn when a table's rows fall by this share or more since the last run of this plan\n"
     "FRESHNESS_WARN_INTERVALS = 2   # warn when a source table was last written more than this many schedule intervals ago\n"
     "FRESHNESS_FAIL_INTERVALS = 3   # fail after this many\n")
+
+
+# ------------------------------------------------------------------ BL14: the proven rules as a daily rule set -------
+
+def _spark_sql(sql: str, schema: str, schemas_enabled: bool) -> str:
+    """Spark SQL as made for `schema`.`table`; on a lakehouse without schemas the schema part goes (a column is always
+    written s.`col` or t.`col`, so only table names start with the quoted schema and a dot)."""
+    from .dialects import DATABRICKS
+    return sql if schemas_enabled else sql.replace(DATABRICKS.quote(schema) + ".", "")
+
+
+def level_sql(schema: str, table: str, header_cols: list[str], amount: str) -> str:
+    """Header values whose amount is not one value: more than one distinct amount, or a NULL beside a value (the same
+    reading as amounts.flat_sql's differs). Counts only."""
+    from .dialects import DATABRICKS as D
+    q = D.quote
+    cs = ", ".join(q(c) for c in header_cols)
+    not_null = " AND ".join(f"{q(c)} IS NOT NULL" for c in header_cols)
+    return (f"SELECT COUNT(*) AS n FROM (SELECT {cs} FROM {D.table(schema, table)} WHERE {not_null} GROUP BY {cs} "
+            f"HAVING COUNT(DISTINCT {q(amount)}) > 1 OR (COUNT({q(amount)}) > 0 AND COUNT({q(amount)}) < COUNT(*))) AS g")
+
+
+def daily_rules(plan, validation: dict, plan_mark: dict, schemas_enabled: bool = True) -> dict:
+    """The rule set the nightly rules notebook runs, made from validate_plan's answer (evidence.validate) for `plan`:
+
+      key:<table>                       each key counted unique (no NULL, no duplicate) stays so: allowed 0
+      orphans:<source>.<cols>:<target>  each counted relationship's orphans stay at or below the counted number
+      level:<table>.<amount>            each counted header amount stays one value per header: allowed 0
+
+    Only what was counted is a rule. A key that was not unique, a relationship or amount that was not counted, and a
+    conditional (extended) relationship are listed under `not_rules` with the reason, never checked as if proven. Each
+    rule carries its own read-only Spark SQL (the same statements validate_plan counts with, in Spark's dialect), so the
+    notebook needs no library. Names, counts and SQL only; no row value."""
+    from . import evidence
+    from .dialects import DATABRICKS
+    from .sap_pack import initial_columns
+    schema = plan.schema.schema
+    spark = lambda sql: _spark_sql(sql, schema, schemas_enabled)            # noqa: E731
+    rules, skipped = [], []
+    keys = list(validation.get("keys", []))
+    unique = {k["table"]: str(k.get("verdict", "")).startswith("unique") for k in keys}
+    for k in keys:
+        rid = f"key:{k['table']}"
+        if not unique[k["table"]]:
+            skipped.append({"id": rid, "why": f"not proven: {k.get('verdict', 'not counted')}"})
+            continue
+        cols = list(k["columns"])
+        sql = f"SELECT n - distinct_keys AS n FROM ({evidence.key_sql(schema, k['table'], cols, DATABRICKS)}) AS k"
+        rules.append({"id": rid, "kind": "key", "object": f"{schema}.{k['table']}", "allowed": 0,
+                      "says": f"{k['table']}.{'+'.join(cols)} stays unique with no NULL (rule {k.get('rule', '')})",
+                      "unit": "NULL or duplicate key row(s)", "sql": spark(sql)})
+    for r in validation.get("relationships", []):
+        rid = f"orphans:{r.get('source')}.{'+'.join(r.get('columns', []))}:{r.get('target')}"
+        if "kind" in r or "orphans" not in r:
+            skipped.append({"id": rid, "why": "not proven: a conditional relationship, not a key join" if "kind" in r else
+                            "not proven: not counted"})
+            continue
+        sap = r.get("rule") == "SAP pack"
+        initial = initial_columns(r["source"], r["columns"], r["target"]) if sap else []
+        rel = evidence.relationship_sql(schema, r["source"], list(r["columns"]), r["target"], list(r["target_columns"]),
+                                        DATABRICKS, blank_is_none=sap, target_unique=evidence.target_key_unique(
+                                            keys, r["target"], list(r["target_columns"])), initial=initial or None)
+        rules.append({"id": rid, "kind": "orphans", "object": f"{schema}.{r['source']}.{'+'.join(r['columns'])}",
+                      "allowed": int(r["orphans"]),
+                      "says": (f"every {r['source']} row with a value in {', '.join(r['columns'])} finds its {r['target']} row, "
+                               f"but for at most {int(r['orphans'])} (rule {r.get('rule', '')})"),
+                      "unit": f"{r['source']} row(s) without their {r['target']} row",
+                      "sql": spark(f"SELECT COALESCE(orphans, 0) AS n FROM ({rel}) AS r")})
+    for n in validation.get("not_counted", []):
+        skipped.append({"id": n.get("id", ""), "why": f"not proven: {n.get('evidence', 'not counted')}"})
+    levels = validation.get("amount_levels") or {}
+    for f in levels.get("findings", []):
+        for col in f["amount_columns"]:
+            rid = f"level:{f['header']}.{col}"
+            if not isinstance(f.get("rows_per_header"), dict):
+                skipped.append({"id": rid, "why": "not proven: the lines per header were not counted"})
+            elif not unique.get(f["header"]):
+                skipped.append({"id": rid, "why": f"not proven: the key of {f['header']} was not counted unique"})
+            else:
+                rules.append({"id": rid, "kind": "level", "object": f"{schema}.{f['header']}.{col}", "allowed": 0,
+                              "says": (f"{f['header']}.{col} stays one value per {f['header']} "
+                                       f"({'+'.join(f['header_columns'])}), the level it was counted at"),
+                              "unit": f"{f['header']} value(s) with more than one {col}",
+                              "sql": spark(level_sql(schema, f["header"], list(f["header_columns"]), col))})
+    for e in levels.get("flat_tables", []):
+        rid = f"level:{e['table']}.{e['amount_column']}"
+        if not e.get("pattern"):
+            continue                                       # not a header amount: nothing was proven about its level
+        rules.append({"id": rid, "kind": "level", "object": f"{schema}.{e['table']}.{e['amount_column']}", "allowed": 0,
+                      "says": f"{e['table']}.{e['amount_column']} stays one value per {e['header_column']}, the level it was counted at",
+                      "unit": f"{e['header_column']} value(s) with more than one {e['amount_column']}",
+                      "sql": spark(level_sql(schema, e["table"], [e["header_column"]], e["amount_column"]))})
+    return {"table": table_parts(schemas_enabled), "plan_id": plan_mark.get("plan_id") or "",
+            "schema_fingerprint": plan_mark.get("schema_fingerprint") or "", "schema": schema, "rules": rules,
+            "not_rules": skipped}
 
 
 # ------------------------------------------------------------------ what the item reads -----------------------------
