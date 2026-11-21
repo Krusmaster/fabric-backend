@@ -54,6 +54,7 @@ runtime dependencies; `argparse` does the job), and session files (nothing is st
 | `sap` | `sap_pack.draft` (`sap_pack_draft`) | no |
 | `analysis` | `analysis_plan.recommend` (`analysis_plan`, round AP2) | yes |
 | `skill` | prints SKILL.md | no source |
+| `demo faults` | `shop_faults.check` and `receipt.build`: five planted faults, what was found, the SQL that proves it (round BL21, `docs/demo/PLANTED-FAULTS-WALK.md`) | no source: builds the synthetic sample in memory |
 
 Sources: `--sample sap|sap36|shop` (in the package), `--folder DIR` (CSV/xlsx, one table each), `--columns FILE`
 (an INFORMATION_SCHEMA.COLUMNS export, names only), `--odbc-from-env` (the connection string in `FABRIC_ODBC`, the
