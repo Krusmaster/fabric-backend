@@ -194,7 +194,7 @@ def _drafts(p) -> dict:
     model_rels = [{"source": r.source, "columns": r.source_cols, "target": r.target,
                    "active": (r.source, tuple(r.source_cols), r.target) not in off}
                   for r in p.relationships if (r.source, tuple(r.source_cols), r.target) not in skipped]
-    d = domains.propose_plan(p)
+    d = domains.data_products(p)                          # ED2: the grouping the editor shows
     v = evidence.validate(p, _demo_db())
     held = [r for r in v["relationships"] if r.get("orphans") == 0]
     return {

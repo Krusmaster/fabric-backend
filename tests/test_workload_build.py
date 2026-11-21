@@ -243,7 +243,8 @@ def test_create_builds_the_flow_the_model_and_its_report_and_says_what_is_left(m
     # n184: no tool names; the model was not refreshed here (no permission), so the report keeps "refresh it once"
     assert cards["report"]["portal_steps"] == [x for x in server.REPORT_AFTER_CREATION if "export_item_definitions" not in x]
     assert cards["silver_notebook"]["portal_steps"] == cards["silver_notebook"]["answer"]["run"]
-    assert cards["pipeline"]["portal_steps"][0] == pipeline.NOT_RUN and "schedule" in cards["pipeline"]["portal_steps"][1]
+    # ED2: one step to run it and one line on the schedule (no "Krusgraph adds none")
+    assert cards["pipeline"]["portal_steps"] == [workload_api.RUN_STEP, workload_api.NO_SCHEDULE_LINE]
     # nothing ran and nothing was scheduled
     assert not [c for c in fake.calls if "/jobs/" in c[1] or "schedules" in c[1]]
     # the data product: the created items with their ids, the plan's version, the domains domain_draft proposes
