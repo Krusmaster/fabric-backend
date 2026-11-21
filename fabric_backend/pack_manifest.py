@@ -8,7 +8,7 @@ reviewed it. Its sections `sources`, `entities`, `candidate_relationships` and `
 reviewed_by, reviewed_at, and `check` per trap. The test (tests/test_pack_manifest.py) runs problems() on every
 manifest: every rule in the module files has a row in the manifest and the other way round, so the two cannot drift.
 
-    load(pack)            -> the manifest as a dict (needs PyYAML, which the test extra installs)
+    load(pack)            -> the manifest as a dict (read by parse(), without PyYAML; SRC3)
     header(pack)          -> {id, version, review_status} read without PyYAML, for a tool's answer
     derive(pack)          -> the derived sections, from the module files
     problems(manifest)    -> what differs between the manifest and the module files, and what is malformed
@@ -52,8 +52,56 @@ def available() -> list[str]:
 
 
 def load(pack: str) -> dict:
-    import yaml
-    return yaml.safe_load(path(pack).read_text(encoding="utf-8"))
+    """The manifest as a dict. Read without PyYAML (SRC3): the server image has no PyYAML (it is in the test extra
+    only), and the public /sources pages read the manifests. tests/test_src3_no_yaml.py checks that parse() gives what
+    yaml.safe_load gives for every manifest."""
+    return parse(path(pack).read_text(encoding="utf-8"))
+
+
+def _value(text: str):
+    """A scalar or flow value as render() writes it: JSON, or a plain word (_PLAIN)."""
+    text = text.strip()
+    if text == "":
+        return None
+    if text[0] in "\"[{" or text in ("true", "false", "null") or re.fullmatch(r"-?\d+(\.\d+)?", text):
+        return json.loads(text)
+    if _PLAIN.match(text) or re.fullmatch(r"\d+(\.\d+)+", text):
+        return text
+    raise ValueError(f"not in the manifest layout: {text!r}")
+
+
+def parse(text: str) -> dict:
+    """The manifest text in the layout render() writes (top-level keys; under a key either `  - <JSON>` rows or
+    `  <name>: <value>` pairs), read without a YAML library. Anything else raises ValueError."""
+    out: dict = {}
+    key = None
+    for n, line in enumerate(text.splitlines(), 1):
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if not line.startswith(" "):
+            k, sep, rest = line.partition(":")
+            if not sep:
+                raise ValueError(f"line {n}: no key")
+            key = k.strip()
+            out[key] = _value(rest)
+        elif key is None:
+            raise ValueError(f"line {n}: indented line before any key")
+        elif line.lstrip().startswith("- "):
+            if out[key] is None:
+                out[key] = []
+            if not isinstance(out[key], list):
+                raise ValueError(f"line {n}: a row under a mapping")
+            out[key].append(_value(line.lstrip()[2:]))
+        else:
+            k, sep, rest = line.strip().partition(":")
+            if not sep:
+                raise ValueError(f"line {n}: no key")
+            if out[key] is None:
+                out[key] = {}
+            if not isinstance(out[key], dict):
+                raise ValueError(f"line {n}: a pair under a list")
+            out[key][_value(k) if k[:1] in "\"'" else k] = _value(rest)
+    return out
 
 
 def header(pack: str) -> dict:
