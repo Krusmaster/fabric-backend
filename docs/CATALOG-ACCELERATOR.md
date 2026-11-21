@@ -134,6 +134,51 @@ Every write answer carries `undo`: Update Item with the description that was the
 ids that were added. Send them as the same person, or put the description back in the item's settings and remove the
 tags in Fabric. Nothing is deleted, and endorsement is never touched.
 
+## The catalog draft's quality line and tags (BL29)
+
+> 21 November 2026, round BL29 (backlog P-15). Code: `fabric_backend/catalog.py` (`quality`, `TAG_SET`), the draft
+> that `export_item_definitions(items=["catalog"])` returns. Status: unit tests and the golden answers. **Not run
+> against Fabric; nothing is sent.**
+
+The catalog draft (round n116) writes a description for every Fabric item a plan touches. Each description now ends
+with one dated quality line, taken from the plan's one count (`counts.summary`, BL3), so the proof sits beside the item
+in the OneLake catalog:
+
+- With a check (`check_rows=true`): "Quality checked 2026-11-21: keys 6 of 6 hold; links 7 of 7 hold." What fails, has
+  no rows or was not counted is said in the line ("keys 5 of 6 hold, 1 fails"), never folded into "hold".
+- Without one: "Quality: not checked yet." The line then has no date and never says "hold".
+- The date is ISO (YYYY-MM-DD), the day of the check. The line has the counts only: no row value and no column name.
+- The line is always kept whole. When a description is too long for the 256 characters, the text before it is
+  shortened instead.
+
+The answer also has `quality` (the date, the tallies and the line) and `tag_set` (the list below).
+
+One description before and after, the shop demo's lakehouse with `check_rows=true`:
+
+| | Description |
+| --- | --- |
+| Before | Schema shop, planned by Krusgraph: 7 tables (3 facts; 4 dimensions), 6 with a key (K2, K5); 7 relationships (R1, R5), counted: 6 of 6 keys unique, 7 of 7 relationships without orphans; proposed domains: customers, products. |
+| After | Schema shop, planned by Krusgraph: 7 tables (3 facts; 4 dimensions), 6 with a key (K2, K5); 7 relationships (R1, R5); proposed domains: customers, products. Quality checked 2026-11-21: keys 6 of 6 hold; links 7 of 7 hold. |
+
+### The tags
+
+A fixed set, in this order, at most 10 per item and 40 characters per tag. No tag has a date in it, so two runs on the
+same plan give the same tags (with or without a check, the only difference is `krusgraph-checked`).
+
+| Tag | When |
+| --- | --- |
+| `Krusgraph` | always: the description was drafted by Krusgraph |
+| `krusgraph-checked` | a check was given (`check_rows=true`). It says the plan was counted, not that everything holds; the quality line says what holds |
+| `krusgraph-sap` | the plan's keys and links came from the SAP knowledge pack |
+| `krusgraph-dynamics365` | they came from the Dynamics 365 pack |
+| `krusgraph-salesforce` | they came from the Salesforce pack |
+| `krusgraph-younium-salesforce` | they came from the Younium and Salesforce pack |
+| `domain: <name>` | one per domain that `domain_draft` proposes for the plan's tables |
+
+Tags are applied by id: an administrator creates the ones the tenant does not have (the draft's `tag_setup` lists the
+calls). The catalog search matches the description, not the tags, so the quality line is what makes a checked item
+findable there; the tags filter in the OneLake catalog.
+
 ## Decisions for Gustav
 
 1. Whether to add `Tag.Read.All` to the apps, so tags can be found by name. This is an Entra change and needs-gustav.
