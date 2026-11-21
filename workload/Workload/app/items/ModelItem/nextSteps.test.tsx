@@ -55,8 +55,8 @@ describe("W13: next steps with other Fabric workloads", () => {
     const n = nextSteps({ review: REVIEW, created: [], source: SOURCE });
     expect(n.steps.map((s) => `${s.workload}: ${s.status}`)).toEqual([
       "Data Science: starter", "Power BI: builds", "Data agent: builds", "Data Factory: builds", "Data Engineering: builds",
-      "Fabric IQ: builds", "Real-Time Intelligence: in Claude", "Apps: builds",
-    ]);
+      "Fabric IQ: builds", "Apps: builds",
+    ]);   // SM3: the drift monitor (a typed request for Claude) is hidden until it has a Dry run here
     const kinds = new Set(KINDS.map((k) => k.kind));
     for (const s of n.steps) {
       expect(s.why.length).toBeGreaterThan(20);
@@ -86,11 +86,16 @@ describe("W13: next steps with other Fabric workloads", () => {
     expect(n.steps.map((s) => s.id)).not.toContain("drift");
   });
 
-  it("hands the drift monitor over as a request for Claude, with the dry run", () => {
-    const d = nextSteps({ review: REVIEW, created: [], source: SOURCE }).steps.find((s) => s.id === "drift");
-    expect(d?.how).toEqual({ kind: "ask", label: "Copy the request for Claude",
-      text: "Show a drift monitor for demo_lh (schema shop) as a dry run: run create_drift_monitor with dry_run=true." });
-    expect(d?.note).toContain("guide only");
+  it("SM3: hands nothing over as a request to copy for Claude (the drift monitor is hidden until it has a Dry run)", () => {
+    const all = [nextSteps({ review: REVIEW, created: [], source: SOURCE }),
+      nextSteps({ review: REVIEW, created: [{ type: "SemanticModel", output: "semantic_model", name: "m" }], source: SOURCE })];
+    for (const n of all) {
+      expect(n.steps.map((s) => s.id)).not.toContain("drift");
+      for (const s of n.steps) {
+        expect(s.how.kind).not.toBe("ask");
+        expect(`${s.note ?? ""} ${s.why}`).not.toMatch(/Ask Krusgraph in Claude|Copy the request/);
+      }
+    }
   });
 });
 
@@ -134,10 +139,11 @@ describe("W13: the panel", () => {
     expect(html).toContain('aria-labelledby="kg-next-title"');
     expect(html).toContain("Next, with other Fabric workloads");
     expect(html).toContain("Suggestions by rules from what was proven; no AI.");
-    for (const w of ["Krusgraph builds it", "Starter to download", "Krusgraph in Claude"]) expect(html).toContain(w);
+    for (const w of ["Krusgraph builds it", "Starter to download"]) expect(html).toContain(w);
+    expect(html).not.toContain("Copy the request for Claude");
     expect(html).toContain('data-file="orders_features.ipynb"');   // WB10: offered through fileOffer.tsx
     expect(html).toContain("Download notebook (.ipynb)");
-    expect((html.match(/class="kg-next-card"/g) ?? []).length).toBe(8);
+    expect((html.match(/class="kg-next-card"/g) ?? []).length).toBe(7);
   });
 
   it("says what to do first when nothing is proven yet", () => {
@@ -151,15 +157,16 @@ describe("W13: where you are", () => {
   it("marks the step now, the steps done and ahead, and which can be gone back to", () => {
     const s = flowSteps("outputs", { review: true, preview: false, built: false });
     expect(s.map((x) => `${x.label}:${x.state}:${x.canGo}`)).toEqual([
-      "Source:done:true", "Keys and links:done:true", "Choose:now:false", "Dry run:ahead:false", "Built:ahead:false", "Data product:ahead:false",
+      "Your data:done:true", "Check:done:true", "Decide:now:false", "Dry run:ahead:false", "Create:ahead:false",
     ]);
-    expect(stepLine(s)).toBe("Step 3 of 6 · Choose · Next: Dry run");
+    expect(stepLine(s)).toBe("Step 3 of 5 · Decide · Next: Dry run");   // SM3: the chat's five steps and words
+    expect(stepLine(flowSteps("product", { review: true, preview: true, built: true }))).toBe("Step 5 of 5 · Create");
   });
 
   it("is a navigation landmark with aria-current on the step now", () => {
     const html = renderToStaticMarkup(<FlowSteps steps={flowSteps("review", { review: true, preview: false, built: false })} onGo={() => undefined} />);
     expect(html).toContain('<nav class="kg-steps" aria-label="Where you are">');
-    expect(html).toMatch(/<li class="kg-step kg-step-now" aria-current="step">.*Keys and links/);
+    expect(html).toMatch(/<li class="kg-step kg-step-now" aria-current="step">.*Check/);
     expect((html.match(/aria-current/g) ?? []).length).toBe(1);
   });
 

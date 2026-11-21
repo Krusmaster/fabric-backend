@@ -80,7 +80,9 @@ function client(slowSave: boolean) {
       getItemDefinition: vi.fn(async () => ({ definition: { parts: [
         part("item.json", { version: 1, format: "krusgraph-model", view: "review" }),
         part("source.json", { version: 1, platform: "fabric", workspaceId: WS, itemId: LH, itemType: "Lakehouse", displayName: "demo_lh", schema: "dbo" }),
-        part("outputs.json", { version: 1, outputs: [], created: [] }),
+        // SM3: the item saved one output (the API for GraphQL), so the test follows one card; a new item starts with the
+        // default build (buildWords.test.ts)
+        part("outputs.json", { version: 1, outputs: [{ type: "graphql", name: "demo_lh_api", enabled: true }], created: [] }),
         part("review.json", { format: "krusgraph-review", version: 1, plan_id: "p1", source: {}, items: [] }),
       ] } })),
       // Fabric slow to save: every save waits until the test releases it
@@ -140,7 +142,7 @@ async function open(slowSave = false) {
 
 async function toDryRun(slowSave = false) {
   const wc = await open(slowSave);
-  await act(async () => { button(/^Preview$/).click(); });
+  await act(async () => { button(/^Dry run$/).click(); });
   await flush();
   expect(host.textContent).toMatch(/Dry run/);
   return wc;
@@ -188,7 +190,7 @@ describe("n222: suggested data products", () => {
     const box = host.querySelector('[data-product="products"] input[type="checkbox"]') as HTMLInputElement;
     await act(async () => { box.click(); });
     await flush();
-    await act(async () => { button(/^Preview$/).click(); });
+    await act(async () => { button(/^Dry run$/).click(); });
     await flush();
     const opts = (engine.buildMany as unknown as { mock: { calls: unknown[][] } }).mock.calls[0][8] as { products?: unknown[] };
     expect(opts.products).toEqual([{ id: "products", name: "products" }]);
@@ -204,7 +206,7 @@ describe("n222: the dry run's progress line", () => {
       (_a: unknown, _b: unknown, _c: unknown, _d: unknown, _e: unknown, _f: unknown, _g: unknown, _h: unknown, opts: { onWait: (s: unknown) => void }) =>
         new Promise((r) => { hold.progress = opts.onWait; finish = r; }));
     await open();
-    await act(async () => { button(/^Preview$/).click(); });
+    await act(async () => { button(/^Dry run$/).click(); });
     await flush();
     expect(host.textContent).toMatch(/Preparing the dry run of each output/);
     await act(async () => { hold.progress?.({ kind: "engine", words: "Dry run: 3 of 6 outputs prepared (Silver notebook, Gold views, API for GraphQL)." }); });
