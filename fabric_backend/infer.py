@@ -227,7 +227,11 @@ class Plan:
         if self.decisions and self.decisions.get("rules"):
             from .decisions import summary_line
             lines.append(summary_line(self.decisions))
-        if self.pack:
+        if self.pack and len(self.pack.get("by_schema") or {}) > 1:     # SM5: one pack per schema of a combined plan
+            per = ", ".join(f"{k}: {v}" for k, v in self.pack["by_schema"].items())
+            lines.append(f"{len(self.pack['tables'])} table(s) recognised by a pack per schema ({per}): keys and relationships "
+                         "from their public sources, to be checked with validate_plan — see plan.pack")
+        elif self.pack:
             lines.append(f"{len(self.pack['tables'])} table(s) recognised by the {self.pack['pack']} pack: keys and relationships from its "
                          f"public sources (rule \"{self.label(self.pack['rule'])}\"), to be checked with validate_plan — see plan.pack")
         return "\n".join(lines)
@@ -1024,7 +1028,9 @@ def check_tables(schema: Schema, tables: list[str] | None) -> None:
 
 def _pack(schema: Schema, keys: dict[str, list[str]] | None) -> tuple[dict | None, dict[str, list[str]], list[dict], set[str]]:
     """What the knowledge packs recognise in the schema: (summary for plan.pack, keys, relationships, tables)."""
-    from . import propose, sap_pack
+    from . import multi_schema, propose, sap_pack
+    if multi_schema.is_multi(schema.schema):       # SM5 (G4): each schema of a combined plan gets its own pack
+        return multi_schema.packs(schema, keys, _pack)
     m = sap_pack.match_any(schema)                 # SAP, or Younium + Salesforce (round n78); see match_any for when a pack counts
     # F2: tables the SAP pack does not know by name but whose first columns are a pack table's key (propose.signature_aliases).
     # The pack then matches over the same tables under their pack names; a match that recognises no more tables is dropped.
