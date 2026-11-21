@@ -381,3 +381,40 @@ What changed:
 - Not done here: silver, gold, the model, ontology and agent over a combined plan, and writing to `silver_lh` and
   `gold_lh` (SM6); matching across sources and conformed gold (SM7). The fixture's `EXPECTED` already lists what they
   must say.
+
+## 14. After SM6: write to the right lakehouse (21 November 2026)
+
+PLAN.md row 5, gaps G2 and G3 of MULTI-LAKEHOUSE.md. Everything below ran locally on SM5's fixture
+`tests/fixtures/multi_lakehouse.py`, layout (a): `bronze_lh` (the SAP demo's 17 tables in `sap`), `silver_lh` and
+`gold_lh` (empty). Synthetic rows only. Nothing reached Fabric; any POST, PATCH, PUT or DELETE fails the test. Tests:
+`tests/test_sm6_write_targets.py`.
+
+| Measure | Before (main, 21 Nov) | After SM6 |
+|---|---|---|
+| (a) where the pipeline writes | silver and gold in `bronze_lh`, under new schemas | **silver → `silver_lh`, gold → `gold_lh`**, said in one line on the first card and the dry run |
+| (a) how the silver notebook reads the source | | `bronze_lh` through its OneLake path (`abfss://…/<bronze_lh id>/Tables`), never changed; the notebook is attached to `silver_lh` |
+| (a) how gold and the check read silver | | `silver_lh`.`silver`.`<table>`, the three-part Spark name; both notebooks attached to `gold_lh` |
+| (a) the model, the ontology, the agent | the source (`bronze_lh`) | model and ontology: the silver tables in `silver_lh`; agent: `gold_lh` (layer gold) or `silver_lh` (layer silver) |
+| (a) Start → all three dry runs, the suggestion taken | (step 1 waited before SM5) | **4 taps, 0.6 s** locally, server side, no browser (3 runs: 0.63, 0.61, 0.55 s), 0 writes |
+| One-lakehouse demo, lazy path, Start → all three dry runs (tools/smooth_measure.py, 390 px, the same machine) | main: 4 taps, 2.92 s | **4 taps, 3.00 s** (`measure-sm6-2026-11-21.json`); no step scrolls. SM5 measured 2.8 s on another machine; the one-lakehouse path does not reach SM6's code (its source is not named as the raw layer) |
+
+What changed:
+- **Two parameters (G2).** `target_lakehouse` (the silver tables) and `gold_lakehouse` (the gold views and the
+  pipeline's check; empty: beside silver) on `create_pipeline`, `create_silver_notebook` and `create_gold_views` (not on
+  the read-only drafts, so the read-only listing stays under its cap). A lakehouse of the source's workspace, chosen by name; one that is not
+  there is refused with what to do, and nothing is written. Empty, or the source itself, changes nothing.
+- **What reads it (G3).** `target_lakehouse` on `create_semantic_model` and `create_ontology`: they read the silver
+  tables where the build wrote them, and the model's dry run says first when they are not there yet ("Run the
+  pipeline once first"). `create_data_agent` reads `gold_lakehouse` for layer gold and `target_lakehouse` for silver.
+- **Start (name rule L1).** When the source is named as the raw layer and exactly one other lakehouse is named silver,
+  the dry run and Create pass the targets; gold goes to the one named gold, else beside silver. The first card and the
+  dry run say "silver → silver_lh, gold → gold_lh". Start's default data agent still reads the source tables.
+
+Decision for Gustav: PLAN.md said the model's expression points at `gold_lh`. It points at `silver_lh`, because gold is
+one wide view per fact table and the model's star (dimensions, facts and their relationships) is the silver tables. A
+model over `gold_lh` needs the star in gold first (for example one materialized lake view per silver table, or a schema
+shortcut), which is a new gold shape.
+
+Not verified: none of this has run in Fabric. Spark SQL reads `lakehouse.schema.table` across schema-enabled
+lakehouses of one workspace (*Lakehouse schemas*, Microsoft Learn); a materialized lake view over another lakehouse's
+tables has not been created in a Fabric workspace by Krusgraph. SM8's demo workspace is where that is checked.

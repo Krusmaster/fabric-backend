@@ -167,7 +167,8 @@ def _q(name):
 
 
 def _tbl(schema, table):
-    return _q(schema) + "." + _q(table)
+    # SM6: a schema name never holds a dot, so "lakehouse.schema" is the silver tables in another lakehouse
+    return ".".join(_q(x) for x in str(schema).split(".")) + "." + _q(table)
 
 
 def _one(execute, sql):
