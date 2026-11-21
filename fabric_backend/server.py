@@ -802,7 +802,7 @@ def _start_review(workspace: str, source: str, schema: str, step: str, plan: dic
         return None
     try:
         return _review_file(c["workspace"], c["source"], c["schema"], plan.get("keys"), plan.get("confirmed"), None, None,
-                            True, None, 60, ctx)
+                            True, None, 60, ctx, products=now == "check")
     except Exception as e:                                       # noqa: BLE001 - the step keeps its review_plan button
         return {"error": (str(e) or type(e).__name__).splitlines()[0][:200]}
 
@@ -926,19 +926,45 @@ def plan_backend(workspace: _p.Workspace, source: _p.Source, schema: _p.PlanSche
     _pictures.keep("map", lambda: _pictures.map_from_plan(shown))                # n170: the map on the card
     _pictures.keep("words", lambda: _mcp_apps_words.plan_facts(p))              # n172: the card's summary in short sentences
     suggested = [s for s in _evidence.suggest_composite_keys(p) if keep is None or s["table"] in keep]
+    products = _data_products(p)                                     # DP2: catalog data products, names and keys only
     if _compact.pick_detail(detail, len(shown.schema)) == "summary":
         body = _coverage.attach(_compact.plan_summary(shown, suggested, f"{len(shown.schema)} of {len(p.schema)} tables shown" if keep else ""),
                                 p, first=_coverage.EVIDENCE_FIRST, keep=keep)          # n226: evidence state and coverage
         if csn_digest:
             body["csn"] = csn_digest
+        _with_products(body, products)
         text = _bounded(body, MAX_RESULT_CHARS, _compact.NARROW_HINT)
     else:
         body = _coverage.attach(_compact.plan_full(shown, suggested, mermaid=bool(mermaid), states=_coverage.entry_states(p)),
                                 p, per_item=False)
         if csn_digest:
             body["csn"] = csn_digest
+        _with_products(body, products)
         text = _bounded(body, MAX_RESULT_CHARS, _compact.NARROW_HINT, drop=("mermaid",))
     return _with_schema_chosen(text, chosen)
+
+
+def _data_products(p, validation: dict | None = None, execute=None) -> dict | None:
+    """DP2: which catalog data products the tables are, with confidence and evidence, and what each process can and
+    cannot answer (data_product_match.py). None when it cannot be worked out: the answer it sits in stands without it."""
+    from . import data_product_match as _dpm
+    try:
+        return _dpm.brief(_dpm.suggest(p, validation, execute), max_tables=25)
+    except Exception:                                                    # noqa: BLE001 - never breaks the plan or check
+        return None
+
+
+def _with_products(body: dict, products: dict | None) -> None:
+    """DP2: `data_products` in an answer only where it fits; on a large schema its line alone, so the keys and links the
+    answer is for are never pushed out."""
+    if not products:
+        return
+    size = len(json.dumps(body, indent=2, default=str))
+    if size + len(json.dumps(products, indent=2)) < MAX_RESULT_CHARS - 2000:
+        body["data_products"] = products
+    elif size + 600 < MAX_RESULT_CHARS - 2000:
+        body["data_products"] = {"line": products["line"], "more": "validate_plan's answer has each table's product, "
+                                                                   "confidence and evidence; tables=[...] narrows it"}
 
 
 def _drawio_file(which: str, workspace: str, source: str, schema: str, keys, confirmed, tables, ctx) -> str:
@@ -1064,6 +1090,7 @@ def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema 
                                                    tables=sorted(keep) if keep is not None else None,
                                                    resume_from=max(0, int(resume_from or 0)))
         label = _privacy.label_of(getattr(execute, "source_item", None))
+        products = _data_products(p, out, execute)                      # DP2: confirmed by the same counts
         if sql_sums:                                                    # n134: view definitions only, no rows
             from . import sql_sums as _sql_sums
             sums = _sql_sums.check_connection(p, execute)
@@ -1088,6 +1115,7 @@ def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema 
                            keep=keep)                                  # n226: evidence state and coverage
     if prof is not None:
         out["column_profile"] = prof
+    _with_products(out, products)
     from . import csn_onelake as _csn_onelake
     if (csn_digest := _csn_onelake.digest(p)):                         # CSN2: the CSN's keys and links, and their files
         out["csn"] = csn_digest
@@ -1118,7 +1146,8 @@ def review_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = 
     return _review.answer(rv, MAX_RESULT_CHARS)
 
 
-def _review_file(workspace, source, schema, keys, confirmed, decisions, previous, validate, tables, max_items, ctx) -> dict:
+def _review_file(workspace, source, schema, keys, confirmed, decisions, previous, validate, tables, max_items, ctx,
+                 products: bool = False) -> dict:
     """review_plan's file (review.build), the one way it is made: review_plan's answer and, since WB13 (#66), the start
     card's step 6 on your own data, which asks about the same items with the same evidence."""
     from datetime import datetime, timezone
@@ -1132,11 +1161,15 @@ def _review_file(workspace, source, schema, keys, confirmed, decisions, previous
         p, base = _hosted_plan(s, k, c, counted), _hosted_plan(s, None, None, counted)
         keep = _compact.match_tables(p.schema, tables)
         checks = _evidence.validate(p, execute, max_items=max(1, min(int(max_items), 200))) if validate else None
+        found = _data_products(p, checks, execute) if products else None     # DP2: the start card's check step
     finally:
         getattr(execute, "close", lambda: None)()
-    return _review.build(p, base, {"platform": "fabric", "workspace": workspace, "source": source, "schema": schema},
+    rv = _review.build(p, base, {"platform": "fabric", "workspace": workspace, "source": source, "schema": schema},
                          decisions=decisions, checks=checks, previous=prev, tables=sorted(keep) if keep is not None else None,
                          checked_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%MZ"))
+    if found:
+        rv["data_products"] = found
+    return rv
 
 
 @mcp.tool(title="Show a few rows of a table", annotations=RO)

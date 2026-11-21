@@ -426,6 +426,266 @@
     "tables": 7,
     "unlinked_reference_columns": 0
    },
+   "data_products": {
+    "how": "By rules, no AI: table and column names read through a word list in English, German and Swedish, the plan's keys and links, and the row counts. high = names and keys agree and the rows confirm it; medium = names and keys agree, the rows not counted; low = one signal only or the rows disagree, a hint and never counted as present.",
+    "line": "Data products: Order to cash: 3 of 7 products present; delivery, customer invoice, receivables and payables and payment missing, so a question like “Which deliveries left later than the customer was promised?” cannot be answered.",
+    "processes": [
+     {
+      "can_answer": [
+       "How many active customers do we have per country and sales organisation?",
+       "Which customers buy from more than one company in the group?",
+       "Which products sell the most per month?",
+       "Which products have no sales in the last year?",
+       "What is the order intake per customer and month?",
+       "Which order lines are not delivered yet?"
+      ],
+      "cannot_answer": [
+       "Which deliveries left later than the customer was promised? (delivery (outbound shipment) is missing)",
+       "What share of order lines was delivered in full and on time? (delivery (outbound shipment) is missing)",
+       "What is the revenue per customer and month? (customer invoice (billing) is missing)",
+       "Which products have the highest credit-memo share? (customer invoice (billing) is missing)",
+       "Which customers have unpaid invoices past their due date? (receivables and payables (open and cleared items) is missing)",
+       "What do we owe our suppliers per due week? (receivables and payables (open and cleared items) is missing)"
+      ],
+      "checked": [],
+      "line": "Order to cash: 3 of 7 products present; delivery, customer invoice, receivables and payables and payment missing, so a question like “Which deliveries left later than the customer was promised?” cannot be answered.",
+      "missing": [
+       "delivery",
+       "invoice",
+       "open_item",
+       "payment"
+      ],
+      "partial": [],
+      "present": [
+       "customer",
+       "product",
+       "sales_order"
+      ],
+      "title": "Order to cash"
+     },
+     {
+      "can_answer": [
+       "Which products sell the most per month?",
+       "Which products have no sales in the last year?"
+      ],
+      "cannot_answer": [
+       "How many suppliers do we buy from per purchasing organisation? (supplier is missing)",
+       "Which suppliers are also customers? (supplier is missing)",
+       "What do we spend per supplier and month? (purchase order (header and line) is missing)",
+       "Which purchase order lines are overdue for delivery? (purchase order (header and line) is missing)",
+       "Do suppliers deliver on the date they confirmed? (goods receipt is missing)",
+       "What has been received but not invoiced yet? (goods receipt is missing)"
+      ],
+      "checked": [],
+      "line": "Procure to pay: 1 of 7 products present; supplier, purchase order, goods receipt, supplier invoice, receivables and payables and payment missing, so a question like “How many suppliers do we buy from per purchasing organisation?” cannot be answered.",
+      "missing": [
+       "supplier",
+       "purchase_order",
+       "goods_receipt",
+       "supplier_invoice",
+       "open_item",
+       "payment"
+      ],
+      "partial": [],
+      "present": [
+       "product"
+      ],
+      "title": "Procure to pay"
+     },
+     {
+      "can_answer": [
+       "What is the order intake per customer and month?",
+       "Which order lines are not delivered yet?",
+       "What is the average order value per sales organisation?"
+      ],
+      "cannot_answer": [
+       "Which accounts in our target segment have no open opportunity? (account (crm) is missing)",
+       "How many accounts does each sales representative own? (account (crm) is missing)",
+       "Which contacts at our top accounts have had no activity in 90 days? (contact is missing)",
+       "How many leads per source and month became opportunities? (lead is missing)",
+       "How long does a lead take to be qualified? (lead is missing)",
+       "What is the weighted pipeline per quarter and sales representative? (opportunity (pipeline) is missing)"
+      ],
+      "checked": [],
+      "line": "Lead to cash: 1 of 7 products present; account, contact, lead, opportunity, quote and customer invoice missing, so a question like “Which accounts in our target segment have no open opportunity?” cannot be answered.",
+      "missing": [
+       "crm_account",
+       "contact",
+       "lead",
+       "opportunity",
+       "quote",
+       "invoice"
+      ],
+      "partial": [],
+      "present": [
+       "sales_order"
+      ],
+      "title": "Lead to cash"
+     },
+     {
+      "can_answer": [
+       "Which products sell the most per month?",
+       "Which products have no sales in the last year?"
+      ],
+      "cannot_answer": [
+       "Which accounts in our target segment have no open opportunity? (account (crm) is missing)",
+       "How many accounts does each sales representative own? (account (crm) is missing)",
+       "Which contacts at our top accounts have had no activity in 90 days? (contact is missing)",
+       "How long does it take to resolve a case per product? (case or ticket (customer service) is missing)",
+       "Which customers open the most cases? (case or ticket (customer service) is missing)",
+       "How many customer meetings did each sales representative have last month? (activity (calls, meetings, tasks, e-mails) is missing)"
+      ],
+      "checked": [],
+      "line": "Customer service: 1 of 5 products present; account, contact, case or ticket and activity missing, so a question like “Which accounts in our target segment have no open opportunity?” cannot be answered.",
+      "missing": [
+       "crm_account",
+       "contact",
+       "case",
+       "activity"
+      ],
+      "partial": [],
+      "present": [
+       "product"
+      ],
+      "title": "Customer service"
+     },
+     {
+      "can_answer": [
+       "How many active customers do we have per country and sales organisation?",
+       "Which customers buy from more than one company in the group?"
+      ],
+      "cannot_answer": [
+       "What is the MRR per customer and month? (subscription or contract is missing)",
+       "How much recurring revenue did we lose to churn last quarter? (subscription or contract is missing)",
+       "What is the revenue per customer and month? (customer invoice (billing) is missing)",
+       "Which products have the highest credit-memo share? (customer invoice (billing) is missing)",
+       "How many days do customers take to pay? (payment is missing)",
+       "Which payments are not matched to an invoice? (payment is missing)"
+      ],
+      "checked": [],
+      "line": "Subscription: 1 of 4 products present; subscription or contract, customer invoice and payment missing, so a question like “What is the MRR per customer and month?” cannot be answered.",
+      "missing": [
+       "subscription",
+       "invoice",
+       "payment"
+      ],
+      "partial": [],
+      "present": [
+       "customer"
+      ],
+      "title": "Subscription"
+     },
+     {
+      "can_answer": [
+       "Which products sell the most per month?",
+       "Which products have no sales in the last year?"
+      ],
+      "cannot_answer": [
+       "Which companies and plants belong to the group? (organisation and company is missing)",
+       "Which business unit owns this record? (organisation and company is missing)",
+       "How much stock do we hold per product and plant at month end? (inventory movement and stock is missing)",
+       "Which products have not moved for six months? (inventory movement and stock is missing)",
+       "Do suppliers deliver on the date they confirmed? (goods receipt is missing)",
+       "What has been received but not invoiced yet? (goods receipt is missing)"
+      ],
+      "checked": [],
+      "line": "Inventory: 1 of 5 products present; organisation and company, inventory movement and stock, goods receipt and delivery missing, so a question like “Which companies and plants belong to the group?” cannot be answered.",
+      "missing": [
+       "organisation",
+       "inventory_movement",
+       "goods_receipt",
+       "delivery"
+      ],
+      "partial": [],
+      "present": [
+       "product"
+      ],
+      "title": "Inventory"
+     }
+    ],
+    "products": {
+     "customer": {
+      "checked": false,
+      "missing_roles": [],
+      "state": "present",
+      "tables": {
+       "master": [
+        "customers"
+       ]
+      }
+     },
+     "product": {
+      "checked": false,
+      "missing_roles": [],
+      "state": "present",
+      "tables": {
+       "master": [
+        "products"
+       ]
+      }
+     },
+     "sales_order": {
+      "checked": false,
+      "missing_roles": [],
+      "state": "present",
+      "tables": {
+       "header": [
+        "orders"
+       ],
+       "line": [
+        "order_items"
+       ]
+      }
+     }
+    },
+    "rule_version": "DP2-1 (21 November 2026)",
+    "tables": [
+     {
+      "confidence": "medium",
+      "evidence": [
+       "the table name reads as customers: customer",
+       "customer_id reads as the business key (customer_number)",
+       "3 relationship(s) of the plan point at it"
+      ],
+      "product": "customer",
+      "role": "master",
+      "table": "customers"
+     },
+     {
+      "confidence": "medium",
+      "evidence": [
+       "the table name reads as order + items: sales order (header and line)",
+       "order_id+line_no reads as the business key (order_number, line_number)",
+       "its lines point at orders through order_id (plan relationship (R1))"
+      ],
+      "product": "sales_order",
+      "role": "line",
+      "table": "order_items"
+     },
+     {
+      "confidence": "medium",
+      "evidence": [
+       "the table name reads as orders: sales order (header and line)",
+       "order_id reads as the business key (order_number)",
+       "order_items holds its lines by order_id"
+      ],
+      "product": "sales_order",
+      "role": "header",
+      "table": "orders"
+     },
+     {
+      "confidence": "medium",
+      "evidence": [
+       "the table name reads as products: product or material",
+       "product_id reads as the business key (product_number)",
+       "1 relationship(s) of the plan point at it"
+      ],
+      "product": "product",
+      "role": "master",
+      "table": "products"
+     }
+    ]
+   },
    "keyless": [
     "audit_log"
    ],
@@ -635,6 +895,266 @@
     "next": "validate_plan counts the keys and links (by importance, within the call's time budget)",
     "tables": 7,
     "unlinked_reference_columns": 0
+   },
+   "data_products": {
+    "how": "By rules, no AI: table and column names read through a word list in English, German and Swedish, the plan's keys and links, and the row counts. high = names and keys agree and the rows confirm it; medium = names and keys agree, the rows not counted; low = one signal only or the rows disagree, a hint and never counted as present.",
+    "line": "Data products: Order to cash: 3 of 7 products present; delivery, customer invoice, receivables and payables and payment missing, so a question like “Which deliveries left later than the customer was promised?” cannot be answered.",
+    "processes": [
+     {
+      "can_answer": [
+       "How many active customers do we have per country and sales organisation?",
+       "Which customers buy from more than one company in the group?",
+       "Which products sell the most per month?",
+       "Which products have no sales in the last year?",
+       "What is the order intake per customer and month?",
+       "Which order lines are not delivered yet?"
+      ],
+      "cannot_answer": [
+       "Which deliveries left later than the customer was promised? (delivery (outbound shipment) is missing)",
+       "What share of order lines was delivered in full and on time? (delivery (outbound shipment) is missing)",
+       "What is the revenue per customer and month? (customer invoice (billing) is missing)",
+       "Which products have the highest credit-memo share? (customer invoice (billing) is missing)",
+       "Which customers have unpaid invoices past their due date? (receivables and payables (open and cleared items) is missing)",
+       "What do we owe our suppliers per due week? (receivables and payables (open and cleared items) is missing)"
+      ],
+      "checked": [],
+      "line": "Order to cash: 3 of 7 products present; delivery, customer invoice, receivables and payables and payment missing, so a question like “Which deliveries left later than the customer was promised?” cannot be answered.",
+      "missing": [
+       "delivery",
+       "invoice",
+       "open_item",
+       "payment"
+      ],
+      "partial": [],
+      "present": [
+       "customer",
+       "product",
+       "sales_order"
+      ],
+      "title": "Order to cash"
+     },
+     {
+      "can_answer": [
+       "Which products sell the most per month?",
+       "Which products have no sales in the last year?"
+      ],
+      "cannot_answer": [
+       "How many suppliers do we buy from per purchasing organisation? (supplier is missing)",
+       "Which suppliers are also customers? (supplier is missing)",
+       "What do we spend per supplier and month? (purchase order (header and line) is missing)",
+       "Which purchase order lines are overdue for delivery? (purchase order (header and line) is missing)",
+       "Do suppliers deliver on the date they confirmed? (goods receipt is missing)",
+       "What has been received but not invoiced yet? (goods receipt is missing)"
+      ],
+      "checked": [],
+      "line": "Procure to pay: 1 of 7 products present; supplier, purchase order, goods receipt, supplier invoice, receivables and payables and payment missing, so a question like “How many suppliers do we buy from per purchasing organisation?” cannot be answered.",
+      "missing": [
+       "supplier",
+       "purchase_order",
+       "goods_receipt",
+       "supplier_invoice",
+       "open_item",
+       "payment"
+      ],
+      "partial": [],
+      "present": [
+       "product"
+      ],
+      "title": "Procure to pay"
+     },
+     {
+      "can_answer": [
+       "What is the order intake per customer and month?",
+       "Which order lines are not delivered yet?",
+       "What is the average order value per sales organisation?"
+      ],
+      "cannot_answer": [
+       "Which accounts in our target segment have no open opportunity? (account (crm) is missing)",
+       "How many accounts does each sales representative own? (account (crm) is missing)",
+       "Which contacts at our top accounts have had no activity in 90 days? (contact is missing)",
+       "How many leads per source and month became opportunities? (lead is missing)",
+       "How long does a lead take to be qualified? (lead is missing)",
+       "What is the weighted pipeline per quarter and sales representative? (opportunity (pipeline) is missing)"
+      ],
+      "checked": [],
+      "line": "Lead to cash: 1 of 7 products present; account, contact, lead, opportunity, quote and customer invoice missing, so a question like “Which accounts in our target segment have no open opportunity?” cannot be answered.",
+      "missing": [
+       "crm_account",
+       "contact",
+       "lead",
+       "opportunity",
+       "quote",
+       "invoice"
+      ],
+      "partial": [],
+      "present": [
+       "sales_order"
+      ],
+      "title": "Lead to cash"
+     },
+     {
+      "can_answer": [
+       "Which products sell the most per month?",
+       "Which products have no sales in the last year?"
+      ],
+      "cannot_answer": [
+       "Which accounts in our target segment have no open opportunity? (account (crm) is missing)",
+       "How many accounts does each sales representative own? (account (crm) is missing)",
+       "Which contacts at our top accounts have had no activity in 90 days? (contact is missing)",
+       "How long does it take to resolve a case per product? (case or ticket (customer service) is missing)",
+       "Which customers open the most cases? (case or ticket (customer service) is missing)",
+       "How many customer meetings did each sales representative have last month? (activity (calls, meetings, tasks, e-mails) is missing)"
+      ],
+      "checked": [],
+      "line": "Customer service: 1 of 5 products present; account, contact, case or ticket and activity missing, so a question like “Which accounts in our target segment have no open opportunity?” cannot be answered.",
+      "missing": [
+       "crm_account",
+       "contact",
+       "case",
+       "activity"
+      ],
+      "partial": [],
+      "present": [
+       "product"
+      ],
+      "title": "Customer service"
+     },
+     {
+      "can_answer": [
+       "How many active customers do we have per country and sales organisation?",
+       "Which customers buy from more than one company in the group?"
+      ],
+      "cannot_answer": [
+       "What is the MRR per customer and month? (subscription or contract is missing)",
+       "How much recurring revenue did we lose to churn last quarter? (subscription or contract is missing)",
+       "What is the revenue per customer and month? (customer invoice (billing) is missing)",
+       "Which products have the highest credit-memo share? (customer invoice (billing) is missing)",
+       "How many days do customers take to pay? (payment is missing)",
+       "Which payments are not matched to an invoice? (payment is missing)"
+      ],
+      "checked": [],
+      "line": "Subscription: 1 of 4 products present; subscription or contract, customer invoice and payment missing, so a question like “What is the MRR per customer and month?” cannot be answered.",
+      "missing": [
+       "subscription",
+       "invoice",
+       "payment"
+      ],
+      "partial": [],
+      "present": [
+       "customer"
+      ],
+      "title": "Subscription"
+     },
+     {
+      "can_answer": [
+       "Which products sell the most per month?",
+       "Which products have no sales in the last year?"
+      ],
+      "cannot_answer": [
+       "Which companies and plants belong to the group? (organisation and company is missing)",
+       "Which business unit owns this record? (organisation and company is missing)",
+       "How much stock do we hold per product and plant at month end? (inventory movement and stock is missing)",
+       "Which products have not moved for six months? (inventory movement and stock is missing)",
+       "Do suppliers deliver on the date they confirmed? (goods receipt is missing)",
+       "What has been received but not invoiced yet? (goods receipt is missing)"
+      ],
+      "checked": [],
+      "line": "Inventory: 1 of 5 products present; organisation and company, inventory movement and stock, goods receipt and delivery missing, so a question like “Which companies and plants belong to the group?” cannot be answered.",
+      "missing": [
+       "organisation",
+       "inventory_movement",
+       "goods_receipt",
+       "delivery"
+      ],
+      "partial": [],
+      "present": [
+       "product"
+      ],
+      "title": "Inventory"
+     }
+    ],
+    "products": {
+     "customer": {
+      "checked": false,
+      "missing_roles": [],
+      "state": "present",
+      "tables": {
+       "master": [
+        "customers"
+       ]
+      }
+     },
+     "product": {
+      "checked": false,
+      "missing_roles": [],
+      "state": "present",
+      "tables": {
+       "master": [
+        "products"
+       ]
+      }
+     },
+     "sales_order": {
+      "checked": false,
+      "missing_roles": [],
+      "state": "present",
+      "tables": {
+       "header": [
+        "orders"
+       ],
+       "line": [
+        "order_items"
+       ]
+      }
+     }
+    },
+    "rule_version": "DP2-1 (21 November 2026)",
+    "tables": [
+     {
+      "confidence": "medium",
+      "evidence": [
+       "the table name reads as customers: customer",
+       "customer_id reads as the business key (customer_number)",
+       "3 relationship(s) of the plan point at it"
+      ],
+      "product": "customer",
+      "role": "master",
+      "table": "customers"
+     },
+     {
+      "confidence": "medium",
+      "evidence": [
+       "the table name reads as order + items: sales order (header and line)",
+       "order_id+line_no reads as the business key (order_number, line_number)",
+       "its lines point at orders through order_id (plan relationship (R1))"
+      ],
+      "product": "sales_order",
+      "role": "line",
+      "table": "order_items"
+     },
+     {
+      "confidence": "medium",
+      "evidence": [
+       "the table name reads as orders: sales order (header and line)",
+       "order_id reads as the business key (order_number)",
+       "order_items holds its lines by order_id"
+      ],
+      "product": "sales_order",
+      "role": "header",
+      "table": "orders"
+     },
+     {
+      "confidence": "medium",
+      "evidence": [
+       "the table name reads as products: product or material",
+       "product_id reads as the business key (product_number)",
+       "1 relationship(s) of the plan point at it"
+      ],
+      "product": "product",
+      "role": "master",
+      "table": "products"
+     }
+    ]
    },
    "keyless": [
     "audit_log"
@@ -862,6 +1382,266 @@
     "tables": 7,
     "unlinked_reference_columns": 0
    },
+   "data_products": {
+    "how": "By rules, no AI: table and column names read through a word list in English, German and Swedish, the plan's keys and links, and the row counts. high = names and keys agree and the rows confirm it; medium = names and keys agree, the rows not counted; low = one signal only or the rows disagree, a hint and never counted as present.",
+    "line": "Data products: Order to cash: 3 of 7 products present; delivery, customer invoice, receivables and payables and payment missing, so a question like “Which deliveries left later than the customer was promised?” cannot be answered.",
+    "processes": [
+     {
+      "can_answer": [
+       "How many active customers do we have per country and sales organisation?",
+       "Which customers buy from more than one company in the group?",
+       "Which products sell the most per month?",
+       "Which products have no sales in the last year?",
+       "What is the order intake per customer and month?",
+       "Which order lines are not delivered yet?"
+      ],
+      "cannot_answer": [
+       "Which deliveries left later than the customer was promised? (delivery (outbound shipment) is missing)",
+       "What share of order lines was delivered in full and on time? (delivery (outbound shipment) is missing)",
+       "What is the revenue per customer and month? (customer invoice (billing) is missing)",
+       "Which products have the highest credit-memo share? (customer invoice (billing) is missing)",
+       "Which customers have unpaid invoices past their due date? (receivables and payables (open and cleared items) is missing)",
+       "What do we owe our suppliers per due week? (receivables and payables (open and cleared items) is missing)"
+      ],
+      "checked": [],
+      "line": "Order to cash: 3 of 7 products present; delivery, customer invoice, receivables and payables and payment missing, so a question like “Which deliveries left later than the customer was promised?” cannot be answered.",
+      "missing": [
+       "delivery",
+       "invoice",
+       "open_item",
+       "payment"
+      ],
+      "partial": [],
+      "present": [
+       "customer",
+       "product",
+       "sales_order"
+      ],
+      "title": "Order to cash"
+     },
+     {
+      "can_answer": [
+       "Which products sell the most per month?",
+       "Which products have no sales in the last year?"
+      ],
+      "cannot_answer": [
+       "How many suppliers do we buy from per purchasing organisation? (supplier is missing)",
+       "Which suppliers are also customers? (supplier is missing)",
+       "What do we spend per supplier and month? (purchase order (header and line) is missing)",
+       "Which purchase order lines are overdue for delivery? (purchase order (header and line) is missing)",
+       "Do suppliers deliver on the date they confirmed? (goods receipt is missing)",
+       "What has been received but not invoiced yet? (goods receipt is missing)"
+      ],
+      "checked": [],
+      "line": "Procure to pay: 1 of 7 products present; supplier, purchase order, goods receipt, supplier invoice, receivables and payables and payment missing, so a question like “How many suppliers do we buy from per purchasing organisation?” cannot be answered.",
+      "missing": [
+       "supplier",
+       "purchase_order",
+       "goods_receipt",
+       "supplier_invoice",
+       "open_item",
+       "payment"
+      ],
+      "partial": [],
+      "present": [
+       "product"
+      ],
+      "title": "Procure to pay"
+     },
+     {
+      "can_answer": [
+       "What is the order intake per customer and month?",
+       "Which order lines are not delivered yet?",
+       "What is the average order value per sales organisation?"
+      ],
+      "cannot_answer": [
+       "Which accounts in our target segment have no open opportunity? (account (crm) is missing)",
+       "How many accounts does each sales representative own? (account (crm) is missing)",
+       "Which contacts at our top accounts have had no activity in 90 days? (contact is missing)",
+       "How many leads per source and month became opportunities? (lead is missing)",
+       "How long does a lead take to be qualified? (lead is missing)",
+       "What is the weighted pipeline per quarter and sales representative? (opportunity (pipeline) is missing)"
+      ],
+      "checked": [],
+      "line": "Lead to cash: 1 of 7 products present; account, contact, lead, opportunity, quote and customer invoice missing, so a question like “Which accounts in our target segment have no open opportunity?” cannot be answered.",
+      "missing": [
+       "crm_account",
+       "contact",
+       "lead",
+       "opportunity",
+       "quote",
+       "invoice"
+      ],
+      "partial": [],
+      "present": [
+       "sales_order"
+      ],
+      "title": "Lead to cash"
+     },
+     {
+      "can_answer": [
+       "Which products sell the most per month?",
+       "Which products have no sales in the last year?"
+      ],
+      "cannot_answer": [
+       "Which accounts in our target segment have no open opportunity? (account (crm) is missing)",
+       "How many accounts does each sales representative own? (account (crm) is missing)",
+       "Which contacts at our top accounts have had no activity in 90 days? (contact is missing)",
+       "How long does it take to resolve a case per product? (case or ticket (customer service) is missing)",
+       "Which customers open the most cases? (case or ticket (customer service) is missing)",
+       "How many customer meetings did each sales representative have last month? (activity (calls, meetings, tasks, e-mails) is missing)"
+      ],
+      "checked": [],
+      "line": "Customer service: 1 of 5 products present; account, contact, case or ticket and activity missing, so a question like “Which accounts in our target segment have no open opportunity?” cannot be answered.",
+      "missing": [
+       "crm_account",
+       "contact",
+       "case",
+       "activity"
+      ],
+      "partial": [],
+      "present": [
+       "product"
+      ],
+      "title": "Customer service"
+     },
+     {
+      "can_answer": [
+       "How many active customers do we have per country and sales organisation?",
+       "Which customers buy from more than one company in the group?"
+      ],
+      "cannot_answer": [
+       "What is the MRR per customer and month? (subscription or contract is missing)",
+       "How much recurring revenue did we lose to churn last quarter? (subscription or contract is missing)",
+       "What is the revenue per customer and month? (customer invoice (billing) is missing)",
+       "Which products have the highest credit-memo share? (customer invoice (billing) is missing)",
+       "How many days do customers take to pay? (payment is missing)",
+       "Which payments are not matched to an invoice? (payment is missing)"
+      ],
+      "checked": [],
+      "line": "Subscription: 1 of 4 products present; subscription or contract, customer invoice and payment missing, so a question like “What is the MRR per customer and month?” cannot be answered.",
+      "missing": [
+       "subscription",
+       "invoice",
+       "payment"
+      ],
+      "partial": [],
+      "present": [
+       "customer"
+      ],
+      "title": "Subscription"
+     },
+     {
+      "can_answer": [
+       "Which products sell the most per month?",
+       "Which products have no sales in the last year?"
+      ],
+      "cannot_answer": [
+       "Which companies and plants belong to the group? (organisation and company is missing)",
+       "Which business unit owns this record? (organisation and company is missing)",
+       "How much stock do we hold per product and plant at month end? (inventory movement and stock is missing)",
+       "Which products have not moved for six months? (inventory movement and stock is missing)",
+       "Do suppliers deliver on the date they confirmed? (goods receipt is missing)",
+       "What has been received but not invoiced yet? (goods receipt is missing)"
+      ],
+      "checked": [],
+      "line": "Inventory: 1 of 5 products present; organisation and company, inventory movement and stock, goods receipt and delivery missing, so a question like “Which companies and plants belong to the group?” cannot be answered.",
+      "missing": [
+       "organisation",
+       "inventory_movement",
+       "goods_receipt",
+       "delivery"
+      ],
+      "partial": [],
+      "present": [
+       "product"
+      ],
+      "title": "Inventory"
+     }
+    ],
+    "products": {
+     "customer": {
+      "checked": false,
+      "missing_roles": [],
+      "state": "present",
+      "tables": {
+       "master": [
+        "customers"
+       ]
+      }
+     },
+     "product": {
+      "checked": false,
+      "missing_roles": [],
+      "state": "present",
+      "tables": {
+       "master": [
+        "products"
+       ]
+      }
+     },
+     "sales_order": {
+      "checked": false,
+      "missing_roles": [],
+      "state": "present",
+      "tables": {
+       "header": [
+        "orders"
+       ],
+       "line": [
+        "order_items"
+       ]
+      }
+     }
+    },
+    "rule_version": "DP2-1 (21 November 2026)",
+    "tables": [
+     {
+      "confidence": "medium",
+      "evidence": [
+       "the table name reads as customers: customer",
+       "customer_id reads as the business key (customer_number)",
+       "3 relationship(s) of the plan point at it"
+      ],
+      "product": "customer",
+      "role": "master",
+      "table": "customers"
+     },
+     {
+      "confidence": "medium",
+      "evidence": [
+       "the table name reads as order + items: sales order (header and line)",
+       "order_id+line_no reads as the business key (order_number, line_number)",
+       "its lines point at orders through order_id (plan relationship (R1))"
+      ],
+      "product": "sales_order",
+      "role": "line",
+      "table": "order_items"
+     },
+     {
+      "confidence": "medium",
+      "evidence": [
+       "the table name reads as orders: sales order (header and line)",
+       "order_id reads as the business key (order_number)",
+       "order_items holds its lines by order_id"
+      ],
+      "product": "sales_order",
+      "role": "header",
+      "table": "orders"
+     },
+     {
+      "confidence": "medium",
+      "evidence": [
+       "the table name reads as products: product or material",
+       "product_id reads as the business key (product_number)",
+       "1 relationship(s) of the plan point at it"
+      ],
+      "product": "product",
+      "role": "master",
+      "table": "products"
+     }
+    ]
+   },
    "detail": "summary",
    "evidence": {
     "by name only": [
@@ -998,6 +1778,266 @@
     "next": "validate_plan counts the keys and links (by importance, within the call's time budget)",
     "tables": 7,
     "unlinked_reference_columns": 0
+   },
+   "data_products": {
+    "how": "By rules, no AI: table and column names read through a word list in English, German and Swedish, the plan's keys and links, and the row counts. high = names and keys agree and the rows confirm it; medium = names and keys agree, the rows not counted; low = one signal only or the rows disagree, a hint and never counted as present.",
+    "line": "Data products: Order to cash: 3 of 7 products present; delivery, customer invoice, receivables and payables and payment missing, so a question like “Which deliveries left later than the customer was promised?” cannot be answered.",
+    "processes": [
+     {
+      "can_answer": [
+       "How many active customers do we have per country and sales organisation?",
+       "Which customers buy from more than one company in the group?",
+       "Which products sell the most per month?",
+       "Which products have no sales in the last year?",
+       "What is the order intake per customer and month?",
+       "Which order lines are not delivered yet?"
+      ],
+      "cannot_answer": [
+       "Which deliveries left later than the customer was promised? (delivery (outbound shipment) is missing)",
+       "What share of order lines was delivered in full and on time? (delivery (outbound shipment) is missing)",
+       "What is the revenue per customer and month? (customer invoice (billing) is missing)",
+       "Which products have the highest credit-memo share? (customer invoice (billing) is missing)",
+       "Which customers have unpaid invoices past their due date? (receivables and payables (open and cleared items) is missing)",
+       "What do we owe our suppliers per due week? (receivables and payables (open and cleared items) is missing)"
+      ],
+      "checked": [],
+      "line": "Order to cash: 3 of 7 products present; delivery, customer invoice, receivables and payables and payment missing, so a question like “Which deliveries left later than the customer was promised?” cannot be answered.",
+      "missing": [
+       "delivery",
+       "invoice",
+       "open_item",
+       "payment"
+      ],
+      "partial": [],
+      "present": [
+       "customer",
+       "product",
+       "sales_order"
+      ],
+      "title": "Order to cash"
+     },
+     {
+      "can_answer": [
+       "Which products sell the most per month?",
+       "Which products have no sales in the last year?"
+      ],
+      "cannot_answer": [
+       "How many suppliers do we buy from per purchasing organisation? (supplier is missing)",
+       "Which suppliers are also customers? (supplier is missing)",
+       "What do we spend per supplier and month? (purchase order (header and line) is missing)",
+       "Which purchase order lines are overdue for delivery? (purchase order (header and line) is missing)",
+       "Do suppliers deliver on the date they confirmed? (goods receipt is missing)",
+       "What has been received but not invoiced yet? (goods receipt is missing)"
+      ],
+      "checked": [],
+      "line": "Procure to pay: 1 of 7 products present; supplier, purchase order, goods receipt, supplier invoice, receivables and payables and payment missing, so a question like “How many suppliers do we buy from per purchasing organisation?” cannot be answered.",
+      "missing": [
+       "supplier",
+       "purchase_order",
+       "goods_receipt",
+       "supplier_invoice",
+       "open_item",
+       "payment"
+      ],
+      "partial": [],
+      "present": [
+       "product"
+      ],
+      "title": "Procure to pay"
+     },
+     {
+      "can_answer": [
+       "What is the order intake per customer and month?",
+       "Which order lines are not delivered yet?",
+       "What is the average order value per sales organisation?"
+      ],
+      "cannot_answer": [
+       "Which accounts in our target segment have no open opportunity? (account (crm) is missing)",
+       "How many accounts does each sales representative own? (account (crm) is missing)",
+       "Which contacts at our top accounts have had no activity in 90 days? (contact is missing)",
+       "How many leads per source and month became opportunities? (lead is missing)",
+       "How long does a lead take to be qualified? (lead is missing)",
+       "What is the weighted pipeline per quarter and sales representative? (opportunity (pipeline) is missing)"
+      ],
+      "checked": [],
+      "line": "Lead to cash: 1 of 7 products present; account, contact, lead, opportunity, quote and customer invoice missing, so a question like “Which accounts in our target segment have no open opportunity?” cannot be answered.",
+      "missing": [
+       "crm_account",
+       "contact",
+       "lead",
+       "opportunity",
+       "quote",
+       "invoice"
+      ],
+      "partial": [],
+      "present": [
+       "sales_order"
+      ],
+      "title": "Lead to cash"
+     },
+     {
+      "can_answer": [
+       "Which products sell the most per month?",
+       "Which products have no sales in the last year?"
+      ],
+      "cannot_answer": [
+       "Which accounts in our target segment have no open opportunity? (account (crm) is missing)",
+       "How many accounts does each sales representative own? (account (crm) is missing)",
+       "Which contacts at our top accounts have had no activity in 90 days? (contact is missing)",
+       "How long does it take to resolve a case per product? (case or ticket (customer service) is missing)",
+       "Which customers open the most cases? (case or ticket (customer service) is missing)",
+       "How many customer meetings did each sales representative have last month? (activity (calls, meetings, tasks, e-mails) is missing)"
+      ],
+      "checked": [],
+      "line": "Customer service: 1 of 5 products present; account, contact, case or ticket and activity missing, so a question like “Which accounts in our target segment have no open opportunity?” cannot be answered.",
+      "missing": [
+       "crm_account",
+       "contact",
+       "case",
+       "activity"
+      ],
+      "partial": [],
+      "present": [
+       "product"
+      ],
+      "title": "Customer service"
+     },
+     {
+      "can_answer": [
+       "How many active customers do we have per country and sales organisation?",
+       "Which customers buy from more than one company in the group?"
+      ],
+      "cannot_answer": [
+       "What is the MRR per customer and month? (subscription or contract is missing)",
+       "How much recurring revenue did we lose to churn last quarter? (subscription or contract is missing)",
+       "What is the revenue per customer and month? (customer invoice (billing) is missing)",
+       "Which products have the highest credit-memo share? (customer invoice (billing) is missing)",
+       "How many days do customers take to pay? (payment is missing)",
+       "Which payments are not matched to an invoice? (payment is missing)"
+      ],
+      "checked": [],
+      "line": "Subscription: 1 of 4 products present; subscription or contract, customer invoice and payment missing, so a question like “What is the MRR per customer and month?” cannot be answered.",
+      "missing": [
+       "subscription",
+       "invoice",
+       "payment"
+      ],
+      "partial": [],
+      "present": [
+       "customer"
+      ],
+      "title": "Subscription"
+     },
+     {
+      "can_answer": [
+       "Which products sell the most per month?",
+       "Which products have no sales in the last year?"
+      ],
+      "cannot_answer": [
+       "Which companies and plants belong to the group? (organisation and company is missing)",
+       "Which business unit owns this record? (organisation and company is missing)",
+       "How much stock do we hold per product and plant at month end? (inventory movement and stock is missing)",
+       "Which products have not moved for six months? (inventory movement and stock is missing)",
+       "Do suppliers deliver on the date they confirmed? (goods receipt is missing)",
+       "What has been received but not invoiced yet? (goods receipt is missing)"
+      ],
+      "checked": [],
+      "line": "Inventory: 1 of 5 products present; organisation and company, inventory movement and stock, goods receipt and delivery missing, so a question like “Which companies and plants belong to the group?” cannot be answered.",
+      "missing": [
+       "organisation",
+       "inventory_movement",
+       "goods_receipt",
+       "delivery"
+      ],
+      "partial": [],
+      "present": [
+       "product"
+      ],
+      "title": "Inventory"
+     }
+    ],
+    "products": {
+     "customer": {
+      "checked": false,
+      "missing_roles": [],
+      "state": "present",
+      "tables": {
+       "master": [
+        "customers"
+       ]
+      }
+     },
+     "product": {
+      "checked": false,
+      "missing_roles": [],
+      "state": "present",
+      "tables": {
+       "master": [
+        "products"
+       ]
+      }
+     },
+     "sales_order": {
+      "checked": false,
+      "missing_roles": [],
+      "state": "present",
+      "tables": {
+       "header": [
+        "orders"
+       ],
+       "line": [
+        "order_items"
+       ]
+      }
+     }
+    },
+    "rule_version": "DP2-1 (21 November 2026)",
+    "tables": [
+     {
+      "confidence": "medium",
+      "evidence": [
+       "the table name reads as customers: customer",
+       "customer_id reads as the business key (customer_number)",
+       "3 relationship(s) of the plan point at it"
+      ],
+      "product": "customer",
+      "role": "master",
+      "table": "customers"
+     },
+     {
+      "confidence": "medium",
+      "evidence": [
+       "the table name reads as order + items: sales order (header and line)",
+       "order_id+line_no reads as the business key (order_number, line_number)",
+       "its lines point at orders through order_id (plan relationship (R1))"
+      ],
+      "product": "sales_order",
+      "role": "line",
+      "table": "order_items"
+     },
+     {
+      "confidence": "medium",
+      "evidence": [
+       "the table name reads as orders: sales order (header and line)",
+       "order_id reads as the business key (order_number)",
+       "order_items holds its lines by order_id"
+      ],
+      "product": "sales_order",
+      "role": "header",
+      "table": "orders"
+     },
+     {
+      "confidence": "medium",
+      "evidence": [
+       "the table name reads as products: product or material",
+       "product_id reads as the business key (product_number)",
+       "1 relationship(s) of the plan point at it"
+      ],
+      "product": "product",
+      "role": "master",
+      "table": "products"
+     }
+    ]
    },
    "keyless": [
     "audit_log"
@@ -1255,6 +2295,285 @@
     },
     "tables": 7,
     "unlinked_reference_columns": 0
+   },
+   "data_products": {
+    "how": "By rules, no AI: table and column names read through a word list in English, German and Swedish, the plan's keys and links, and the row counts. high = names and keys agree and the rows confirm it; medium = names and keys agree, the rows not counted; low = one signal only or the rows disagree, a hint and never counted as present.",
+    "line": "Data products: Order to cash: 3 of 7 products present; delivery, customer invoice, receivables and payables and payment missing, so a question like “Which deliveries left later than the customer was promised?” cannot be answered.",
+    "processes": [
+     {
+      "can_answer": [
+       "How many active customers do we have per country and sales organisation?",
+       "Which customers buy from more than one company in the group?",
+       "Which products sell the most per month?",
+       "Which products have no sales in the last year?",
+       "What is the order intake per customer and month?",
+       "Which order lines are not delivered yet?"
+      ],
+      "cannot_answer": [
+       "Which deliveries left later than the customer was promised? (delivery (outbound shipment) is missing)",
+       "What share of order lines was delivered in full and on time? (delivery (outbound shipment) is missing)",
+       "What is the revenue per customer and month? (customer invoice (billing) is missing)",
+       "Which products have the highest credit-memo share? (customer invoice (billing) is missing)",
+       "Which customers have unpaid invoices past their due date? (receivables and payables (open and cleared items) is missing)",
+       "What do we owe our suppliers per due week? (receivables and payables (open and cleared items) is missing)"
+      ],
+      "checked": [
+       "customer",
+       "product",
+       "sales_order"
+      ],
+      "line": "Order to cash: 3 of 7 products present; delivery, customer invoice, receivables and payables and payment missing, so a question like “Which deliveries left later than the customer was promised?” cannot be answered.",
+      "missing": [
+       "delivery",
+       "invoice",
+       "open_item",
+       "payment"
+      ],
+      "partial": [],
+      "present": [
+       "customer",
+       "product",
+       "sales_order"
+      ],
+      "title": "Order to cash"
+     },
+     {
+      "can_answer": [
+       "Which products sell the most per month?",
+       "Which products have no sales in the last year?"
+      ],
+      "cannot_answer": [
+       "How many suppliers do we buy from per purchasing organisation? (supplier is missing)",
+       "Which suppliers are also customers? (supplier is missing)",
+       "What do we spend per supplier and month? (purchase order (header and line) is missing)",
+       "Which purchase order lines are overdue for delivery? (purchase order (header and line) is missing)",
+       "Do suppliers deliver on the date they confirmed? (goods receipt is missing)",
+       "What has been received but not invoiced yet? (goods receipt is missing)"
+      ],
+      "checked": [
+       "product"
+      ],
+      "line": "Procure to pay: 1 of 7 products present; supplier, purchase order, goods receipt, supplier invoice, receivables and payables and payment missing, so a question like “How many suppliers do we buy from per purchasing organisation?” cannot be answered.",
+      "missing": [
+       "supplier",
+       "purchase_order",
+       "goods_receipt",
+       "supplier_invoice",
+       "open_item",
+       "payment"
+      ],
+      "partial": [],
+      "present": [
+       "product"
+      ],
+      "title": "Procure to pay"
+     },
+     {
+      "can_answer": [
+       "What is the order intake per customer and month?",
+       "Which order lines are not delivered yet?",
+       "What is the average order value per sales organisation?"
+      ],
+      "cannot_answer": [
+       "Which accounts in our target segment have no open opportunity? (account (crm) is missing)",
+       "How many accounts does each sales representative own? (account (crm) is missing)",
+       "Which contacts at our top accounts have had no activity in 90 days? (contact is missing)",
+       "How many leads per source and month became opportunities? (lead is missing)",
+       "How long does a lead take to be qualified? (lead is missing)",
+       "What is the weighted pipeline per quarter and sales representative? (opportunity (pipeline) is missing)"
+      ],
+      "checked": [
+       "sales_order"
+      ],
+      "line": "Lead to cash: 1 of 7 products present; account, contact, lead, opportunity, quote and customer invoice missing, so a question like “Which accounts in our target segment have no open opportunity?” cannot be answered.",
+      "missing": [
+       "crm_account",
+       "contact",
+       "lead",
+       "opportunity",
+       "quote",
+       "invoice"
+      ],
+      "partial": [],
+      "present": [
+       "sales_order"
+      ],
+      "title": "Lead to cash"
+     },
+     {
+      "can_answer": [
+       "Which products sell the most per month?",
+       "Which products have no sales in the last year?"
+      ],
+      "cannot_answer": [
+       "Which accounts in our target segment have no open opportunity? (account (crm) is missing)",
+       "How many accounts does each sales representative own? (account (crm) is missing)",
+       "Which contacts at our top accounts have had no activity in 90 days? (contact is missing)",
+       "How long does it take to resolve a case per product? (case or ticket (customer service) is missing)",
+       "Which customers open the most cases? (case or ticket (customer service) is missing)",
+       "How many customer meetings did each sales representative have last month? (activity (calls, meetings, tasks, e-mails) is missing)"
+      ],
+      "checked": [
+       "product"
+      ],
+      "line": "Customer service: 1 of 5 products present; account, contact, case or ticket and activity missing, so a question like “Which accounts in our target segment have no open opportunity?” cannot be answered.",
+      "missing": [
+       "crm_account",
+       "contact",
+       "case",
+       "activity"
+      ],
+      "partial": [],
+      "present": [
+       "product"
+      ],
+      "title": "Customer service"
+     },
+     {
+      "can_answer": [
+       "How many active customers do we have per country and sales organisation?",
+       "Which customers buy from more than one company in the group?"
+      ],
+      "cannot_answer": [
+       "What is the MRR per customer and month? (subscription or contract is missing)",
+       "How much recurring revenue did we lose to churn last quarter? (subscription or contract is missing)",
+       "What is the revenue per customer and month? (customer invoice (billing) is missing)",
+       "Which products have the highest credit-memo share? (customer invoice (billing) is missing)",
+       "How many days do customers take to pay? (payment is missing)",
+       "Which payments are not matched to an invoice? (payment is missing)"
+      ],
+      "checked": [
+       "customer"
+      ],
+      "line": "Subscription: 1 of 4 products present; subscription or contract, customer invoice and payment missing, so a question like “What is the MRR per customer and month?” cannot be answered.",
+      "missing": [
+       "subscription",
+       "invoice",
+       "payment"
+      ],
+      "partial": [],
+      "present": [
+       "customer"
+      ],
+      "title": "Subscription"
+     },
+     {
+      "can_answer": [
+       "Which products sell the most per month?",
+       "Which products have no sales in the last year?"
+      ],
+      "cannot_answer": [
+       "Which companies and plants belong to the group? (organisation and company is missing)",
+       "Which business unit owns this record? (organisation and company is missing)",
+       "How much stock do we hold per product and plant at month end? (inventory movement and stock is missing)",
+       "Which products have not moved for six months? (inventory movement and stock is missing)",
+       "Do suppliers deliver on the date they confirmed? (goods receipt is missing)",
+       "What has been received but not invoiced yet? (goods receipt is missing)"
+      ],
+      "checked": [
+       "product"
+      ],
+      "line": "Inventory: 1 of 5 products present; organisation and company, inventory movement and stock, goods receipt and delivery missing, so a question like “Which companies and plants belong to the group?” cannot be answered.",
+      "missing": [
+       "organisation",
+       "inventory_movement",
+       "goods_receipt",
+       "delivery"
+      ],
+      "partial": [],
+      "present": [
+       "product"
+      ],
+      "title": "Inventory"
+     }
+    ],
+    "products": {
+     "customer": {
+      "checked": true,
+      "missing_roles": [],
+      "state": "present",
+      "tables": {
+       "master": [
+        "customers"
+       ]
+      }
+     },
+     "product": {
+      "checked": true,
+      "missing_roles": [],
+      "state": "present",
+      "tables": {
+       "master": [
+        "products"
+       ]
+      }
+     },
+     "sales_order": {
+      "checked": true,
+      "missing_roles": [],
+      "state": "present",
+      "tables": {
+       "header": [
+        "orders"
+       ],
+       "line": [
+        "order_items"
+       ]
+      }
+     }
+    },
+    "rule_version": "DP2-1 (21 November 2026)",
+    "tables": [
+     {
+      "confidence": "high",
+      "evidence": [
+       "the table name reads as customers: customer",
+       "customer_id reads as the business key (customer_number)",
+       "3 relationship(s) of the plan point at it",
+       "key customer_id counted: unique in all 10 rows"
+      ],
+      "product": "customer",
+      "role": "master",
+      "table": "customers"
+     },
+     {
+      "confidence": "high",
+      "evidence": [
+       "the table name reads as order + items: sales order (header and line)",
+       "order_id+line_no reads as the business key (order_number, line_number)",
+       "its lines point at orders through order_id (plan relationship (R1))",
+       "key order_id+line_no counted: unique in all 134 rows",
+       "order_items.order_id -> orders counted: holds for all 134 rows with a value"
+      ],
+      "product": "sales_order",
+      "role": "line",
+      "table": "order_items"
+     },
+     {
+      "confidence": "high",
+      "evidence": [
+       "the table name reads as orders: sales order (header and line)",
+       "order_id reads as the business key (order_number)",
+       "order_items holds its lines by order_id",
+       "key order_id counted: unique in all 60 rows"
+      ],
+      "product": "sales_order",
+      "role": "header",
+      "table": "orders"
+     },
+     {
+      "confidence": "high",
+      "evidence": [
+       "the table name reads as products: product or material",
+       "product_id reads as the business key (product_number)",
+       "1 relationship(s) of the plan point at it",
+       "key product_id counted: unique in all 8 rows"
+      ],
+      "product": "product",
+      "role": "master",
+      "table": "products"
+     }
+    ]
    },
    "evidence": {
     "counted and holds": [
@@ -1559,6 +2878,285 @@
     "tables": 7,
     "unlinked_reference_columns": 0
    },
+   "data_products": {
+    "how": "By rules, no AI: table and column names read through a word list in English, German and Swedish, the plan's keys and links, and the row counts. high = names and keys agree and the rows confirm it; medium = names and keys agree, the rows not counted; low = one signal only or the rows disagree, a hint and never counted as present.",
+    "line": "Data products: Order to cash: 3 of 7 products present; delivery, customer invoice, receivables and payables and payment missing, so a question like “Which deliveries left later than the customer was promised?” cannot be answered.",
+    "processes": [
+     {
+      "can_answer": [
+       "How many active customers do we have per country and sales organisation?",
+       "Which customers buy from more than one company in the group?",
+       "Which products sell the most per month?",
+       "Which products have no sales in the last year?",
+       "What is the order intake per customer and month?",
+       "Which order lines are not delivered yet?"
+      ],
+      "cannot_answer": [
+       "Which deliveries left later than the customer was promised? (delivery (outbound shipment) is missing)",
+       "What share of order lines was delivered in full and on time? (delivery (outbound shipment) is missing)",
+       "What is the revenue per customer and month? (customer invoice (billing) is missing)",
+       "Which products have the highest credit-memo share? (customer invoice (billing) is missing)",
+       "Which customers have unpaid invoices past their due date? (receivables and payables (open and cleared items) is missing)",
+       "What do we owe our suppliers per due week? (receivables and payables (open and cleared items) is missing)"
+      ],
+      "checked": [
+       "customer",
+       "product",
+       "sales_order"
+      ],
+      "line": "Order to cash: 3 of 7 products present; delivery, customer invoice, receivables and payables and payment missing, so a question like “Which deliveries left later than the customer was promised?” cannot be answered.",
+      "missing": [
+       "delivery",
+       "invoice",
+       "open_item",
+       "payment"
+      ],
+      "partial": [],
+      "present": [
+       "customer",
+       "product",
+       "sales_order"
+      ],
+      "title": "Order to cash"
+     },
+     {
+      "can_answer": [
+       "Which products sell the most per month?",
+       "Which products have no sales in the last year?"
+      ],
+      "cannot_answer": [
+       "How many suppliers do we buy from per purchasing organisation? (supplier is missing)",
+       "Which suppliers are also customers? (supplier is missing)",
+       "What do we spend per supplier and month? (purchase order (header and line) is missing)",
+       "Which purchase order lines are overdue for delivery? (purchase order (header and line) is missing)",
+       "Do suppliers deliver on the date they confirmed? (goods receipt is missing)",
+       "What has been received but not invoiced yet? (goods receipt is missing)"
+      ],
+      "checked": [
+       "product"
+      ],
+      "line": "Procure to pay: 1 of 7 products present; supplier, purchase order, goods receipt, supplier invoice, receivables and payables and payment missing, so a question like “How many suppliers do we buy from per purchasing organisation?” cannot be answered.",
+      "missing": [
+       "supplier",
+       "purchase_order",
+       "goods_receipt",
+       "supplier_invoice",
+       "open_item",
+       "payment"
+      ],
+      "partial": [],
+      "present": [
+       "product"
+      ],
+      "title": "Procure to pay"
+     },
+     {
+      "can_answer": [
+       "What is the order intake per customer and month?",
+       "Which order lines are not delivered yet?",
+       "What is the average order value per sales organisation?"
+      ],
+      "cannot_answer": [
+       "Which accounts in our target segment have no open opportunity? (account (crm) is missing)",
+       "How many accounts does each sales representative own? (account (crm) is missing)",
+       "Which contacts at our top accounts have had no activity in 90 days? (contact is missing)",
+       "How many leads per source and month became opportunities? (lead is missing)",
+       "How long does a lead take to be qualified? (lead is missing)",
+       "What is the weighted pipeline per quarter and sales representative? (opportunity (pipeline) is missing)"
+      ],
+      "checked": [
+       "sales_order"
+      ],
+      "line": "Lead to cash: 1 of 7 products present; account, contact, lead, opportunity, quote and customer invoice missing, so a question like “Which accounts in our target segment have no open opportunity?” cannot be answered.",
+      "missing": [
+       "crm_account",
+       "contact",
+       "lead",
+       "opportunity",
+       "quote",
+       "invoice"
+      ],
+      "partial": [],
+      "present": [
+       "sales_order"
+      ],
+      "title": "Lead to cash"
+     },
+     {
+      "can_answer": [
+       "Which products sell the most per month?",
+       "Which products have no sales in the last year?"
+      ],
+      "cannot_answer": [
+       "Which accounts in our target segment have no open opportunity? (account (crm) is missing)",
+       "How many accounts does each sales representative own? (account (crm) is missing)",
+       "Which contacts at our top accounts have had no activity in 90 days? (contact is missing)",
+       "How long does it take to resolve a case per product? (case or ticket (customer service) is missing)",
+       "Which customers open the most cases? (case or ticket (customer service) is missing)",
+       "How many customer meetings did each sales representative have last month? (activity (calls, meetings, tasks, e-mails) is missing)"
+      ],
+      "checked": [
+       "product"
+      ],
+      "line": "Customer service: 1 of 5 products present; account, contact, case or ticket and activity missing, so a question like “Which accounts in our target segment have no open opportunity?” cannot be answered.",
+      "missing": [
+       "crm_account",
+       "contact",
+       "case",
+       "activity"
+      ],
+      "partial": [],
+      "present": [
+       "product"
+      ],
+      "title": "Customer service"
+     },
+     {
+      "can_answer": [
+       "How many active customers do we have per country and sales organisation?",
+       "Which customers buy from more than one company in the group?"
+      ],
+      "cannot_answer": [
+       "What is the MRR per customer and month? (subscription or contract is missing)",
+       "How much recurring revenue did we lose to churn last quarter? (subscription or contract is missing)",
+       "What is the revenue per customer and month? (customer invoice (billing) is missing)",
+       "Which products have the highest credit-memo share? (customer invoice (billing) is missing)",
+       "How many days do customers take to pay? (payment is missing)",
+       "Which payments are not matched to an invoice? (payment is missing)"
+      ],
+      "checked": [
+       "customer"
+      ],
+      "line": "Subscription: 1 of 4 products present; subscription or contract, customer invoice and payment missing, so a question like “What is the MRR per customer and month?” cannot be answered.",
+      "missing": [
+       "subscription",
+       "invoice",
+       "payment"
+      ],
+      "partial": [],
+      "present": [
+       "customer"
+      ],
+      "title": "Subscription"
+     },
+     {
+      "can_answer": [
+       "Which products sell the most per month?",
+       "Which products have no sales in the last year?"
+      ],
+      "cannot_answer": [
+       "Which companies and plants belong to the group? (organisation and company is missing)",
+       "Which business unit owns this record? (organisation and company is missing)",
+       "How much stock do we hold per product and plant at month end? (inventory movement and stock is missing)",
+       "Which products have not moved for six months? (inventory movement and stock is missing)",
+       "Do suppliers deliver on the date they confirmed? (goods receipt is missing)",
+       "What has been received but not invoiced yet? (goods receipt is missing)"
+      ],
+      "checked": [
+       "product"
+      ],
+      "line": "Inventory: 1 of 5 products present; organisation and company, inventory movement and stock, goods receipt and delivery missing, so a question like “Which companies and plants belong to the group?” cannot be answered.",
+      "missing": [
+       "organisation",
+       "inventory_movement",
+       "goods_receipt",
+       "delivery"
+      ],
+      "partial": [],
+      "present": [
+       "product"
+      ],
+      "title": "Inventory"
+     }
+    ],
+    "products": {
+     "customer": {
+      "checked": true,
+      "missing_roles": [],
+      "state": "present",
+      "tables": {
+       "master": [
+        "customers"
+       ]
+      }
+     },
+     "product": {
+      "checked": true,
+      "missing_roles": [],
+      "state": "present",
+      "tables": {
+       "master": [
+        "products"
+       ]
+      }
+     },
+     "sales_order": {
+      "checked": true,
+      "missing_roles": [],
+      "state": "present",
+      "tables": {
+       "header": [
+        "orders"
+       ],
+       "line": [
+        "order_items"
+       ]
+      }
+     }
+    },
+    "rule_version": "DP2-1 (21 November 2026)",
+    "tables": [
+     {
+      "confidence": "high",
+      "evidence": [
+       "the table name reads as customers: customer",
+       "customer_id reads as the business key (customer_number)",
+       "3 relationship(s) of the plan point at it",
+       "key customer_id counted: unique in all 10 rows"
+      ],
+      "product": "customer",
+      "role": "master",
+      "table": "customers"
+     },
+     {
+      "confidence": "high",
+      "evidence": [
+       "the table name reads as order + items: sales order (header and line)",
+       "order_id+line_no reads as the business key (order_number, line_number)",
+       "its lines point at orders through order_id (plan relationship (R1))",
+       "key order_id+line_no counted: unique in all 134 rows",
+       "order_items.order_id -> orders counted: holds for all 134 rows with a value"
+      ],
+      "product": "sales_order",
+      "role": "line",
+      "table": "order_items"
+     },
+     {
+      "confidence": "high",
+      "evidence": [
+       "the table name reads as orders: sales order (header and line)",
+       "order_id reads as the business key (order_number)",
+       "order_items holds its lines by order_id",
+       "key order_id counted: unique in all 60 rows"
+      ],
+      "product": "sales_order",
+      "role": "header",
+      "table": "orders"
+     },
+     {
+      "confidence": "high",
+      "evidence": [
+       "the table name reads as products: product or material",
+       "product_id reads as the business key (product_number)",
+       "1 relationship(s) of the plan point at it",
+       "key product_id counted: unique in all 8 rows"
+      ],
+      "product": "product",
+      "role": "master",
+      "table": "products"
+     }
+    ]
+   },
    "evidence": {
     "counted and holds": [
      "rel:products.category_id>categories",
@@ -1828,6 +3426,285 @@
     },
     "tables": 7,
     "unlinked_reference_columns": 0
+   },
+   "data_products": {
+    "how": "By rules, no AI: table and column names read through a word list in English, German and Swedish, the plan's keys and links, and the row counts. high = names and keys agree and the rows confirm it; medium = names and keys agree, the rows not counted; low = one signal only or the rows disagree, a hint and never counted as present.",
+    "line": "Data products: Order to cash: 3 of 7 products present; delivery, customer invoice, receivables and payables and payment missing, so a question like “Which deliveries left later than the customer was promised?” cannot be answered.",
+    "processes": [
+     {
+      "can_answer": [
+       "How many active customers do we have per country and sales organisation?",
+       "Which customers buy from more than one company in the group?",
+       "Which products sell the most per month?",
+       "Which products have no sales in the last year?",
+       "What is the order intake per customer and month?",
+       "Which order lines are not delivered yet?"
+      ],
+      "cannot_answer": [
+       "Which deliveries left later than the customer was promised? (delivery (outbound shipment) is missing)",
+       "What share of order lines was delivered in full and on time? (delivery (outbound shipment) is missing)",
+       "What is the revenue per customer and month? (customer invoice (billing) is missing)",
+       "Which products have the highest credit-memo share? (customer invoice (billing) is missing)",
+       "Which customers have unpaid invoices past their due date? (receivables and payables (open and cleared items) is missing)",
+       "What do we owe our suppliers per due week? (receivables and payables (open and cleared items) is missing)"
+      ],
+      "checked": [
+       "customer",
+       "product",
+       "sales_order"
+      ],
+      "line": "Order to cash: 3 of 7 products present; delivery, customer invoice, receivables and payables and payment missing, so a question like “Which deliveries left later than the customer was promised?” cannot be answered.",
+      "missing": [
+       "delivery",
+       "invoice",
+       "open_item",
+       "payment"
+      ],
+      "partial": [],
+      "present": [
+       "customer",
+       "product",
+       "sales_order"
+      ],
+      "title": "Order to cash"
+     },
+     {
+      "can_answer": [
+       "Which products sell the most per month?",
+       "Which products have no sales in the last year?"
+      ],
+      "cannot_answer": [
+       "How many suppliers do we buy from per purchasing organisation? (supplier is missing)",
+       "Which suppliers are also customers? (supplier is missing)",
+       "What do we spend per supplier and month? (purchase order (header and line) is missing)",
+       "Which purchase order lines are overdue for delivery? (purchase order (header and line) is missing)",
+       "Do suppliers deliver on the date they confirmed? (goods receipt is missing)",
+       "What has been received but not invoiced yet? (goods receipt is missing)"
+      ],
+      "checked": [
+       "product"
+      ],
+      "line": "Procure to pay: 1 of 7 products present; supplier, purchase order, goods receipt, supplier invoice, receivables and payables and payment missing, so a question like “How many suppliers do we buy from per purchasing organisation?” cannot be answered.",
+      "missing": [
+       "supplier",
+       "purchase_order",
+       "goods_receipt",
+       "supplier_invoice",
+       "open_item",
+       "payment"
+      ],
+      "partial": [],
+      "present": [
+       "product"
+      ],
+      "title": "Procure to pay"
+     },
+     {
+      "can_answer": [
+       "What is the order intake per customer and month?",
+       "Which order lines are not delivered yet?",
+       "What is the average order value per sales organisation?"
+      ],
+      "cannot_answer": [
+       "Which accounts in our target segment have no open opportunity? (account (crm) is missing)",
+       "How many accounts does each sales representative own? (account (crm) is missing)",
+       "Which contacts at our top accounts have had no activity in 90 days? (contact is missing)",
+       "How many leads per source and month became opportunities? (lead is missing)",
+       "How long does a lead take to be qualified? (lead is missing)",
+       "What is the weighted pipeline per quarter and sales representative? (opportunity (pipeline) is missing)"
+      ],
+      "checked": [
+       "sales_order"
+      ],
+      "line": "Lead to cash: 1 of 7 products present; account, contact, lead, opportunity, quote and customer invoice missing, so a question like “Which accounts in our target segment have no open opportunity?” cannot be answered.",
+      "missing": [
+       "crm_account",
+       "contact",
+       "lead",
+       "opportunity",
+       "quote",
+       "invoice"
+      ],
+      "partial": [],
+      "present": [
+       "sales_order"
+      ],
+      "title": "Lead to cash"
+     },
+     {
+      "can_answer": [
+       "Which products sell the most per month?",
+       "Which products have no sales in the last year?"
+      ],
+      "cannot_answer": [
+       "Which accounts in our target segment have no open opportunity? (account (crm) is missing)",
+       "How many accounts does each sales representative own? (account (crm) is missing)",
+       "Which contacts at our top accounts have had no activity in 90 days? (contact is missing)",
+       "How long does it take to resolve a case per product? (case or ticket (customer service) is missing)",
+       "Which customers open the most cases? (case or ticket (customer service) is missing)",
+       "How many customer meetings did each sales representative have last month? (activity (calls, meetings, tasks, e-mails) is missing)"
+      ],
+      "checked": [
+       "product"
+      ],
+      "line": "Customer service: 1 of 5 products present; account, contact, case or ticket and activity missing, so a question like “Which accounts in our target segment have no open opportunity?” cannot be answered.",
+      "missing": [
+       "crm_account",
+       "contact",
+       "case",
+       "activity"
+      ],
+      "partial": [],
+      "present": [
+       "product"
+      ],
+      "title": "Customer service"
+     },
+     {
+      "can_answer": [
+       "How many active customers do we have per country and sales organisation?",
+       "Which customers buy from more than one company in the group?"
+      ],
+      "cannot_answer": [
+       "What is the MRR per customer and month? (subscription or contract is missing)",
+       "How much recurring revenue did we lose to churn last quarter? (subscription or contract is missing)",
+       "What is the revenue per customer and month? (customer invoice (billing) is missing)",
+       "Which products have the highest credit-memo share? (customer invoice (billing) is missing)",
+       "How many days do customers take to pay? (payment is missing)",
+       "Which payments are not matched to an invoice? (payment is missing)"
+      ],
+      "checked": [
+       "customer"
+      ],
+      "line": "Subscription: 1 of 4 products present; subscription or contract, customer invoice and payment missing, so a question like “What is the MRR per customer and month?” cannot be answered.",
+      "missing": [
+       "subscription",
+       "invoice",
+       "payment"
+      ],
+      "partial": [],
+      "present": [
+       "customer"
+      ],
+      "title": "Subscription"
+     },
+     {
+      "can_answer": [
+       "Which products sell the most per month?",
+       "Which products have no sales in the last year?"
+      ],
+      "cannot_answer": [
+       "Which companies and plants belong to the group? (organisation and company is missing)",
+       "Which business unit owns this record? (organisation and company is missing)",
+       "How much stock do we hold per product and plant at month end? (inventory movement and stock is missing)",
+       "Which products have not moved for six months? (inventory movement and stock is missing)",
+       "Do suppliers deliver on the date they confirmed? (goods receipt is missing)",
+       "What has been received but not invoiced yet? (goods receipt is missing)"
+      ],
+      "checked": [
+       "product"
+      ],
+      "line": "Inventory: 1 of 5 products present; organisation and company, inventory movement and stock, goods receipt and delivery missing, so a question like “Which companies and plants belong to the group?” cannot be answered.",
+      "missing": [
+       "organisation",
+       "inventory_movement",
+       "goods_receipt",
+       "delivery"
+      ],
+      "partial": [],
+      "present": [
+       "product"
+      ],
+      "title": "Inventory"
+     }
+    ],
+    "products": {
+     "customer": {
+      "checked": true,
+      "missing_roles": [],
+      "state": "present",
+      "tables": {
+       "master": [
+        "customers"
+       ]
+      }
+     },
+     "product": {
+      "checked": true,
+      "missing_roles": [],
+      "state": "present",
+      "tables": {
+       "master": [
+        "products"
+       ]
+      }
+     },
+     "sales_order": {
+      "checked": true,
+      "missing_roles": [],
+      "state": "present",
+      "tables": {
+       "header": [
+        "orders"
+       ],
+       "line": [
+        "order_items"
+       ]
+      }
+     }
+    },
+    "rule_version": "DP2-1 (21 November 2026)",
+    "tables": [
+     {
+      "confidence": "high",
+      "evidence": [
+       "the table name reads as customers: customer",
+       "customer_id reads as the business key (customer_number)",
+       "3 relationship(s) of the plan point at it",
+       "key customer_id counted: unique in all 10 rows"
+      ],
+      "product": "customer",
+      "role": "master",
+      "table": "customers"
+     },
+     {
+      "confidence": "high",
+      "evidence": [
+       "the table name reads as order + items: sales order (header and line)",
+       "order_id+line_no reads as the business key (order_number, line_number)",
+       "its lines point at orders through order_id (plan relationship (R1))",
+       "key order_id+line_no counted: unique in all 134 rows",
+       "order_items.order_id -> orders counted: holds for all 134 rows with a value"
+      ],
+      "product": "sales_order",
+      "role": "line",
+      "table": "order_items"
+     },
+     {
+      "confidence": "high",
+      "evidence": [
+       "the table name reads as orders: sales order (header and line)",
+       "order_id reads as the business key (order_number)",
+       "order_items holds its lines by order_id",
+       "key order_id counted: unique in all 60 rows"
+      ],
+      "product": "sales_order",
+      "role": "header",
+      "table": "orders"
+     },
+     {
+      "confidence": "high",
+      "evidence": [
+       "the table name reads as products: product or material",
+       "product_id reads as the business key (product_number)",
+       "1 relationship(s) of the plan point at it",
+       "key product_id counted: unique in all 8 rows"
+      ],
+      "product": "product",
+      "role": "master",
+      "table": "products"
+     }
+    ]
    },
    "detail": "summary",
    "evidence": {
