@@ -19,6 +19,7 @@ import {
   Input,
   Link,
   MessageBar,
+  MessageBarActions,
   MessageBarBody,
   Radio,
   RadioGroup,
@@ -68,9 +69,9 @@ import {
 } from "./buildWords";
 import { FlowView, PlanMap } from "./lazyParts";   // n223: loaded when first shown
 import { BUILD_IN_WORDS, BuildIn, buildIn, buildInLine, crossWorkspace, defaultLakehouseName, placeLine, targetRequest, validLakehouseName } from "./buildPlace";
-import { builtOn, defaultsLine, notCheckedLine, productOwnerLine } from "./ed1Words";
+import { builtOn, defaultsLine, notCheckedLine } from "./ed1Words";
 import { ChosenProductsView } from "./SuggestedProductsView";
-import { canRetry, progressLabel, toRetry } from "./createRun";
+import { progressLabel } from "./createRun";
 import { AgentChoices, AgentPanel, JobsPanel, PipelineChoices } from "./JobsViews";
 import { agentOf, jobsOf, scheduleProblems } from "./jobsWords";
 import { ICON_SIZE, KIND_TYPE, NOTICES, altBeside, itemIcon } from "./fabricIcons";
@@ -86,6 +87,10 @@ import { MASCOT_COLOURS, MASCOT_CSS, MASCOT_GLAD, MASCOT_NAMES } from "./cardMap
 import { MascotFigure } from "./mascotFigure";
 import { OntoWait } from "./OntoWait";
 import { VerifyButton } from "./verifyBuilt";
+import {
+  Blocker, SharedError, createBlocker, earlierLabel, finishLabel, isWaiting, itemStatus, ownerLine, planLine, retryState, sameErrorLine,
+  sharedErrors, splitBuilds, toFinish,
+} from "./ed2Create";
 import { FileActions } from "./fileOffer";   // WB10: downloads that work inside Fabric's frame
 import { Wait, newWait } from "./waitWords";
 import {
@@ -494,14 +499,16 @@ export function BuildInChoice(props: {
   onChooseTarget?: () => void;
   /** ED1: Change is open */
   open?: boolean;
+  /** ED2: the data product's or the item's name, which the default lakehouse is named after */
+  named?: string;
 }) {
   const { source } = props;
   const cross = crossWorkspace(source, props.itemWorkspaceId);
-  const t = targetRequest(source, props.itemWorkspaceId);
-  const make = source.createLakehouse ?? (cross ? defaultLakehouseName(source.displayName) : undefined);
+  const t = targetRequest(source, props.itemWorkspaceId, props.named);
+  const make = source.createLakehouse ?? (cross ? defaultLakehouseName(source.displayName, props.named) : undefined);
   return (
     <section className="krusgraph-build-in" aria-label="Build in">
-      <Body1 data-ed1="place">{placeLine(source, props.itemWorkspaceId)}</Body1>
+      <Body1 data-ed1="place">{placeLine(source, props.itemWorkspaceId, props.named)}</Body1>
       {props.open && (
         <div className="kg-change" aria-label="Where it is built">
           <Field label="Build in">
@@ -549,6 +556,8 @@ export function OutputsView(props: {
   onPickModel?: () => void;
   /** ED1: Change open from the start (tests) */
   changeOpen?: boolean;
+  /** ED2: the data product's owner: the one chosen, else the signed-in person (the same line as the dry run's) */
+  owner?: string | null;
 }) {
   const [changing, setChanging] = React.useState(!!props.changeOpen);
   const pipe = props.choices.find((c) => c.type === "pipeline" && c.enabled);
@@ -629,7 +638,7 @@ export function OutputsView(props: {
       </Body1>
       {props.source && props.onBuildIn && (
         <BuildInChoice source={props.source} itemWorkspaceId={props.itemWorkspaceId} onBuildIn={props.onBuildIn}
-          onChooseTarget={props.onChooseTarget} open={changing} />
+          onChooseTarget={props.onChooseTarget} open={changing} named={props.product.name.trim() || undefined} />
       )}
       {/* ED1: one Change for every default on this step: where it is built, the names, the report's model, the
           pipeline's runs, the agent's layer and publishing, the permissions */}
@@ -652,8 +661,8 @@ export function OutputsView(props: {
         <Checkbox checked={props.product.on} label="Bundle them as one data product"
           onChange={(_, d) => props.onProduct({ ...props.product, on: !!d.checked })} />
         <Caption1>
-          One name over what this build makes, with the domains Krusgraph proposes for these tables and an owner you choose later. It is kept in
-          this item; Fabric domains themselves need a Fabric administrator.
+          One name over what this build makes, with the data products Krusgraph proposes for these tables. It is kept in
+          this item; Fabric domains themselves need a Fabric administrator. <span data-ed2="owner">{ownerLine(props.owner)}</span>
         </Caption1>
         {props.product.on && (
           <Field label="Name of the data product" validationState={productOk ? "none" : "error"}
@@ -681,9 +690,12 @@ export function OutputsView(props: {
 
 // ------------------------------------------------------------------ the cards, the product -------------------------
 
-function Problem({ card }: { card: BuildCard }) {
+function Problem({ card, shared }: { card: BuildCard; shared?: SharedError[] }) {
   const p = cardProblem(card);
   if (!p || featureOff(card)) return null;                  // n181: the App's admin card says it in full
+  const same = shared ? sameErrorLine(card, shared) : undefined;   // ED2: the same error is said once, above the cards
+  if (same) return <Body1 data-ed2="same-error">{same}</Body1>;
+  if (isWaiting(card)) return <Body1 data-ed2="waiting">{p.error}</Body1>;   // ED2: "Waiting for silver", one line, not red
   const warn = !card.refusal && !card.answer?.error;
   return (
     <MessageBar intent={warn ? "warning" : "error"} layout="multiline">
@@ -716,6 +728,8 @@ export interface CardActions {
   onAppChoices?: (choices: AppChoices) => void;
   /** n209: the App's last package as outputs.json keeps it (appWords.readAppRecord), for an App already built */
   appRecord?: AppPackageRecord;
+  /** ED2: errors several cards share, said once above them */
+  shared?: SharedError[];
 }
 
 /** n181: the App (Rayfin, preview): the preflight, the ticks, the pages, the read-only connector, the package. */
@@ -1023,7 +1037,8 @@ export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["i
   const choose = needsChoice(c);
   const confirm = c.dry_run && !!c.confirm_update && !c.refusal && !c.answer?.error;
   const refresh = refreshWords(c);
-  const refused = !!(c.refusal || c.answer?.error);
+  const refused = !!(c.refusal || c.answer?.error) && !isWaiting(c);
+  const retry = retryState(c);                                  // ED2: Try again only where a retry can work
   return (
     <section className={`krusgraph-output${refused ? " refused" : ""}`} aria-label={cardTitle(c)} data-output={c.output}>
       <ItemTitle kind={c.output} label={cardTitle(c)}><Subtitle2>{cardTitle(c)}</Subtitle2><StateMark state={cardState(c)} /></ItemTitle>
@@ -1036,7 +1051,8 @@ export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["i
           ))}
         </ul>
       )}
-      <Problem card={c} />
+      <Problem card={c} shared={props.shared} />
+      {c.reads && <Body1 data-ed2="reads">{c.reads}</Body1>}
       {isApp(c) && <AppPanel card={c} saved={props.appChoices} onAppChoices={props.onAppChoices} record={props.appRecord} />}
       {c.output === "pipeline" && <JobsPanel card={c} />}
       {c.output === "data_agent" && <AgentPanel card={c} />}
@@ -1092,13 +1108,14 @@ export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["i
       {c.after_run_words && c.after_run === "waiting" && <Body1>{c.after_run_words}</Body1>}
       {c.already_built && <Body1>{c.dry_run ? "Already built from this plan; Create will skip it." :
         (c.answer?.note as string | undefined) ?? "Already in the workspace, built from this plan by an earlier Create; nothing was written again."}</Body1>}
-      {!c.dry_run && props.onRetry && canRetry(c) && (
+      {!c.dry_run && props.onRetry && retry.can && (
         <div className="krusgraph-actions">
           <Button appearance="primary" disabled={props.busy} onClick={() => props.onRetry?.(c)}>
             Try again
           </Button>
         </div>
       )}
+      {!c.dry_run && !retry.can && retry.why && !isWaiting(c) && <Caption1 data-ed2="no-retry">{retry.why}</Caption1>}
       {choose && (
         <>
           <Body1>
@@ -1159,43 +1176,65 @@ export function ProductView(props: {
   product: ProductDefinition | DataProduct;
   onOpen?: (item: OpenLink["item"]) => void;
   title?: string;
+  /** ED2: the cards of this build, for each item's status; earlier builds come under one collapsed line */
+  cards?: BuildCard[];
+  /** ED2: Clean up earlier builds: the delete dry run of exactly these items (nothing is deleted without a confirm) */
+  onCleanUp?: (ids: string[]) => void;
+  busy?: boolean;
 }) {
   const p = props.product;
-  const items = p.items as (CreatedItem & { would?: string; output?: string; decision?: string })[];
-  const withIds = items.filter((x) => x.id);
+  const items = p.items as (CreatedItem & { would?: string; output?: string; decision?: string; earlier?: boolean })[];
+  const { now, earlier } = splitBuilds(items);
+  const status = (x: (typeof items)[number]) => {
+    if (x.would) return productWould(x);
+    const c = props.cards?.find((k) => k.output === x.output);
+    return c ? itemStatus(c) : "built";
+  };
+  const line = (x: (typeof items)[number]) => (
+    <li key={x.id || `${x.output}:${x.name}`}>
+      <Body1>
+        <TypeName type={x.type || KIND_TYPE[x.output ?? ""]} text={itemTypeLabel(x.type, x.output)} /> {x.name}: {status(x)}
+        {x.id && props.onOpen && (
+          <>
+            {" "}
+            <Link as="button" onClick={() => props.onOpen?.(openLinks([x])[0].item)}>Open</Link>
+          </>
+        )}
+      </Body1>
+    </li>
+  );
+  const ids = earlier.map((x) => x.id).filter(Boolean) as string[];
+  const plan = planLine(p.plan);
   return (
     <section className="krusgraph-product" aria-label={`Data product ${p.name}`}>
       <Caption1>{props.title ?? "Data product"}</Caption1>
       <Subtitle2>{p.name}</Subtitle2>
-      <Body1>{productOwnerLine(p)}</Body1>
-      <ul className="krusgraph-list">
-        {items.map((x) => (
-          <li key={x.id || `${x.output}:${x.name}`}>
-            <Body1>
-              <TypeName type={x.type || KIND_TYPE[x.output ?? ""]} text={itemTypeLabel(x.type, x.output)} /> {x.name}
-              {x.would ? ` (${productWould(x)})` : ""}
-              {(x as { earlier?: boolean }).earlier ? " (earlier Create)" : ""}
-            </Body1>
-          </li>
-        ))}
-      </ul>
-      {withIds.length > 0 && props.onOpen && (
-        <div className="krusgraph-actions">
-          {openLinks(withIds).map((l) => (
-            <Button key={l.item.id} size="small" icon={<Open24Regular />} onClick={() => props.onOpen?.(l.item)}>
-              Open {l.label}
-            </Button>
-          ))}
-        </div>
+      <Body1>{ownerLine(p.owner)}{plan ? ` ${plan}` : ""}</Body1>
+      <ul className="krusgraph-list" data-ed2="this-build">{now.map(line)}</ul>
+      {earlier.length > 0 && (
+        <details data-ed2="earlier">
+          <summary>{earlierLabel(earlier.length)}</summary>
+          <ul className="krusgraph-list">{earlier.map((x) => (
+            <li key={x.id || `${x.output}:${x.name}`}><Body1><TypeName type={x.type || KIND_TYPE[x.output ?? ""]} text={itemTypeLabel(x.type, x.output)} /> {x.name}</Body1></li>
+          ))}</ul>
+          {props.onCleanUp && ids.length > 0 && (
+            <div className="krusgraph-actions">
+              <Button size="small" disabled={props.busy} onClick={() => props.onCleanUp?.(ids)}>Clean up earlier builds: see what would be deleted</Button>
+            </div>
+          )}
+        </details>
       )}
       {p.domains.length > 0 && (
         <Caption1>
-          Domains Krusgraph proposes: {p.domains.map((d) => `${d.name} (${d.tables.join(", ")})`).join("; ")}.
+          {PRODUCTS_LINE}{p.domains.map((d) => `${d.name} (${d.tables.join(", ")})`).join("; ")}.
         </Caption1>
       )}
     </section>
   );
 }
+
+/** ED2: one name for the grouping everywhere (domains.data_products): the suggestions, the dry run and the result. */
+export const PRODUCTS_LINE = "Data products Krusgraph proposes: ";
 
 // ------------------------------------------------------------------ 4. preview (dry run) ----------------------------
 
@@ -1210,13 +1249,18 @@ export function PreviewView(props: {
   appRecord?: AppPackageRecord;
   /** n222: a Create is starting or running (or the editor is busy): the button says so instead of doing nothing */
   creating?: boolean;
+  /** ED2: one line when the item's saved review was older than the one this dry run used */
+  stale?: string;
+  /** ED2: the one button that fixes what keeps Create off */
+  onFixBlocker?: (b: Blocker) => void;
 }) {
   const a = props.answer;
   const checkLine = dryRunCheckLine(a.row_check);
   const builder = previewLine(a);
   const checked = !!a.row_check?.checked;
   const failed = checked ? a.row_check.keys.failed + a.row_check.relationships.failed : 0;
-  const canCreate = a.outputs.length > a.refused;
+  const blocker = createBlocker(a);                            // ED2: Create stays off while a known blocker remains
+  const canCreate = a.outputs.length > 0 && !blocker;
   return (
     <div className="krusgraph-view">
       <Title3>Dry run</Title3>
@@ -1232,6 +1276,8 @@ export function PreviewView(props: {
           <Body1>{builder}</Body1>
         </>
       )}
+      {props.stale && <Caption1 data-ed2="stale">{props.stale}</Caption1>}
+      {a.lakehouse && <Body1 data-ed2="lakehouse">{a.lakehouse.words}</Body1>}
       <Body1>{a.note}</Body1>
       {a.product && <ProductView product={a.product} title="Data product (dry run)" />}
       <ChosenProductsView products={a.products} />
@@ -1252,6 +1298,16 @@ export function PreviewView(props: {
             ))}
           </ul>
         </section>
+      )}
+      {blocker && (
+        <MessageBar intent="warning" layout="multiline" aria-label="Create is off" data-ed2="blocker">
+          <MessageBarBody>{blocker.line}</MessageBarBody>
+          {props.onFixBlocker && (
+            <MessageBarActions>
+              <Button size="small" appearance="primary" disabled={!!props.creating} onClick={() => props.onFixBlocker?.(blocker)}>{blocker.button}</Button>
+            </MessageBarActions>
+          )}
+        </MessageBar>
       )}
       <div>
         <Button appearance="primary" disabled={!canCreate || !!props.creating} onClick={props.onCreate}>
@@ -1281,9 +1337,12 @@ export function ResultView(props: {
   onCreateRest?: () => void;
   /** n197: one line when the saved state or the engine could not be read on reopening (Fabric busy) */
   notice?: string;
+  /** ED2: Clean up earlier builds (the delete dry run first; nothing is deleted without the person's confirm) */
+  onCleanUp?: (ids: string[]) => void;
 } & CardActions) {
   const a = props.answer;
-  const rest = a && !running(a.outputs) ? toRetry(a.outputs) : [];
+  const rest = a && !running(a.outputs) ? toFinish(a.outputs) : [];   // ED2: Fix and finish builds only what is missing
+  const shared = a ? sharedErrors(a.outputs) : [];
   const live = !!a && (a.outputs.length === 0 || running(a.outputs));
   // n184: the finish, from outputs.json (the editor writes it as soon as every card has its answer, and reopening reads it)
   const last = live ? undefined : readLastCreate(props.outputs.last_create);
@@ -1299,12 +1358,18 @@ export function ResultView(props: {
         </MessageBar>
       )}
       {rest.length > 0 && props.onCreateRest && (
-        <div className="krusgraph-actions">
+        <div className="krusgraph-actions" data-ed2="finish">
           <Button appearance="primary" disabled={props.busy} onClick={() => props.onCreateRest?.()}>
-            {`Create the rest (${rest.length})`}
+            {finishLabel(rest.length)}
           </Button>
         </div>
       )}
+      {a?.error && <MessageBar intent="error" layout="multiline"><MessageBarBody>{a.error}{a.hint ? ` ${a.hint}` : ""}</MessageBarBody></MessageBar>}
+      {shared.map((e) => (
+        <MessageBar key={e.error} intent="error" layout="multiline" data-ed2="shared-error">
+          <MessageBarBody>{`${e.labels.join(", ")}: ${e.error}${e.hint ? ` ${e.hint}` : ""}`}</MessageBarBody>
+        </MessageBar>
+      ))}
       {last ? (
         <FinishView last={last} mascotsOn={props.mascotsOn} timeZone={props.timeZone} />
       ) : props.mascotsOn ? (
@@ -1317,12 +1382,12 @@ export function ResultView(props: {
       )}
       {/* n229: after every Create, and on reopening: read back what was built and compare it with the dry run, by rules */}
       {!live && <VerifyButton built={props.outputs.created.length} busy={props.busy} />}
-      {stored && <ProductView product={stored} onOpen={props.onOpen} />}
+      {stored && <ProductView product={stored} onOpen={props.onOpen} cards={a?.outputs} onCleanUp={props.onCleanUp} busy={props.busy} />}
       {a?.flow && <FlowView flow={a.flow} mascotsOn={false} idPrefix="kg-flow-result" />}
       {a ? (
         a.outputs.map((c) => (
           <OutputCard key={c.output} card={c} onOpen={props.onOpen} onUpdate={props.onUpdate} onNewName={props.onNewName} busy={props.busy}
-            onRetry={props.onRetry} {...appOf(props.outputs, c)} />
+            onRetry={props.onRetry} shared={shared} {...appOf(props.outputs, c)} />
         ))
       ) : (
         <section>

@@ -35,10 +35,15 @@ export function crossWorkspace(source: Pick<SourceDefinition, "workspaceId" | "b
   return buildWorkspace(source, itemWorkspaceId).toLowerCase() !== source.workspaceId.toLowerCase();
 }
 
-/** The lakehouse Krusgraph offers to make: the source's name with _krusgraph, letters, digits and underscores. */
-export function defaultLakehouseName(sourceName: string): string {
-  const base = sourceName.replace(/[^A-Za-z0-9_]/g, "_").replace(/^[^A-Za-z]+/, "");
-  return `${(base || "lakehouse").slice(0, 100)}_krusgraph`;
+/** The lakehouse Krusgraph offers to make. ED2 (Gustav, 21 November 2026: "shop_lh_krusgraph_test" was taken): named
+ * after the data product or the Model item (`named`) with _lh, the same rule as the engine's
+ * workload_api.default_lakehouse_name; without one, the source's name with _krusgraph. Letters, digits, underscores.
+ * The engine checks the name against the workspace before Create and moves it to the next free one, said once. */
+export function defaultLakehouseName(sourceName: string, named?: string): string {
+  const slug = (x: string) => x.replace(/[^A-Za-z0-9_]/g, "_").replace(/_+/g, "_").replace(/^[^A-Za-z]+/, "").replace(/_+$/, "").slice(0, 100);
+  const own = named ? slug(named) : "";
+  if (own) return own.toLowerCase().endsWith("_lh") ? own : `${own}_lh`;
+  return `${slug(sourceName) || "lakehouse"}_krusgraph`;
 }
 
 export function validLakehouseName(name: string): boolean {
@@ -55,14 +60,14 @@ export interface TargetRequest {
 /** What every engine request carries as `target`. A chosen lakehouse counts only in the workspace it was chosen in (a
  * read-only source's target from n201 has no workspace: the source's). Create a lakehouse counts only when no lakehouse
  * is chosen there. */
-export function targetRequest(source: SourceDefinition, itemWorkspaceId?: string): TargetRequest {
+export function targetRequest(source: SourceDefinition, itemWorkspaceId?: string, productName?: string): TargetRequest {
   const ws = buildWorkspace(source, itemWorkspaceId);
   const t = source.target;
   const chosen = t && (t.workspaceId ?? source.workspaceId).toLowerCase() === ws.toLowerCase() ? t.itemId : null;
   // ED1: in another workspace than the source's, with no lakehouse chosen, Create makes (or reuses) one named after the
   // source by default: a visible default under Change, no checkbox to tick
   const cross = ws.toLowerCase() !== source.workspaceId.toLowerCase();
-  const named = source.createLakehouse !== undefined ? source.createLakehouse : cross ? defaultLakehouseName(source.displayName) : undefined;
+  const named = source.createLakehouse !== undefined ? source.createLakehouse : cross ? defaultLakehouseName(source.displayName, productName) : undefined;
   const make = !chosen && named && validLakehouseName(named) ? named.trim() : undefined;
   return { lakehouse: chosen, workspace: ws, where: buildIn(source), ...(make ? { create_lakehouse: make } : {}) };
 }
@@ -89,8 +94,8 @@ export function buildInLine(source: SourceDefinition, itemWorkspaceId?: string):
 }
 
 /** The lakehouse line when the build is in another workspace than the source's. */
-export function lakehouseLine(source: SourceDefinition, itemWorkspaceId?: string): string {
-  const t = targetRequest(source, itemWorkspaceId);
+export function lakehouseLine(source: SourceDefinition, itemWorkspaceId?: string, named?: string): string {
+  const t = targetRequest(source, itemWorkspaceId, named);
   if (t.lakehouse) return `Silver and gold go to the lakehouse ${source.target?.displayName ?? t.lakehouse}.`;
   if (t.create_lakehouse)
     return `Create makes the lakehouse ${t.create_lakehouse} here first (with Lakehouse schemas), unless one of that name is there; the dry run makes nothing.`;
@@ -99,8 +104,8 @@ export function lakehouseLine(source: SourceDefinition, itemWorkspaceId?: string
 
 /** ED1 (Gustav, 21 November 2026): the one line the Choose step shows for where the build goes, a visible default that
  * Change opens. It never contradicts what the dry run does: it reads the same targetRequest. */
-export function placeLine(source: SourceDefinition, itemWorkspaceId?: string): string {
-  const t = targetRequest(source, itemWorkspaceId);
+export function placeLine(source: SourceDefinition, itemWorkspaceId?: string, named?: string): string {
+  const t = targetRequest(source, itemWorkspaceId, named);
   const here = buildIn(source) === "source" ? "the source's workspace" : "this workspace";
   if (t.lakehouse) return `Silver and gold go to ${source.target?.displayName ?? t.lakehouse} in ${here}.`;
   if (t.create_lakehouse)
