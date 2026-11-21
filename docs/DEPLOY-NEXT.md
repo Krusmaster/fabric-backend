@@ -1,91 +1,96 @@
-# Next deploy — what changes (internal)
+# Next deploy: what is live, and what to check (internal)
 
-Written in round n127 on 6 November 2026 from the code on `main`. The last deploy served build `src-8d6c473bf26f45f9`
-on 6 November 2026 and held `main` up to and including n111 (`78aabdf n111 releases Engine`). Everything below came
-after it. Round n122 (quality suites) is included; n126 (column usage) was still running when this was written and is not
-covered. Deploying stays with the maintainer (`bash deploy/krusgraph.sh --update`).
+Rewritten in round BL31 on 21 November 2026 (sprint item BL31, backlog C-01, issue #135) from `main` at `27ea969`
+and the runs of `.github/workflows/deploy.yml`. The first version (round n127, 6 November 2026) listed what came after
+build `src-8d6c473bf26f45f9` (`main` up to n111, `78aabdf`); this one replaces it.
 
-## What changes for users
+## Short answer
 
-New tool (38 → 39):
+- **Issue #135 was a one-off.** The automatic deploy of `48f735d` (ED2's release, 14:54 UTC) stopped in its first Azure
+  step, `azure/login`, before any Azure call:
+  `##[error]Failed to fetch federated token from GitHub. Please make sure to give write permissions to id-token in the workflow.`
+  followed by `Error Message: Request timeout: /309//idtoken/...?api-version=2.0&audience=api%3A%2F%2FAzureADTokenExchange`.
+  The `deploy` job does have `id-token: write`, and the gate job had passed with every variable set, so this was
+  GitHub's token service timing out, not a missing permission, variable or one-time step. The snapshot, update and
+  rollback steps were "skipped" because the step before them failed; nothing in Azure changed.
+- **It did not stay broken.** The next commit's run (`215441f`, 15:15 UTC) deployed, and so did every later commit
+  that was `main`'s tip when its CI finished. Runs whose commit was no longer the tip end in the gate with
+  "go=false" (by design, the newer commit deploys).
+- **Live now:** build `src-bc278814ec357d5d`, `main` at `27ea969` (SM6's release), deployed by run 44950163228 at
+  21:15 UTC on 21 November. Its log ends with "Hemsida, dokumentation, sekretessida och MCP-inloggningskrav svarar
+  korrekt." Everything on `main` up to `27ea969` is in that image, including all rounds listed below. What later rounds
+  merge goes out by itself after green CI.
+- **Not deployed by the workflow** (unchanged since CD1): the Fabric workload package upload, changes in
+  `deploy/krusgraph.json`, secrets, domains, Key Vault. Those stay `bash deploy/krusgraph.sh --update` in Cloud Shell.
 
-- `create_pipeline` (n120): creates or updates the silver, gold and check notebooks and a data pipeline that runs them
-  in that order, stopping on a failed check. `dry_run=true` is the default; it never runs or schedules the pipeline.
+## Deploy runs on `main` on 21 November 2026 (UTC)
 
-New options on existing tools (all off or unchanged by default):
+| Time | Commit | Result |
+| --- | --- | --- |
+| 11:21 to 13:46 | `dbb130b`, `8ab0b53`, `ae3e0a0`, `4c79568`, `4e81c0e`, `a1131c8` | deployed (a run of 4 to 5 minutes each; `a1131c8` checked step by step) |
+| 14:54 | `48f735d` | **failed** in `azure/login` (token timeout above); issue #135 opened by the workflow |
+| 15:15 | `215441f` | deployed: the first run after #135 got through every step |
+| 15:28 to 20:34 | `c86d353`, `cccc920`, `d4a2192`, `dc2c3fa`, `2b94747`, `0680adf`, `b41b2cc`, `457fd15`, `84d9beb`, `feae6fd`, `d300659` | deployed; the other runs on these commits stopped in the gate (not the tip any more, or waiting behind a running deploy) |
+| 21:10 | `27ea969` | deployed, build `src-bc278814ec357d5d` |
 
-- `dbt_schema(project=true, check_rows=...)` (n114): a whole dbt project draft instead of the sources file.
-- `dbt_schema(quality="gx"|"soda"|"both", profile=true)` (n122): Great Expectations and SodaCL check drafts, and a
-  dbt-fabric `profiles.yml` with placeholders.
-- `validate_plan` findings carry a `fix` (n115) in the evidence report's checklist, and the silver notebook draft can
-  take the fix steps with every decision left as `None`.
-- `export_item_definitions(items=["catalog"])` (n116): the description and tags per Fabric item and the REST calls for
-  them. No tool sends them.
-- `lineage(format="openlineage")` (n125): the graph as OpenLineage run events. Default `format="graph"` is unchanged.
+Read from run durations; `457fd15` and `27ea969` were also checked step by step (every step green, rollback and issue
+skipped). No run failed after 14:54. Issue #135 is still open; closing it is Gustav's call (no round comments on issues).
 
-Changed defaults: none for a user. The operator settings below are new and off by default, so the hosted service behaves
-as today unless they are set.
+## What came after build `src-8d6c473bf26f45f9`, by group
 
-New pages: the Concepts group of `/docs` (n86b, n117):
+Every round with a release commit between `78aabdf` and `27ea969` (241 release commits, 209 rounds), grouped by the
+areas its release commit names: editor if it names Workload; else chat if MCP tools or Krusgraph CLI; else engine if
+Engine, SAP pack, Pipeline jobs, Catalog publish or Rayfin; else site if Website; else docs. All of it is in the live
+image; the "look at" lines are what to check once, since nobody has checked the live site by hand since 6 November.
 
-- `/docs/concepts/how-it-works`, `/docs/concepts/ontologies`, `/docs/concepts/data-products`,
-  `/docs/concepts/how-they-connect`, `/docs/concepts/where-it-runs`, `/docs/concepts/vision`
-- the same content in `/docs.md`, `/llms.txt`, `/llms-full.txt` and the sitemap; `/healthz` gains a `mode` field.
+**Engine (56):** n114, n115, n116, n119, n120, n122, n123, n124, n125, n126, n128 to n134, n136 to n141, n143, n144,
+n150, n192, n200, n202, n204, n208, n230, W7, B3, Q1, CDS2, PK1, PK2, LT1, WB1, SAPD1, DP1, SRC3, DBT1, BL3, BL5, BL8,
+BL10, BL14, BL17, BL19, BL23, BL25, BL27, BL29, SM5.
+Look at: from Claude, on the demo workspace with synthetic data, `validate_plan` on `sap_demo` (counts, receipt rows,
+the catalog quality line) and one dry run of `create_pipeline`; nothing is written with `dry_run=true`.
 
-Internal docs only, not on the site: `docs/COMPARISON-MYRIADE.md` (n113), `docs/LANDSCAPE.md` (n118).
-The segmentation note (n121) is kept with the business material, outside this repository.
+**Chat (32):** n149, n151, n164, n169, n170, n172, n205, n218, n219, n220, n226, n227, F2, L1, MG1, Q2, WB12, WB13,
+WB15, AP2, AP3, DA2, RQ1, UM2, DIR1, CL1, BL1, BL21, SM2, SM4, SM6, DP2.
+Look at: `/llms.txt` says "Forty-eight tools"; the tool list in Claude matches it; the MCP Apps check card shows on
+`validate_plan` (the deploy config has `mcp_apps: true`); a write tool asks for `target_lakehouse` (SM6) and still
+defaults to a dry run.
 
-## Environment settings and their defaults
+**Editor (53):** n166, n168, n171, n173 to n177, n179 to n181, n183 to n185, n189, n195, n197, n198, n201, n207,
+n209, n210, n213 to n216, n221 to n223, n225, n228, n229, n243, W11 to W14, F1, CSN2, CA1, WB2, WB4, WB10, WB11, WB14,
+UM1, FA1, CO1, MOD1, SM3, ED1, ED2, ED3.
+Look at: the Krusgraph Model item opens in Fabric from workload.krusgraph.com and the Model editor loads (ED1 to
+ED3). The workload's `Manifest` last changed on 17 November (W13, `dfe4e4a`): if the package in the tenant was uploaded
+before that, it must be built and uploaded again by hand (`docs/WORKLOAD-DEV.md`); the workflow never uploads it.
 
-Read from the code (`os.environ.get(...)`). "On" means one of `1`, `true`, `yes`, `on` unless noted.
+**Site (34):** n86b, n117, n135, n142, n145, n146, n154, n157, n160, n161, n165, n188, n190, n194, n196, n203, n206,
+n211, n212, n217, n224, n231 to n234, n239, n240, G1, D2, SRC1, BL2, DOCV1, DOCV2, DBTV1.
+Look at: 200 from `/`, `/check`, `/start`, `/sap`, `/sources`, `/docs`, `/trust`, `/security`, `/privacy`, `/pricing`,
+`/partners`, `/use-cases`, `/llms.txt`, `/llms-full.txt`, `/sitemap.xml`; the home page replay card; `/sap` plays the
+film with captions.
 
-| Setting | Default | What it does | Set by `deploy/azure_containerapp.py` |
-| --- | --- | --- | --- |
-| `KRUSGRAPH_MCP_APPS` | off (only `"1"` turns it on) | n119/n124: the two MCP Apps cards for `validate_plan` and `review_plan` | no |
-| `KRUSGRAPH_READ_ONLY` | off | n123: no tool that creates or changes something in Fabric is registered | no |
-| `KRUSGRAPH_NO_ROW_VALUES` | off | n123: no `sample_rows`; row values removed from answers, names and counts kept | no |
-| `KRUSGRAPH_ONTOLOGY_WRITE` | off | nothing: no module reads it since `create_ontology` is always offered (README); the deploy script still sets it from `ontology_write` (review L19, left to the Deployment round) | yes, when `ontology_write` is in the config |
-| `KRUSGRAPH_BUILD` | unset | the build shown on `/healthz` | yes |
-| `KRUSGRAPH_LOG_RETENTION_DAYS` | unset (logs not kept) | days of console logs, said on `/privacy` | yes, from `log_retention_days` |
-| `KRUSGRAPH_ACCESS_LOG` | on (`"1"`) | access log lines | set to `0` when log retention is set |
-| `KRUSGRAPH_RATE_LIMITS` | on (`"1"`) | rate limits per user and organisation | no |
-| `KRUSGRAPH_RATE_USER` / `KRUSGRAPH_RATE_ORG` | `30/minute,600/hour` / `120/minute,3000/hour` | the limits | no |
-| `KRUSGRAPH_USAGE_LOG` | on (`"1"`) | the anonymous usage record per tool call | no |
-| `KRUSGRAPH_USAGE_SALT` | unset | per-organisation usage when set | no |
-| `KRUSGRAPH_METRICS_TOKEN` | unset | `/metrics` is a 404 unless set (32 characters or more, sent as a bearer token) | no |
-| `KRUSGRAPH_DEBUG_ERRORS` | unset | adds the exception type as `debug` to error answers | no |
-| `KRUSGRAPH_PREVIEW` | off (only `"1"`) | the sales-planning example at `/example/sales-planning` | no |
-| `KRUSGRAPH_PLATFORM` | unset | `databricks` switches the local server to Databricks | no (local server) |
-| `KRUSGRAPH_ENTITLEMENTS` | `0` | tenant entitlements; with `KRUSGRAPH_ENTITLEMENTS_SOURCE` (`env`), `KRUSGRAPH_ENTITLED_TENANTS` (`{}`), `KRUSGRAPH_ENTITLEMENTS_TABLE`, `KRUSGRAPH_UPGRADE_URL` | no |
-| `KRUSGRAPH_CLIENT_REGISTRATION` / `_DCR` | off | client registration for MCP clients other than Claude | no |
-| `KRUSGRAPH_REGISTRATION_STORE`, `_KEY`, `_KEY_KEYVAULT_URI`, `_CLIENT_DOMAINS` | unset | where and how registrations are kept | no |
-| `KRUSGRAPH_REGISTRATION_RATE_IP` / `_CLIENT` / `_REGISTER` | `60/minute,600/hour` / `300/minute,6000/hour` / `10/hour` | registration rate limits | no |
+**Docs (18):** n113, n118, n121, n127, n167, n186, n191, S1, D1, W8, W10, A1, C1, P1, K1, WP1, LS2, BL12.
+Look at: nothing live beyond the `/docs` pages above; these are repository documents.
 
-The deploy script does not set the three new settings, so after `--update` they are all off unless set on the
-container app by hand.
+**Other (16):** deploy and CI (n159, n235, B2, CD1, CI1), tests (n163), hub readiness (n178), evolution (E1), social
+media images (I1, H1, n236, C2, n241, n242), the chat demo's files (n162), WB3's claims. Nothing to look at live.
 
-## Permissions the hosted app does not have today
+## Settings the live app runs with
 
-Since 28 October 2026 the hosted app has `Notebook.ReadWrite.All`, `DataPipeline.ReadWrite.All` and
-`Item.ReadWrite.All` (`fabric_backend/access.py`), so no tool is `OPERATOR` in `fabric_backend/tool_status.py`. What is
-still not requested:
+From the deploy log of run 44950163228 (the saved `deploy/krusgraph.json`; ids and names left out here):
+`mcp_apps: true`, `read_only: false`, `no_row_values: false`, `pipeline_execute: false`, `ontology_write: false`,
+`marketplace: false`, `entitlements: false`, `trial: false`, `min_replicas: 1`, `log_retention_days: 30`. The workflow
+changes only the image and `KRUSGRAPH_BUILD`; changing any of these is a Cloud Shell `--update` by Gustav.
 
-- `DataPipeline.Execute.All` (or `Item.Execute.All`): `create_drift_monitor`'s schedule, which is why `schedule=false`
-  is its default (n158).
-- `Tag.Read.All`: the catalog draft (n116) would need it to be sent, but no tool sends it.
+## What Gustav does next (in order)
 
-## Checklist after deploy
-
-1. `/healthz` answers 200 with the new build and `"mode": "default"`.
-2. These answer 200: `/`, `/docs`, `/docs.md`, `/llms.txt`, `/llms-full.txt`, `/check`, `/it`, `/privacy`, and the six
-   Concepts pages listed above.
-3. `/llms.txt` says "Thirty-nine tools" and names `create_pipeline`.
-4. From Claude, against the demo workspace with synthetic data, one call per new option:
-   - `create_pipeline` with the default `dry_run=true`: definitions and REST calls, no write.
-   - `dbt_schema` with `project=true`: the file list of the dbt project.
-   - `dbt_schema` with `quality="both"` and `profile=true`: the GX suites, the SodaCL checks and `profiles.yml`.
-   - `validate_plan`: the checklist rows carry `fix`.
-   - `export_item_definitions` with `items=["catalog"]`: descriptions, tags and calls, no files.
-   - `lineage` with `format="openlineage"`: run events, no row values.
-5. Without setting `KRUSGRAPH_MCP_APPS`, `validate_plan` and `review_plan` answer as before (no card).
+1. Nothing to repair: automatic deploy works. Optionally close issue #135 with a pointer to this page.
+2. Open `https://krusgraph.com/healthz`: it answers 200 with `src-bc278814ec357d5d` or a newer build.
+3. Open the site pages in the Site group above once (each answers 200).
+4. In Claude, against the demo workspace with synthetic data: the Engine and Chat checks above.
+5. In Fabric: open the Krusgraph Model item; if the uploaded workload package predates 17 November, rebuild and
+   upload it (`docs/WORKLOAD-DEV.md`).
 6. Record what ran, where and when in `docs/LIVE-TEST.md`.
+7. If a later deploy fails: read the issue the workflow opens and the job log's first red step. A token timeout in
+   `azure/login` (as in #135) needs no fix: the next commit deploys, or **Actions → Deploy → Run workflow** once. A
+   troubleshooting table for `docs/AUTO-DEPLOY.md` and a proposed `azure/login` retry wait in PR #150 (`needs-gustav`,
+   because path-guard counts that file as deployment).
