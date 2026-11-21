@@ -174,7 +174,7 @@ def test_a_report_whose_model_stays_unreadable_says_why_on_its_own_card(make):
     a = r.json()["outputs"][0]["answer"]
     assert a["kind"] == "source_not_ready"
     assert "OperationNotSupportedForItem" in a["error"] and "4 tries" in a["error"]
-    assert "Create again in a minute" in a["hint"]
+    assert "Try again on the report in a minute" in a["hint"]          # ED2: only the report is sent again
     assert not [i for i in fake.items if i["type"] == "Report"]
 
 

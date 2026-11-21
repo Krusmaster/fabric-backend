@@ -192,3 +192,23 @@ def test_run_once_card_says_no_schedule_and_how_to_add_one():
     card = workload_api._jobs_card(o, {}, {"granted": True}, True)
     assert card["words"][-1] == workload_api.NO_SCHEDULE_LINE
     assert "adds none" not in " ".join(card["words"])
+
+
+# ------------------------------------------------------------------ 1. the review and check the dry run uses -------
+
+def test_review_and_check_now_dry_run_shows_todays_check_and_no_stale_rejection(make):
+    """The dry run counts what it is sent, so the editor sends the freshest review (ed2Create.freshestReview: a re-read of
+    an older saved review never replaces a check run meanwhile). Here: a review, a check now, and the dry run on it shows
+    today's check time and leaves nothing out because of a review the person did not make."""
+    import datetime as dt
+    client, fake, priv = make(InUse())
+    rv = _review(client, priv)
+    checked = _post(client, "/check", {**SRC, "review": rv}, priv).json()["review"]
+    old = {**checked, "items": [{**it, **({"check": {**it["check"], "checked_at": "2026-11-11T20:23:00Z"}} if it.get("check") else {})}
+                                for it in checked["items"]]}
+    dry = _post(client, "/build", {**SRC, "review": checked, "outputs": OUTPUTS[:1], "dry_run": True, "created": []}, priv).json()
+    today = dt.datetime.now(dt.timezone.utc).date().isoformat()
+    assert dry["row_check"]["checked"] and dry["row_check"]["checked_at"].startswith(today)
+    assert dry["left_out_by_review"] == []
+    stale = _post(client, "/build", {**SRC, "review": old, "outputs": OUTPUTS[:1], "dry_run": True, "created": []}, priv).json()
+    assert stale["row_check"]["checked_at"].startswith("2026-11-11")   # what the old one would have said
