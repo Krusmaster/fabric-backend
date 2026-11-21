@@ -324,3 +324,34 @@ What changed:
 Not done here: the drafts are not yet literal aliases (one code path) of their create tool's dry run; they keep their
 own answers and goldens, and only the cards' buttons point at the dry run. The local stdio server (`mcp_server.py`) is
 unchanged. The chat path is unchanged (`tests/test_wb15_click_through.py`).
+
+## 12. After SM5: several lakehouses, on a synthetic fixture (21 November 2026)
+
+PLAN.md row 4. Everything below ran locally on `tests/fixtures/multi_lakehouse.py`: one fake workspace, `mlh_demo`,
+with six lakehouses as SQLite files (`bronze_lh`, `silver_lh`, `gold_lh`, `sap_lh`, `crm_lh`, `sales_product_lh`),
+synthetic rows only (the default SAP demo tables and the Salesforce demo, plus two CRM columns made up for the
+fixture). Nothing reached Fabric; any POST, PATCH, PUT or DELETE fails the test. Tests:
+`tests/test_sm5_multi_lakehouse.py`.
+
+| Measure | Before (main, 21 Nov) | After SM5 |
+|---|---|---|
+| (a) Start on a workspace with `bronze_lh`, `silver_lh`, `gold_lh` | step 1 waits: "Choose a source first." | first card "mlh_demo › bronze_lh › sap ✓", **0 extra taps** |
+| (a) taps to the first card, compared with the one-lakehouse demo | | the same card, 0 taps both |
+| (b) Start on `sap_lh`, `crm_lh`, `sales_product_lh` | step 1 waits | `sales_product_lh` suggested (rule L2); its two schemas are the person's choice |
+| (c) one plan over `sap` + `crm` in one lakehouse | not possible (one schema per plan) | **38 tables** keyed `schema.table`, SAP pack in `sap`, Salesforce pack in `crm`, 77 links, none guessed across |
+| (c) a confirmed link `crm.Account.SAP_Customer_No__c` → `sap.KNA1.KUNNR` | a foreign key into another schema was dropped | counted in **one query on one connection**: 4 rows with a value, 3 found |
+| One-lakehouse demo, lazy path, Start → all three dry runs | 4 taps (SM2) | see the measured line below |
+
+What changed:
+- **Name rules for the source (G1).** `start_flow.suggest_source`: L1, exactly one source named as the raw layer
+  (`bronze`, `raw`, `landing`, `staging` as a word of its name) is the source, and the ones named silver or gold are
+  said to stay untouched; L2, otherwise exactly one source named `product` holds the sources as schemas. Otherwise
+  nothing is suggested and Next waits, as before. A suggestion is taken like a single option, so the first card can
+  skip step 1, and Change shows it ticked with the reason under its name.
+- **A plan over several schemas of one item (G4, plan and check).** `fabric_backend/multi_schema.py`:
+  `schema="sap+crm"` (or `"sap,crm"`) reads each schema and keys every table `schema.table`; each schema gets its own
+  knowledge pack; `Dialect.table` quotes `sap.KNA1` of a combined plan as `[sap].[KNA1]`, so every counting query runs
+  on the one connection. Start's schema step offers the schemas together ("38 tables, one plan"), never chosen for you.
+- Not done here: silver, gold, the model, ontology and agent over a combined plan, and writing to `silver_lh` and
+  `gold_lh` (SM6); matching across sources and conformed gold (SM7). The fixture's `EXPECTED` already lists what they
+  must say.

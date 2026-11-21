@@ -129,7 +129,7 @@ def plan_full(p: Plan, suggested_keys: list[dict], mermaid: bool = True, states:
         out["extended_relationships"] = [_extended(r) for r in p.extended]
     if p.pack:
         out["pack"] = {k: p.pack[k] for k in ("pack", "rule", "status", "variant_hint", "not_applied", "missing_tables",
-                                               "missing_columns", "client_dropped") if p.pack.get(k)}
+                                               "missing_columns", "client_dropped", "by_schema") if p.pack.get(k)}
     if mermaid:
         out["mermaid"] = p.mermaid()
     return out

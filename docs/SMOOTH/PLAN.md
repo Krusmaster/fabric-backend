@@ -33,6 +33,12 @@ outputs shown and 6 under More outputs; one accept-all (AUDIT.md section 8, `mea
 every hidden tool still answers by name; 0 cards without a way on (from 1) and 0 card buttons for an unlisted tool
 (AUDIT.md section 11, `measure-tools-2026-11-21.json`).
 
+**SM5 is done** (21 November 2026): on the synthetic fixture `tests/fixtures/multi_lakehouse.py`, layouts (a), (b) and
+(c) plan; in (a) Start picks `bronze_lh` by name rule L1 on the first card (0 extra taps, the same card as the
+one-lakehouse demo); in (c) one plan over `sap+crm` keys its 38 tables `schema.table`, and the join check counts
+`crm.Account` → `sap.KNA1` on one connection (3 of 4 found). The one-lakehouse demo still reaches all three dry runs in 4
+taps (AUDIT.md section 12, `tests/test_sm5_multi_lakehouse.py`).
+
 SM5-SM7 change the engine (`infer.py`, `graphs.py`, `server.py`'s write path). They come after SM2-SM4 because those
 three change what every later round's UI looks like, and the multi-source flow should be built straight into five steps.
 
