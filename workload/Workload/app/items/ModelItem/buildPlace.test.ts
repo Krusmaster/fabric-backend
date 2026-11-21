@@ -26,7 +26,8 @@ describe("Build in", () => {
   it("builds in the item's own workspace by default, not the source's", () => {
     expect(buildWorkspace(source(), SANDVIK)).toBe(SANDVIK);
     expect(crossWorkspace(source(), SANDVIK)).toBe(true);
-    expect(targetRequest(source(), SANDVIK)).toEqual({ lakehouse: null, workspace: SANDVIK, where: "item" });
+    // ED1: in another workspace, Create makes (or reuses) <source>_krusgraph by default: a visible default, no checkbox
+    expect(targetRequest(source(), SANDVIK)).toEqual({ lakehouse: null, workspace: SANDVIK, where: "item", create_lakehouse: "demo_lh_krusgraph" });
     expect(buildInLine(source(), SANDVIK)).toContain("built in this item's workspace, so it gets its own data product");
   });
 
@@ -42,7 +43,7 @@ describe("Build in", () => {
     expect(buildInLine(source(), DEMO)).toContain("also demo_lh's");
   });
 
-  it("sends Make a lakehouse only when ticked and no lakehouse is chosen in the build's workspace", () => {
+  it("sends Make a lakehouse (by default, ED1) only when no lakehouse is chosen in the build's workspace", () => {
     const name = defaultLakehouseName("demo_lh");
     expect(name).toBe("demo_lh_krusgraph");
     expect(targetRequest(source({ createLakehouse: name }), SANDVIK)).toEqual(
