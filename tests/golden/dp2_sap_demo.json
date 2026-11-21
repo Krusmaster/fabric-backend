@@ -1,0 +1,1403 @@
+{
+ "counted": {
+  "queries": 0,
+  "with_rows": true
+ },
+ "details": [
+  "Order to cash: 5 of 7 products present; receivables and payables and payment missing, so a question like “Which customers have unpaid invoices past their due date?” cannot be answered.",
+  "Lead to cash: 4 of 7 products present; account, lead and opportunity missing, so a question like “Which accounts in our target segment have no open opportunity?” cannot be answered.",
+  "Inventory: 3 of 5 products present; inventory movement and stock and goods receipt missing, so a question like “How much stock do we hold per product and plant at month end?” cannot be answered.",
+  "Customer service: 2 of 5 products present; account, case or ticket and activity missing, so a question like “Which accounts in our target segment have no open opportunity?” cannot be answered.",
+  "Subscription: 2 of 4 products present; subscription or contract and payment missing, so a question like “What is the MRR per customer and month?” cannot be answered.",
+  "Procure to pay: 1 of 7 products present; supplier, purchase order, goods receipt, supplier invoice, receivables and payables and payment missing, so a question like “How many suppliers do we buy from per purchasing organisation?” cannot be answered.",
+  "Record to report: 1 of 6 products present; chart of accounts, general ledger journal entry, cost centre and profit centre, currency and exchange rate and budget and plan missing, so a question like “Which accounts make up revenue and cost of sales?” cannot be answered.",
+  "sap_adrc: customer (extension), medium. the sap pack recognises it as ADRC; mapping.yaml maps that to customer (extension), confidence medium; key CLIENT+ADDRNUMBER+DATE_FROM+NATION from the plan; key counted: unique in all 7 rows.",
+  "sap_kna1: customer (master), high. the sap pack recognises it as KNA1; mapping.yaml maps that to customer (master), confidence high; key MANDT+KUNNR from the plan; key counted: unique in all 4 rows.",
+  "sap_knvk: contact (master), high. the sap pack recognises it as KNVK; mapping.yaml maps that to contact (master), confidence high; key MANDT+PARNR from the plan; key counted: unique in all 1 rows.",
+  "sap_likp: delivery (header), high. the sap pack recognises it as LIKP; mapping.yaml maps that to delivery (header), confidence high; key MANDT+VBELN from the plan; key counted: unique in all 1 rows.",
+  "sap_lips: delivery (line), high. the sap pack recognises it as LIPS; mapping.yaml maps that to delivery (line), confidence high; key MANDT+VBELN+POSNR from the plan; key counted: unique in all 2 rows.",
+  "sap_makt: product (text), high. the sap pack recognises it as MAKT; mapping.yaml maps that to product (text), confidence high; key MANDT+MATNR+SPRAS from the plan; key counted: unique in all 6 rows.",
+  "sap_mara: product (master), high. the sap pack recognises it as MARA; mapping.yaml maps that to product (master), confidence high; key MANDT+MATNR from the plan; key counted: unique in all 4 rows.",
+  "sap_t001: organisation (master), high. the sap pack recognises it as T001; mapping.yaml maps that to organisation (master), confidence high; key MANDT+BUKRS from the plan; key counted: unique in all 2 rows.",
+  "sap_tvko: organisation (master), high. the sap pack recognises it as TVKO; mapping.yaml maps that to organisation (master), confidence high; key MANDT+VKORG from the plan; key counted: unique in all 2 rows.",
+  "sap_vbak: quote (header), high. the sap pack recognises it as VBAK; mapping.yaml maps that to quote (header), confidence high; key MANDT+VBELN from the plan; key counted: unique in all 3 rows.",
+  "sap_vbak: sales order (header), high. the sap pack recognises it as VBAK; mapping.yaml maps that to sales_order (header), confidence high; key MANDT+VBELN from the plan; key counted: unique in all 3 rows.",
+  "sap_vbap: quote (line), high. the sap pack recognises it as VBAP; mapping.yaml maps that to quote (line), confidence high; key MANDT+VBELN+POSNR from the plan; key counted: unique in all 6 rows.",
+  "sap_vbap: sales order (line), high. the sap pack recognises it as VBAP; mapping.yaml maps that to sales_order (line), confidence high; key MANDT+VBELN+POSNR from the plan; key counted: unique in all 6 rows.",
+  "sap_vbep: sales order (schedule_line), high. the sap pack recognises it as VBEP; mapping.yaml maps that to sales_order (schedule_line), confidence high; key MANDT+VBELN+POSNR+ETENR from the plan; key counted: unique in all 5 rows.",
+  "sap_vbfa: delivery (flow), medium. the sap pack recognises it as VBFA; mapping.yaml maps that to delivery (flow), confidence medium; key MANDT+VBELV+POSNV+VBELN+POSNN+VBTYP_N from the plan; key counted: unique in all 4 rows.",
+  "sap_vbfa: invoice (flow), medium. the sap pack recognises it as VBFA; mapping.yaml maps that to invoice (flow), confidence medium; key MANDT+VBELV+POSNV+VBELN+POSNN+VBTYP_N from the plan; key counted: unique in all 4 rows.",
+  "sap_vbfa: sales order (flow), high. the sap pack recognises it as VBFA; mapping.yaml maps that to sales_order (flow), confidence high; key MANDT+VBELV+POSNV+VBELN+POSNN+VBTYP_N from the plan; key counted: unique in all 4 rows.",
+  "sap_vbpa: delivery (bridge), medium. the sap pack recognises it as VBPA; mapping.yaml maps that to delivery (bridge), confidence medium; key MANDT+VBELN+POSNR+PARVW from the plan; key counted: unique in all 5 rows.",
+  "sap_vbpa: invoice (bridge), medium. the sap pack recognises it as VBPA; mapping.yaml maps that to invoice (bridge), confidence medium; key MANDT+VBELN+POSNR+PARVW from the plan; key counted: unique in all 5 rows.",
+  "sap_vbpa: sales order (bridge), high. the sap pack recognises it as VBPA; mapping.yaml maps that to sales_order (bridge), confidence high; key MANDT+VBELN+POSNR+PARVW from the plan; key counted: unique in all 5 rows.",
+  "sap_vbrk: invoice (header), high. the sap pack recognises it as VBRK; mapping.yaml maps that to invoice (header), confidence high; key MANDT+VBELN from the plan; key counted: unique in all 1 rows.",
+  "sap_vbrp: invoice (line), high. the sap pack recognises it as VBRP; mapping.yaml maps that to invoice (line), confidence high; key MANDT+VBELN+POSNR from the plan; key counted: unique in all 2 rows."
+ ],
+ "how": "By rules, no AI: table and column names read through a word list in English, German and Swedish, the plan's keys and links, and the row counts. high = names and keys agree and the rows confirm it; medium = names and keys agree, the rows not counted; low = one signal only or the rows disagree, a hint and never counted as present.",
+ "line": "Data products: Order to cash: 5 of 7 products present; receivables and payables and payment missing, so a question like “Which customers have unpaid invoices past their due date?” cannot be answered.",
+ "processes": [
+  {
+   "can_answer": [
+    "How many active customers do we have per country and sales organisation?",
+    "Which customers buy from more than one company in the group?",
+    "Which products sell the most per month?",
+    "Which products have no sales in the last year?",
+    "What is the order intake per customer and month?",
+    "Which order lines are not delivered yet?",
+    "What is the average order value per sales organisation?",
+    "Which deliveries left later than the customer was promised?",
+    "What share of order lines was delivered in full and on time?",
+    "What is the revenue per customer and month?",
+    "Which products have the highest credit-memo share?"
+   ],
+   "cannot_answer": [
+    {
+     "product": "open_item",
+     "question": "Which customers have unpaid invoices past their due date?",
+     "title": "Receivables and payables (open and cleared items)",
+     "why": "receivables and payables (open and cleared items) is missing"
+    },
+    {
+     "product": "open_item",
+     "question": "What do we owe our suppliers per due week?",
+     "title": "Receivables and payables (open and cleared items)",
+     "why": "receivables and payables (open and cleared items) is missing"
+    },
+    {
+     "product": "payment",
+     "question": "How many days do customers take to pay?",
+     "title": "Payment",
+     "why": "payment is missing"
+    },
+    {
+     "product": "payment",
+     "question": "Which payments are not matched to an invoice?",
+     "title": "Payment",
+     "why": "payment is missing"
+    }
+   ],
+   "checked": [
+    "customer",
+    "product",
+    "sales_order",
+    "delivery",
+    "invoice"
+   ],
+   "line": "Order to cash: 5 of 7 products present; receivables and payables and payment missing, so a question like “Which customers have unpaid invoices past their due date?” cannot be answered.",
+   "missing": [
+    "open_item",
+    "payment"
+   ],
+   "partial": [],
+   "present": [
+    "customer",
+    "product",
+    "sales_order",
+    "delivery",
+    "invoice"
+   ],
+   "process": "order_to_cash",
+   "products": 7,
+   "title": "Order to cash"
+  },
+  {
+   "can_answer": [
+    "Which contacts at our top accounts have had no activity in 90 days?",
+    "How many quotes turn into orders, and how fast?",
+    "What discount do we give on quotes per product?",
+    "What is the order intake per customer and month?",
+    "Which order lines are not delivered yet?",
+    "What is the average order value per sales organisation?",
+    "What is the revenue per customer and month?",
+    "Which products have the highest credit-memo share?"
+   ],
+   "cannot_answer": [
+    {
+     "product": "crm_account",
+     "question": "Which accounts in our target segment have no open opportunity?",
+     "title": "Account (CRM)",
+     "why": "account (crm) is missing"
+    },
+    {
+     "product": "crm_account",
+     "question": "How many accounts does each sales representative own?",
+     "title": "Account (CRM)",
+     "why": "account (crm) is missing"
+    },
+    {
+     "product": "lead",
+     "question": "How many leads per source and month became opportunities?",
+     "title": "Lead",
+     "why": "lead is missing"
+    },
+    {
+     "product": "lead",
+     "question": "How long does a lead take to be qualified?",
+     "title": "Lead",
+     "why": "lead is missing"
+    },
+    {
+     "product": "opportunity",
+     "question": "What is the weighted pipeline per quarter and sales representative?",
+     "title": "Opportunity (pipeline)",
+     "why": "opportunity (pipeline) is missing"
+    },
+    {
+     "product": "opportunity",
+     "question": "What is our win rate per product?",
+     "title": "Opportunity (pipeline)",
+     "why": "opportunity (pipeline) is missing"
+    }
+   ],
+   "checked": [
+    "contact",
+    "quote",
+    "sales_order",
+    "invoice"
+   ],
+   "line": "Lead to cash: 4 of 7 products present; account, lead and opportunity missing, so a question like “Which accounts in our target segment have no open opportunity?” cannot be answered.",
+   "missing": [
+    "crm_account",
+    "lead",
+    "opportunity"
+   ],
+   "partial": [],
+   "present": [
+    "contact",
+    "quote",
+    "sales_order",
+    "invoice"
+   ],
+   "process": "lead_to_cash",
+   "products": 7,
+   "title": "Lead to cash"
+  },
+  {
+   "can_answer": [
+    "Which products sell the most per month?",
+    "Which products have no sales in the last year?",
+    "Which companies and plants belong to the group?",
+    "Which business unit owns this record?",
+    "Which deliveries left later than the customer was promised?",
+    "What share of order lines was delivered in full and on time?"
+   ],
+   "cannot_answer": [
+    {
+     "product": "inventory_movement",
+     "question": "How much stock do we hold per product and plant at month end?",
+     "title": "Inventory movement and stock",
+     "why": "inventory movement and stock is missing"
+    },
+    {
+     "product": "inventory_movement",
+     "question": "Which products have not moved for six months?",
+     "title": "Inventory movement and stock",
+     "why": "inventory movement and stock is missing"
+    },
+    {
+     "product": "goods_receipt",
+     "question": "Do suppliers deliver on the date they confirmed?",
+     "title": "Goods receipt",
+     "why": "goods receipt is missing"
+    },
+    {
+     "product": "goods_receipt",
+     "question": "What has been received but not invoiced yet?",
+     "title": "Goods receipt",
+     "why": "goods receipt is missing"
+    }
+   ],
+   "checked": [
+    "product",
+    "organisation",
+    "delivery"
+   ],
+   "line": "Inventory: 3 of 5 products present; inventory movement and stock and goods receipt missing, so a question like “How much stock do we hold per product and plant at month end?” cannot be answered.",
+   "missing": [
+    "inventory_movement",
+    "goods_receipt"
+   ],
+   "partial": [],
+   "present": [
+    "product",
+    "organisation",
+    "delivery"
+   ],
+   "process": "inventory",
+   "products": 5,
+   "title": "Inventory"
+  },
+  {
+   "can_answer": [
+    "Which contacts at our top accounts have had no activity in 90 days?",
+    "Which products sell the most per month?",
+    "Which products have no sales in the last year?"
+   ],
+   "cannot_answer": [
+    {
+     "product": "crm_account",
+     "question": "Which accounts in our target segment have no open opportunity?",
+     "title": "Account (CRM)",
+     "why": "account (crm) is missing"
+    },
+    {
+     "product": "crm_account",
+     "question": "How many accounts does each sales representative own?",
+     "title": "Account (CRM)",
+     "why": "account (crm) is missing"
+    },
+    {
+     "product": "case",
+     "question": "How long does it take to resolve a case per product?",
+     "title": "Case or ticket (customer service)",
+     "why": "case or ticket (customer service) is missing"
+    },
+    {
+     "product": "case",
+     "question": "Which customers open the most cases?",
+     "title": "Case or ticket (customer service)",
+     "why": "case or ticket (customer service) is missing"
+    },
+    {
+     "product": "activity",
+     "question": "How many customer meetings did each sales representative have last month?",
+     "title": "Activity (calls, meetings, tasks, e-mails)",
+     "why": "activity (calls, meetings, tasks, e-mails) is missing"
+    }
+   ],
+   "checked": [
+    "contact",
+    "product"
+   ],
+   "line": "Customer service: 2 of 5 products present; account, case or ticket and activity missing, so a question like “Which accounts in our target segment have no open opportunity?” cannot be answered.",
+   "missing": [
+    "crm_account",
+    "case",
+    "activity"
+   ],
+   "partial": [],
+   "present": [
+    "contact",
+    "product"
+   ],
+   "process": "service",
+   "products": 5,
+   "title": "Customer service"
+  },
+  {
+   "can_answer": [
+    "How many active customers do we have per country and sales organisation?",
+    "Which customers buy from more than one company in the group?",
+    "What is the revenue per customer and month?",
+    "Which products have the highest credit-memo share?"
+   ],
+   "cannot_answer": [
+    {
+     "product": "subscription",
+     "question": "What is the MRR per customer and month?",
+     "title": "Subscription or contract",
+     "why": "subscription or contract is missing"
+    },
+    {
+     "product": "subscription",
+     "question": "How much recurring revenue did we lose to churn last quarter?",
+     "title": "Subscription or contract",
+     "why": "subscription or contract is missing"
+    },
+    {
+     "product": "payment",
+     "question": "How many days do customers take to pay?",
+     "title": "Payment",
+     "why": "payment is missing"
+    },
+    {
+     "product": "payment",
+     "question": "Which payments are not matched to an invoice?",
+     "title": "Payment",
+     "why": "payment is missing"
+    }
+   ],
+   "checked": [
+    "customer",
+    "invoice"
+   ],
+   "line": "Subscription: 2 of 4 products present; subscription or contract and payment missing, so a question like “What is the MRR per customer and month?” cannot be answered.",
+   "missing": [
+    "subscription",
+    "payment"
+   ],
+   "partial": [],
+   "present": [
+    "customer",
+    "invoice"
+   ],
+   "process": "subscription",
+   "products": 4,
+   "title": "Subscription"
+  },
+  {
+   "can_answer": [
+    "Which products sell the most per month?",
+    "Which products have no sales in the last year?"
+   ],
+   "cannot_answer": [
+    {
+     "product": "supplier",
+     "question": "How many suppliers do we buy from per purchasing organisation?",
+     "title": "Supplier",
+     "why": "supplier is missing"
+    },
+    {
+     "product": "supplier",
+     "question": "Which suppliers are also customers?",
+     "title": "Supplier",
+     "why": "supplier is missing"
+    },
+    {
+     "product": "purchase_order",
+     "question": "What do we spend per supplier and month?",
+     "title": "Purchase order (header and line)",
+     "why": "purchase order (header and line) is missing"
+    },
+    {
+     "product": "purchase_order",
+     "question": "Which purchase order lines are overdue for delivery?",
+     "title": "Purchase order (header and line)",
+     "why": "purchase order (header and line) is missing"
+    },
+    {
+     "product": "goods_receipt",
+     "question": "Do suppliers deliver on the date they confirmed?",
+     "title": "Goods receipt",
+     "why": "goods receipt is missing"
+    },
+    {
+     "product": "goods_receipt",
+     "question": "What has been received but not invoiced yet?",
+     "title": "Goods receipt",
+     "why": "goods receipt is missing"
+    },
+    {
+     "product": "supplier_invoice",
+     "question": "Which invoices differ from the purchase order price?",
+     "title": "Supplier invoice",
+     "why": "supplier invoice is missing"
+    },
+    {
+     "product": "supplier_invoice",
+     "question": "What is the spend per supplier, invoiced rather than ordered?",
+     "title": "Supplier invoice",
+     "why": "supplier invoice is missing"
+    },
+    {
+     "product": "open_item",
+     "question": "Which customers have unpaid invoices past their due date?",
+     "title": "Receivables and payables (open and cleared items)",
+     "why": "receivables and payables (open and cleared items) is missing"
+    },
+    {
+     "product": "open_item",
+     "question": "What do we owe our suppliers per due week?",
+     "title": "Receivables and payables (open and cleared items)",
+     "why": "receivables and payables (open and cleared items) is missing"
+    },
+    {
+     "product": "payment",
+     "question": "How many days do customers take to pay?",
+     "title": "Payment",
+     "why": "payment is missing"
+    },
+    {
+     "product": "payment",
+     "question": "Which payments are not matched to an invoice?",
+     "title": "Payment",
+     "why": "payment is missing"
+    }
+   ],
+   "checked": [
+    "product"
+   ],
+   "line": "Procure to pay: 1 of 7 products present; supplier, purchase order, goods receipt, supplier invoice, receivables and payables and payment missing, so a question like “How many suppliers do we buy from per purchasing organisation?” cannot be answered.",
+   "missing": [
+    "supplier",
+    "purchase_order",
+    "goods_receipt",
+    "supplier_invoice",
+    "open_item",
+    "payment"
+   ],
+   "partial": [],
+   "present": [
+    "product"
+   ],
+   "process": "procure_to_pay",
+   "products": 7,
+   "title": "Procure to pay"
+  },
+  {
+   "can_answer": [
+    "Which companies and plants belong to the group?",
+    "Which business unit owns this record?"
+   ],
+   "cannot_answer": [
+    {
+     "product": "chart_of_accounts",
+     "question": "Which accounts make up revenue and cost of sales?",
+     "title": "Chart of accounts (G/L accounts)",
+     "why": "chart of accounts (g/l accounts) is missing"
+    },
+    {
+     "product": "chart_of_accounts",
+     "question": "Which accounts are used by a company but not in the group chart?",
+     "title": "Chart of accounts (G/L accounts)",
+     "why": "chart of accounts (g/l accounts) is missing"
+    },
+    {
+     "product": "gl_journal_entry",
+     "question": "What is the profit and loss per company and period?",
+     "title": "General ledger journal entry",
+     "why": "general ledger journal entry is missing"
+    },
+    {
+     "product": "gl_journal_entry",
+     "question": "Which accounts moved most against last year?",
+     "title": "General ledger journal entry",
+     "why": "general ledger journal entry is missing"
+    },
+    {
+     "product": "cost_centre",
+     "question": "Which cost centres overspend their budget?",
+     "title": "Cost centre and profit centre",
+     "why": "cost centre and profit centre is missing"
+    },
+    {
+     "product": "cost_centre",
+     "question": "Which profit centre does this revenue belong to?",
+     "title": "Cost centre and profit centre",
+     "why": "cost centre and profit centre is missing"
+    },
+    {
+     "product": "currency",
+     "question": "What is the revenue in the group currency per month?",
+     "title": "Currency and exchange rate",
+     "why": "currency and exchange rate is missing"
+    },
+    {
+     "product": "budget",
+     "question": "Where do actual costs exceed the budget this quarter?",
+     "title": "Budget and plan",
+     "why": "budget and plan is missing"
+    },
+    {
+     "product": "budget",
+     "question": "How does the latest forecast compare with the budget?",
+     "title": "Budget and plan",
+     "why": "budget and plan is missing"
+    }
+   ],
+   "checked": [
+    "organisation"
+   ],
+   "line": "Record to report: 1 of 6 products present; chart of accounts, general ledger journal entry, cost centre and profit centre, currency and exchange rate and budget and plan missing, so a question like “Which accounts make up revenue and cost of sales?” cannot be answered.",
+   "missing": [
+    "chart_of_accounts",
+    "gl_journal_entry",
+    "cost_centre",
+    "currency",
+    "budget"
+   ],
+   "partial": [],
+   "present": [
+    "organisation"
+   ],
+   "process": "record_to_report",
+   "products": 6,
+   "title": "Record to report"
+  }
+ ],
+ "products": {
+  "activity": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Activity (calls, meetings, tasks, e-mails)"
+  },
+  "budget": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Budget and plan"
+  },
+  "campaign": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Marketing campaign"
+  },
+  "case": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Case or ticket (customer service)"
+  },
+  "chart_of_accounts": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Chart of accounts (G/L accounts)"
+  },
+  "contact": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "master": [
+     "sap_knvk"
+    ]
+   },
+   "title": "Contact"
+  },
+  "cost_centre": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Cost centre and profit centre"
+  },
+  "crm_account": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Account (CRM)"
+  },
+  "currency": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Currency and exchange rate"
+  },
+  "customer": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "extension": [
+     "sap_adrc"
+    ],
+    "master": [
+     "sap_kna1"
+    ]
+   },
+   "title": "Customer"
+  },
+  "date": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "generated",
+   "tables": {},
+   "title": "Date (calendar)"
+  },
+  "delivery": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "bridge": [
+     "sap_vbpa"
+    ],
+    "flow": [
+     "sap_vbfa"
+    ],
+    "header": [
+     "sap_likp"
+    ],
+    "line": [
+     "sap_lips"
+    ]
+   },
+   "title": "Delivery (outbound shipment)"
+  },
+  "employee": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Employee or user"
+  },
+  "gl_journal_entry": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "General ledger journal entry"
+  },
+  "goods_receipt": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Goods receipt"
+  },
+  "inventory_movement": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Inventory movement and stock"
+  },
+  "invoice": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "bridge": [
+     "sap_vbpa"
+    ],
+    "flow": [
+     "sap_vbfa"
+    ],
+    "header": [
+     "sap_vbrk"
+    ],
+    "line": [
+     "sap_vbrp"
+    ]
+   },
+   "title": "Customer invoice (billing)"
+  },
+  "lead": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Lead"
+  },
+  "open_item": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Receivables and payables (open and cleared items)"
+  },
+  "opportunity": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Opportunity (pipeline)"
+  },
+  "organisation": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "master": [
+     "sap_t001",
+     "sap_tvko"
+    ]
+   },
+   "title": "Organisation and company"
+  },
+  "payment": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Payment"
+  },
+  "price": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Price and condition"
+  },
+  "product": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "master": [
+     "sap_mara"
+    ],
+    "text": [
+     "sap_makt"
+    ]
+   },
+   "title": "Product or material"
+  },
+  "purchase_order": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Purchase order (header and line)"
+  },
+  "quote": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "header": [
+     "sap_vbak"
+    ],
+    "line": [
+     "sap_vbap"
+    ]
+   },
+   "title": "Quote"
+  },
+  "sales_order": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "bridge": [
+     "sap_vbpa"
+    ],
+    "flow": [
+     "sap_vbfa"
+    ],
+    "header": [
+     "sap_vbak"
+    ],
+    "line": [
+     "sap_vbap"
+    ],
+    "schedule_line": [
+     "sap_vbep"
+    ]
+   },
+   "title": "Sales order (header and line)"
+  },
+  "subscription": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Subscription or contract"
+  },
+  "supplier": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Supplier"
+  },
+  "supplier_invoice": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Supplier invoice"
+  }
+ },
+ "rule_version": "DP2-1 (21 November 2026)",
+ "tables": [
+  {
+   "checked": true,
+   "confidence": "medium",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the sap pack recognises it as ADRC; mapping.yaml maps that to customer (extension), confidence medium"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key CLIENT+ADDRNUMBER+DATE_FROM+NATION from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 7,
+      "nulls": 0,
+      "rows": 7
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 7 rows"
+    }
+   ],
+   "product": "customer",
+   "role": "extension",
+   "source": "pack",
+   "table": "sap_adrc"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the sap pack recognises it as KNA1; mapping.yaml maps that to customer (master), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key MANDT+KUNNR from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 4,
+      "nulls": 0,
+      "rows": 4
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 4 rows"
+    }
+   ],
+   "product": "customer",
+   "role": "master",
+   "source": "pack",
+   "table": "sap_kna1"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the sap pack recognises it as KNVK; mapping.yaml maps that to contact (master), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key MANDT+PARNR from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 1,
+      "nulls": 0,
+      "rows": 1
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 1 rows"
+    }
+   ],
+   "product": "contact",
+   "role": "master",
+   "source": "pack",
+   "table": "sap_knvk"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the sap pack recognises it as LIKP; mapping.yaml maps that to delivery (header), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key MANDT+VBELN from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 1,
+      "nulls": 0,
+      "rows": 1
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 1 rows"
+    }
+   ],
+   "product": "delivery",
+   "role": "header",
+   "source": "pack",
+   "table": "sap_likp"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the sap pack recognises it as LIPS; mapping.yaml maps that to delivery (line), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key MANDT+VBELN+POSNR from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 2,
+      "nulls": 0,
+      "rows": 2
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 2 rows"
+    }
+   ],
+   "product": "delivery",
+   "role": "line",
+   "source": "pack",
+   "table": "sap_lips"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the sap pack recognises it as MAKT; mapping.yaml maps that to product (text), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key MANDT+MATNR+SPRAS from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 6,
+      "nulls": 0,
+      "rows": 6
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 6 rows"
+    }
+   ],
+   "product": "product",
+   "role": "text",
+   "source": "pack",
+   "table": "sap_makt"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the sap pack recognises it as MARA; mapping.yaml maps that to product (master), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key MANDT+MATNR from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 4,
+      "nulls": 0,
+      "rows": 4
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 4 rows"
+    }
+   ],
+   "product": "product",
+   "role": "master",
+   "source": "pack",
+   "table": "sap_mara"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the sap pack recognises it as T001; mapping.yaml maps that to organisation (master), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key MANDT+BUKRS from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 2,
+      "nulls": 0,
+      "rows": 2
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 2 rows"
+    }
+   ],
+   "product": "organisation",
+   "role": "master",
+   "source": "pack",
+   "table": "sap_t001"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the sap pack recognises it as TVKO; mapping.yaml maps that to organisation (master), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key MANDT+VKORG from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 2,
+      "nulls": 0,
+      "rows": 2
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 2 rows"
+    }
+   ],
+   "product": "organisation",
+   "role": "master",
+   "source": "pack",
+   "table": "sap_tvko"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the sap pack recognises it as VBAK; mapping.yaml maps that to quote (header), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key MANDT+VBELN from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 3,
+      "nulls": 0,
+      "rows": 3
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 3 rows"
+    }
+   ],
+   "product": "quote",
+   "role": "header",
+   "source": "pack",
+   "table": "sap_vbak"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the sap pack recognises it as VBAK; mapping.yaml maps that to sales_order (header), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key MANDT+VBELN from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 3,
+      "nulls": 0,
+      "rows": 3
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 3 rows"
+    }
+   ],
+   "product": "sales_order",
+   "role": "header",
+   "source": "pack",
+   "table": "sap_vbak"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the sap pack recognises it as VBAP; mapping.yaml maps that to quote (line), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key MANDT+VBELN+POSNR from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 6,
+      "nulls": 0,
+      "rows": 6
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 6 rows"
+    }
+   ],
+   "product": "quote",
+   "role": "line",
+   "source": "pack",
+   "table": "sap_vbap"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the sap pack recognises it as VBAP; mapping.yaml maps that to sales_order (line), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key MANDT+VBELN+POSNR from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 6,
+      "nulls": 0,
+      "rows": 6
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 6 rows"
+    }
+   ],
+   "product": "sales_order",
+   "role": "line",
+   "source": "pack",
+   "table": "sap_vbap"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the sap pack recognises it as VBEP; mapping.yaml maps that to sales_order (schedule_line), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key MANDT+VBELN+POSNR+ETENR from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 5,
+      "nulls": 0,
+      "rows": 5
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 5 rows"
+    }
+   ],
+   "product": "sales_order",
+   "role": "schedule_line",
+   "source": "pack",
+   "table": "sap_vbep"
+  },
+  {
+   "checked": true,
+   "confidence": "medium",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the sap pack recognises it as VBFA; mapping.yaml maps that to delivery (flow), confidence medium"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key MANDT+VBELV+POSNV+VBELN+POSNN+VBTYP_N from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 4,
+      "nulls": 0,
+      "rows": 4
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 4 rows"
+    }
+   ],
+   "product": "delivery",
+   "role": "flow",
+   "source": "pack",
+   "table": "sap_vbfa"
+  },
+  {
+   "checked": true,
+   "confidence": "medium",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the sap pack recognises it as VBFA; mapping.yaml maps that to invoice (flow), confidence medium"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key MANDT+VBELV+POSNV+VBELN+POSNN+VBTYP_N from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 4,
+      "nulls": 0,
+      "rows": 4
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 4 rows"
+    }
+   ],
+   "product": "invoice",
+   "role": "flow",
+   "source": "pack",
+   "table": "sap_vbfa"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the sap pack recognises it as VBFA; mapping.yaml maps that to sales_order (flow), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key MANDT+VBELV+POSNV+VBELN+POSNN+VBTYP_N from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 4,
+      "nulls": 0,
+      "rows": 4
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 4 rows"
+    }
+   ],
+   "product": "sales_order",
+   "role": "flow",
+   "source": "pack",
+   "table": "sap_vbfa"
+  },
+  {
+   "checked": true,
+   "confidence": "medium",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the sap pack recognises it as VBPA; mapping.yaml maps that to delivery (bridge), confidence medium"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key MANDT+VBELN+POSNR+PARVW from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 5,
+      "nulls": 0,
+      "rows": 5
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 5 rows"
+    }
+   ],
+   "product": "delivery",
+   "role": "bridge",
+   "source": "pack",
+   "table": "sap_vbpa"
+  },
+  {
+   "checked": true,
+   "confidence": "medium",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the sap pack recognises it as VBPA; mapping.yaml maps that to invoice (bridge), confidence medium"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key MANDT+VBELN+POSNR+PARVW from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 5,
+      "nulls": 0,
+      "rows": 5
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 5 rows"
+    }
+   ],
+   "product": "invoice",
+   "role": "bridge",
+   "source": "pack",
+   "table": "sap_vbpa"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the sap pack recognises it as VBPA; mapping.yaml maps that to sales_order (bridge), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key MANDT+VBELN+POSNR+PARVW from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 5,
+      "nulls": 0,
+      "rows": 5
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 5 rows"
+    }
+   ],
+   "product": "sales_order",
+   "role": "bridge",
+   "source": "pack",
+   "table": "sap_vbpa"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the sap pack recognises it as VBRK; mapping.yaml maps that to invoice (header), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key MANDT+VBELN from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 1,
+      "nulls": 0,
+      "rows": 1
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 1 rows"
+    }
+   ],
+   "product": "invoice",
+   "role": "header",
+   "source": "pack",
+   "table": "sap_vbrk"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the sap pack recognises it as VBRP; mapping.yaml maps that to invoice (line), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key MANDT+VBELN+POSNR from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 2,
+      "nulls": 0,
+      "rows": 2
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 2 rows"
+    }
+   ],
+   "product": "invoice",
+   "role": "line",
+   "source": "pack",
+   "table": "sap_vbrp"
+  }
+ ],
+ "unmatched": [
+  "sap_adr6"
+ ]
+}

@@ -532,13 +532,15 @@ def draft(plan: Plan, text, validation: dict | None = None, schema: str = "") ->
         return {"rule_version": RULE_VERSION, "requirements": [], "counts": {s: 0 for s in STATES},
                 "ask": "Paste the requirements as a list, one per line (for example from a Copilot Workspace summary)."}
     out = []
+    products = _catalog_products(plan, validation) if not sap else None
     for r in reqs:
         if not sap:
             u = understand(r["text"])
-            out.append({**r, "state": "missing", "understood": _said(u), "rule": "RQ-X0",
-                        "missing": [{"field": "SAP order-to-cash tables (VBRK, VBAK, LIKP ...)",
-                                     "what": "requirements_draft's rules know the SAP pack's order to cash only",
-                                     "why": "no table of this schema is one the SAP pack recognises"}]})
+            x = {**r, "state": "missing", "understood": _said(u), "rule": "RQ-X0",
+                 "missing": [{"field": "SAP order-to-cash tables (VBRK, VBAK, LIKP ...)",
+                              "what": "requirements_draft's rules know the SAP pack's order to cash only",
+                              "why": "no table of this schema is one the SAP pack recognises"}]}
+            out.append(_with_catalog(x, u, products))
             continue
         out.append(_one(r, P, schema))
     counts = {s: sum(1 for x in out if x["state"] == s) for s in STATES}
@@ -559,6 +561,43 @@ def draft(plan: Plan, text, validation: dict | None = None, schema: str = "") ->
             "questions": questions, "feeds": feeds, "approval": APPROVAL,
             "never": "No row value is read or returned: the evidence is counts from validate_plan; the queries name "
                      "columns only. No AI: fixed word lists and the SAP pack's names decide."}
+
+
+def _catalog_products(plan: Plan, validation: dict | None) -> dict | None:
+    """DP2: the catalog data products of a schema no pack knows (data_product_match), for RQ-X0. None if it fails."""
+    from . import data_product_match as dpm
+    try:
+        return dpm.suggest(plan, validation)["products"]
+    except Exception:                                                    # noqa: BLE001 - RQ-X0 stands without it
+        return None
+
+
+def _with_catalog(x: dict, u: dict, products: dict | None) -> dict:
+    """DP2: an RQ-X0 requirement says which catalog data product it needs and whether the schema has it: a missing
+    product (or a missing role of it) comes first in `missing`; a present one is named with its tables, and the
+    requirement stays missing because these rules write queries for SAP order to cash only."""
+    from . import data_product_match as dpm
+    pid = dpm.requirement_product(u)
+    if not products or not pid or pid not in products:
+        return x
+    p = products[pid]
+    x["catalog"] = {"product": pid, "title": p["title"], "state": p["state"], "tables": p["tables"],
+                    **({"missing_roles": p["missing_roles"]} if p.get("missing_roles") else {})}
+    if p["state"] == "missing":
+        x["missing"].insert(0, {"field": f"{p['title']} (catalog data product {pid})",
+                                "what": f"no table of this schema reads as {p['title'].lower()} by the catalog's rules "
+                                        "(names, keys, links and counts)",
+                                "why": "the requirement's measure needs it"})
+    elif p["state"] == "partial":
+        x["missing"].insert(0, {"field": f"{p['title']}: the {', '.join(p['missing_roles'])} table",
+                                "what": f"{p['title'].lower()} is found only in part: "
+                                        + ", ".join(f"{r} {', '.join(t)}" for r, t in p["tables"].items()),
+                                "why": "the requirement's measure needs the whole product"})
+    else:
+        x["catalog"]["note"] = (f"The schema has {p['title'].lower()} (" + ", ".join(
+            f"{r} {', '.join(t)}" for r, t in p["tables"].items()) + "); these rules write queries for SAP order to "
+            "cash only, so the requirement waits for them.")
+    return x
 
 
 def example_queries(answer: dict) -> list[dict]:

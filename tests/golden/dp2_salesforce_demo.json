@@ -1,0 +1,1218 @@
+{
+ "counted": {
+  "queries": 0,
+  "with_rows": true
+ },
+ "details": [
+  "Lead to cash: 6 of 7 products present; customer invoice missing, so a question like “What is the revenue per customer and month?” cannot be answered.",
+  "Customer service: 5 of 5 products present.",
+  "Order to cash: 2 of 7 products present; customer, delivery, customer invoice, receivables and payables and payment missing, so a question like “How many active customers do we have per country and sales organisation?” cannot be answered.",
+  "Procure to pay: 1 of 7 products present; supplier, purchase order, goods receipt, supplier invoice, receivables and payables and payment missing, so a question like “How many suppliers do we buy from per purchasing organisation?” cannot be answered.",
+  "Inventory: 1 of 5 products present; organisation and company, inventory movement and stock, goods receipt and delivery missing, so a question like “Which companies and plants belong to the group?” cannot be answered.",
+  "Account: crm account (master), high. the salesforce pack recognises it as ACCOUNT; mapping.yaml maps that to crm_account (master), confidence high; key Id from the plan; key counted: unique in all 5 rows.",
+  "Campaign: campaign (header), high. the salesforce pack recognises it as CAMPAIGN; mapping.yaml maps that to campaign (header), confidence high; key Id from the plan; key counted: unique in all 2 rows.",
+  "CampaignMember: campaign (bridge), high. the salesforce pack recognises it as CAMPAIGNMEMBER; mapping.yaml maps that to campaign (bridge), confidence high; key Id from the plan; key counted: unique in all 5 rows.",
+  "Case: case (header), high. the salesforce pack recognises it as CASE; mapping.yaml maps that to case (header), confidence high; key Id from the plan; key counted: unique in all 4 rows.",
+  "Contact: contact (master), high. the salesforce pack recognises it as CONTACT; mapping.yaml maps that to contact (master), confidence high; key Id from the plan; key counted: unique in all 6 rows.",
+  "Contract: subscription (header), medium. the salesforce pack recognises it as CONTRACT; mapping.yaml maps that to subscription (header), confidence medium; key Id from the plan; key counted: unique in all 2 rows.",
+  "Event: activity (header), high. the salesforce pack recognises it as EVENT; mapping.yaml maps that to activity (header), confidence high; key Id from the plan; key counted: unique in all 3 rows.",
+  "Lead: lead (master), high. the salesforce pack recognises it as LEAD; mapping.yaml maps that to lead (master), confidence high; key Id from the plan; key counted: unique in all 5 rows.",
+  "Opportunity: opportunity (header), high. the salesforce pack recognises it as OPPORTUNITY; mapping.yaml maps that to opportunity (header), confidence high; key Id from the plan; key counted: unique in all 5 rows.",
+  "OpportunityContactRole: opportunity (bridge), high. the salesforce pack recognises it as OPPORTUNITYCONTACTROLE; mapping.yaml maps that to opportunity (bridge), confidence high; key Id from the plan; key counted: unique in all 4 rows.",
+  "OpportunityLineItem: opportunity (line), high. the salesforce pack recognises it as OPPORTUNITYLINEITEM; mapping.yaml maps that to opportunity (line), confidence high; key Id from the plan; key counted: unique in all 6 rows.",
+  "Order: sales order (header), high. the salesforce pack recognises it as ORDER; mapping.yaml maps that to sales_order (header), confidence high; key Id from the plan; key counted: unique in all 2 rows.",
+  "OrderItem: sales order (line), high. the salesforce pack recognises it as ORDERITEM; mapping.yaml maps that to sales_order (line), confidence high; key Id from the plan; key counted: unique in all 4 rows.",
+  "Pricebook2: price (header), high. the salesforce pack recognises it as PRICEBOOK2; mapping.yaml maps that to price (header), confidence high; key Id from the plan; key counted: unique in all 2 rows.",
+  "PricebookEntry: price (master), high. the salesforce pack recognises it as PRICEBOOKENTRY; mapping.yaml maps that to price (master), confidence high; key Id from the plan; key counted: unique in all 5 rows.",
+  "Product2: product (master), high. the salesforce pack recognises it as PRODUCT2; mapping.yaml maps that to product (master), confidence high; key Id from the plan; key counted: unique in all 3 rows.",
+  "Quote: quote (header), high. the salesforce pack recognises it as QUOTE; mapping.yaml maps that to quote (header), confidence high; key Id from the plan; key counted: unique in all 2 rows.",
+  "QuoteLineItem: quote (line), high. the salesforce pack recognises it as QUOTELINEITEM; mapping.yaml maps that to quote (line), confidence high; key Id from the plan; key counted: unique in all 5 rows.",
+  "Task: activity (header), high. the salesforce pack recognises it as TASK; mapping.yaml maps that to activity (header), confidence high; key Id from the plan; key counted: unique in all 5 rows.",
+  "User: employee (master), medium. the salesforce pack recognises it as USER; mapping.yaml maps that to employee (master), confidence medium; key Id from the plan; key counted: unique in all 3 rows."
+ ],
+ "how": "By rules, no AI: table and column names read through a word list in English, German and Swedish, the plan's keys and links, and the row counts. high = names and keys agree and the rows confirm it; medium = names and keys agree, the rows not counted; low = one signal only or the rows disagree, a hint and never counted as present.",
+ "line": "Data products: Lead to cash: 6 of 7 products present; customer invoice missing, so a question like “What is the revenue per customer and month?” cannot be answered.",
+ "processes": [
+  {
+   "can_answer": [
+    "Which accounts in our target segment have no open opportunity?",
+    "How many accounts does each sales representative own?",
+    "Which contacts at our top accounts have had no activity in 90 days?",
+    "How many leads per source and month became opportunities?",
+    "How long does a lead take to be qualified?",
+    "What is the weighted pipeline per quarter and sales representative?",
+    "What is our win rate per product?",
+    "How many quotes turn into orders, and how fast?",
+    "What discount do we give on quotes per product?",
+    "What is the order intake per customer and month?",
+    "Which order lines are not delivered yet?",
+    "What is the average order value per sales organisation?"
+   ],
+   "cannot_answer": [
+    {
+     "product": "invoice",
+     "question": "What is the revenue per customer and month?",
+     "title": "Customer invoice (billing)",
+     "why": "customer invoice (billing) is missing"
+    },
+    {
+     "product": "invoice",
+     "question": "Which products have the highest credit-memo share?",
+     "title": "Customer invoice (billing)",
+     "why": "customer invoice (billing) is missing"
+    }
+   ],
+   "checked": [
+    "crm_account",
+    "contact",
+    "lead",
+    "opportunity",
+    "quote",
+    "sales_order"
+   ],
+   "line": "Lead to cash: 6 of 7 products present; customer invoice missing, so a question like “What is the revenue per customer and month?” cannot be answered.",
+   "missing": [
+    "invoice"
+   ],
+   "partial": [],
+   "present": [
+    "crm_account",
+    "contact",
+    "lead",
+    "opportunity",
+    "quote",
+    "sales_order"
+   ],
+   "process": "lead_to_cash",
+   "products": 7,
+   "title": "Lead to cash"
+  },
+  {
+   "can_answer": [
+    "Which accounts in our target segment have no open opportunity?",
+    "How many accounts does each sales representative own?",
+    "Which contacts at our top accounts have had no activity in 90 days?",
+    "How long does it take to resolve a case per product?",
+    "Which customers open the most cases?",
+    "How many customer meetings did each sales representative have last month?",
+    "Which products sell the most per month?",
+    "Which products have no sales in the last year?"
+   ],
+   "cannot_answer": [],
+   "checked": [
+    "crm_account",
+    "contact",
+    "case",
+    "activity",
+    "product"
+   ],
+   "line": "Customer service: 5 of 5 products present.",
+   "missing": [],
+   "partial": [],
+   "present": [
+    "crm_account",
+    "contact",
+    "case",
+    "activity",
+    "product"
+   ],
+   "process": "service",
+   "products": 5,
+   "title": "Customer service"
+  },
+  {
+   "can_answer": [
+    "Which products sell the most per month?",
+    "Which products have no sales in the last year?",
+    "What is the order intake per customer and month?",
+    "Which order lines are not delivered yet?",
+    "What is the average order value per sales organisation?"
+   ],
+   "cannot_answer": [
+    {
+     "product": "customer",
+     "question": "How many active customers do we have per country and sales organisation?",
+     "title": "Customer",
+     "why": "customer is missing"
+    },
+    {
+     "product": "customer",
+     "question": "Which customers buy from more than one company in the group?",
+     "title": "Customer",
+     "why": "customer is missing"
+    },
+    {
+     "product": "delivery",
+     "question": "Which deliveries left later than the customer was promised?",
+     "title": "Delivery (outbound shipment)",
+     "why": "delivery (outbound shipment) is missing"
+    },
+    {
+     "product": "delivery",
+     "question": "What share of order lines was delivered in full and on time?",
+     "title": "Delivery (outbound shipment)",
+     "why": "delivery (outbound shipment) is missing"
+    },
+    {
+     "product": "invoice",
+     "question": "What is the revenue per customer and month?",
+     "title": "Customer invoice (billing)",
+     "why": "customer invoice (billing) is missing"
+    },
+    {
+     "product": "invoice",
+     "question": "Which products have the highest credit-memo share?",
+     "title": "Customer invoice (billing)",
+     "why": "customer invoice (billing) is missing"
+    },
+    {
+     "product": "open_item",
+     "question": "Which customers have unpaid invoices past their due date?",
+     "title": "Receivables and payables (open and cleared items)",
+     "why": "receivables and payables (open and cleared items) is missing"
+    },
+    {
+     "product": "open_item",
+     "question": "What do we owe our suppliers per due week?",
+     "title": "Receivables and payables (open and cleared items)",
+     "why": "receivables and payables (open and cleared items) is missing"
+    },
+    {
+     "product": "payment",
+     "question": "How many days do customers take to pay?",
+     "title": "Payment",
+     "why": "payment is missing"
+    },
+    {
+     "product": "payment",
+     "question": "Which payments are not matched to an invoice?",
+     "title": "Payment",
+     "why": "payment is missing"
+    }
+   ],
+   "checked": [
+    "product",
+    "sales_order"
+   ],
+   "line": "Order to cash: 2 of 7 products present; customer, delivery, customer invoice, receivables and payables and payment missing, so a question like “How many active customers do we have per country and sales organisation?” cannot be answered.",
+   "missing": [
+    "customer",
+    "delivery",
+    "invoice",
+    "open_item",
+    "payment"
+   ],
+   "partial": [],
+   "present": [
+    "product",
+    "sales_order"
+   ],
+   "process": "order_to_cash",
+   "products": 7,
+   "title": "Order to cash"
+  },
+  {
+   "can_answer": [
+    "Which products sell the most per month?",
+    "Which products have no sales in the last year?"
+   ],
+   "cannot_answer": [
+    {
+     "product": "supplier",
+     "question": "How many suppliers do we buy from per purchasing organisation?",
+     "title": "Supplier",
+     "why": "supplier is missing"
+    },
+    {
+     "product": "supplier",
+     "question": "Which suppliers are also customers?",
+     "title": "Supplier",
+     "why": "supplier is missing"
+    },
+    {
+     "product": "purchase_order",
+     "question": "What do we spend per supplier and month?",
+     "title": "Purchase order (header and line)",
+     "why": "purchase order (header and line) is missing"
+    },
+    {
+     "product": "purchase_order",
+     "question": "Which purchase order lines are overdue for delivery?",
+     "title": "Purchase order (header and line)",
+     "why": "purchase order (header and line) is missing"
+    },
+    {
+     "product": "goods_receipt",
+     "question": "Do suppliers deliver on the date they confirmed?",
+     "title": "Goods receipt",
+     "why": "goods receipt is missing"
+    },
+    {
+     "product": "goods_receipt",
+     "question": "What has been received but not invoiced yet?",
+     "title": "Goods receipt",
+     "why": "goods receipt is missing"
+    },
+    {
+     "product": "supplier_invoice",
+     "question": "Which invoices differ from the purchase order price?",
+     "title": "Supplier invoice",
+     "why": "supplier invoice is missing"
+    },
+    {
+     "product": "supplier_invoice",
+     "question": "What is the spend per supplier, invoiced rather than ordered?",
+     "title": "Supplier invoice",
+     "why": "supplier invoice is missing"
+    },
+    {
+     "product": "open_item",
+     "question": "Which customers have unpaid invoices past their due date?",
+     "title": "Receivables and payables (open and cleared items)",
+     "why": "receivables and payables (open and cleared items) is missing"
+    },
+    {
+     "product": "open_item",
+     "question": "What do we owe our suppliers per due week?",
+     "title": "Receivables and payables (open and cleared items)",
+     "why": "receivables and payables (open and cleared items) is missing"
+    },
+    {
+     "product": "payment",
+     "question": "How many days do customers take to pay?",
+     "title": "Payment",
+     "why": "payment is missing"
+    },
+    {
+     "product": "payment",
+     "question": "Which payments are not matched to an invoice?",
+     "title": "Payment",
+     "why": "payment is missing"
+    }
+   ],
+   "checked": [
+    "product"
+   ],
+   "line": "Procure to pay: 1 of 7 products present; supplier, purchase order, goods receipt, supplier invoice, receivables and payables and payment missing, so a question like “How many suppliers do we buy from per purchasing organisation?” cannot be answered.",
+   "missing": [
+    "supplier",
+    "purchase_order",
+    "goods_receipt",
+    "supplier_invoice",
+    "open_item",
+    "payment"
+   ],
+   "partial": [],
+   "present": [
+    "product"
+   ],
+   "process": "procure_to_pay",
+   "products": 7,
+   "title": "Procure to pay"
+  },
+  {
+   "can_answer": [
+    "Which products sell the most per month?",
+    "Which products have no sales in the last year?"
+   ],
+   "cannot_answer": [
+    {
+     "product": "organisation",
+     "question": "Which companies and plants belong to the group?",
+     "title": "Organisation and company",
+     "why": "organisation and company is missing"
+    },
+    {
+     "product": "organisation",
+     "question": "Which business unit owns this record?",
+     "title": "Organisation and company",
+     "why": "organisation and company is missing"
+    },
+    {
+     "product": "inventory_movement",
+     "question": "How much stock do we hold per product and plant at month end?",
+     "title": "Inventory movement and stock",
+     "why": "inventory movement and stock is missing"
+    },
+    {
+     "product": "inventory_movement",
+     "question": "Which products have not moved for six months?",
+     "title": "Inventory movement and stock",
+     "why": "inventory movement and stock is missing"
+    },
+    {
+     "product": "goods_receipt",
+     "question": "Do suppliers deliver on the date they confirmed?",
+     "title": "Goods receipt",
+     "why": "goods receipt is missing"
+    },
+    {
+     "product": "goods_receipt",
+     "question": "What has been received but not invoiced yet?",
+     "title": "Goods receipt",
+     "why": "goods receipt is missing"
+    },
+    {
+     "product": "delivery",
+     "question": "Which deliveries left later than the customer was promised?",
+     "title": "Delivery (outbound shipment)",
+     "why": "delivery (outbound shipment) is missing"
+    },
+    {
+     "product": "delivery",
+     "question": "What share of order lines was delivered in full and on time?",
+     "title": "Delivery (outbound shipment)",
+     "why": "delivery (outbound shipment) is missing"
+    }
+   ],
+   "checked": [
+    "product"
+   ],
+   "line": "Inventory: 1 of 5 products present; organisation and company, inventory movement and stock, goods receipt and delivery missing, so a question like “Which companies and plants belong to the group?” cannot be answered.",
+   "missing": [
+    "organisation",
+    "inventory_movement",
+    "goods_receipt",
+    "delivery"
+   ],
+   "partial": [],
+   "present": [
+    "product"
+   ],
+   "process": "inventory",
+   "products": 5,
+   "title": "Inventory"
+  }
+ ],
+ "products": {
+  "activity": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "header": [
+     "Event",
+     "Task"
+    ]
+   },
+   "title": "Activity (calls, meetings, tasks, e-mails)"
+  },
+  "budget": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Budget and plan"
+  },
+  "campaign": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "bridge": [
+     "CampaignMember"
+    ],
+    "header": [
+     "Campaign"
+    ]
+   },
+   "title": "Marketing campaign"
+  },
+  "case": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "header": [
+     "Case"
+    ]
+   },
+   "title": "Case or ticket (customer service)"
+  },
+  "chart_of_accounts": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Chart of accounts (G/L accounts)"
+  },
+  "contact": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "master": [
+     "Contact"
+    ]
+   },
+   "title": "Contact"
+  },
+  "cost_centre": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Cost centre and profit centre"
+  },
+  "crm_account": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "master": [
+     "Account"
+    ]
+   },
+   "title": "Account (CRM)"
+  },
+  "currency": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Currency and exchange rate"
+  },
+  "customer": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Customer"
+  },
+  "date": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "generated",
+   "tables": {},
+   "title": "Date (calendar)"
+  },
+  "delivery": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Delivery (outbound shipment)"
+  },
+  "employee": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "master": [
+     "User"
+    ]
+   },
+   "title": "Employee or user"
+  },
+  "gl_journal_entry": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "General ledger journal entry"
+  },
+  "goods_receipt": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Goods receipt"
+  },
+  "inventory_movement": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Inventory movement and stock"
+  },
+  "invoice": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Customer invoice (billing)"
+  },
+  "lead": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "master": [
+     "Lead"
+    ]
+   },
+   "title": "Lead"
+  },
+  "open_item": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Receivables and payables (open and cleared items)"
+  },
+  "opportunity": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "bridge": [
+     "OpportunityContactRole"
+    ],
+    "header": [
+     "Opportunity"
+    ],
+    "line": [
+     "OpportunityLineItem"
+    ]
+   },
+   "title": "Opportunity (pipeline)"
+  },
+  "organisation": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Organisation and company"
+  },
+  "payment": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Payment"
+  },
+  "price": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "header": [
+     "Pricebook2"
+    ],
+    "master": [
+     "PricebookEntry"
+    ]
+   },
+   "title": "Price and condition"
+  },
+  "product": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "master": [
+     "Product2"
+    ]
+   },
+   "title": "Product or material"
+  },
+  "purchase_order": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Purchase order (header and line)"
+  },
+  "quote": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "header": [
+     "Quote"
+    ],
+    "line": [
+     "QuoteLineItem"
+    ]
+   },
+   "title": "Quote"
+  },
+  "sales_order": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "header": [
+     "Order"
+    ],
+    "line": [
+     "OrderItem"
+    ]
+   },
+   "title": "Sales order (header and line)"
+  },
+  "subscription": {
+   "checked": false,
+   "missing_roles": [
+    "line"
+   ],
+   "state": "partial",
+   "tables": {
+    "header": [
+     "Contract"
+    ]
+   },
+   "title": "Subscription or contract"
+  },
+  "supplier": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Supplier"
+  },
+  "supplier_invoice": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Supplier invoice"
+  }
+ },
+ "rule_version": "DP2-1 (21 November 2026)",
+ "tables": [
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the salesforce pack recognises it as ACCOUNT; mapping.yaml maps that to crm_account (master), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key Id from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 5,
+      "nulls": 0,
+      "rows": 5
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 5 rows"
+    }
+   ],
+   "product": "crm_account",
+   "role": "master",
+   "source": "pack",
+   "table": "Account"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the salesforce pack recognises it as CAMPAIGN; mapping.yaml maps that to campaign (header), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key Id from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 2,
+      "nulls": 0,
+      "rows": 2
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 2 rows"
+    }
+   ],
+   "product": "campaign",
+   "role": "header",
+   "source": "pack",
+   "table": "Campaign"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the salesforce pack recognises it as CAMPAIGNMEMBER; mapping.yaml maps that to campaign (bridge), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key Id from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 5,
+      "nulls": 0,
+      "rows": 5
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 5 rows"
+    }
+   ],
+   "product": "campaign",
+   "role": "bridge",
+   "source": "pack",
+   "table": "CampaignMember"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the salesforce pack recognises it as CASE; mapping.yaml maps that to case (header), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key Id from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 4,
+      "nulls": 0,
+      "rows": 4
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 4 rows"
+    }
+   ],
+   "product": "case",
+   "role": "header",
+   "source": "pack",
+   "table": "Case"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the salesforce pack recognises it as CONTACT; mapping.yaml maps that to contact (master), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key Id from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 6,
+      "nulls": 0,
+      "rows": 6
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 6 rows"
+    }
+   ],
+   "product": "contact",
+   "role": "master",
+   "source": "pack",
+   "table": "Contact"
+  },
+  {
+   "checked": true,
+   "confidence": "medium",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the salesforce pack recognises it as CONTRACT; mapping.yaml maps that to subscription (header), confidence medium"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key Id from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 2,
+      "nulls": 0,
+      "rows": 2
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 2 rows"
+    }
+   ],
+   "product": "subscription",
+   "role": "header",
+   "source": "pack",
+   "table": "Contract"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the salesforce pack recognises it as EVENT; mapping.yaml maps that to activity (header), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key Id from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 3,
+      "nulls": 0,
+      "rows": 3
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 3 rows"
+    }
+   ],
+   "product": "activity",
+   "role": "header",
+   "source": "pack",
+   "table": "Event"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the salesforce pack recognises it as LEAD; mapping.yaml maps that to lead (master), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key Id from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 5,
+      "nulls": 0,
+      "rows": 5
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 5 rows"
+    }
+   ],
+   "product": "lead",
+   "role": "master",
+   "source": "pack",
+   "table": "Lead"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the salesforce pack recognises it as OPPORTUNITY; mapping.yaml maps that to opportunity (header), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key Id from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 5,
+      "nulls": 0,
+      "rows": 5
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 5 rows"
+    }
+   ],
+   "product": "opportunity",
+   "role": "header",
+   "source": "pack",
+   "table": "Opportunity"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the salesforce pack recognises it as OPPORTUNITYCONTACTROLE; mapping.yaml maps that to opportunity (bridge), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key Id from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 4,
+      "nulls": 0,
+      "rows": 4
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 4 rows"
+    }
+   ],
+   "product": "opportunity",
+   "role": "bridge",
+   "source": "pack",
+   "table": "OpportunityContactRole"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the salesforce pack recognises it as OPPORTUNITYLINEITEM; mapping.yaml maps that to opportunity (line), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key Id from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 6,
+      "nulls": 0,
+      "rows": 6
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 6 rows"
+    }
+   ],
+   "product": "opportunity",
+   "role": "line",
+   "source": "pack",
+   "table": "OpportunityLineItem"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the salesforce pack recognises it as ORDER; mapping.yaml maps that to sales_order (header), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key Id from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 2,
+      "nulls": 0,
+      "rows": 2
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 2 rows"
+    }
+   ],
+   "product": "sales_order",
+   "role": "header",
+   "source": "pack",
+   "table": "Order"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the salesforce pack recognises it as ORDERITEM; mapping.yaml maps that to sales_order (line), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key Id from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 4,
+      "nulls": 0,
+      "rows": 4
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 4 rows"
+    }
+   ],
+   "product": "sales_order",
+   "role": "line",
+   "source": "pack",
+   "table": "OrderItem"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the salesforce pack recognises it as PRICEBOOK2; mapping.yaml maps that to price (header), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key Id from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 2,
+      "nulls": 0,
+      "rows": 2
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 2 rows"
+    }
+   ],
+   "product": "price",
+   "role": "header",
+   "source": "pack",
+   "table": "Pricebook2"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the salesforce pack recognises it as PRICEBOOKENTRY; mapping.yaml maps that to price (master), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key Id from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 5,
+      "nulls": 0,
+      "rows": 5
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 5 rows"
+    }
+   ],
+   "product": "price",
+   "role": "master",
+   "source": "pack",
+   "table": "PricebookEntry"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the salesforce pack recognises it as PRODUCT2; mapping.yaml maps that to product (master), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key Id from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 3,
+      "nulls": 0,
+      "rows": 3
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 3 rows"
+    }
+   ],
+   "product": "product",
+   "role": "master",
+   "source": "pack",
+   "table": "Product2"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the salesforce pack recognises it as QUOTE; mapping.yaml maps that to quote (header), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key Id from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 2,
+      "nulls": 0,
+      "rows": 2
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 2 rows"
+    }
+   ],
+   "product": "quote",
+   "role": "header",
+   "source": "pack",
+   "table": "Quote"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the salesforce pack recognises it as QUOTELINEITEM; mapping.yaml maps that to quote (line), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key Id from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 5,
+      "nulls": 0,
+      "rows": 5
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 5 rows"
+    }
+   ],
+   "product": "quote",
+   "role": "line",
+   "source": "pack",
+   "table": "QuoteLineItem"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the salesforce pack recognises it as TASK; mapping.yaml maps that to activity (header), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key Id from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 5,
+      "nulls": 0,
+      "rows": 5
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 5 rows"
+    }
+   ],
+   "product": "activity",
+   "role": "header",
+   "source": "pack",
+   "table": "Task"
+  },
+  {
+   "checked": true,
+   "confidence": "medium",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the salesforce pack recognises it as USER; mapping.yaml maps that to employee (master), confidence medium"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key Id from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 3,
+      "nulls": 0,
+      "rows": 3
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 3 rows"
+    }
+   ],
+   "product": "employee",
+   "role": "master",
+   "source": "pack",
+   "table": "User"
+  }
+ ],
+ "unmatched": [
+  "Asset"
+ ]
+}

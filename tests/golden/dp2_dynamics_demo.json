@@ -1,0 +1,1694 @@
+{
+ "counted": {
+  "queries": 0,
+  "with_rows": true
+ },
+ "details": [
+  "Lead to cash: 7 of 7 products present.",
+  "Order to cash: 5 of 7 products present; payment without its header table, and delivery missing, so a question like “How many days do customers take to pay?” cannot be answered.",
+  "Customer service: 5 of 5 products present.",
+  "Procure to pay: 3 of 7 products present; payment without its header table, and purchase order, goods receipt and supplier invoice missing, so a question like “How many days do customers take to pay?” cannot be answered.",
+  "Record to report: 3 of 6 products present; chart of accounts, cost centre and profit centre and budget and plan missing, so a question like “Which accounts make up revenue and cost of sales?” cannot be answered.",
+  "Subscription: 2 of 4 products present; payment without its header table, and subscription or contract missing, so a question like “How many days do customers take to pay?” cannot be answered.",
+  "Inventory: 2 of 5 products present; inventory movement and stock, goods receipt and delivery missing, so a question like “How much stock do we hold per product and plant at month end?” cannot be answered.",
+  "account: crm account (master), high. the dynamics365 pack recognises it as ACCOUNT; mapping.yaml maps that to crm_account (master), confidence high; key accountid from the plan; key counted: unique in all 4 rows.",
+  "activitypointer: activity (header), high. the dynamics365 pack recognises it as ACTIVITYPOINTER; mapping.yaml maps that to activity (header), confidence high; key activityid from the plan; key counted: unique in all 6 rows.",
+  "businessunit: organisation (master), high. the dynamics365 pack recognises it as BUSINESSUNIT; mapping.yaml maps that to organisation (master), confidence high; key businessunitid from the plan; key counted: unique in all 1 rows.",
+  "contact: contact (master), high. the dynamics365 pack recognises it as CONTACT; mapping.yaml maps that to contact (master), confidence high; key contactid from the plan; key counted: unique in all 4 rows.",
+  "CustLedgerEntry-21: open item (line), high. the dynamics365 pack recognises it as CUST_LEDGER_ENTRY; mapping.yaml maps that to open_item (line), confidence high; key $Company+EntryNo-1 from the plan; key counted: unique in all 3 rows.",
+  "Customer-18: customer (master), high. the dynamics365 pack recognises it as CUSTOMER; mapping.yaml maps that to customer (master), confidence high; key $Company+No-1 from the plan; key counted: unique in all 4 rows.",
+  "DetailedCustLedgEntry-379: open item (line), medium. the dynamics365 pack recognises it as DETAILED_CUST_LEDG_ENTRY; mapping.yaml maps that to open_item (line), confidence medium; key $Company+EntryNo-1 from the plan; key counted: unique in all 4 rows.",
+  "DetailedCustLedgEntry-379: payment (bridge), medium. the dynamics365 pack recognises it as DETAILED_CUST_LEDG_ENTRY; mapping.yaml maps that to payment (bridge), confidence medium; key $Company+EntryNo-1 from the plan; key counted: unique in all 4 rows.",
+  "GLEntry-17: gl journal entry (line), high. the dynamics365 pack recognises it as G_L_ENTRY; mapping.yaml maps that to gl_journal_entry (line), confidence high; key $Company+EntryNo-1 from the plan; key counted: unique in all 3 rows.",
+  "incident: case (header), high. the dynamics365 pack recognises it as INCIDENT; mapping.yaml maps that to case (header), confidence high; key incidentid from the plan; key counted: unique in all 3 rows.",
+  "invoice: invoice (header), high. the dynamics365 pack recognises it as INVOICE; mapping.yaml maps that to invoice (header), confidence high; key invoiceid from the plan; key counted: unique in all 2 rows.",
+  "invoicedetail: invoice (line), high. the dynamics365 pack recognises it as INVOICEDETAIL; mapping.yaml maps that to invoice (line), confidence high; key invoicedetailid from the plan; key counted: unique in all 4 rows.",
+  "Item-27: product (master), high. the dynamics365 pack recognises it as ITEM; mapping.yaml maps that to product (master), confidence high; key $Company+No-1 from the plan; key counted: unique in all 4 rows.",
+  "lead: lead (master), high. the dynamics365 pack recognises it as LEAD; mapping.yaml maps that to lead (master), confidence high; key leadid from the plan; key counted: unique in all 3 rows.",
+  "opportunity: opportunity (header), high. the dynamics365 pack recognises it as OPPORTUNITY; mapping.yaml maps that to opportunity (header), confidence high; key opportunityid from the plan; key counted: unique in all 3 rows.",
+  "opportunityproduct: opportunity (line), high. the dynamics365 pack recognises it as OPPORTUNITYPRODUCT; mapping.yaml maps that to opportunity (line), confidence high; key opportunityproductid from the plan; key counted: unique in all 5 rows.",
+  "pricelevel: price (header), high. the dynamics365 pack recognises it as PRICELEVEL; mapping.yaml maps that to price (header), confidence high; key pricelevelid from the plan; key counted: unique in all 2 rows.",
+  "product: product (master), high. the dynamics365 pack recognises it as PRODUCT; mapping.yaml maps that to product (master), confidence high; key productid from the plan; key counted: unique in all 3 rows.",
+  "productpricelevel: price (master), high. the dynamics365 pack recognises it as PRODUCTPRICELEVEL; mapping.yaml maps that to price (master), confidence high; key productpricelevelid from the plan; key counted: unique in all 4 rows.",
+  "quote: quote (header), high. the dynamics365 pack recognises it as QUOTE; mapping.yaml maps that to quote (header), confidence high; key quoteid from the plan; key counted: unique in all 2 rows.",
+  "quotedetail: quote (line), high. the dynamics365 pack recognises it as QUOTEDETAIL; mapping.yaml maps that to quote (line), confidence high; key quotedetailid from the plan; key counted: unique in all 4 rows.",
+  "SalesHeader-36: quote (header), high. the dynamics365 pack recognises it as SALES_HEADER; mapping.yaml maps that to quote (header), confidence high; key $Company+DocumentType-1+No-3 from the plan; key counted: unique in all 3 rows.",
+  "SalesHeader-36: sales order (header), high. the dynamics365 pack recognises it as SALES_HEADER; mapping.yaml maps that to sales_order (header), confidence high; key $Company+DocumentType-1+No-3 from the plan; key counted: unique in all 3 rows.",
+  "SalesInvoiceHeader-112: invoice (header), high. the dynamics365 pack recognises it as SALES_INVOICE_HEADER; mapping.yaml maps that to invoice (header), confidence high; key $Company+No-3 from the plan; key counted: unique in all 3 rows.",
+  "SalesInvoiceLine-113: invoice (line), high. the dynamics365 pack recognises it as SALES_INVOICE_LINE; mapping.yaml maps that to invoice (line), confidence high; key $Company+DocumentNo-3+LineNo-4 from the plan; key counted: unique in all 5 rows.",
+  "SalesLine-37: quote (line), high. the dynamics365 pack recognises it as SALES_LINE; mapping.yaml maps that to quote (line), confidence high; key $Company+DocumentType-1+DocumentNo-3+LineNo-4 from the plan; key counted: unique in all 5 rows.",
+  "SalesLine-37: sales order (line), high. the dynamics365 pack recognises it as SALES_LINE; mapping.yaml maps that to sales_order (line), confidence high; key $Company+DocumentType-1+DocumentNo-3+LineNo-4 from the plan; key counted: unique in all 5 rows.",
+  "salesorder: sales order (header), high. the dynamics365 pack recognises it as SALESORDER; mapping.yaml maps that to sales_order (header), confidence high; key salesorderid from the plan; key counted: unique in all 3 rows.",
+  "salesorderdetail: sales order (line), high. the dynamics365 pack recognises it as SALESORDERDETAIL; mapping.yaml maps that to sales_order (line), confidence high; key salesorderdetailid from the plan; key counted: unique in all 7 rows.",
+  "SalespersonPurchaser-13: employee (master), medium. the dynamics365 pack recognises it as SALESPERSON_PURCHASER; mapping.yaml maps that to employee (master), confidence medium; key $Company+Code-1 from the plan; key counted: unique in all 3 rows.",
+  "systemuser: employee (master), medium. the dynamics365 pack recognises it as SYSTEMUSER; mapping.yaml maps that to employee (master), confidence medium; key systemuserid from the plan; key counted: unique in all 2 rows.",
+  "team: organisation (master), medium. the dynamics365 pack recognises it as TEAM; mapping.yaml maps that to organisation (master), confidence medium; key teamid from the plan; key counted: unique in all 1 rows.",
+  "transactioncurrency: currency (master), medium. the dynamics365 pack recognises it as TRANSACTIONCURRENCY; mapping.yaml maps that to currency (master), confidence medium; key transactioncurrencyid from the plan; key counted: unique in all 2 rows.",
+  "Vendor-23: supplier (master), high. the dynamics365 pack recognises it as VENDOR; mapping.yaml maps that to supplier (master), confidence high; key $Company+No-1 from the plan; key counted: unique in all 2 rows."
+ ],
+ "how": "By rules, no AI: table and column names read through a word list in English, German and Swedish, the plan's keys and links, and the row counts. high = names and keys agree and the rows confirm it; medium = names and keys agree, the rows not counted; low = one signal only or the rows disagree, a hint and never counted as present.",
+ "line": "Data products: Lead to cash: 7 of 7 products present.",
+ "processes": [
+  {
+   "can_answer": [
+    "Which accounts in our target segment have no open opportunity?",
+    "How many accounts does each sales representative own?",
+    "Which contacts at our top accounts have had no activity in 90 days?",
+    "How many leads per source and month became opportunities?",
+    "How long does a lead take to be qualified?",
+    "What is the weighted pipeline per quarter and sales representative?",
+    "What is our win rate per product?",
+    "How many quotes turn into orders, and how fast?",
+    "What discount do we give on quotes per product?",
+    "What is the order intake per customer and month?",
+    "Which order lines are not delivered yet?",
+    "What is the average order value per sales organisation?",
+    "What is the revenue per customer and month?",
+    "Which products have the highest credit-memo share?"
+   ],
+   "cannot_answer": [],
+   "checked": [
+    "crm_account",
+    "contact",
+    "lead",
+    "opportunity",
+    "quote",
+    "sales_order",
+    "invoice"
+   ],
+   "line": "Lead to cash: 7 of 7 products present.",
+   "missing": [],
+   "partial": [],
+   "present": [
+    "crm_account",
+    "contact",
+    "lead",
+    "opportunity",
+    "quote",
+    "sales_order",
+    "invoice"
+   ],
+   "process": "lead_to_cash",
+   "products": 7,
+   "title": "Lead to cash"
+  },
+  {
+   "can_answer": [
+    "How many active customers do we have per country and sales organisation?",
+    "Which customers buy from more than one company in the group?",
+    "Which products sell the most per month?",
+    "Which products have no sales in the last year?",
+    "What is the order intake per customer and month?",
+    "Which order lines are not delivered yet?",
+    "What is the average order value per sales organisation?",
+    "What is the revenue per customer and month?",
+    "Which products have the highest credit-memo share?",
+    "Which customers have unpaid invoices past their due date?",
+    "What do we owe our suppliers per due week?"
+   ],
+   "cannot_answer": [
+    {
+     "product": "delivery",
+     "question": "Which deliveries left later than the customer was promised?",
+     "title": "Delivery (outbound shipment)",
+     "why": "delivery (outbound shipment) is missing"
+    },
+    {
+     "product": "delivery",
+     "question": "What share of order lines was delivered in full and on time?",
+     "title": "Delivery (outbound shipment)",
+     "why": "delivery (outbound shipment) is missing"
+    },
+    {
+     "product": "payment",
+     "question": "How many days do customers take to pay?",
+     "title": "Payment",
+     "why": "payment has no header table"
+    },
+    {
+     "product": "payment",
+     "question": "Which payments are not matched to an invoice?",
+     "title": "Payment",
+     "why": "payment has no header table"
+    }
+   ],
+   "checked": [
+    "customer",
+    "product",
+    "sales_order",
+    "invoice"
+   ],
+   "line": "Order to cash: 5 of 7 products present; payment without its header table, and delivery missing, so a question like “How many days do customers take to pay?” cannot be answered.",
+   "missing": [
+    "delivery"
+   ],
+   "partial": [
+    "payment"
+   ],
+   "present": [
+    "customer",
+    "product",
+    "sales_order",
+    "invoice",
+    "open_item"
+   ],
+   "process": "order_to_cash",
+   "products": 7,
+   "title": "Order to cash"
+  },
+  {
+   "can_answer": [
+    "Which accounts in our target segment have no open opportunity?",
+    "How many accounts does each sales representative own?",
+    "Which contacts at our top accounts have had no activity in 90 days?",
+    "How long does it take to resolve a case per product?",
+    "Which customers open the most cases?",
+    "How many customer meetings did each sales representative have last month?",
+    "Which products sell the most per month?",
+    "Which products have no sales in the last year?"
+   ],
+   "cannot_answer": [],
+   "checked": [
+    "crm_account",
+    "contact",
+    "case",
+    "activity",
+    "product"
+   ],
+   "line": "Customer service: 5 of 5 products present.",
+   "missing": [],
+   "partial": [],
+   "present": [
+    "crm_account",
+    "contact",
+    "case",
+    "activity",
+    "product"
+   ],
+   "process": "service",
+   "products": 5,
+   "title": "Customer service"
+  },
+  {
+   "can_answer": [
+    "How many suppliers do we buy from per purchasing organisation?",
+    "Which suppliers are also customers?",
+    "Which products sell the most per month?",
+    "Which products have no sales in the last year?",
+    "Which customers have unpaid invoices past their due date?",
+    "What do we owe our suppliers per due week?"
+   ],
+   "cannot_answer": [
+    {
+     "product": "purchase_order",
+     "question": "What do we spend per supplier and month?",
+     "title": "Purchase order (header and line)",
+     "why": "purchase order (header and line) is missing"
+    },
+    {
+     "product": "purchase_order",
+     "question": "Which purchase order lines are overdue for delivery?",
+     "title": "Purchase order (header and line)",
+     "why": "purchase order (header and line) is missing"
+    },
+    {
+     "product": "goods_receipt",
+     "question": "Do suppliers deliver on the date they confirmed?",
+     "title": "Goods receipt",
+     "why": "goods receipt is missing"
+    },
+    {
+     "product": "goods_receipt",
+     "question": "What has been received but not invoiced yet?",
+     "title": "Goods receipt",
+     "why": "goods receipt is missing"
+    },
+    {
+     "product": "supplier_invoice",
+     "question": "Which invoices differ from the purchase order price?",
+     "title": "Supplier invoice",
+     "why": "supplier invoice is missing"
+    },
+    {
+     "product": "supplier_invoice",
+     "question": "What is the spend per supplier, invoiced rather than ordered?",
+     "title": "Supplier invoice",
+     "why": "supplier invoice is missing"
+    },
+    {
+     "product": "payment",
+     "question": "How many days do customers take to pay?",
+     "title": "Payment",
+     "why": "payment has no header table"
+    },
+    {
+     "product": "payment",
+     "question": "Which payments are not matched to an invoice?",
+     "title": "Payment",
+     "why": "payment has no header table"
+    }
+   ],
+   "checked": [
+    "supplier",
+    "product"
+   ],
+   "line": "Procure to pay: 3 of 7 products present; payment without its header table, and purchase order, goods receipt and supplier invoice missing, so a question like “How many days do customers take to pay?” cannot be answered.",
+   "missing": [
+    "purchase_order",
+    "goods_receipt",
+    "supplier_invoice"
+   ],
+   "partial": [
+    "payment"
+   ],
+   "present": [
+    "supplier",
+    "product",
+    "open_item"
+   ],
+   "process": "procure_to_pay",
+   "products": 7,
+   "title": "Procure to pay"
+  },
+  {
+   "can_answer": [
+    "Which companies and plants belong to the group?",
+    "Which business unit owns this record?",
+    "What is the profit and loss per company and period?",
+    "Which accounts moved most against last year?",
+    "What is the revenue in the group currency per month?"
+   ],
+   "cannot_answer": [
+    {
+     "product": "chart_of_accounts",
+     "question": "Which accounts make up revenue and cost of sales?",
+     "title": "Chart of accounts (G/L accounts)",
+     "why": "chart of accounts (g/l accounts) is missing"
+    },
+    {
+     "product": "chart_of_accounts",
+     "question": "Which accounts are used by a company but not in the group chart?",
+     "title": "Chart of accounts (G/L accounts)",
+     "why": "chart of accounts (g/l accounts) is missing"
+    },
+    {
+     "product": "cost_centre",
+     "question": "Which cost centres overspend their budget?",
+     "title": "Cost centre and profit centre",
+     "why": "cost centre and profit centre is missing"
+    },
+    {
+     "product": "cost_centre",
+     "question": "Which profit centre does this revenue belong to?",
+     "title": "Cost centre and profit centre",
+     "why": "cost centre and profit centre is missing"
+    },
+    {
+     "product": "budget",
+     "question": "Where do actual costs exceed the budget this quarter?",
+     "title": "Budget and plan",
+     "why": "budget and plan is missing"
+    },
+    {
+     "product": "budget",
+     "question": "How does the latest forecast compare with the budget?",
+     "title": "Budget and plan",
+     "why": "budget and plan is missing"
+    }
+   ],
+   "checked": [
+    "gl_journal_entry"
+   ],
+   "line": "Record to report: 3 of 6 products present; chart of accounts, cost centre and profit centre and budget and plan missing, so a question like “Which accounts make up revenue and cost of sales?” cannot be answered.",
+   "missing": [
+    "chart_of_accounts",
+    "cost_centre",
+    "budget"
+   ],
+   "partial": [],
+   "present": [
+    "organisation",
+    "gl_journal_entry",
+    "currency"
+   ],
+   "process": "record_to_report",
+   "products": 6,
+   "title": "Record to report"
+  },
+  {
+   "can_answer": [
+    "How many active customers do we have per country and sales organisation?",
+    "Which customers buy from more than one company in the group?",
+    "What is the revenue per customer and month?",
+    "Which products have the highest credit-memo share?"
+   ],
+   "cannot_answer": [
+    {
+     "product": "subscription",
+     "question": "What is the MRR per customer and month?",
+     "title": "Subscription or contract",
+     "why": "subscription or contract is missing"
+    },
+    {
+     "product": "subscription",
+     "question": "How much recurring revenue did we lose to churn last quarter?",
+     "title": "Subscription or contract",
+     "why": "subscription or contract is missing"
+    },
+    {
+     "product": "payment",
+     "question": "How many days do customers take to pay?",
+     "title": "Payment",
+     "why": "payment has no header table"
+    },
+    {
+     "product": "payment",
+     "question": "Which payments are not matched to an invoice?",
+     "title": "Payment",
+     "why": "payment has no header table"
+    }
+   ],
+   "checked": [
+    "customer",
+    "invoice"
+   ],
+   "line": "Subscription: 2 of 4 products present; payment without its header table, and subscription or contract missing, so a question like “How many days do customers take to pay?” cannot be answered.",
+   "missing": [
+    "subscription"
+   ],
+   "partial": [
+    "payment"
+   ],
+   "present": [
+    "customer",
+    "invoice"
+   ],
+   "process": "subscription",
+   "products": 4,
+   "title": "Subscription"
+  },
+  {
+   "can_answer": [
+    "Which products sell the most per month?",
+    "Which products have no sales in the last year?",
+    "Which companies and plants belong to the group?",
+    "Which business unit owns this record?"
+   ],
+   "cannot_answer": [
+    {
+     "product": "inventory_movement",
+     "question": "How much stock do we hold per product and plant at month end?",
+     "title": "Inventory movement and stock",
+     "why": "inventory movement and stock is missing"
+    },
+    {
+     "product": "inventory_movement",
+     "question": "Which products have not moved for six months?",
+     "title": "Inventory movement and stock",
+     "why": "inventory movement and stock is missing"
+    },
+    {
+     "product": "goods_receipt",
+     "question": "Do suppliers deliver on the date they confirmed?",
+     "title": "Goods receipt",
+     "why": "goods receipt is missing"
+    },
+    {
+     "product": "goods_receipt",
+     "question": "What has been received but not invoiced yet?",
+     "title": "Goods receipt",
+     "why": "goods receipt is missing"
+    },
+    {
+     "product": "delivery",
+     "question": "Which deliveries left later than the customer was promised?",
+     "title": "Delivery (outbound shipment)",
+     "why": "delivery (outbound shipment) is missing"
+    },
+    {
+     "product": "delivery",
+     "question": "What share of order lines was delivered in full and on time?",
+     "title": "Delivery (outbound shipment)",
+     "why": "delivery (outbound shipment) is missing"
+    }
+   ],
+   "checked": [
+    "product"
+   ],
+   "line": "Inventory: 2 of 5 products present; inventory movement and stock, goods receipt and delivery missing, so a question like “How much stock do we hold per product and plant at month end?” cannot be answered.",
+   "missing": [
+    "inventory_movement",
+    "goods_receipt",
+    "delivery"
+   ],
+   "partial": [],
+   "present": [
+    "product",
+    "organisation"
+   ],
+   "process": "inventory",
+   "products": 5,
+   "title": "Inventory"
+  }
+ ],
+ "products": {
+  "activity": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "header": [
+     "activitypointer"
+    ]
+   },
+   "title": "Activity (calls, meetings, tasks, e-mails)"
+  },
+  "budget": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Budget and plan"
+  },
+  "campaign": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Marketing campaign"
+  },
+  "case": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "header": [
+     "incident"
+    ]
+   },
+   "title": "Case or ticket (customer service)"
+  },
+  "chart_of_accounts": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Chart of accounts (G/L accounts)"
+  },
+  "contact": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "master": [
+     "contact"
+    ]
+   },
+   "title": "Contact"
+  },
+  "cost_centre": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Cost centre and profit centre"
+  },
+  "crm_account": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "master": [
+     "account"
+    ]
+   },
+   "title": "Account (CRM)"
+  },
+  "currency": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "master": [
+     "transactioncurrency"
+    ]
+   },
+   "title": "Currency and exchange rate"
+  },
+  "customer": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "master": [
+     "Customer-18"
+    ]
+   },
+   "title": "Customer"
+  },
+  "date": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "generated",
+   "tables": {},
+   "title": "Date (calendar)"
+  },
+  "delivery": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Delivery (outbound shipment)"
+  },
+  "employee": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "master": [
+     "SalespersonPurchaser-13",
+     "systemuser"
+    ]
+   },
+   "title": "Employee or user"
+  },
+  "gl_journal_entry": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "line": [
+     "GLEntry-17"
+    ]
+   },
+   "title": "General ledger journal entry"
+  },
+  "goods_receipt": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Goods receipt"
+  },
+  "inventory_movement": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Inventory movement and stock"
+  },
+  "invoice": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "header": [
+     "SalesInvoiceHeader-112",
+     "invoice"
+    ],
+    "line": [
+     "SalesInvoiceLine-113",
+     "invoicedetail"
+    ]
+   },
+   "title": "Customer invoice (billing)"
+  },
+  "lead": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "master": [
+     "lead"
+    ]
+   },
+   "title": "Lead"
+  },
+  "open_item": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "line": [
+     "CustLedgerEntry-21",
+     "DetailedCustLedgEntry-379"
+    ]
+   },
+   "title": "Receivables and payables (open and cleared items)"
+  },
+  "opportunity": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "header": [
+     "opportunity"
+    ],
+    "line": [
+     "opportunityproduct"
+    ]
+   },
+   "title": "Opportunity (pipeline)"
+  },
+  "organisation": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "master": [
+     "businessunit",
+     "team"
+    ]
+   },
+   "title": "Organisation and company"
+  },
+  "payment": {
+   "checked": false,
+   "missing_roles": [
+    "header"
+   ],
+   "state": "partial",
+   "tables": {
+    "bridge": [
+     "DetailedCustLedgEntry-379"
+    ]
+   },
+   "title": "Payment"
+  },
+  "price": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "header": [
+     "pricelevel"
+    ],
+    "master": [
+     "productpricelevel"
+    ]
+   },
+   "title": "Price and condition"
+  },
+  "product": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "master": [
+     "Item-27",
+     "product"
+    ]
+   },
+   "title": "Product or material"
+  },
+  "purchase_order": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Purchase order (header and line)"
+  },
+  "quote": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "header": [
+     "SalesHeader-36",
+     "quote"
+    ],
+    "line": [
+     "SalesLine-37",
+     "quotedetail"
+    ]
+   },
+   "title": "Quote"
+  },
+  "sales_order": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "header": [
+     "SalesHeader-36",
+     "salesorder"
+    ],
+    "line": [
+     "SalesLine-37",
+     "salesorderdetail"
+    ]
+   },
+   "title": "Sales order (header and line)"
+  },
+  "subscription": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Subscription or contract"
+  },
+  "supplier": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "master": [
+     "Vendor-23"
+    ]
+   },
+   "title": "Supplier"
+  },
+  "supplier_invoice": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Supplier invoice"
+  }
+ },
+ "rule_version": "DP2-1 (21 November 2026)",
+ "tables": [
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as ACCOUNT; mapping.yaml maps that to crm_account (master), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key accountid from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 4,
+      "nulls": 0,
+      "rows": 4
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 4 rows"
+    }
+   ],
+   "product": "crm_account",
+   "role": "master",
+   "source": "pack",
+   "table": "account"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as ACTIVITYPOINTER; mapping.yaml maps that to activity (header), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key activityid from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 6,
+      "nulls": 0,
+      "rows": 6
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 6 rows"
+    }
+   ],
+   "product": "activity",
+   "role": "header",
+   "source": "pack",
+   "table": "activitypointer"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as BUSINESSUNIT; mapping.yaml maps that to organisation (master), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key businessunitid from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 1,
+      "nulls": 0,
+      "rows": 1
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 1 rows"
+    }
+   ],
+   "product": "organisation",
+   "role": "master",
+   "source": "pack",
+   "table": "businessunit"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as CONTACT; mapping.yaml maps that to contact (master), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key contactid from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 4,
+      "nulls": 0,
+      "rows": 4
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 4 rows"
+    }
+   ],
+   "product": "contact",
+   "role": "master",
+   "source": "pack",
+   "table": "contact"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as CUST_LEDGER_ENTRY; mapping.yaml maps that to open_item (line), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key $Company+EntryNo-1 from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 3,
+      "nulls": 0,
+      "rows": 3
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 3 rows"
+    }
+   ],
+   "product": "open_item",
+   "role": "line",
+   "source": "pack",
+   "table": "CustLedgerEntry-21"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as CUSTOMER; mapping.yaml maps that to customer (master), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key $Company+No-1 from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 4,
+      "nulls": 0,
+      "rows": 4
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 4 rows"
+    }
+   ],
+   "product": "customer",
+   "role": "master",
+   "source": "pack",
+   "table": "Customer-18"
+  },
+  {
+   "checked": true,
+   "confidence": "medium",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as DETAILED_CUST_LEDG_ENTRY; mapping.yaml maps that to open_item (line), confidence medium"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key $Company+EntryNo-1 from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 4,
+      "nulls": 0,
+      "rows": 4
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 4 rows"
+    }
+   ],
+   "product": "open_item",
+   "role": "line",
+   "source": "pack",
+   "table": "DetailedCustLedgEntry-379"
+  },
+  {
+   "checked": true,
+   "confidence": "medium",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as DETAILED_CUST_LEDG_ENTRY; mapping.yaml maps that to payment (bridge), confidence medium"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key $Company+EntryNo-1 from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 4,
+      "nulls": 0,
+      "rows": 4
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 4 rows"
+    }
+   ],
+   "product": "payment",
+   "role": "bridge",
+   "source": "pack",
+   "table": "DetailedCustLedgEntry-379"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as G_L_ENTRY; mapping.yaml maps that to gl_journal_entry (line), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key $Company+EntryNo-1 from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 3,
+      "nulls": 0,
+      "rows": 3
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 3 rows"
+    }
+   ],
+   "product": "gl_journal_entry",
+   "role": "line",
+   "source": "pack",
+   "table": "GLEntry-17"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as INCIDENT; mapping.yaml maps that to case (header), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key incidentid from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 3,
+      "nulls": 0,
+      "rows": 3
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 3 rows"
+    }
+   ],
+   "product": "case",
+   "role": "header",
+   "source": "pack",
+   "table": "incident"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as INVOICE; mapping.yaml maps that to invoice (header), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key invoiceid from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 2,
+      "nulls": 0,
+      "rows": 2
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 2 rows"
+    }
+   ],
+   "product": "invoice",
+   "role": "header",
+   "source": "pack",
+   "table": "invoice"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as INVOICEDETAIL; mapping.yaml maps that to invoice (line), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key invoicedetailid from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 4,
+      "nulls": 0,
+      "rows": 4
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 4 rows"
+    }
+   ],
+   "product": "invoice",
+   "role": "line",
+   "source": "pack",
+   "table": "invoicedetail"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as ITEM; mapping.yaml maps that to product (master), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key $Company+No-1 from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 4,
+      "nulls": 0,
+      "rows": 4
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 4 rows"
+    }
+   ],
+   "product": "product",
+   "role": "master",
+   "source": "pack",
+   "table": "Item-27"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as LEAD; mapping.yaml maps that to lead (master), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key leadid from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 3,
+      "nulls": 0,
+      "rows": 3
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 3 rows"
+    }
+   ],
+   "product": "lead",
+   "role": "master",
+   "source": "pack",
+   "table": "lead"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as OPPORTUNITY; mapping.yaml maps that to opportunity (header), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key opportunityid from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 3,
+      "nulls": 0,
+      "rows": 3
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 3 rows"
+    }
+   ],
+   "product": "opportunity",
+   "role": "header",
+   "source": "pack",
+   "table": "opportunity"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as OPPORTUNITYPRODUCT; mapping.yaml maps that to opportunity (line), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key opportunityproductid from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 5,
+      "nulls": 0,
+      "rows": 5
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 5 rows"
+    }
+   ],
+   "product": "opportunity",
+   "role": "line",
+   "source": "pack",
+   "table": "opportunityproduct"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as PRICELEVEL; mapping.yaml maps that to price (header), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key pricelevelid from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 2,
+      "nulls": 0,
+      "rows": 2
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 2 rows"
+    }
+   ],
+   "product": "price",
+   "role": "header",
+   "source": "pack",
+   "table": "pricelevel"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as PRODUCT; mapping.yaml maps that to product (master), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key productid from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 3,
+      "nulls": 0,
+      "rows": 3
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 3 rows"
+    }
+   ],
+   "product": "product",
+   "role": "master",
+   "source": "pack",
+   "table": "product"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as PRODUCTPRICELEVEL; mapping.yaml maps that to price (master), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key productpricelevelid from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 4,
+      "nulls": 0,
+      "rows": 4
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 4 rows"
+    }
+   ],
+   "product": "price",
+   "role": "master",
+   "source": "pack",
+   "table": "productpricelevel"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as QUOTE; mapping.yaml maps that to quote (header), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key quoteid from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 2,
+      "nulls": 0,
+      "rows": 2
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 2 rows"
+    }
+   ],
+   "product": "quote",
+   "role": "header",
+   "source": "pack",
+   "table": "quote"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as QUOTEDETAIL; mapping.yaml maps that to quote (line), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key quotedetailid from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 4,
+      "nulls": 0,
+      "rows": 4
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 4 rows"
+    }
+   ],
+   "product": "quote",
+   "role": "line",
+   "source": "pack",
+   "table": "quotedetail"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as SALES_HEADER; mapping.yaml maps that to quote (header), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key $Company+DocumentType-1+No-3 from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 3,
+      "nulls": 0,
+      "rows": 3
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 3 rows"
+    }
+   ],
+   "product": "quote",
+   "role": "header",
+   "source": "pack",
+   "table": "SalesHeader-36"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as SALES_HEADER; mapping.yaml maps that to sales_order (header), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key $Company+DocumentType-1+No-3 from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 3,
+      "nulls": 0,
+      "rows": 3
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 3 rows"
+    }
+   ],
+   "product": "sales_order",
+   "role": "header",
+   "source": "pack",
+   "table": "SalesHeader-36"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as SALES_INVOICE_HEADER; mapping.yaml maps that to invoice (header), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key $Company+No-3 from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 3,
+      "nulls": 0,
+      "rows": 3
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 3 rows"
+    }
+   ],
+   "product": "invoice",
+   "role": "header",
+   "source": "pack",
+   "table": "SalesInvoiceHeader-112"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as SALES_INVOICE_LINE; mapping.yaml maps that to invoice (line), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key $Company+DocumentNo-3+LineNo-4 from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 5,
+      "nulls": 0,
+      "rows": 5
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 5 rows"
+    }
+   ],
+   "product": "invoice",
+   "role": "line",
+   "source": "pack",
+   "table": "SalesInvoiceLine-113"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as SALES_LINE; mapping.yaml maps that to quote (line), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key $Company+DocumentType-1+DocumentNo-3+LineNo-4 from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 5,
+      "nulls": 0,
+      "rows": 5
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 5 rows"
+    }
+   ],
+   "product": "quote",
+   "role": "line",
+   "source": "pack",
+   "table": "SalesLine-37"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as SALES_LINE; mapping.yaml maps that to sales_order (line), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key $Company+DocumentType-1+DocumentNo-3+LineNo-4 from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 5,
+      "nulls": 0,
+      "rows": 5
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 5 rows"
+    }
+   ],
+   "product": "sales_order",
+   "role": "line",
+   "source": "pack",
+   "table": "SalesLine-37"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as SALESORDER; mapping.yaml maps that to sales_order (header), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key salesorderid from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 3,
+      "nulls": 0,
+      "rows": 3
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 3 rows"
+    }
+   ],
+   "product": "sales_order",
+   "role": "header",
+   "source": "pack",
+   "table": "salesorder"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as SALESORDERDETAIL; mapping.yaml maps that to sales_order (line), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key salesorderdetailid from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 7,
+      "nulls": 0,
+      "rows": 7
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 7 rows"
+    }
+   ],
+   "product": "sales_order",
+   "role": "line",
+   "source": "pack",
+   "table": "salesorderdetail"
+  },
+  {
+   "checked": true,
+   "confidence": "medium",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as SALESPERSON_PURCHASER; mapping.yaml maps that to employee (master), confidence medium"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key $Company+Code-1 from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 3,
+      "nulls": 0,
+      "rows": 3
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 3 rows"
+    }
+   ],
+   "product": "employee",
+   "role": "master",
+   "source": "pack",
+   "table": "SalespersonPurchaser-13"
+  },
+  {
+   "checked": true,
+   "confidence": "medium",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as SYSTEMUSER; mapping.yaml maps that to employee (master), confidence medium"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key systemuserid from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 2,
+      "nulls": 0,
+      "rows": 2
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 2 rows"
+    }
+   ],
+   "product": "employee",
+   "role": "master",
+   "source": "pack",
+   "table": "systemuser"
+  },
+  {
+   "checked": true,
+   "confidence": "medium",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as TEAM; mapping.yaml maps that to organisation (master), confidence medium"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key teamid from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 1,
+      "nulls": 0,
+      "rows": 1
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 1 rows"
+    }
+   ],
+   "product": "organisation",
+   "role": "master",
+   "source": "pack",
+   "table": "team"
+  },
+  {
+   "checked": true,
+   "confidence": "medium",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as TRANSACTIONCURRENCY; mapping.yaml maps that to currency (master), confidence medium"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key transactioncurrencyid from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 2,
+      "nulls": 0,
+      "rows": 2
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 2 rows"
+    }
+   ],
+   "product": "currency",
+   "role": "master",
+   "source": "pack",
+   "table": "transactioncurrency"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-P1",
+     "what": "the dynamics365 pack recognises it as VENDOR; mapping.yaml maps that to supplier (master), confidence high"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "key $Company+No-1 from the plan"
+    },
+    {
+     "counts": {
+      "distinct": 2,
+      "nulls": 0,
+      "rows": 2
+     },
+     "rule": "DP2-C1",
+     "what": "key counted: unique in all 2 rows"
+    }
+   ],
+   "product": "supplier",
+   "role": "master",
+   "source": "pack",
+   "table": "Vendor-23"
+  }
+ ],
+ "unmatched": [
+  "CountryRegion-9",
+  "DimensionSetEntry-480"
+ ]
+}
