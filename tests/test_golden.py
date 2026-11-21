@@ -148,13 +148,14 @@ def fabric(monkeypatch):
     its notebook installs."""
     import datetime
     import requests
-    from fabric_backend import monitor, server
+    from fabric_backend import catalog, monitor, server
 
     class RecordedDay(datetime.date):
         @classmethod
         def today(cls):
             return cls(*RECORDED_ON)
     monkeypatch.setattr(monitor, "date", RecordedDay)
+    monkeypatch.setattr(catalog, "_today", lambda: RecordedDay.today().isoformat())   # BL29: the catalog's quality line
     monkeypatch.setattr(monitor, "DEFAULT_REF", RECORDED_REF)        # a release's version bump leaves the answers as they are
     fake = gs.FakeFabric()
     for verb in ("get", "post", "patch"):
