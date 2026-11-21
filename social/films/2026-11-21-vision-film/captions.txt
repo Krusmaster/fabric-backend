@@ -1,0 +1,39 @@
+DRAFT, 2026-11-21, round FV1. Not approved. Do not post before Gustav says yes and the early-access page exists.
+
+LINKEDIN (teaser, 4:5)
+
+Your SAP data is in Fabric. Making it usable still takes weeks of data engineering.
+
+We're building something to change that: sign in, see what your data is missing, tap a suggestion, check a dry run, and get it as a pull request you merge.
+
+Some of it works today: Krusgraph finds keys and relationships by rules and counts each one on the rows, and it catches SAP traps like an order total counted once per order line (on our example, 1 950 instead of 750). The page in the film is a concept, in development, and is labelled so.
+
+Get early access: krusgraph.com
+
+Shown on our SAP-shaped example, not data from an SAP system. Concept screens are labelled "Concept. In development." Krusgraph is independent and not affiliated with SAP or Microsoft. Voice: AI-generated.
+
+#MicrosoftFabric #SAP #DataEngineering #Krusgraph
+
+
+INSTAGRAM REELS / YOUTUBE SHORTS (short, 9:16)
+
+Your SAP data is in Fabric. Making it usable shouldn't take weeks. Krusgraph counts every key and link on the rows, catches SAP traps, and shows a dry run before anything is written. The builder page is a concept, in development.
+
+Shown on our SAP-shaped example, not data from an SAP system. Krusgraph is independent and not affiliated with SAP or Microsoft. Voice: AI-generated.
+
+#MicrosoftFabric #SAP #DataEngineering #Krusgraph
+
+Get early access: krusgraph.com (link in bio)
+
+
+SVENSK BILDTEXT (LinkedIn)
+
+Din SAP-data finns i Fabric. Att göra den användbar tar fortfarande veckor av data engineering.
+
+Vi bygger något som ändrar det: logga in, se vad dina data saknar, tryck på ett förslag, granska en provkörning och få ändringen som en pull request som du själv slår ihop.
+
+En del fungerar i dag: Krusgraph hittar nycklar och relationer med regler och räknar varje en på raderna, och hittar SAP-fällor som en ordersumma som räknas en gång per orderrad (i vårt exempel 1 950 i stället för 750). Sidan i filmen är ett koncept under utveckling och märkt så.
+
+Få tidig tillgång: krusgraph.com
+
+Visat på vårt SAP-liknande exempel, inte data från ett SAP-system. Krusgraph är oberoende och inte knutet till SAP eller Microsoft. Rösten är AI-genererad.
