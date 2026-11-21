@@ -1507,6 +1507,8 @@ def docs_page_html(path: str) -> str:
     figs["what-you-can-build"] = lambda _rendered: claims.section_html()     # n194: n190's grid, moved from the home page
     from . import offering
     figs.update(offering.figures())                                          # n177: the workload's permissions and screenshots
+    from . import heading_sketch
+    figs["heading-sketch"] = heading_sketch.figure                           # DOCV1: the sketch on "Where Krusgraph is heading"
     body = _md_to_html(pg["md"], figs)
     # links between the parts of the old page go to the page that has the heading now
     body = re.sub(r'href="#([^"]+)"', lambda m: f'href="{where[m.group(1)]}#{m.group(1)}"' if where.get(m.group(1), path) != path
