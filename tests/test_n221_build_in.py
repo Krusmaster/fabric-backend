@@ -170,12 +170,16 @@ def test_the_sources_workspace_is_still_a_choice_and_builds_beside_it(make):
     assert [c["decision"]["action"] for c in dry["outputs"]] == ["skip"] * len(OUTPUTS)   # per workspace: built in demo
 
 
-def test_a_new_workspace_without_a_lakehouse_needs_a_choice_or_consent(make):
+def test_a_new_workspace_without_a_lakehouse_gets_one_planned_by_the_dry_run(make):
+    """ED2 (was: the dry run refused every output with "has no lakehouse"): the dry run says which lakehouse Create
+    will make for silver and gold, by one naming rule, and goes on; it makes nothing."""
     client, fake, priv = make(TwoWorkspaces())
     rv = _review(client, priv)
     dry = _post(client, "/build", {**SRC, "review": rv, "outputs": OUTPUTS[:1], "dry_run": True, "created": [], **_in()}, priv).json()
-    err = dry["outputs"][0]["answer"]
-    assert err["kind"] == "not_found" and "has no lakehouse" in err["error"] and "Create a lakehouse" in err["error"]
+    assert dry["lakehouse"]["action"] == "make" and dry["lakehouse"]["name"] == "demo_lh_krusgraph"
+    assert dry["lakehouse"]["words"] == "Create will make the lakehouse demo_lh_krusgraph for silver and gold."
+    t = dry["outputs"][0]["answer"]["target"]
+    assert t["how"] == "create" and t["lakehouse"] == "demo_lh_krusgraph"
     assert not _writes(fake)
 
 

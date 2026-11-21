@@ -304,7 +304,10 @@ def build_request(body) -> dict:
     if product is not None:
         if not isinstance(product, dict) or not isinstance(product.get("name"), str) or not _PRODUCT.match(product["name"].strip()):
             raise BadRequest("product: {name}, letters, digits, spaces, '.', '_' or '-', at most 80, or null")
-        product = {"name": product["name"].strip()}
+        owner = product.get("owner")                               # ED2: the data product's owner, the signed-in person by default
+        if owner is not None and (not isinstance(owner, str) or len(owner.strip()) > 120):
+            raise BadRequest("product.owner: the owner's name or e-mail, at most 120 characters, or null for the signed-in person")
+        product = {"name": product["name"].strip(), **({"owner": owner.strip()} if owner and owner.strip() else {})}
     created = body.get("created") or []
     if not isinstance(created, list) or not all(isinstance(c, dict) and isinstance(c.get("id"), str) for c in created):
         raise BadRequest("'created' must be outputs.json's created list ({type, id, name, workspace}) or empty")
@@ -467,6 +470,9 @@ def _ids(body: dict) -> dict:
         if not isinstance(create, str) or not _CREATE_ID.match(create):
             raise BadRequest("'create_id' is letters, digits, '-' or '_', at most 64")
         out["create_id"] = create
+    name = body.get("item_name")                                   # ED2: the Model item's name, for the lakehouse's default name
+    if isinstance(name, str) and name.strip():
+        out["item_name"] = name.strip()[:123]
     return out
 
 
@@ -806,7 +812,7 @@ def suggest_products(p, validation: dict | None = None) -> dict:
     """The suggested data products of a plan (domains.propose_plan), in the words the editor shows."""
     from . import domains as D
     label = getattr(p, "label", None) or (lambda r: r)
-    prop = D.propose_plan(p, validation)
+    prop = D.data_products(p)                                       # ED2: one grouping everywhere (domains.data_products)
     names = {d["slug"]: d["name"] for d in prop["domains"]}
     verdicts = {(r["source"], tuple(c.lower() for c in r["columns"]), r["target"]): r.get("verdict", "")
                 for r in (validation or {}).get("relationships", [])}
@@ -1259,8 +1265,16 @@ def run_build_background(req: dict) -> dict:
     if req.get("refresh_only"):
         return run_refresh_only(req)
     if req.get("form") == 2 and req.get("only") and not req["dry_run"] and not req.get("finish"):
-        return run_build_step(req)
+        from . import server as S
+        wait = S.MODEL_WAIT.set(REPORT_MODEL_WAIT_SECONDS)       # ED2: no 40-second answer limit here: the report waits longer
+        try:
+            return run_build_step(req)
+        finally:
+            S.MODEL_WAIT.reset(wait)
     return run_build(req)
+
+
+REPORT_MODEL_WAIT_SECONDS = 260   # ED2: server.MODEL_DEFINITION_PAUSES_LONG (225 s) and the reads themselves
 
 
 def run_operation(req: dict) -> dict:
@@ -1500,8 +1514,7 @@ def existing_decision(o: dict, chosen: dict, req: dict, workspace: str, headers:
         note = ("Already built from this plan; Create will skip it." if dry_run else
                 "Fabric finished it after the wait; it is kept as built by this Model, and nothing was written "
                 "again." if adopted else
-                "Already in the workspace, built from this plan by an earlier Create; nothing "
-                "was written. Choose a new name to make another one.")
+                "Already built from this plan by an earlier Create; nothing was written again.")
         ours.update(c["id"] for c in done)
         return {"outcome": "already_built", "adopted": adopted,
                 "card": {"would": "create", "created": done, "already_built": True, "existing": counts,
@@ -1509,6 +1522,15 @@ def existing_decision(o: dict, chosen: dict, req: dict, workspace: str, headers:
                                     **({"adopted": len(adopted)} if adopted else {})}}}
     was = next((m for m in marks if m and not same_plan(m, mark)), None)   # n180: another plan, or none recorded
     bf = built_from(was, mark)
+    mine = {c["id"] for c in req.get("created") or []}
+    if KINDS[kind]["updates"] and done and all(c["id"] in mine for c in done):
+        # ED2 (Gustav's editor test of 21 November 2026: "already built ... Choose a new name to make another one"): this
+        # item built it (outputs.json) and the plan changed, so Create updates it in place and says "updated"; no
+        # question and no new name. An item another Model or a person made is still never written (_ownership).
+        for c in done:
+            c.pop("adopted", None)
+        return {"outcome": "update_in_place", "adopted": [], "proceed": True,
+                "card": {"built_from": {**bf, "update_in_place": True}, "existing": counts}}
     choices = ["update", "new_name"] if KINDS[kind]["updates"] else ["new_name"]
     for c in done:
         c.pop("adopted", None)
@@ -1547,7 +1569,10 @@ def decision_of(card: dict) -> dict:
     if a.get("error"):
         return {"action": "error", "words": " ".join(x for x in (a.get("error"), a.get("hint")) if x)}
     action = "update" if card.get("would") == "update" else "create"
-    return {"action": action, "words": DECISION_WORDS[action][0 if dry else 1]}
+    words = DECISION_WORDS[action][0 if dry else 1]
+    if action == "update" and (card.get("built_from") or {}).get("update_in_place"):   # ED2: said once, why it is updated
+        words = (words[:-1] + " (this item built it from an older plan).")
+    return {"action": action, "words": words}
 
 
 def _ownership(o: dict, chosen: dict, req: dict, workspace: str, headers: dict, ours: set[str]) -> tuple[str, dict | None, dict]:
@@ -1887,8 +1912,8 @@ def _portal_steps(kind: str, a: dict, chosen: dict | None = None, built: dict | 
         ran = (res.get("run") or {}).get("status") in ("Running", "Succeeded")
         scheduled = (res.get("schedule") or {}).get("status") == "Succeeded"
         if not ran and not scheduled:
-            return [a.get("runs", ""), "To run it regularly, add a schedule on the pipeline in Fabric (Schedule); Krusgraph adds none."]
-        return ([] if ran else [RUN_STEP]) + ([] if scheduled else ["To run it regularly, add a schedule on the pipeline in Fabric (Schedule)."])
+            return [RUN_STEP, NO_SCHEDULE_LINE]
+        return ([] if ran else [RUN_STEP]) + ([] if scheduled else [NO_SCHEDULE_LINE])
     if kind == "data_agent":                                       # n185: Publish and Copilot left to do, if any
         from . import agent_publish
         steps = ["Open the agent in Fabric: its data source, selected tables and example queries are under its staging configuration."]
@@ -1896,6 +1921,11 @@ def _portal_steps(kind: str, a: dict, chosen: dict | None = None, built: dict | 
             steps.append(agent_publish.FABRIC_STEP)
         return steps
     return list(a.get("portal_steps") or [])
+
+
+# ED2: Run once is the editor's default (the first Create gives filled tables); no schedule stays the default, said in
+# one line with how to add one.
+NO_SCHEDULE_LINE = "No schedule: tick Schedule on the Choose step (daily or every few hours), or add one on the pipeline in Fabric."
 
 
 def chosen_jobs(req: dict) -> dict:
@@ -2047,12 +2077,12 @@ def _jobs_card(o: dict, answer: dict, permission: dict, dry_run: bool) -> dict:
     run_once, spec = bool(jobs.get("run_once")), jobs.get("schedule")
     out = {"run_once": run_once, "schedule": spec, "permission": permission}
     if not (run_once or spec):
-        out["words"] = ["Nothing runs and nothing is scheduled: tick Run once or Schedule to have Create do it."]
+        out["words"] = ["Create does not run it: Run once is off. " + NO_SCHEDULE_LINE]
         return out
     if permission["granted"] is False:
         out["words"] = ["Neither runs: " + permission["why"]]
         return out
-    out["words"] = pipeline_jobs.describe(o["name"], run_once, spec)
+    out["words"] = pipeline_jobs.describe(o["name"], run_once, spec) + ([] if spec else [NO_SCHEDULE_LINE])
     res = answer.get("result") or {}
     if not dry_run:
         if "run" in res:
@@ -2177,11 +2207,22 @@ def _call(kind: str, o: dict, chosen: dict, req: dict, keys, confirmed, dry_run:
     return json.loads(text)
 
 
+def product_owner(req: dict) -> str | None:
+    """ED2: the data product's owner: the one the person chose on Choose (product.owner), else the signed-in person
+    (who(claims), set by the route), the same default the Choose step shows. None only without a signed-in name."""
+    return (req.get("product") or {}).get("owner") or req.get("by") or None
+
+
+def owner_words(owner: str | None) -> str:
+    """ED2: the one sentence about the owner, the same on Choose, the dry run and the result."""
+    return f"Owner: {owner}. Change it on the Choose step." if owner else "Owner: not set. Choose one on the Choose step."
+
+
 def _product(req: dict, rv: dict, p, cards: list[dict], dry_run: bool) -> dict:
-    """The data product: one name over the outputs of this build, with the domains domain_draft proposes for the plan,
-    an owner nobody has chosen yet and the plan's version. Items only as the build's answers name them."""
+    """The data product: one name over the outputs of this build, with the data products domains.data_products groups
+    the plan into, its owner (product_owner) and the plan's version. Items only as the build's answers name them."""
     from . import domains as _domains
-    proposal = _domains.draft(p, req["schema"], req["source_name"])
+    proposal = _domains.data_products(p)                           # ED2: the same grouping as the suggestions and the site
     items = []
     for c in cards:
         if c.get("refusal") or (c.get("answer") or {}).get("error"):
@@ -2191,7 +2232,8 @@ def _product(req: dict, rv: dict, p, cards: list[dict], dry_run: bool) -> dict:
                           "decision": (c.get("decision") or decision_of(c))["action"]})   # n209: skip and choose are not "would be updated"
         else:
             items += [{**x, "label": c["label"]} for x in c.get("created", [])]
-    return {"name": req["product"]["name"], "owner": None, "owner_note": "Nobody has chosen an owner yet.",
+    owner = product_owner(req)
+    return {"name": req["product"]["name"], "owner": owner, "owner_note": owner_words(owner),
             "plan": {"plan_id": rv.get("plan_id"), "schema_fingerprint": rv.get("schema_fingerprint"),
                      "review_version": rv.get("version")},
             "source": {"lakehouse": req["source_name"], "schema": req["schema"]},
@@ -2298,22 +2340,38 @@ def run_build_many(req: dict) -> dict:
         kept = adjust(plan)
         return replace(kept, checked_keys=checked) if checked and hasattr(kept, "checked_keys") else kept
     tgt = req.get("target") or {}
-    place = build_place(req, S._headers(None))                     # n221: the item's workspace by default
-    write_target = S.WRITE_TARGET.set({"lakehouse": tgt.get("lakehouse"), "create": tgt.get("create_lakehouse"),
+    headers = S._headers(None)
+    place = build_place(req, headers)                              # n221: the item's workspace by default
+    lh_plan = None
+    if place["cross"] and not tgt.get("lakehouse") and needs_lakehouse(req):   # ED2: one name, checked, dry run and Create
+        try:
+            lh_plan = plan_lakehouse(req, place, S._list_items(place["workspace_id"], headers))
+        except BadRequest:
+            raise
+        except Exception as exc:                                   # noqa: BLE001 — not listed: the name asked for, as before
+            log("lakehouse_plan_failed", error=type(exc).__name__)
+            lh_plan = ({"name": tgt["create_lakehouse"], "action": "make", "words": lakehouse_words({"name": tgt["create_lakehouse"],
+                        "action": "make"}), "rule": LAKEHOUSE_NAME_RULE} if tgt.get("create_lakehouse") else None)
+    made = None
+    if lh_plan and not dry_run and lh_plan["action"] == "make":
+        made = make_lakehouse(place["workspace_id"], lh_plan, headers, req)
+        if made.get("error"):
+            return _with_schema({"dry_run": False, "outputs": [], "order": [], "left_out_by_review": [], "refused": 1,
+                                 "to_decide": 0, "build_in": place, "lakehouse": lh_plan, "error": made["error"],
+                                 "kind": made.get("kind", "bad_input"), "hint": made.get("hint", ""), "note": made["error"]}, req)
+        lh_plan = {**lh_plan, "name": made.get("name") or lh_plan["name"],
+                   **({"words": made["words"]} if made.get("words") else {})}
+    create_name = lh_plan["name"] if lh_plan else tgt.get("create_lakehouse")
+    write_target = S.WRITE_TARGET.set({"lakehouse": tgt.get("lakehouse"), "create": create_name,
                                        "workspace_name": place["name"]})   # n201: a read-only source; n221: another workspace
     build_in = S.BUILD_IN.set(place["workspace_id"] if place["cross"] else None)
     try:
-        made = None
-        if not dry_run and place["cross"] and tgt.get("create_lakehouse") and not tgt.get("lakehouse") and needs_lakehouse(req):
-            made = ensure_lakehouse(place["workspace_id"], tgt["create_lakehouse"], S._headers(None), req)
-            if made.get("error"):
-                return _with_schema({"dry_run": False, "outputs": [], "order": [], "left_out_by_review": [], "refused": 1,
-                                     "to_decide": 0, "build_in": place, "error": made["error"], "kind": made.get("kind", "bad_input"),
-                                     "hint": made.get("hint", ""), "note": made["error"]}, req)
         with _one_listing():                                # n222: the workspace's items listed once, not per name
             out = _build_many(req, S, rv, keys, confirmed, dry_run, scopes, app_id, chosen, ours, cards, built, left, adjust_checked,
                               place)
         out["build_in"] = place
+        if lh_plan:
+            out["lakehouse"] = lh_plan                             # ED2: "Create will make the lakehouse ... for silver and gold"
         if made and made.get("made"):
             out["lakehouse_made"] = made
         return out
@@ -2376,6 +2434,115 @@ def needs_lakehouse(req: dict) -> bool:
 
 LAKEHOUSE_DOC = "https://learn.microsoft.com/rest/api/fabric/lakehouse/items/create-lakehouse"
 
+# ED2 (Gustav's editor test of 21 November 2026): a workspace with no lakehouse made the first Create fail per output,
+# and the second, with "Make a lakehouse" ticked, got HTTP 409 "is already in use" for its name. Now one rule, the same
+# in the dry run and in Create: the name is checked against the workspace's items first. A lakehouse of that name there
+# is used; a name taken by another item (or still held by one deleted a moment ago, which Fabric answers with 409) moves
+# to the next free name, <name>_2, <name>_3, ..., said once. Without a name asked for, and with no lakehouse in the
+# workspace, Create makes one named after the data product (else the source) with _lh, never "..._test".
+LAKEHOUSE_NAME_RULE = "the first free name of <name>, <name>_2, <name>_3, ... in this workspace (every item type counts)"
+_LAKEHOUSE_LOCKS: dict[str, threading.Lock] = {}
+_LAKEHOUSE_LOCKS_GUARD = threading.Lock()
+
+
+def _name_base(name: str) -> str:
+    return re.sub(r"_\d{1,3}$", "", name)
+
+
+def _lakehouse_slug(raw: str) -> str:
+    return (re.sub(r"_+", "_", re.sub(r"[^A-Za-z0-9_]", "_", raw)).strip("_").lstrip("0123456789_"))[:100]
+
+
+def default_lakehouse_name(req: dict) -> str:
+    """The lakehouse Create makes when none is asked for: the data product's name, else the Model item's, with _lh
+    (shop -> shop_lh); without either, the source's with _krusgraph (never the source's own name). Letters, digits and
+    underscores, starting with a letter."""
+    named = _lakehouse_slug((req.get("product") or {}).get("name") or req.get("item_name") or "")
+    if named:
+        return named if named.lower().endswith("_lh") else named + "_lh"
+    return (_lakehouse_slug(req.get("source_name") or "") or "krusgraph") + "_krusgraph"
+
+
+def free_lakehouse_name(wanted: str, items: list[dict], tried: tuple[str, ...] = ()) -> dict:
+    """ED2: {name, action: use | make, taken_by?}. A lakehouse named `wanted` in the workspace is used (unless it is
+    in `tried`: Fabric refused it); otherwise the first of wanted, wanted_2, wanted_3, ... that no item of the workspace
+    has and that was not tried, with what took `wanted`."""
+    by = {str(it.get("displayName") or "").lower(): str(it.get("type") or "") for it in items}
+    low = {t.lower() for t in tried}
+    if by.get(wanted.lower()) == "Lakehouse" and wanted.lower() not in low:
+        return {"name": wanted, "action": "use"}
+    base = _name_base(wanted)
+    chain = [wanted] + [f"{base[:118]}_{i}" for i in range(2, 1000) if f"{base[:118]}_{i}".lower() != wanted.lower()]
+    for cand in chain[1:]:                                         # an earlier step or Create moved to this name: used again
+        if by.get(cand.lower()) == "Lakehouse" and cand.lower() not in low:
+            return {"name": cand, "action": "use", "asked": wanted}
+    for cand in chain:
+        if cand.lower() not in by and cand.lower() not in low:
+            out = {"name": cand, "action": "make"}
+            if cand != wanted:
+                out["taken_by"] = by.get(wanted.lower()) or "an item Fabric still holds"
+                out["asked"] = wanted
+            return out
+    raise BadRequest(f"no free lakehouse name after {wanted!r}_999; choose another name")
+
+
+def lakehouse_words(plan: dict) -> str:
+    if plan["action"] == "use":
+        return f"Create will use the lakehouse {plan['name']}, already in this workspace, for silver and gold."
+    line = f"Create will make the lakehouse {plan['name']} for silver and gold"
+    if plan.get("asked"):
+        what = "a deleted item Fabric still holds" if plan.get("taken_by") == "an item Fabric still holds" else f"a {plan['taken_by']}"
+        line += f" ({plan['asked']} is taken by {what}, so the next free name is used)"
+    return line + "."
+
+
+def plan_lakehouse(req: dict, place: dict, items: list[dict]) -> dict | None:
+    """ED2: the lakehouse this build writes silver and gold to when it is in another workspace than the source's and no
+    lakehouse was chosen: the one asked for (create_lakehouse), or, when the workspace has no lakehouse, one named by
+    default_lakehouse_name. None when nothing needs making (a lakehouse chosen, the first of the workspace, or no
+    output that writes tables). The dry run and Create call it with the same listing rule, so they say the same name."""
+    tgt = req.get("target") or {}
+    if not place.get("cross") or tgt.get("lakehouse") or not needs_lakehouse(req):
+        return None
+    wanted = tgt.get("create_lakehouse")
+    if not wanted:
+        if any(it.get("type") == "Lakehouse" for it in items):
+            return None                                            # the first lakehouse of the workspace, as before
+        wanted = default_lakehouse_name(req)
+    plan = free_lakehouse_name(wanted, items)
+    return {**plan, "words": lakehouse_words(plan), "rule": LAKEHOUSE_NAME_RULE}
+
+
+def make_lakehouse(ws: str, plan: dict, headers: dict, req: dict, list_items=None) -> dict:
+    """ED2: the planned lakehouse, made once per workspace and name (a lock, since a Create's steps run side by side),
+    and on Fabric's 409 (the name is in use, by an item made meanwhile or one deleted a moment ago) the workspace is
+    listed again: a lakehouse of that name made meanwhile is used, else the next free name is tried, at most three
+    names. The answer says the name used and, once, why it moved."""
+    from . import server as S
+    list_items = list_items or (lambda: S._list_items(ws, headers))
+    tried: list[str] = []
+    name, first = plan["name"], plan
+    for _ in range(3):
+        key = f"{ws.lower()}/{name.lower()}"
+        with _LAKEHOUSE_LOCKS_GUARD:
+            lock = _LAKEHOUSE_LOCKS.setdefault(key, threading.Lock())
+        with lock:
+            got = ensure_lakehouse(ws, name, headers, req)
+        if not got.get("error"):
+            if name != first["name"] or first.get("asked"):
+                asked = first.get("asked") or first["name"]
+                got["words"] = (f"Made the lakehouse {name} for silver and gold: {asked} was in use in this workspace "
+                                f"(Fabric keeps a deleted item's name for a while), so the next free name was used.")
+            return got
+        if int(got.get("http") or 0) != 409 and "already in use" not in str(got.get("error", "")).lower():
+            return got
+        tried.append(name)
+        nxt = free_lakehouse_name(first.get("asked") or first["name"], list_items(), tuple(tried))
+        if nxt["action"] == "use":
+            return {"id": None, "name": nxt["name"], "workspace": ws, "made": False}
+        name = nxt["name"]
+    return got
+
 
 def ensure_lakehouse(ws: str, name: str, headers: dict, req: dict) -> dict:
     """n221: the lakehouse the person asked Create to make in the build's workspace (Items - Create Lakehouse, POST
@@ -2405,7 +2572,8 @@ def ensure_lakehouse(ws: str, name: str, headers: dict, req: dict) -> dict:
         got = {"error": f"Fabric did not confirm the lakehouse {name!r} in time.", "kind": "timeout",
                "hint": "Choose Create again in a minute: a lakehouse of that name is used, not made twice."}
     log("lakehouse_made", outcome=str(got.get("kind")))
-    return {**got, "error": got.get("error") or f"The lakehouse {name!r} was not made; nothing else was written."}
+    return {**got, "error": got.get("error") or f"The lakehouse {name!r} was not made; nothing else was written.",
+            **({"http": int(r["http"])} if r.get("http") else {})}
 
 
 def _build_many(req, S, rv, keys, confirmed, dry_run, scopes, app_id, chosen, ours, cards, built, left, adjust, place=None) -> dict:
@@ -2442,10 +2610,15 @@ def _build_many(req, S, rv, keys, confirmed, dry_run, scopes, app_id, chosen, ou
                 return card
             started = time.monotonic()
             updating = kind in req.get("update", [])
+            auto_update = False                                    # ED2: this item's own item, from an older plan
             # n197/n209: the dry run asks the same question Create asks (skip_built), through one function, so it predicts what
             # Create does: an item built from this plan is "already built, will be skipped" in both, never "would be updated"
             if (req.get("skip_built") or dry_run) and not updating:
                 said = existing_decision(o, chosen, req, workspace, headers, ours, mark, listed, dry_run)
+                if said is not None and said.get("proceed"):           # ED2: this item's own, from an older plan: updated
+                    card.update(said["card"])
+                    updating = auto_update = True
+                    said = None
                 if said is not None:
                     card.update(said["card"])
                     if said["adopted"] and not dry_run:
@@ -2465,14 +2638,16 @@ def _build_many(req, S, rv, keys, confirmed, dry_run, scopes, app_id, chosen, ou
                         update_ids.append(existing)
                 if update_ids:
                     was = next((m for m in (recorded_mark(i, req, listed()) for i in update_ids) if m and not same_plan(m, mark)), None)
-                    card["built_from"] = built_from(was, mark)
-                    card["confirm_update"] = confirm_token(kind, mark, update_ids)
+                    card["built_from"] = {**built_from(was, mark), **({"update_in_place": True} if auto_update else {})}
+                    if not auto_update:
+                        card["confirm_update"] = confirm_token(kind, mark, update_ids)
             would, refusal, _found = _ownership(o, chosen, req, workspace, headers, ours)
             card["would"] = would
             missing = card["permissions"]["missing"]
             if refusal is None and missing and not dry_run:
                 refusal = _consent(kind, missing, app_id)
-            if refusal is None and updating and not dry_run and update_ids and req["confirm"].get(kind) != card.get("confirm_update"):
+            if (refusal is None and updating and not auto_update and not dry_run and update_ids
+                    and req["confirm"].get(kind) != card.get("confirm_update")):
                 refusal = {"error": f"{KINDS[kind]['label']} {o['name']!r} is updated only after its dry run; nothing was written.",
                            "kind": "dry_run_first",
                            "hint": "Choose Update to see what would change, then confirm the update."}
@@ -2892,7 +3067,7 @@ def routes(cfg, validator=None, obo=None) -> list:
                 return reply(refusal, STATUS["upgrade"], origin)
 
             tokens = Tokens(obo, token, claims["tid"], getattr(cfg, "client_id", None))
-            if where in ("product", "catalog"):        # n198: who removed or adopted an item; WB10: the catalog owner's Me
+            if where in ("product", "catalog", "build"):   # n198: who removed or adopted an item; WB10: the catalog owner's Me; ED2: the data product's owner
                 req["by"] = who(claims)
             if where == "operation":                   # n197: the state of a background operation, for its owner only
                 from . import operations
