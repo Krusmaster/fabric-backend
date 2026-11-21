@@ -49,6 +49,7 @@ export function builtOn(kind: string, choices: OutputChoice[], created: CreatedI
 export function defaultsLine(kind: string, c: OutputChoice): string | undefined {
   if (kind === "pipeline") {
     const j = c.jobs;
+    if (!j?.run_once && !j?.schedule) return undefined;        // the card's own words already say "It is not run or scheduled."
     const run = j?.run_once ? "runs once after Create" : "is not run";
     const sched = j?.schedule ? `, scheduled ${j.schedule.every === "hours" ? `every ${j.schedule.hours ?? 4} hours` : `daily at ${j.schedule.at}`}` : " or scheduled";
     return `It ${run}${sched}.`;
