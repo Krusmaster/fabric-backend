@@ -218,6 +218,13 @@ button.kgd-box:hover { border-color: var(--muted) }
 }
 .kgd-big-body { overflow-y: auto; overflow-x: hidden; padding: 14px; min-width: 0; overscroll-behavior: contain }
 .kgd-big-body .kgd-code pre { max-height: 40vh }
+/* DBTV1: the dbt project's flow in the same overlay: the boxes as they are in the chat, with more room and larger text */
+.kgf-slot > .kgd-bar { margin-top: 8px }
+.kgf.kgf-wide { margin: 0; min-width: 0 }
+.kgf.kgf-wide .kgf-h { font-size: 14px }
+.kgf.kgf-wide .kgf-box { font-size: 14.5px; padding: 7px 10px }
+.kgf.kgf-wide .kgf-l { font-size: 13px }
+.kgf.kgf-wide .kgf-code pre { max-height: 40vh; font-size: 12.5px }
 
 /* a restored chat appears as it was: no animation, the figures of its messages still too */
 .kgc.kgc-still, .kgc-msg.still, .kgc-you.still { animation: none }
