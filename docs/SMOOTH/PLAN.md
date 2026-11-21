@@ -39,6 +39,14 @@ one-lakehouse demo); in (c) one plan over `sap+crm` keys its 38 tables `schema.t
 `crm.Account` → `sap.KNA1` on one connection (3 of 4 found). The one-lakehouse demo still reaches all three dry runs in 4
 taps (AUDIT.md section 13, `tests/test_sm5_multi_lakehouse.py`).
 
+**SM6 is done** (21 November 2026), with one change to its line: on the fixture, layout (a) reaches all three dry runs in
+4 taps with the suggestion taken (0.6 s locally, server side), and the dry run says "silver → silver_lh, gold →
+gold_lh" in one line. The silver notebook is attached to `silver_lh` and reads `bronze_lh` through its OneLake path;
+the gold notebook and the check are attached to `gold_lh` and read the silver tables as `silver_lh`.`silver`.`<table>`.
+The change: the model's expression points at **`silver_lh`**, not `gold_lh`, because the gold layer holds one wide view
+per fact table and the model's star (dimensions and facts, related) is the silver tables. A model over `gold_lh` needs
+star tables in gold first; that is Gustav's call (AUDIT.md section 14). Without the new parameters nothing changes.
+
 SM5-SM7 change the engine (`infer.py`, `graphs.py`, `server.py`'s write path). They come after SM2-SM4 because those
 three change what every later round's UI looks like, and the multi-source flow should be built straight into five steps.
 

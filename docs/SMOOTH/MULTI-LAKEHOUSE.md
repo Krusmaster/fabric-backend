@@ -67,8 +67,8 @@ Status words: **works**; **partial** (works with a workaround or only in part); 
 |---|---|---|
 | Plan | **Works** (SM5) | Start suggests `bronze_lh` by name rule L1 and takes it like a single option: the first card is "mlh_demo › bronze_lh › sap ✓", 0 extra taps; `silver_lh` and `gold_lh` are named and left untouched |
 | Check joins across lakehouses | No | Two-part names on one connection. Not needed for (a), because the joins are inside bronze |
-| Write silver to `silver_lh` and gold to `gold_lh` | **No** | A lakehouse source writes into itself, so silver and gold would land in `bronze_lh` under new schemas. A target exists only for read-only sources or another workspace, and even there silver and gold share one target |
-| One model / ontology / agent over the gold layer | Partial | They read `silver_schema`/`gold_schema` inside the source item. When the build moves elsewhere (n221), only the data agent is pointed at the target (`server.py:2606-2611`); the model and the ontology are not, unverified |
+| Write silver to `silver_lh` and gold to `gold_lh` | **Works** (SM6) | `target_lakehouse` and `gold_lakehouse` on the pipeline, silver and gold tools; start passes them by name rule L1 and the dry run says "silver → silver_lh, gold → gold_lh". Silver reads `bronze_lh` through its OneLake path; gold and the check read `silver_lh`.`silver`.`<table>`. Not yet run in Fabric |
+| One model / ontology / agent over the layers | **Works** (SM6), on the fixture | `target_lakehouse` on the model and the ontology: they read the silver tables in `silver_lh`; the data agent reads `gold_lh` (layer gold) or `silver_lh` (layer silver). The model's dry run says first when the silver tables are not there yet. Start's default agent still reads the source tables, as in the one-lakehouse path |
 
 ### (b) One lakehouse per source: `sap_lh`, `crm_lh`
 
@@ -110,4 +110,6 @@ Status words: **works**; **partial** (works with a workaround or only in part); 
 
 PLAN.md (SM5) adds the synthetic multi-lakehouse fixture that the gaps are measured against. SM5 (21 November 2026)
 built it (`tests/fixtures/multi_lakehouse.py`) and closed G1 and the plan and check part of G4; the status rows marked
-SM5 above were updated then. The generators (silver, gold, model) over a combined plan are SM6 and SM7.
+SM5 above were updated then. The generators (silver, gold, model) over a combined plan are SM6 and SM7. SM6 (21 November 2026) closed G2 for
+layout (a) and G3 for a target in the same workspace (`tests/test_sm6_write_targets.py`); the n221 case (a build in
+another workspace) keeps its own rules.

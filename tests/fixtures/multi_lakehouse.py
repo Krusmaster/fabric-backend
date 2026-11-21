@@ -26,7 +26,8 @@ How it is built:
   layout's lakehouses on the source step: "a", "b", "c", or None for all six.
 
 `EXPECTED` says, per layout, what plan, check and dry run must say. SM5 measures the plan and the suggestion; SM6 and
-SM7 measure the dry runs against the same lines.
+SM7 measure the dry runs against the same lines. SM6 added the workspace's item list (a target lakehouse is chosen from
+it) and each lakehouse's SQL host and OneLake tables path to what the fake readers answer; still nothing is written.
 """
 from __future__ import annotations
 
@@ -189,6 +190,8 @@ def install(monkeypatch, layout: str | None = None) -> Workspace:
     by_id = {it["id"]: it for it in ITEMS.values()}
 
     def get(url, *a, **k):
+        if str(url).rstrip("/").endswith(f"/workspaces/{WORKSPACE_ID}/items"):    # SM6: the workspace's items, for a target
+            return _Response({"value": [{k: v for k, v in it.items() if k != "schemas_enabled"} for it in ITEMS.values()]})
         for iid, it in by_id.items():
             if f"/lakehouses/{iid}" in str(url) and str(url).rstrip("/").endswith(iid):
                 return _Response({**it, "properties": {"defaultSchema": "dbo", "sqlEndpointProperties": {
@@ -201,10 +204,11 @@ def install(monkeypatch, layout: str | None = None) -> Workspace:
         raise AssertionError(f"SM5: a write was attempted: {a[:1]}")
 
     def resolve(workspace, source, headers):
-        it = ITEMS.get(str(source).strip())
+        it = ITEMS.get(str(source).strip()) or by_id.get(str(source).strip())      # SM6: a target is resolved by its id
         if it is None:
             raise LookupError(f"no lakehouse {source!r} in {WORKSPACE}")
-        return dict(it)
+        return {**it, "sql_host": "mlh.datawarehouse.fabric.microsoft.com",
+                "onelake_tables_path": f"https://onelake.dfs.fabric.microsoft.com/{WORKSPACE_ID}/{it['id']}/Tables"}
 
     def execute_factory(item, token):
         con = ws.connect(item["displayName"])
