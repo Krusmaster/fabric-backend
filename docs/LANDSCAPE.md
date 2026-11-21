@@ -1,6 +1,7 @@
 # MCP landscape: what other servers do, and how ideas from them are reused
 
-Internal working note, not linked from the site. Round n118, 6 November 2026. It records which MCP servers around
+Internal working note, not linked from the site. Round n118, 6 November 2026; updated by round LS2 on 21 November
+2026 (the next section, with the idea list). It records which MCP servers around
 Microsoft Fabric, Power BI, OneLake, dbt, data quality, data catalogs, lineage and MCP Apps were looked at, what each
 does that Krusgraph's tools do not, and a verdict per server. The process at the end is how this is kept up to date and
 how an idea or a line of code from one of them may ever reach this repository. `docs/ECOSYSTEM-WATCHLIST.md` stays the
@@ -9,6 +10,127 @@ servers. This file is the wider scan behind both.
 
 Krusgraph's side of each comparison is its 39 tools as listed in `fabric_backend/tool_status.py` on this date. "Does
 not" below means only that none of those tools does the thing; it says nothing about which is better.
+
+## Update of 21 November 2026 (round LS2)
+
+Round LS2 re-ran the scan with the scout procedure and added what is new or changed since 6 November 2026. The tables
+further down are n118's reading and are kept as they were; where a server changed, the new reading is in this section.
+Nothing was built, no code was copied, nothing was installed or run, and no Fabric call was made.
+
+### Ideas, for Gustav's yes or no
+
+At most seven. Ideas 2 and 3 of n118 are built (the MCP Apps review card; the server-wide switches, round n123), so
+they are not repeated. Each idea is written from documentation or from what a server does; **no idea needs code from
+another project**, so the licence column is about the source of the idea, and about what could ever be reused under
+Process 3 below.
+
+| # | Idea | Seen in | Value | Effort | Licence of what it is seen in | Recommended |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | **Checks for more than dbt** (n118 idea 1): draft a Great Expectations suite, later Soda checks, from the checked plan, the way `dbt_schema` drafts dbt tests | gx-mcp-server, dbt-doctor, dbt-lineage-viewer, TestGen; new: LakeLogic/lakelogic-mcp (YAML data contracts) | High: keys and relationships become runnable checks for teams without dbt | Low | MIT / Apache-2.0; written from each tool's documentation | **Ja** |
+| 4 | **Lineage out in OpenLineage form** (n118 idea 4) | no OpenLineage MCP server found again on 21 Nov 2026 | Medium, and only for a customer whose catalog reads OpenLineage | Medium | the specification's licence still to be read | **Nej** (wait until a customer's catalog asks for it) |
+| 5 | **Column-level usage** (n118 idea 5): which measures a dropped or renamed source column breaks | pbi-context, pbix-lineage (now pbix-atlas); new: akabyte-labs/data-platform-toolkit (where measures and columns are used in PBIR), clementlemon02/datawright | Medium–high: Drift would name broken measures | High: a DAX reference parser, tested on real models | MIT (pbix-atlas: see licence findings) | **Nej** for now (after Drift has run once in Fabric) |
+| 6 | **Point users at Microsoft's remote servers**: update `docs/COMPANION-MCP.md` and `docs/ECOSYSTEM-WATCHLIST.md` for the Fabric Core MCP Server (remote), Fabric IQ MCP (now generally available, with a plugin for Claude), the ontology MCP endpoint and the hosted Power BI Authoring server; docs only | Learn, *Microsoft Fabric MCP servers* (below) | High: the pairing a user sets up becomes one URL each, nothing to install | Low (docs) | Microsoft's service terms; nothing to copy | **Ja** |
+| 7 | **Check an agent's SQL against the checked plan**: a deterministic check that a query's joins are ones the plan counted, warns on a one-to-many fan-out over a header amount, and says when a question is not covered; first as part of Agent Guard | gogoymh/auto-ontology-mcp (`validate_sql`, `find_join_path`, `check_answerable`, fan-out checks) | High: the doubled total caught before a person sees it; fits Agent Guard | Medium | Apache-2.0 (`NOTICE` names gogoymh); idea only | **Ja** |
+| 8 | **Join rules across systems**: an accepted cross-system match (SAP customer number to CRM account, VAT id) kept as a tenant rule with its counts and who decided, proposed again and recounted on every run; `docs/LEARNING-DESIGN.md` part A | benseverndev-oss/goldenmatch (golden records across sources), rhetratech/rhetra-ontology (links checked against rows), SM1's `docs/SMOOTH/COMBINE-SOURCES.md` | High: the second source and the second team do not start from zero | Medium, after SM7 | MIT / Apache-2.0; idea only, and Krusgraph keeps to rules M0–M3 (no fuzzy or model matching) | **Ja** |
+
+### How it was read this time
+
+| Source | Reached | Used for |
+| --- | --- | --- |
+| Official MCP Registry | Yes | 50 search terms; 215 entries kept |
+| GitHub repository search (`gh api search/repositories`) | Yes | 28 queries; 693 repositories kept. Finding only, never the licence |
+| `git ls-remote`, `git clone --depth 1` through the session's git proxy | Yes | Head commits of 814 repositories; 60 shallow clones scanned for signals by the script; 15 read by hand (below). Nothing built, installed or run |
+| `raw.githubusercontent.com` | Yes | The `LICENSE` file of every repository, at the default branch on 21 November 2026 |
+| Microsoft Learn | **Yes** (it was not on 2 or 6 November) | The pages cited below, with `ms.date` and "last updated" as each page showed them |
+| glama.ai, mcp.so, smithery.ai | **No.** The proxy refused the tunnel (403), as on 6 and 12 November | Nothing in this file comes from them |
+| github.com web pages, `api.github.com` | No (HTTP 403) | Not used |
+
+### Microsoft's own servers and skills
+
+Learn now keeps one list, *Microsoft Fabric MCP servers*
+([page](https://learn.microsoft.com/en-us/rest/api/fabric/articles/mcp-servers/fabric-mcp-servers-list), ms.date
+2026-11-02, last updated 2026-11-16). It names remote servers (Microsoft-hosted, Entra sign-in) and local ones.
+
+| Server or project | Kind | What is new since 6 November 2026 | Source (ms.date / last updated, or commit) | Verdict |
+| --- | --- | --- | --- | --- |
+| **Fabric Core MCP Server** | remote, `https://api.fabric.microsoft.com/v1/mcp/core` | **New.** Workspaces, role assignments, folders, items and item definitions, OneLake catalog search, shortcuts, data access roles; "an agent can do only what its identity is allowed to do". The page warns that safeguards against destructive operations "are not standardized in the MCP specification" | [overview](https://learn.microsoft.com/en-us/rest/api/fabric/articles/mcp-servers/core-remote/overview-core-mcp-server) (2026-11-04 / 2026-11-16); [get started](https://learn.microsoft.com/en-us/rest/api/fabric/articles/mcp-servers/core-remote/get-started-core) (2026-11-03 / 2026-11-16) | **alongside** (idea 6) |
+| **Fabric MCP Server (local)**, microsoft/mcp `servers/Fabric.Mcp.Server` | local | 1.7.0 (1 Nov) added `core_get-item-definition` and `core_update-item-definition`; **1.8.0 (11 Nov)** added folders, workspace role assignments, `core_move-item`, and a `jobs` namespace (run, cancel, schedules). The registry entry `com.microsoft/microsoft-fabric` still says 1.4.0 | `CHANGELOG.md` at `af0f050` (2026-11-20); LICENSE MIT, "Copyright 2025 (c) Microsoft Corporation." (unchanged) | **alongside** (unchanged) |
+| **Fabric IQ MCP** | remote | Its page now says "Fabric IQ MCP is generally available"; read-only; RLS and OLS apply; endpoint `https://fabriciq.svc.cloud.microsoft/v1/mcp/fabriciq` | [page](https://learn.microsoft.com/en-us/fabric/iq/connectors/fabric-iq-mcp) (2026-11-10 / 2026-11-11) | **alongside** (idea 6) |
+| microsoft/fabriciq-thirdparty-plugins | plugin, not a server | **New.** "the Microsoft Fabric IQ plugin for third-party AI assistants: Claude and ChatGPT", connecting to the Fabric IQ remote server | `ba76148` (2026-11-18); LICENSE MIT, "Copyright (c) 2026 Microsoft Corporation" | **alongside** (idea 6) |
+| **Ontology MCP server** | remote, one endpoint per ontology item, `…/v1/mcp/dataPlane/workspaces/<ws>/items/<id>/ontologyEndpoint` | **New page.** **Preview**; "you can't currently use Service Principal"; needs F2 or higher | [page](https://learn.microsoft.com/en-us/fabric/iq/ontology/how-to-use-ontology-mcp-server) (2026-11-06 / 2026-11-17) | **alongside**: where an ontology Krusgraph created is read by an agent |
+| **Power BI Authoring MCP** (formerly listed as powerbi-modeling-mcp) | hosted (**preview**) and local (generally available) | The hosted option is new; the repository README now says to use the hosted server for Fabric workspaces and that the local server does not support macOS | [page](https://learn.microsoft.com/en-us/power-bi/developer/mcp/power-bi-authoring-mcp) (2026-09-01 / 2026-11-17); repository `e293779` (2026-11-19), LICENSE MIT, still no source code | **alongside** (unchanged) |
+| Power BI Agentic | a bundle of skills and tools | Learn describes a `powerbi-authoring` plugin from the skills-for-fabric marketplace, for GitHub Copilot CLI with "compatibility shims" for Claude Code and others | [page](https://learn.microsoft.com/en-us/power-bi/developer/agentic/power-bi-agentic-overview) (2026-06-04 / 2026-11-20) | **skip** (how-to for coding agents) |
+| microsoft/skills-for-fabric | skills | 0.3.22 (12 Nov): `fabric-policies-cli`; 0.3.23 (19 Nov): `plan-cli`, `fabriciq` reads model-authored topics. 0.3.21 (5 Nov): `ontology-cli` sends questions about new-experience ontologies to the ontology's own agent endpoint, and "CLI authoring remains limited to legacy V1 definitions and cannot create or upgrade V2 items" | `CHANGELOG.md` at `540c3c5` (2026-11-20); LICENSE MIT, "Copyright (c) 2026 Microsoft Corporation" | **skip** (unchanged); the V1/V2 note matters to `create_ontology` and is worth a check before the next live run |
+| microsoft/DataFactory.MCP | local | **Not in n118's scan.** Gateways, connections, dataflows, pipelines, copy jobs, Airflow jobs; one MCP App resource `ui://datafactory/create-connection`; interactive or service-principal sign-in | `171647e` (2026-11-16); `LICENSE.txt` MIT, "Copyright (c) Microsoft Corporation." | **alongside** for pipelines; nothing to take |
+| microsoft/fabric-rti-mcp | local | New `kusto_deeplink_from_query`; read-only and destructive annotations on tools; external tables for OneLake shortcuts | `CHANGELOG.md` at `e0e4642` (2026-11-16); LICENSE MIT (unchanged) | **alongside** (unchanged) |
+| Dataverse MCP (`com.microsoft/dataverse` 1.0.95) and microsoft/Dataverse-skills | registry entry; skills repository | **Not in n118's scan.** "Query, create, and manage Microsoft Dataverse tables, records, and solutions"; the skills cover Dataverse and Finance and Operations | registry 21 Nov 2026; repository `79ec1e2` (2026-11-16), LICENSE MIT, "Copyright (c) Microsoft Corporation." | **alongside** for the Dynamics 365 pack (`docs/DYNAMICS365.md`) |
+| Fabric data agent as an MCP server; Data Warehouse MCP; Eventhouse, Activator and operations agent MCP | remote | Listed on the new page; nothing else new found | the list page above | unchanged |
+
+Unchanged since 6 November 2026: microsoft/purview-dlm-mcp (`f5cdcb9`) and microsoft/Ontology-Playground (`7bf7acb`).
+
+### Watched servers that changed (15 of 33)
+
+Head commit moved since n118's pinned commit; the licence file was read again for each. Only what matters for a
+verdict is noted; a moved head with no note means routine commits and an unchanged licence class.
+
+| Server | Was (6 Nov) | Now (21 Nov) | Note |
+| --- | --- | --- | --- |
+| microsoft/mcp, skills-for-fabric, fabric-rti-mcp, powerbi-modeling-mcp | see above | see above | see Microsoft's table |
+| dbt-labs/dbt-mcp | `0671ec0` | `3647587` | Apache-2.0, unchanged |
+| sipemu/dbt-lineage-viewer | `0ff0235` | `73d7d04` | MIT, unchanged |
+| DataKitchen/dataops-testgen | `9a4accb` | `7f8cab3` | Apache-2.0, unchanged |
+| HorizunGroup/horizun-pbi-mcp | `e2ff437` | `984c62d` | Apache-2.0, unchanged |
+| sulaiman013/powerbi-mcp | `977b4d1` | `72709fa` | MIT, unchanged |
+| maxanatsko/mcp-engine-public | `dd9e70a` | `09b3e18` | still proprietary, "All rights reserved" |
+| open-metadata/OpenMetadata | `e906dd7` | `78e4716` | root Apache-2.0; `openmetadata-mcp/LICENSE` is still the Collate Community License 1.0: ideas only |
+| marmotdata/marmot | `633e9bd` | `3a5f116` | MIT, unchanged |
+| modelcontextprotocol/ext-apps | `19256f5` | `ea3e9d0` | the file still says the project is moving from MIT to Apache-2.0 (mixed); a pattern match reads it as Apache-2.0, which is not the whole story |
+| alpic-ai/skybridge, mcp-use/mcp-use | `9afa5fa`, `ac0b6a5` | `5cd3f8c`, `8ff4b86` | MIT, unchanged |
+
+Not moved: the other 18, among them acryldata/mcp-server-datahub (`e4de4c0`), Osc2405/pbi-context, davidf9999/gx-mcp-server, OpenDQV/OpenDQV and the four community servers of `docs/ECOSYSTEM-WATCHLIST.md` (the AGPL one, mkoziel2000/mcp-fabric-api, is still AGPL-3.0; the two without a licence file still have none).
+
+### New servers read by hand
+
+From the 915 entries that were new to the scout, the ones about Fabric, Power BI, ontologies, joins and data
+products were read. Most of the rest are demos, workshop material, Minecraft mods (the word "fabric") or have no
+licence file.
+
+| Server | Owner | Licence (LICENSE file) | Last commit | What it does (read in code and README) | What it does that Krusgraph does not | Verdict |
+| --- | --- | --- | --- | --- | --- | --- |
+| [auto-ontology-mcp](https://github.com/gogoymh/auto-ontology-mcp) | gogoymh | Apache-2.0; `NOTICE`: "Copyright 2026 gogoymh"; the README credits NVIDIA/auto-ontology (Apache-2.0) for ideas and code | `0fb5ecf`, 2026-11-18 | Tools include `scan_datasource`, `list_relationships`, `set_relationship`, `find_join_path`, `check_answerable`, `validate_sql`, `define_entity`, `save_glossary`; fan-out checks in `validation.py`; local SQLite; the client's model does the language steps | Checks a query's joins and fan-out against reviewed relationships; says when a question is not covered | **build the idea** (idea 7); no code |
+| [rhetra-ontology](https://github.com/rhetratech/rhetra-ontology) | rhetratech | Apache-2.0 text, no copyright line found in the file | `3bedbd1`, 2026-11-16 | TypeScript CLI and MCP (`profile_source`, `infer_ontology`) over CSV, SQLite or Postgres: objects, links, "checks every relationship against the actual rows"; no test files found | The same idea as Krusgraph's evidence, outside Fabric | **skip**; noted as overlapping (no Fabric) |
+| [ontopoc](https://github.com/Longado/ontopoc) | Longado | **AGPL-3.0** | `b15bf26`, 2026-11-21 | "draft, check, and confirm ontologies from business data" | Overlaps Krusgraph's ontology drafting | **skip**: AGPL, no code ever |
+| [orionbelt-analytics](https://github.com/ralforion/orionbelt-analytics) | RALFORION d.o.o. | **Business Source License 1.1** | `cd62a2e`, 2026-11-20 | schemas of PostgreSQL, Snowflake, ClickHouse, Dremio to RDF/OWL ontologies with SQL mappings | Ontologies from other databases | **skip**: ideas only |
+| [goldenmatch](https://github.com/benseverndev-oss/goldenmatch) | Ben Severn | MIT, "Copyright (c) 2024-2026 Ben Severn" | `d4e091a`, 2026-11-21 | entity resolution into golden records; an MCP server in its `goldenpipe` package (`run_pipeline`, `explain_pipeline`, …); many tests and CI workflows | Matches records across sources by learned or fuzzy scoring | **alongside** for teams that need fuzzy matching; Krusgraph keeps to rules (idea 8) |
+| [databricks-explore](https://github.com/taslater/databricks-explore) | Thomas Slater | MIT, "Copyright (c) 2026 Thomas Slater" | `107fe7a`, 2026-11-19 | Unity Catalog browser with a relationship graph ("mined joins") and an MCP server | Mines joins on Databricks | **skip** (Databricks only) |
+| [data-platform-toolkit](https://github.com/akabyte-labs/data-platform-toolkit) | Matteo Rossi | MIT, "Copyright (c) 2026 Matteo Rossi" | `5951acb`, 2026-11-17 | PBIP files on disk: TMDL edits (read-only by default), where measures and columns are used in PBIR, lineage to the source column | Column and measure usage | idea 5 |
+| [datawright](https://github.com/clementlemon02/datawright) | Clement | MIT, "Copyright (c) 2026 Clement" | `4662a42`, 2026-11-21 | lineage, join paths and column meanings from a data repository's code, no warehouse access | Join paths from code | **skip**; idea 5 |
+| [lineageiq](https://github.com/LargoLujan/lineageiq) | Manuel Luján Vilchez | MIT, "Copyright (c) 2026 Manuel Luján Vilchez" | `d6a52f8`, 2026-11-10 | read-only lineage and catalog mapper for Fabric with a graph UI, a REST API and MCP servers | Lineage below item level in Fabric | **skip** for now; re-read next month |
+
+Seen in a listing and not opened: `LakeLogic/lakelogic-mcp` (Apache-2.0 per its file, data contracts; idea 1),
+`microsoft/semantic-link-labs` (MIT, not an MCP server), `microsoft/azure-ai-search-foundry-iq-live-knowledge-source`
+(MIT, a Foundry IQ accelerator with ontology knowledge sources), `enum-studio/powerbi-metrics-book` (Apache-2.0),
+`Lee2277-t/pbip-forge` and `jeyssonlza/powerbi-mcp-server` (both AGPL-3.0), `bobzhou-source/powerbi-pbir-mcp` (LGPL).
+
+### Licence findings, 21 November 2026
+
+- **pbix-lineage is now pbix-atlas, and its licence file no longer holds the licence text.**
+  `fabienfrfr/pbix-lineage` answers with a sign-in prompt (the repository is gone or private); GitHub search finds
+  `fabienfrfr/pbix-atlas` (head `5f20960`, pushed 18 November 2026). Its `LICENSE` file is two lines, "MIT License"
+  and "Copyright (c) 2026 Fabien FURFARO", without the permission text; GitHub shows NOASSERTION. Under Process 3 that
+  is a licence that cannot be verified: **ideas only** from now on. n118's reading (MIT, `3b489b6`) stays above.
+- **rhetra-ontology**: Apache-2.0 text with no copyright line and no `NOTICE`; the holder would have to be identified
+  before any reuse. **auto-ontology-mcp**: Apache-2.0, holder in its `NOTICE`, and it carries code from
+  NVIDIA/auto-ontology, so a reuse would carry both notices. Neither is proposed for reuse.
+- **ext-apps**: still mixed MIT and Apache-2.0; a scanner that matches the Apache text alone misses the MIT part.
+- **OpenMetadata MCP**: the directory's own licence is still the Collate Community License 1.0.
+- New AGPL, LGPL and BUSL projects in the area (ontopoc, pbip-forge, powerbi-mcp-server by jeyssonlza,
+  powerbi-pbir-mcp, orionbelt-analytics): no code, ideas only.
+
+
+---
+
+*The reading of 6 November 2026 (round n118) follows, unchanged.*
 
 ## How this was read
 
@@ -52,7 +174,7 @@ server next to Krusgraph in the same client; no code or dependency here), **skip
 | [SemanticOps MCP](https://github.com/maxanatsko/mcp-engine-public) (formerly MCP Engine) | Maxim Anatsko | **Proprietary**: `LICENSE.txt` "SemanticOps MCP License (Proprietary) … All rights reserved." GitHub shows NOASSERTION | `dd9e70a`, 2026-10-16 | No source in the repository (binaries in releases) | README: "Rollback mistakes. Test before deploy. Control what AI can change." | Per README: rollback and pre-deploy tests for Desktop models (not verified) | **skip**: proprietary, ideas only |
 | [pbixray-mcp-server](https://github.com/jonaolden/pbixray-mcp-server) | jonaolden | MIT, "Copyright (c) 2025 jonaolden" | `3f44779`, 2025-05-26 | 14: `load_pbix_file`, `get_tables`, `get_relationships`, `get_dax_measures`, `get_power_query`, `get_model_size`, `get_statistics`, `get_table_contents`, … | — | Reads a `.pbix` file offline | **skip**: no commit since May 2025; Krusgraph reads TMDL from Fabric |
 | [powerbi-mcp](https://github.com/gurvinder-dhillon/powerbi-mcp) | Gurvinder Dhillon | MIT, "Copyright (c) 2026 Gurvinder Dhillon" | `0407c00`, 2026-02-04 | 7: `get_workspaces`, `get_datasets`, `get_dataset`, `get_parameters`, `get_refresh_history`, `get_reports`, `query_dataset` | Registry `io.github.gurvinder-dhillon/powerbi-mcp` 0.1.2 | DAX on a dataset, refresh history | **skip**: Fabric IQ MCP (Microsoft-hosted) covers DAX with RLS applied |
-| [pbix-lineage / pbix-atlas](https://github.com/fabienfrfr/pbix-lineage) | Fabien Furfaro | MIT, "Copyright (c) 2026 Fabien FURFARO" | `3b489b6`, 2026-07-29 | FastAPI routes mounted as tools (`FastMCP.from_fastapi`): `build_graph`, `search_nodes`, `get_upstream`, `get_downstream`, `get_lineage_tree`, `export_graph`, `get_source_schema`, graph invalidation; M-query and DAX parsers in code | Registry `io.github.fabienfrfr/pbix-lineage`: "Bidirectional data lineage graph for Power BI (.pbix) files, from source to display"; README names it pbix-atlas | Column-to-visual lineage inside a report, through Power Query and DAX | **alongside** for `.pbix` files; column lineage is idea 5 |
+| [pbix-lineage / pbix-atlas](https://github.com/fabienfrfr/pbix-lineage) | Fabien Furfaro | MIT, "Copyright (c) 2026 Fabien FURFARO" | `3b489b6`, 2026-07-29 | FastAPI routes mounted as tools (`FastMCP.from_fastapi`): `build_graph`, `search_nodes`, `get_upstream`, `get_downstream`, `get_lineage_tree`, `export_graph`, `get_source_schema`, graph invalidation; M-query and DAX parsers in code | Registry `io.github.fabienfrfr/pbix-lineage`: "Bidirectional data lineage graph for Power BI (.pbix) files, from source to display"; README names it pbix-atlas | Column-to-visual lineage inside a report, through Power Query and DAX | **alongside** for `.pbix` files; column lineage is idea 5. *21 Nov 2026 (LS2): renamed pbix-atlas; its LICENSE file no longer holds the licence text, so ideas only (see the LS2 section)* |
 | [pbi-context](https://github.com/Osc2405/pbi-context) | Oscar Eduardo Rosero | MIT, "Copyright (c) 2025 Oscar Eduardo Rosero" | `a7135a0`, 2026-08-03 | 10 (hand-written JSON-RPC over stdio): `list_tables`, `get_table`, `get_measure`, `search_measures`, `search_columns`, `get_relationships`, `get_measure_dependencies`, `find_measure_usages`, `find_column_usages`, `diff_impact` | — | Measure dependency graph and column usage across measures, from PBIP/TMDL folders; impact of a diff | **build** (idea 5), from the TMDL Krusgraph already reads; no code taken |
 
 ### dbt
@@ -126,7 +248,8 @@ are in `docs/ECOSYSTEM-WATCHLIST.md` and were not re-read.
 
 ## Top five ideas
 
-Ranked by value to Krusgraph against effort. Each is an idea only: nothing is built until Gustav approves it (see
+*21 November 2026: ideas 2 and 3 are built; the current list, with ideas 1, 4 and 5 re-judged, is the LS2 section at
+the top.* Ranked by value to Krusgraph against effort. Each is an idea only: nothing is built until Gustav approves it (see
 Process), and none needs code from the servers above.
 
 | # | Idea | Seen in | Value | Effort | Why this rank |
