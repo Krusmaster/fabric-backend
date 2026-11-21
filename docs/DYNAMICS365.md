@@ -154,6 +154,53 @@ Every page was opened on 17 November 2026; the module files carry each page's `m
 
 Nothing has been checked against a real environment's or company's rows. `validate_plan` does that on yours.
 
+## Keys and links from your own `$metadata` (layer 2)
+
+Round BL25, 21 November 2026. The pack above is what Krusgraph knows about Dataverse in general. Your environment says
+more about itself: the Web API publishes every table's key and every lookup in its CSDL `$metadata` document, custom
+tables and columns included. `fabric_backend/dataverse_meta.py` reads that file, the same way `csn.py` reads an SAP
+CSN file ([SAP-CSN.md](SAP-CSN.md)). It reads a file you hand over; it fetches nothing and refuses a URL.
+
+**Exporting it.** Signed in to the environment, open
+`https://<your-org>.api.crm.dynamics.com/api/data/v9.2/$metadata` in the browser and save the page as an `.xml` file
+(the address is your environment's Web API endpoint followed by `$metadata`; Learn, "Dataverse Web API service
+documents", ms.date 2026-10-26, opened 21 November 2026, also shows how to download it with Insomnia or PowerShell).
+The file describes tables, columns and relationships, not rows.
+
+**What it reads** (Learn, "Web API EntityTypes", ms.date 2023-05-18, and "Web API navigation properties", ms.date
+2026-01-07, both opened 21 November 2026):
+
+| In the `$metadata` | Becomes | Example |
+| --- | --- | --- |
+| `EntityType` `Key` / `PropertyRef` (inherited through `BaseType` when the type has none) | the table's key | `account`: `accountid`; `phonecall`: `activityid` from `activitypointer` |
+| single-valued `NavigationProperty` with a `ReferentialConstraint` | a link, many-to-one, on the lookup column (`_parentaccountid_value` lands as `parentaccountid`) | `salesorderdetail.salesorderid` -> `salesorder.salesorderid` |
+| one lookup property that is the constraint of several navigation properties | a multi-table lookup: one **filtered** link per target, on its type column | `salesorder.customerid` -> `account` where `customeridtype = 'account'`, and -> `contact` where it is `'contact'` |
+| collection navigation properties that partner each other | a many-to-many: listed, not applied (the intersect table holds the pairs) | `opportunity` <-> `competitor` |
+| complex types, enums, actions, functions, the entity container | counted under `ignored` | |
+
+Every key and link is marked "declared by Dataverse metadata, not counted": it is a candidate, in the shape the CSN
+reader gives, until `validate_plan` counts it in your rows. The report also says what does not map to the lakehouse:
+tables Link to Fabric did not land, columns that are not there (not chosen, or renamed), a multi-table lookup whose type
+column is missing (then it is not applied, never joined plainly), and the lake's own columns the `$metadata` does not
+name.
+
+```python
+from fabric_backend import dataverse_meta
+model = dataverse_meta.read("metadata.xml")
+report = dataverse_meta.candidates(schema, model)   # keys, links, filtered, not_applied, unmatched, unmapped_columns
+```
+
+**Verified, and how.** Unit tests only (`tests/test_bl25_dataverse_meta.py`): a synthetic `$metadata` written for the
+tests (`tests/fixtures/dataverse_metadata_demo.xml`: account, contact, salesorder, salesorderdetail, a many-to-many, two
+multi-table lookups, an inherited key) against the synthetic demo lake above. Every declared link joins the demo rows
+without an orphan. Not run on a `$metadata` exported from a real environment.
+
+**Limits.** The type column of a multi-table lookup is read as `<lookup>type` (`customeridtype`), as the pack and the
+demo do; that spelling is still **unverified** (the table above). Learn says `systemuser` and `team` take their key
+`ownerid` from the abstract `principal`; a lake that lands `systemuserid` then reports the table as not matched rather
+than guessing. Only the first `Schema` namespace is read. The candidates are not fed to the plan yet: that is the next
+step, after the smooth chain, because it touches `infer.py`.
+
 ## Next
 
 - **Finance and operations apps**: not a module yet. The route is Link to Microsoft Fabric, which can add finance and
