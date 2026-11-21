@@ -59,6 +59,8 @@ Sources: `--sample sap|sap36|shop` (in the package), `--folder DIR` (CSV/xlsx, o
 (an INFORMATION_SCHEMA.COLUMNS export, names only), `--odbc-from-env` (the connection string in `FABRIC_ODBC`, the
 same one the local MCP server uses; docs/LOCAL.md). `plan --strict` exits 6 when a key or link fails, for CI.
 
+`krusgraph receipt` (round BL1) lists every number `plan` states with the exact SQL that counted it: [RECEIPTS.md](RECEIPTS.md).
+
 Exit codes: 0 ok; 1 a bug in Krusgraph; 2 bad arguments or input; 3 the source could not be opened; 4 the command
 needs rows and the source has none; 5 refused (`--apply`); 6 `plan --strict` found a failing key or link.
 

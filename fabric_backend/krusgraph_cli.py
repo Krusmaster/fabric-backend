@@ -3,6 +3,7 @@
   krusgraph check                              what this install can do: version, sources, sign-in state, read-only
   krusgraph relationships --sample sap         keys and relationships, with the rule behind each (plan_backend)
   krusgraph plan --sample sap                  the keys and links checked against the rows, counts only (validate_plan)
+  krusgraph receipt --sample sap               every number of plan with the SQL that counted it (receipt.py, BL1)
   krusgraph sap --sample sap                   the SAP tables and links the SAP pack recognises (sap_pack_draft)
   krusgraph analysis --sample sap36            which SAP analyses the data supports, by rules (analysis_plan)
   krusgraph skill                              the agent instructions (SKILL.md) this command ships with
@@ -262,6 +263,25 @@ def cmd_plan(a) -> dict:
     }
 
 
+def cmd_receipt(a) -> dict:
+    """BL1: run the plan's checks as `plan` does, then list every number with the statement that counted it
+    (receipt.py, docs/RECEIPTS.md). --human prints the Markdown receipt; this module writes no file, so a person
+    redirects it: `krusgraph receipt --sample sap --human > krusgraph-receipt.md`."""
+    from . import evidence, receipt
+    from .dialects import of as dialect_of
+    src = a._src
+    _needs_rows(src, "receipt")
+    p = _plan(src)
+    out = evidence.validate(p, src.execute, max(1, min(int(a.max_items), 200)))
+    dialect = "sqlite" if src.dialect == "sqlite" else dialect_of(src.execute)
+    rows = receipt.build(p, out, dialect=dialect)
+    text = receipt.markdown(rows, redact(src.label))
+    result = {"summary": out["summary"], "numbers": sum(1 for r in rows if r["sql"]),
+              "not_counted": sum(1 for r in rows if not r["sql"]), "rows": rows, "markdown": text,
+              "note": "Counts and names only, never a row value. Each sql re-runs read-only to its counts (docs/RECEIPTS.md)."}
+    return result
+
+
 def cmd_sap(a) -> dict:
     from . import sap_pack
     src = a._src
@@ -315,6 +335,8 @@ def _human(command: str, src_info: dict | None, r: dict) -> str:
         lines += [f"  {x.get('source')}.{'+'.join(x.get('columns', []))} -> {x.get('target')}: {x.get('verdict', '')}"
                   for x in v["relationships"]]
         lines.append(r["note"])
+    elif command == "receipt":
+        return r["markdown"]
     elif command == "sap":
         lines.append(r.get("summary", ""))
         lines.append("status: " + str(r.get("status", "")))
@@ -344,6 +366,10 @@ COMMANDS = {
              "help": "the keys and links checked against the rows: uniqueness, nulls, orphans; counts only (validate_plan)",
              "examples": ["krusgraph plan --sample sap", "krusgraph plan --folder ./csv_export --schema data",
                           "FABRIC_ODBC=... krusgraph plan --odbc-from-env --schema dbo"]},
+    "receipt": {"fn": cmd_receipt, "source": True,
+                "help": "every number plan states, with the exact SQL that counted it, to re-run without us (receipt.py)",
+                "examples": ["krusgraph receipt --sample sap --human", "krusgraph receipt --sample shop --human > krusgraph-receipt.md",
+                             "FABRIC_ODBC=... krusgraph receipt --odbc-from-env --schema dbo --human > krusgraph-receipt.md"]},
     "sap": {"fn": cmd_sap, "source": True,
             "help": "the SAP tables and links the SAP pack recognises, what is missing, the traps (sap_pack_draft)",
             "examples": ["krusgraph sap --sample sap", "krusgraph sap --columns sap_columns.csv"]},
@@ -386,7 +412,7 @@ def build_parser() -> argparse.ArgumentParser:
             g.add_argument("--odbc-from-env", action="store_true",
                            help=f"read the source over the ODBC connection string in {ODBC_ENV} (never given as an argument)")
             s.add_argument("--schema", help="the schema to read (default: the sample's, data for --folder, dbo otherwise)")
-        if name in ("plan", "analysis"):
+        if name in ("plan", "analysis", "receipt"):
             s.add_argument("--max-items", type=int, default=60, help="the most checks or analyses listed (default 60)")
         if name == "plan":
             s.add_argument("--strict", action="store_true",
