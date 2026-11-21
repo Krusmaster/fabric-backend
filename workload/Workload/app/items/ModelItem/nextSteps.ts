@@ -337,16 +337,8 @@ export function nextSteps(input: NextInput): { proof: Proof; steps: NextStep[]; 
       how: { kind: "build", outputs: ["ontology"], label: "Dry run" }, status: "builds", items: ["Ontology"],
     });
   }
-  if (lakehouse) {
-    steps.push({
-      id: "drift", workload: "Real-Time Intelligence", title: "A drift monitor, then an alert",
-      why: "What is proven today can change: a nightly monitor reports when a key or link no longer matches the source.",
-      how: { kind: "ask", label: "Copy the request for Claude",
-        text: `Show a drift monitor for ${src.displayName}${src.schema ? ` (schema ${src.schema})` : ""} as a dry run: run create_drift_monitor with dry_run=true.` },
-      status: "in Claude", items: ["Reflex"],
-      note: "The monitor is a Krusgraph tool in Claude, not in this item. An Activator alert on its result is guide only.",
-    });
-  }
+  // SM3 (AUDIT D7): the drift monitor card is hidden until it has a Dry run and Create here; it was a typed request for
+  // Claude ("Copy the request for Claude"). The monitor is still a Krusgraph tool in Claude.
   if (!built.has("rayfin_app")) {
     steps.push({
       id: "app", workload: "Apps", title: "A Rayfin App (preview)",
@@ -361,8 +353,8 @@ export function nextSteps(input: NextInput): { proof: Proof; steps: NextStep[]; 
       id: "desktop-apps", workload: "Apps", title: "Build an app in Power BI Desktop for Apps",
       why: `Every app built there starts from a semantic model; this one's ${plural(proof.linksPassed, "relationship")} rest on links proven on the rows.`,
       how: { kind: "guide", label: "Open Microsoft's guide", url: LEARN.desktopForApps }, status: "guide only", items: ["AppBackend"],
-      note: "Microsoft's tool, in preview: it needs a GitHub Copilot licence, Build permission on the model and a workspace on Fabric capacity. " +
-        "Ask Krusgraph in Claude for app_readiness on the model first.",
+      // SM3 (AUDIT D7): no hand-off to Claude for app readiness here; the guide is the one action
+      note: "Microsoft's tool, in preview: it needs a GitHub Copilot licence, Build permission on the model and a workspace on Fabric capacity.",
     });
   }
   return { proof, steps, built: [...built] };

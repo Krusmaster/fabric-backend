@@ -216,7 +216,9 @@ describe("WB3 (F6): every review decision is saved without Save, and only to the
   const pressed = () => Array.from(el.querySelectorAll("button[aria-pressed=true]")).map((b) => b.textContent);
 
   it("Accept all, then the item is closed without Save: reopening shows every decision", async () => {
-    const h = host(stored());
+    // SM3: "Accept all that passed" is the only accept-all, so both keys have passed the check here
+    const passed = { ...REVIEW, items: REVIEW.items.map((it) => ({ ...it, check: { status: "passed" } })) } as unknown as ReviewFile;
+    const h = host(stored(passed));
     await open(h.wc);
     const acceptAll = Array.from(el.querySelectorAll("button")).find((b) => /^Accept all/.test(b.textContent ?? "")) as HTMLButtonElement;
     act(() => { acceptAll.click(); });

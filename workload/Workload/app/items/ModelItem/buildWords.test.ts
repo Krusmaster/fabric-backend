@@ -77,9 +77,10 @@ describe("the outputs", () => {
     expect(toRequests([{ type: "report", name: "r", enabled: true, model: "existing" }])).toEqual([{ kind: "report", name: "r", model: "existing" }]);
   });
 
-  it("start from what the item saved, else the API for GraphQL as in phase 1", () => {
+  it("start from what the item saved, else the chat's default build (SM3: pipeline, semantic model, data agent)", () => {
     const fresh = choicesFor([], "demo lh");
-    expect(fresh.filter((c) => c.enabled).map((c) => c.type)).toEqual(["graphql"]);
+    expect(fresh.filter((c) => c.enabled).map((c) => c.type)).toEqual(["silver_notebook", "gold_views", "pipeline", "semantic_model", "data_agent"]);
+    expect(fresh.find((c) => c.type === "graphql").enabled).toBe(false);
     expect(fresh.find((c) => c.type === "graphql").name).toBe("demo_lh_api");
     expect(defaultName("silver_notebook", "demo_lh")).toBe("demo_lh_silver");
     const saved = choicesFor([{ type: "graphql", name: "shop_api", enabled: true, writable: false }], "demo_lh");

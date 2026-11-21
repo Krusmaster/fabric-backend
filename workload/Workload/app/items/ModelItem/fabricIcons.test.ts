@@ -105,7 +105,7 @@ describe("default output names (n184)", () => {
 
   it("follow the lakehouse once it is chosen, when the name was the Model item's default (demo_api)", () => {
     const before = choicesFor([], "demo");                                     // no lakehouse yet: the item's name
-    expect(before.find((c) => c.type === "graphql")).toMatchObject({ name: "demo_api", enabled: true });
+    expect(before.find((c) => c.type === "semantic_model")).toMatchObject({ name: "demo_model", enabled: true });   // SM3: the default build
     const after = choicesFor(before.filter((c) => c.enabled), "demo_lh", { displayName: "demo" });
     expect(after.map((c) => c.name)).toEqual(PATTERN);
     // a saved definition with demo_api and a lakehouse, opened again

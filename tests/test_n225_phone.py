@@ -83,7 +83,10 @@ def test_the_app_card_says_what_create_gives_and_nothing_more():
         assert said in line
     kinds = (APP / "items" / "ModelItem" / "buildWords.ts").read_text()
     assert "three commands" not in kinds and "Create makes the App item" not in kinds
-    assert 'enabled: k.kind === "graphql" && saved.length === 0' in kinds   # the App stays unticked unless ticked
+    # SM3: a new item ticks the default build (pipeline, semantic model, data agent); the App stays unticked unless ticked
+    assert "enabled: saved.length === 0 && STARTS_ON.includes(k.kind)" in kinds
+    steps = (APP / "items" / "ModelItem" / "stepWords.ts").read_text()
+    assert 'DEFAULT_BUILD = ["pipeline", "semantic_model", "data_agent"]' in steps and "rayfin_app" not in steps
 
 
 # ------------------------------------------------------------------ 4. the editor on a phone ------------------------

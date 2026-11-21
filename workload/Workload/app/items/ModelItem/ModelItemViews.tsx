@@ -32,7 +32,7 @@ import {
 } from "@fluentui/react-components";
 import { ArrowRight24Regular, CheckmarkCircle20Filled, CheckmarkStarburst24Regular, ErrorCircle20Filled, Open24Regular, Warning20Filled } from "@fluentui/react-icons";
 import { ItemEditorEmptyView } from "../../components/ItemEditor";
-import { AppChoices, BuildCard, DataProduct, EngineError, JobsCard, ManyAnswer, SchemasAnswer } from "./engineClient";
+import { AppChoices, BuildCard, DataProduct, EngineError, JobsCard, ManyAnswer, OutputKind, SchemasAnswer } from "./engineClient";
 import {
   AppApi, AppDesign, AppPackageRecord, AppPreflight, APP_BEFORE_CREATE, BUILT_APP_NOTE, BUILT_APP_UNKNOWN, CHART_TYPE_WORDS, EDIT_NOTE, EDIT_TITLE, GROUPS, PREVIEW_NOTE, apiLines, builtChoices,
   builtWithoutPackage, chartTypes, choiceLines, designLines, editHref, featureOff, isApp, movePage, optionsOf, packageHref,
@@ -51,6 +51,7 @@ import {
 } from "./ModelItemDefinition";
 import {
   KINDS,
+  KindInfo,
   OpenLink,
   cardFacts,
   cardProblem,
@@ -73,7 +74,7 @@ import { AgentChoices, AgentPanel, JobsPanel, PipelineChoices } from "./JobsView
 import { agentOf, jobsOf, scheduleProblems } from "./jobsWords";
 import { ICON_SIZE, KIND_TYPE, NOTICES, altBeside, itemIcon } from "./fabricIcons";
 import { TypeIcon, TypeName } from "./itemIcons";
-import { FIRST_LINE } from "./stepWords";
+import { DEFAULT_BUILD, FIRST_LINE, PIPELINE_PARTS } from "./stepWords";
 import { ProofStrip } from "./NextStepsView";
 import {
   APP_STEPS_TITLE, CardState, FINISH_CSS, LastCreate, STATE_MARK, banner, cardState, itemTypeLabel, keepUpToDate, nextSteps,
@@ -378,7 +379,6 @@ export function ReviewView(props: {
   const say = sayings(props.review, props.answered);
   const qs = questions(props.review, props.answered);
   const totals = totalsOf(props.review);
-  const all = acceptAllTargets(props.review).length;
   const passed = acceptAllTargets(props.review, true).length;
   const failedCount = totals.keys.failed + totals.relationships.failed;
   return (
@@ -403,9 +403,7 @@ export function ReviewView(props: {
           disabled={props.checking} onClick={props.onCheck}>
           {totals.checked ? "Check against the rows again" : "Check against the rows"}
         </Button>
-        <Button disabled={!all} onClick={() => props.onAcceptAll(false)}>
-          Accept all ({all})
-        </Button>
+        {/* SM3: "Accept all that passed" is the only accept-all; each link is still accepted or rejected on its own */}
         <Button disabled={!passed} onClick={() => props.onAcceptAll(true)}
           title={totals.checked ? undefined : "Check against the rows first"}>
           Accept all that passed the check ({passed})
@@ -427,9 +425,9 @@ export function ReviewView(props: {
       {props.onNext && (
         <div className="kg-primary-row">
           <Button appearance={totals.checked ? "primary" : "secondary"} icon={<ArrowRight24Regular />} onClick={props.onNext}>
-            Next: choose what to build
+            Next: Decide what to build
           </Button>
-          <Caption1>{totals.checked ? "A dry run of each output comes before anything is created." : "You can check against the rows first, or go on without it."}</Caption1>
+          <Caption1>{totals.checked ? "A dry run comes before anything is created." : "You can check against the rows first, or go on without it."}</Caption1>
         </div>
       )}
 
@@ -544,22 +542,19 @@ export function OutputsView(props: {
   const pipe = props.choices.find((c) => c.type === "pipeline" && c.enabled);
   const problems = [...choiceProblems(props.choices), ...(pipe ? scheduleProblems(jobsOf(pipe).schedule) : [])];
   const productOk = !props.product.on || /^[A-Za-z0-9][A-Za-z0-9 _.-]{0,79}$/.test(props.product.name.trim());
+  // SM3: ticking or unticking the pipeline ticks its silver and gold notebooks with it, as the chat's pipeline has them
   const set = (kind: string, patch: Partial<OutputChoice>) =>
-    props.onChange(props.choices.map((c) => (c.type === kind ? { ...c, ...patch } : c)));
-  return (
-    <div className="krusgraph-view">
-      <Title3>Choose what to build</Title3>
-      <Body1>
-        Each output is made by the same engine as the Krusgraph tools in Claude, from the keys and links you reviewed. Preview shows a
-        dry run of each; nothing is created until you choose Create. Nothing is run, scheduled or published unless you tick it.
-      </Body1>
-      {props.source && props.onBuildIn && (
-        <BuildInChoice source={props.source} itemWorkspaceId={props.itemWorkspaceId} onBuildIn={props.onBuildIn}
-          onChooseTarget={props.onChooseTarget} />
-      )}
-      {props.stored && <ProductView product={props.stored} onOpen={props.onOpen} title="Data product built so far" />}
-      <div className="krusgraph-outputs">
-        {KINDS.map((k) => {
+    props.onChange(props.choices.map((c) => (c.type === kind ? { ...c, ...patch }
+      : kind === "pipeline" && patch.enabled !== undefined && (PIPELINE_PARTS as readonly string[]).includes(c.type) ? { ...c, enabled: patch.enabled } : c)));
+  // SM3: the three defaults first (stepWords.DEFAULT_BUILD), the other six under "More outputs"
+  const isMain = (k: OutputKind) => (DEFAULT_BUILD as readonly string[]).includes(k);
+  const main = DEFAULT_BUILD.map((d) => KINDS.find((k) => k.kind === d)!).filter(Boolean);
+  const more = KINDS.filter((k) => !isMain(k.kind));
+  const moreTicked = more.filter((k) => props.choices.find((x) => x.type === k.kind)?.enabled).length;
+  // the fold opens when something other than the defaults (and the pipeline's own notebooks) is ticked, e.g. by a next step
+  const pipeOn = !!props.choices.find((x) => x.type === "pipeline")?.enabled;
+  const openMore = more.some((k) => props.choices.find((x) => x.type === k.kind)?.enabled && !(pipeOn && (PIPELINE_PARTS as readonly string[]).includes(k.kind)));
+  const card = (k: KindInfo) => {
           const c = props.choices.find((x) => x.type === k.kind);
           if (!c) return null;
           const act = nameAction(k.kind, c.name, props.created);
@@ -601,7 +596,26 @@ export function OutputsView(props: {
               )}
             </section>
           );
-        })}
+  };
+  return (
+    <div className="krusgraph-view">
+      <Title3>Choose what to build</Title3>
+      <Body1>
+        The pipeline, a semantic model and a data agent, as in Claude. Dry run shows each; nothing is created until you choose Create.
+      </Body1>
+      {props.source && props.onBuildIn && (
+        <BuildInChoice source={props.source} itemWorkspaceId={props.itemWorkspaceId} onBuildIn={props.onBuildIn}
+          onChooseTarget={props.onChooseTarget} />
+      )}
+      {props.stored && <ProductView product={props.stored} onOpen={props.onOpen} title="Data product built so far" />}
+      <div className="krusgraph-outputs">
+        {main.map(card)}
+      </div>
+      {/* SM3: the other six outputs, the data product and the suggested products under one fold */}
+      <details className="kg-more-outputs" open={openMore || undefined}>
+        <summary>More outputs{moreTicked ? ` (${moreTicked} ticked)` : ""}</summary>
+      <div className="krusgraph-outputs">
+        {more.map(card)}
       </div>
       <section className="krusgraph-output" aria-label="Data product">
         <Checkbox checked={props.product.on} label="Bundle them as one data product"
@@ -618,6 +632,7 @@ export function OutputsView(props: {
         )}
       </section>
       {props.extra}
+      </details>
       {problems.map((p) => (
         <MessageBar key={p} intent="warning">
           <MessageBarBody>{p}</MessageBarBody>
@@ -625,7 +640,7 @@ export function OutputsView(props: {
       ))}
       <div>
         <Button appearance="primary" disabled={problems.length > 0 || !productOk} onClick={props.onPreview}>
-          Preview
+          Dry run
         </Button>
       </div>
       <AboutNotices />

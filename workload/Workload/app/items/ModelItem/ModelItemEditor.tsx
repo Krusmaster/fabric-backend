@@ -234,7 +234,9 @@ export function ModelItemEditor(props: PageProps) {
     callNotificationOpen(workloadClient, "Schema name", used.note);
   }
 
-  async function plan(d: ModelDefinition, corrections: engine.Corrections = {}) {
+  /** SM3: `check` (Find keys and relationships, Read the lakehouse again): the check against the rows runs on its own
+   * right after, as the chat's Check step does; it only reads. */
+  async function plan(d: ModelDefinition, corrections: engine.Corrections = {}, check = false) {
     const a = await runEngine(reviewLabel(d.source?.schema), (o) =>
       engine.review(workloadClient, sourceRequest(d), d.review, corrections, o), { doing: "reading", cancellable: true }
     );
@@ -243,9 +245,11 @@ export function ModelItemEditor(props: PageProps) {
     setSuggested(a.suggested_products);                       // n222
     d = withKind(exactSchema(d, a.schema_used), a);
     announceSchema(a.schema_used);
-    setDef({ ...d, review: a.review, item: withCache({ ...d.item, view: "review" }, { map: a.map }) });
+    const next = { ...d, review: a.review, item: withCache({ ...d.item, view: "review" }, { map: a.map }) };
+    setDef(next);
     setDirty(true);
     setView?.("review");
+    if (check && a.review) await checkRows(next);
   }
 
   /** n197: the review read again in the background on reopening an item that has outputs; the result stays in view.
@@ -475,9 +479,10 @@ export function ModelItemEditor(props: PageProps) {
     setDirty(true);
   }
 
-  async function checkRows() {
-    const a = await runEngine(checkLabel(def.source?.schema), (o) =>
-      engine.check(workloadClient, sourceRequest(def), def.review, o), { doing: "counting", cancellable: true }
+  async function checkRows(from?: ModelDefinition) {
+    const d0 = from ?? def;
+    const a = await runEngine(checkLabel(d0.source?.schema), (o) =>
+      engine.check(workloadClient, sourceRequest(d0), d0.review, o), { doing: "counting", cancellable: true }
     );
     if (!a) return;
     setMap(a.map);
@@ -1156,8 +1161,8 @@ export function ModelItemEditor(props: PageProps) {
     const actions: RibbonAction[] = [createSaveAction(() => save(), !dirty || !itemMeta)];
     actions.push({ key: "choose-source", icon: Database24Regular, label: "Choose source", onClick: () => go("empty") });
     if (view === "review") {
-      actions.push({ key: "check", icon: CheckmarkStarburst24Regular, label: "Check against the rows", onClick: checkRows, disabled: !!busy || !def.review });
-      actions.push({ key: "refresh", icon: ArrowClockwise24Regular, label: "Read the lakehouse again", onClick: () => plan(def), disabled: !!busy });
+      actions.push({ key: "check", icon: CheckmarkStarburst24Regular, label: def.review?.items.some((it) => it.check) ? "Check against the rows again" : "Check against the rows", onClick: () => void checkRows(), disabled: !!busy || !def.review });
+      actions.push({ key: "refresh", icon: ArrowClockwise24Regular, label: "Read the lakehouse again", onClick: () => plan(def, {}, true), disabled: !!busy });
       actions.push({ key: "next", icon: ArrowRight24Regular, label: "Next", onClick: () => go("outputs") });
     }
     if (view === "preview") actions.push({ key: "create", icon: Play24Regular, label: "Create", onClick: () => create(), disabled: !!busy || creating });
@@ -1210,7 +1215,7 @@ export function ModelItemEditor(props: PageProps) {
           onSchemaChange={pickSchema}
           onChooseLakehouse={chooseLakehouse}
           onChooseTarget={chooseTarget}
-          onReview={() => plan(def)}
+          onReview={() => plan(def, {}, true)}
           mascotsOn={mascotsOn}
         />
       ),
@@ -1229,7 +1234,7 @@ export function ModelItemEditor(props: PageProps) {
             onToggleMascots={() => setMascotsOn((on) => !on)}
             onDecide={onDecide}
             onAcceptAll={onAcceptAll}
-            onCheck={checkRows}
+            onCheck={() => void checkRows()}
             onChoice={onChoice}
             readOnly={sourceInfo.readOnly}
             sap={sourceInfo.sap}
