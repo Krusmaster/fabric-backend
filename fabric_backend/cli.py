@@ -258,10 +258,10 @@ def cmd_sap_demo(a) -> int:
     """Synthetic SAP-shaped tables as CSV files and the notebook that loads them into a lakehouse (run it yourself)."""
     from . import sap_demo
     if a.notebook:
-        Path(a.notebook).write_text(sap_demo.notebook_inline(a.prefix), encoding="utf-8")
+        Path(a.notebook).write_text(sap_demo.notebook_inline(a.prefix, full=a.full), encoding="utf-8")
         print("wrote", a.notebook, "- paste it into one notebook cell attached to the lakehouse and run it; nothing to upload.")
         return 0
-    for path in sap_demo.write_csv(a.out, a.prefix):
+    for path in sap_demo.write_csv(a.out, a.prefix, full=a.full):
         print("wrote", path)
     print("Upload the folder's files to the lakehouse under Files/sap_demo, open load_sap_demo.py as a notebook attached "
           "to that lakehouse, and run it. Every value is made up; see docs/LIVE-TEST-SAP.md, part 0.")
@@ -394,6 +394,7 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--out", default="sap_demo", help="the folder to write to")
     s.add_argument("--prefix", default="sap_", help="table name prefix in the lakehouse (sap_vbak)")
     s.add_argument("--notebook", help="write one self-contained notebook cell to this file instead (no CSV files to upload)")
+    s.add_argument("--full", action="store_true", help="the SAP full demo: 45 tables, with procure to pay, finance and pricing")
     s.set_defaults(fn=cmd_sap_demo)
     s = sub.add_parser("dbt"); s.add_argument("columns"); s.add_argument("--keys"); s.add_argument("--schema", default="dbo")
     s.add_argument("--source-name"); s.add_argument("--database"); s.add_argument("--legacy-arguments", action="store_true")

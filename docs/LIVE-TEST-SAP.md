@@ -50,6 +50,22 @@ It does **not** show that the pack is right about SAP, because the rows are writ
 The counts assume the schema holds only these 17 tables; other tables in it add their own keys and relationships to the answer. They can also differ from SQLite in one way: Spark reads an empty CSV field as `NULL`, SQLite keeps `''`. The
 checks treat both as no value, so the expected numbers are the same.
 
+### 0b. The SAP full demo (round SAPD1, 21 Nov 2026)
+
+The same chain on 45 tables: the 17 above plus 28 of procure to pay (`LFA1`, `LFB1`, `LFM1`, `T024E`, `T001W`, `EBAN`,
+`EKKO`, `EKPO`, `EKET`, `EKBE`, `RBKP`, `RSEG`), finance (`T004`, `SKA1`, `SKB1`, `KNB1`, `TKA01`, `CSKS`, `CEPC`,
+`BKPF`, `ACDOCA`), the business partner (`BUT000`, `BUT020`, `CVI_CUST_LINK`) and pricing (`T685`, `KONH`, `KONP`,
+`PRCD_ELEMENTS`). Every value is made up, and every table and column name is one the pack has. Write it with
+`fabric-backend sap-demo --full --out sap_demo` (45 CSV files) or `--full --notebook <file>` (one cell); in Python
+`fabric_backend.sap_demo.tables(full=True)`. Use a schema of its own, so the counts of part 0 above stay as they are.
+
+| # | Question in Claude | Expected (the same as `tests/test_sapd1_sap_full_demo.py` finds in SQLite) | Result | Date |
+| --- | --- | --- | --- | --- |
+| 0b.1 | `sap_pack_draft` | 45 tables; variant hint S/4HANA (`ACDOCA`, `PRCD_ELEMENTS`); `ACDOCA` keyed by `RCLNT`, the business partner tables by `CLIENT` | not run yet | remains |
+| 0b.2 | `validate_plan`, max_items 200 | "45 of 45 keys unique, 80 of 88 relationships hold without orphans"; review: `VBAP` → `VBAK` and `EKPO` → `EKKO` (the planted items), and `EKKO` → `T024E`, `LFM1`, `LFB1`, `EKPO` → `T001W` (client 200's purchase order, whose supplier has no data in client 200) | not run yet | remains |
+| 0b.3 | (same answer) `amount_levels` | also `sap_rbkp.RMWWR`, `WMWST1` over `sap_rseg` (up to 2 items) and `sap_ekpo.NETWR` over `sap_ekbe` (goods and invoice receipt per item) | not run yet | remains |
+| 0b.4 | `domain_draft` | five data products: procure-to-pay, order-to-cash, finance, customer master, pricing | not run yet | remains |
+
 ## 1. What the pack recognises
 
 | # | Tool | Question in Claude | Expected | Result | Date |

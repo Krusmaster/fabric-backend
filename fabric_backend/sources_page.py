@@ -5,7 +5,8 @@ Fabric, and which data products the engine proposes from them. Nothing here is a
 
 - the tables, their level, plain-word title and key, the applied relationships and the traps are read from each pack's
   manifest (fabric_backend/packs/<pack>/manifest.yaml, regenerated from the module files by pack_manifest);
-- the data products are what the engine computes on each pack's synthetic demo, now: domains.draft on sap_demo,
+- the data products are what the engine computes on each pack's synthetic demo, now: domains.draft on sap_demo's
+  full set (sap_demo.tables(full=True): the 17 order-to-cash tables and 28 of procure to pay, finance and pricing; SAPD1),
   salesforce_demo.report() and dynamics_demo.products(). tests/test_src1_sources_page.py compares them with the outputs
   the other tests pin (tests/golden/pk2_dynamics_products.json, the generated section of docs/SALESFORCE.md and
   tests/test_domains.py for SAP);
@@ -39,7 +40,8 @@ LEVELS = {"header": "document header", "item": "document line", "schedule_line":
 
 # key, display name, the pack, the page with the details, the demo module and the mascot's role (Onto says the numbers)
 SOURCES = (
-    {"key": "sap", "name": "SAP", "pack": "sap", "page": "/sources#sap", "keys_page": "/sap", "demo": "sap_demo"},
+    {"key": "sap", "name": "SAP", "pack": "sap", "page": "/sources#sap", "keys_page": "/sap", "demo": "sap_demo",
+     "demo_kwargs": {"full": True}},
     {"key": "salesforce", "name": "Salesforce", "pack": "salesforce", "page": "/sources/salesforce", "demo": "salesforce_demo"},
     {"key": "dynamics365", "name": "Dynamics 365", "pack": "dynamics365", "page": "/sources/dynamics365", "demo": "dynamics_demo"},
 )
@@ -101,8 +103,11 @@ ROUTES = {
 # proposes a product without a question here, or a question names a product the engine no longer proposes.
 QUESTIONS = {
     "sap": {
+        "procure-to-pay": "What did we request, order, receive and get invoiced, per supplier and material?",
         "order-to-cash": "What did we sell, deliver and invoice, per customer and per month?",
+        "finance": "What was posted to which account, cost center and profit center, per company code and ledger?",
         "customer master": "Who is the customer, where are they, and whom do we talk to there?",
+        "pricing": "Which prices and conditions made up a document's value, and which price record was used?",
     },
     "salesforce": {
         "marketing": "Which campaigns bring leads, and which leads become customers?",
@@ -205,7 +210,7 @@ def products(key: str) -> tuple[dict, ...]:
     if key == "sap":
         from . import domains, evidence, sap_demo
         from .infer import plan
-        schema, execute = sap_demo.sqlite()
+        schema, execute = sap_demo.sqlite(full=True)
         p = plan(schema)
         d = domains.draft(p, "sap", "sap demo", validation=evidence.validate(p, execute, max_items=200))
         found = [(x["name"], x["name"], sorted(x["tables"])) for x in d["domains"]]
@@ -224,8 +229,8 @@ def products(key: str) -> tuple[dict, ...]:
 @lru_cache(maxsize=None)
 def demo_tables(key: str) -> int:
     from importlib import import_module
-    demo = next(s["demo"] for s in SOURCES if s["key"] == key)
-    return len(import_module(f"fabric_backend.{demo}").tables())
+    s = next(s for s in SOURCES if s["key"] == key)
+    return len(import_module(f"fabric_backend.{s['demo']}").tables(**s.get("demo_kwargs", {})))
 
 
 def summary() -> list[dict]:

@@ -33,7 +33,9 @@ been run against a Fabric workspace.
    `fabric_backend/domains.py`, with no dependency, so it also runs in the browser engine that /check loads.
 4. **Names**: SAP tables the pack recognises are named by their part of order-to-cash (public SAP table roles: sales
    documents, deliveries, billing, customer master, material master, organisation; "order-to-cash" when a domain holds
-   sales documents, deliveries and billing); otherwise the tables' common name prefix; otherwise the table the others
+   sales documents, deliveries and billing); since round SAPD1 also of procure-to-pay (purchasing, supplier invoices,
+   supplier master; "procure-to-pay" for purchasing and supplier invoices together), finance (accounting, general
+   ledger, controlling; "finance" for accounting and general ledger together) and pricing; otherwise the tables' common name prefix; otherwise the table the others
    point at most. Names are proposals to rename.
 
 What the three examples give (unit tests, `tests/test_domains.py`):

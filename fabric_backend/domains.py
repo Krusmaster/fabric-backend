@@ -19,7 +19,9 @@ How the split is made (round n56, after feedback from an architect with DDD expe
   billing, product catalog, sales; round n72) names a domain after the area most of its tables are in, or the two
   biggest; SAP tables the pack recognises are named after their part of order-to-cash ("order-to-cash" itself when a
   domain holds sales documents, deliveries and billing) (public SAP knowledge: sales
-  documents, deliveries, billing, customer master, material master, organisation); otherwise the longest common
+  documents, deliveries, billing, customer master, material master, organisation), and since round SAPD1 of
+  procure-to-pay ("procure-to-pay" when a domain holds purchasing and supplier invoices), finance ("finance" for
+  accounting and general ledger together), controlling and pricing; otherwise the longest common
   name prefix of the domain's tables; otherwise the table the others point at most.
 - Relationships between two domains are the interfaces between the data products: the consuming side holds the
   reference, the providing side owns the key.
@@ -40,16 +42,32 @@ RESOLUTION = 1.0
 WEIGHTS = {"R0": 1.0, "confirmed": 1.0, "SAP pack": 1.0, "R1": 0.9, "R2": 0.8, "R3": 0.8, "R4": 0.5}
 EXTENDED_WEIGHTS = {"unique": 0.6, "key": 0.6, "valid_on": 0.4}
 
-# Public SAP ERP tables by their part of order-to-cash (SD and its master data), as named in SAP's own documentation.
+# Public SAP ERP tables by their part of order-to-cash (SD and its master data), as named in SAP's own documentation;
+# and, since round SAPD1, of procure-to-pay, finance and pricing (the SAP pack's modules of those names).
 SAP_AREAS = {
-    "sales documents": ("VBAK", "VBAP", "VBEP", "VBPA", "VBFA", "VBUK", "VBUP", "VBKD", "KONV"),
+    "sales documents": ("VBAK", "VBAP", "VBEP", "VBPA", "VBFA", "VBUK", "VBUP", "VBKD"),
     "deliveries": ("LIKP", "LIPS"),
     "billing": ("VBRK", "VBRP"),
-    "customer master": ("KNA1", "KNVV", "KNB1", "KNVK", "KNVP", "ADRC", "ADR6", "BUT000", "CVI_CUST_LINK"),
+    "customer master": ("KNA1", "KNVV", "KNB1", "KNVK", "KNVP", "ADRC", "ADR2", "ADR6", "BUT000", "BUT020", "BUT050",
+                        "BUT100", "CVI_CUST_LINK"),
     "material master": ("MARA", "MAKT", "MARC", "MVKE", "MARD"),
-    "organisation": ("T001", "TVKO", "TVTW", "TSPA", "T001W"),
+    "organisation": ("T001", "TVKO", "TVTW", "TSPA", "T001W", "T024E"),
+    "purchasing": ("EBAN", "EKKO", "EKPO", "EKET", "EKBE"),
+    "supplier invoices": ("RBKP", "RSEG"),
+    "supplier master": ("LFA1", "LFB1", "LFM1", "CVI_VEND_LINK"),
+    "accounting": ("BKPF", "BSEG", "ACDOCA", "BSID", "BSAD", "BSIK", "BSAK"),
+    "general ledger": ("T004", "SKA1", "SKB1"),
+    "controlling": ("TKA01", "CSKS", "CEPC"),
+    "pricing": ("KONV", "PRCD_ELEMENTS", "KONH", "KONP", "T685"),
 }
 _SAP_AREA = {t: a for a, ts in SAP_AREAS.items() for t in ts}
+_O2C_AREAS = ("sales documents", "deliveries", "billing", "customer master", "material master", "organisation")
+# A domain that holds all the areas of one process is named after the process, the first that fits.
+SAP_PROCESSES = {
+    "order-to-cash": ("sales documents", "deliveries", "billing"),
+    "procure-to-pay": ("purchasing", "supplier invoices"),
+    "finance": ("accounting", "general ledger"),
+}
 
 
 # ------------------------------------------------------------------ the graph -------------------------------------
@@ -196,11 +214,17 @@ def _name(tables: list[str], g: dict[str, dict[str, float]], into: dict[str, flo
             areas[a] = areas.get(a, 0) + 1
     if areas and sum(areas.values()) * 2 > len(tables):
         top = sorted(areas, key=lambda a: (-areas[a], list(SAP_AREAS).index(a)))
-        if {"sales documents", "deliveries", "billing"} <= set(areas):
-            name = "order-to-cash"
+        process = next((p for p, need in SAP_PROCESSES.items() if set(need) <= set(areas)), None)
+        if process:
+            name = process
         else:
             name = top[0] if len(top) == 1 or areas[top[1]] * 2 < areas[top[0]] else f"{top[0]} and {top[1]}"
-        return name, (f"SAP order-to-cash{' (sales documents, deliveries and billing together)' if name == 'order-to-cash' else ''}: {', '.join(f'{areas[a]} table(s) of {a}' for a in top)} (public SAP table roles; "
+        together = ""
+        if process:
+            need = SAP_PROCESSES[process]
+            together = f" ({', '.join(need[:-1])} and {need[-1]} together)"
+        head = "SAP order-to-cash" if set(areas) <= set(_O2C_AREAS) else (f"SAP {process}" if process else "SAP")
+        return name, (f"{head}{together}: {', '.join(f'{areas[a]} table(s) of {a}' for a in top)} (public SAP table roles; "
                       "the SAP pack recognised them)")
     pre = _common_prefix(tables, schema_prefix)
     if pre and len("_".join(pre)) >= 3:
