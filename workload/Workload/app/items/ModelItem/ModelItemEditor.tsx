@@ -71,6 +71,7 @@ import {
 import { AppChoices } from "./engineClient";
 import { PICKER_TYPES, ReadOnlySource, SapOffer, restType, targetProblem } from "./sourceWords";
 import { BuildIn, buildWorkspace, crossWorkspace, keptTarget, lakehouseProblem, productWorkspace, targetRequest } from "./buildPlace";
+import { autoAdopt } from "./ed3Product";
 import { DataProductPage, preloadParts } from "./lazyParts";   // n223: the Data product page loads when first shown
 import { OntoWait } from "./OntoWait";
 import { FlowSteps } from "./FlowSteps";
@@ -86,7 +87,7 @@ import { FileContext, FileLink, FileSource, OneLakeContext, OneLakeSaveSource } 
 import { STORAGE_SCOPE, saveEnabled } from "./onelakeSave";
 import type { CatalogAnswer } from "./catalogWords";
 import {
-  LeftoversAnswer, OutOfDate, ProductRow, RetireAnswer, StatusAnswer, createdAtOf, healthFor, outOfDate, planOf, withAdopted, withOwner,
+  LeftoversAnswer, OutOfDate, ProductRow, RetireAnswer, StatusAnswer, createdAtOf, healthFor, outOfDate, planOf, rowsOf, withAdopted, withOwner,
   withPlan, withRemoved,
 } from "./productWords";
 import { SAVE_WAITS_MS, SaveStatus, saveWithRetry } from "./saveState";
@@ -172,7 +173,7 @@ export function ModelItemEditor(props: PageProps) {
   const [setView, setSetView] = useState<(v: string) => void>();
   /** n198: the Data product page's state (productWords.ts, DataProductView.tsx) */
   const [dp, setDp] = useState<{ status?: StatusAnswer; health?: string; updates?: OutOfDate[]; retire?: RetireAnswer;
-    leftovers?: LeftoversAnswer; busy?: string; problem?: string; wait?: Wait }>({});
+    leftovers?: LeftoversAnswer; busy?: string; problem?: string; wait?: Wait; adopted?: string[] }>({});
   const view = def.item.view;
 
   const go = (v: ModelView) => {
@@ -1151,6 +1152,36 @@ export function ModelItemEditor(props: PageProps) {
     const health = await h;
     setDp((x) => ({ ...x, ...(s ? { status: s } : {}),
       health: healthFor(health as never, planOf(defRef.current.outputs, defRef.current.review?.plan_id), createdAtOf(defRef.current.outputs)) }));
+    if (s) void adoptOwnLeftovers(s);
+  }
+
+  /** ED3 (Gustav: "Built ... but this item has no id saved for it. Look for leftovers below finds it ..."): an output the
+   * latest Create built whose id this item lost is looked up by Krusgraph's plan marker and added at once when the
+   * marker is this data product's plan and the name is the one Create gave it; said once. Other leftovers stay below. */
+  async function adoptOwnLeftovers(s: StatusAnswer) {
+    const plan = planOf(defRef.current.outputs, defRef.current.review?.plan_id);
+    const rows = rowsOf(defRef.current.outputs, s, plan);
+    if (!rows.some((r) => r.key.startsWith("unsaved:"))) return;
+    let found: LeftoversAnswer | undefined;
+    try {
+      found = await engine.product<LeftoversAnswer>(workloadClient, productBody("leftovers"));
+    } catch {
+      return;                                            // the manual Look for leftovers stays
+    }
+    const take = autoAdopt(rows, found);
+    if (!take.length) { setDp((x) => ({ ...x, leftovers: found })); return; }
+    try {
+      const a = await engine.product<{ adopted: CreatedItem[]; refused: { why: string }[]; words: string }>(workloadClient,
+        productBody("adopt", { items: take.map((t) => t.id) }));
+      if (a.adopted.length) {
+        await update((d) => ({ ...d, outputs: withAdopted(d.outputs, a.adopted) }));
+        setDp((x) => ({ ...x, adopted: a.adopted.map((c) => c.name), leftovers: undefined }));
+        const st = await engine.product<StatusAnswer>(workloadClient, productBody("status"));
+        setDp((x) => ({ ...x, status: st }));
+      }
+    } catch {
+      /* nothing added: the leftovers list below still offers Adopt */
+    }
   }
 
   async function saveOwner(name: string) {
@@ -1405,6 +1436,9 @@ export function ModelItemEditor(props: PageProps) {
         onRetire={(s, ids, o) => void retireFromPage(s, ids, o)}
         onFindLeftovers={() => void findLeftovers()}
         onAdopt={(id) => void adoptLeftover(id)}
+        adopted={dp.adopted}
+        onCheckHealth={() => void loadProduct()}
+        onFixAndFinish={() => { go("result"); }}
       />
   );
   views.push({ name: "product", component: wrap(<>{productPage}<CatalogPanel />{nextPanel}</>) });   // CA1

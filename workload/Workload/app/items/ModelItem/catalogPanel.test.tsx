@@ -51,7 +51,7 @@ describe("catalogWords", () => {
 
   it("offers the write only after a dry run, with something to write, where writing is on, once checked", () => {
     expect(canWrite(undefined, true).ok).toBe(false);
-    expect(canWrite({ ...ANSWER, writable: false }, true).why).toContain("operator lists");
+    expect(canWrite({ ...ANSWER, writable: false }, true).why).toBe("Writing is off in this workspace while Krusgraph is in test; use the handover files.");
     expect(canWrite({ ...ANSWER, confirm: null }, true).ok).toBe(false);
     expect(canWrite(ANSWER, false).why).toContain("Tick");
     expect(canWrite(ANSWER, true).ok).toBe(true);

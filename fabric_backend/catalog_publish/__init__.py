@@ -33,7 +33,8 @@ def _item_texts(products: list[dict], label: str, ev: dict) -> list[str]:
 def prepare(p, schema: str, workspace_id: str, items: list[dict], *, source: str = "", validation: dict | None = None,
             checked_on: str | None = None, owners: dict | None = None, names: dict | None = None,
             created_ids: set[str] | None = None, tenant_tags: list[dict] | None = None,
-            tags_readable: bool = True, workspace_tags: list[dict] | None = None, include: set[str] | None = None) -> dict:
+            tags_readable: bool = True, workspace_tags: list[dict] | None = None, include: set[str] | None = None,
+            source_id: str | None = None) -> dict:
     """The whole answer for one plan. `items`: the Fabric items the products live in, as read now
     ({id, displayName, type, description, tags}); `created_ids`: the ones this Model (or tool) built; `tenant_tags`:
     GET /v1/tags as read now; with tags_readable=False (List Tags needs Tag.Read.All, which the apps do not hold) the
@@ -52,12 +53,16 @@ def prepare(p, schema: str, workspace_id: str, items: list[dict], *, source: str
     include = set(include or ())
     if products:
         for it in items:
-            w, k, m = _writes.item_writes(workspace_id, it, texts, tag_names, pool, created_ids)
-            if _writes.ours(it, created_ids) or it.get("id") in include:
+            # ED3 (Gustav: the preview wrote onto the source shop_lh, in its own workspace): the source is never this
+            # data product's, whatever its description carries; it is offered unticked, like any item not built here
+            built = _writes.ours(it, created_ids) and (not source_id or it.get("id") != source_id)
+            w, k, m = _writes.item_writes(workspace_id, it, texts, tag_names, pool, created_ids, built)
+            if built or it.get("id") in include:
                 writes += w
                 kept += k
             elif w:
-                optional.append(_writes.offer(it, w))
+                optional.append(_writes.offer(it, w, source=bool(source_id) and it.get("id") == source_id,
+                                              other_workspace=bool(it.get("workspace")) and str(it["workspace"]).lower() != workspace_id.lower()))
             missing += m
     writes.sort(key=lambda w: (w["field"] != "description", [i.get("id") for i in items].index(w["item_id"])))
     missing_tags = sorted({m["tag"] for m in missing}, key=str.lower)

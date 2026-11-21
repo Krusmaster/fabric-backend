@@ -113,7 +113,7 @@ def test_the_diff_writes_only_what_the_user_may_and_keeps_other_peoples_words(sh
     row = next(d for d in a["diff"] if d["item"] == "demo_lh")
     assert row["action"] == "optional" and "did not build demo_lh" in row["why"] and row["after"].startswith("Our own words. ")
     assert by[("shop_model", "description")]["after"].endswith("[Krusgraph plan plan-abc, schema shop (sha256:12ab), 6 links]")
-    assert by[("shop_model", "description")]["after"].startswith("Built by Krusgraph. Data products customers and products")
+    assert by[("shop_model", "description")]["after"].startswith("Krusgraph semantic model shop_model. Data products customers and products")
     assert by[("shop_model", "tags")]["body"] == {"tags": ["t-c"]}   # Krusgraph is there already: only adds
     assert [w["field"] for w in a["writes"]][:2] == ["description", "description"]
     assert {w["operation"] for w in a["writes"]} == {"Items_UpdateItem", "Tags_ApplyTags"}

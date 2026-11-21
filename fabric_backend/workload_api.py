@@ -995,7 +995,8 @@ def catalog_request(body) -> dict:
     if confirm is not None and (not isinstance(confirm, str) or len(confirm) > 40):
         raise BadRequest("'confirm' is the dry run's confirm value")
     return {**req, "review": body["review"], "created_ids": ids, "owner": (owner or "").strip() or None,
-            "dry_run": dry, "confirm": confirm, "include": sorted({i.lower() for i in include})}
+            "dry_run": dry, "confirm": confirm, "include": sorted({i.lower() for i in include}),
+            "target": target_request(body.get("target"))}       # ED3: the workspace the data product was built in
 
 
 def run_catalog(req: dict) -> dict:
@@ -1018,21 +1019,30 @@ def run_catalog(req: dict) -> dict:
     validation, checked_at = rc.with_recorded(validation, prev, now)
     headers = S._headers(None)
     get = io.reader(headers)
-    ws = req["workspace"].lower()
+    # ED3 (Gustav: the preview proposed a description for the source shop_lh, in its own workspace, and missed what
+    # this data product built): the workspace the outputs were built in (the item's, n221), the source in its own
+    source_ws = str(S._workspace_id(req["workspace"], headers)).lower()
+    ws = str((req.get("target") or {}).get("workspace") or source_ws).lower()
     listed = io.items(get, ws)
     if req["owner"]:                                   # WB10: a person or group in the workspace, never an item's name
         refused = co.check(req["owner"], life.people(get, ws), listed, req.get("by"))
         if refused:
             return {"error": refused, "kind": "bad_owner",
                     "hint": "Nothing was prepared or written. Pick a person or group from the list, or choose Me."}
-    src = S._resolve_source(ws, req["source"], headers)
+    src = S._resolve_source(source_ws, req["source"], headers)
+    if ws != source_ws:                                # the source, offered unticked, with its own workspace
+        try:
+            listed = listed + [{**it, "workspace": source_ws} for it in io.items(get, source_ws) if it.get("id") == src.get("id")]
+        except PermissionError:
+            pass
     chosen = io.pick(listed, src.get("id"), set(req["created_ids"]), req["schema"])
     tenant, readable = io.tenant_tags(get)
     on_items = list({t.get("id"): t for it in listed for t in it.get("tags") or [] if t.get("id")}.values())
-    owners = {d["slug"]: req["owner"] for d in D.propose_plan(p, validation)["domains"]} if req["owner"] else None
+    owners = {d["slug"]: req["owner"] for d in D.data_products(p)["domains"]} if req["owner"] else None   # ED3: one grouping
     out = cp.prepare(p, req["schema"], ws, chosen, source=req["source_name"], validation=validation,
                      checked_on=checked_at, owners=owners, created_ids=set(req["created_ids"]),
-                     tenant_tags=tenant, tags_readable=readable, workspace_tags=on_items, include=set(req["include"]))
+                     tenant_tags=tenant, tags_readable=readable, workspace_tags=on_items, include=set(req["include"]),
+                     source_id=src.get("id"))
     out["writable"] = ws in cw.allowed_workspaces()
     out["left_out"] = left_out
     if req["dry_run"]:
