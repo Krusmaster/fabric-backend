@@ -1,0 +1,30 @@
+{
+ "round": "SM3",
+ "date": "2026-11-21",
+ "how": "node workload/scripts/e2e/run.js <out> --python python3.13 [--before]; flow 26, the editor on the Fabric and SQL doubles, locally; Fabric's OneLake picker answered at once by the harness",
+ "before": [
+  {
+   "width": "desktop",
+   "clicks": 8,
+   "ms": 3804
+  },
+  {
+   "width": "390 px",
+   "clicks": 8,
+   "ms": 3617
+  }
+ ],
+ "after": [
+  {
+   "width": "desktop",
+   "clicks": 4,
+   "ms": 2271
+  },
+  {
+   "width": "390 px",
+   "clicks": 4,
+   "ms": 2291
+  }
+ ],
+ "chat_lazy_unchanged": "tools/smooth_measure.py on this branch: Start to all three dry runs in 4 taps, 2.3 s (390 px) and 2.35 s (1280 px); SM3 does not change the chat"
+}

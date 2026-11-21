@@ -190,3 +190,38 @@ What changed for the person:
 
 The names of the nine steps still work as `step` (map and totals open Check; workspace, source and schema open the
 list on step 1), so an older card or a typed request lands on the right step.
+
+## 8. After SM3: the same path in the editor (21 November 2026)
+
+Round SM3 (PLAN.md row 2) gave the Fabric editor (the Model item) the chat's five steps and default build. Measured
+with the editor's e2e harness (`workload/scripts/e2e/run.js`, flow 26) on the Fabric and SQL doubles, locally, the
+same flow on the editor before and after the change; raw numbers in `measure-editor-2026-11-21.json`. Fabric's own
+OneLake picker is answered at once by the harness, so its clicks in real Fabric come on top. Nothing ran in Fabric.
+
+| | Before | After |
+|---|---|---|
+| Open to the dry run of pipeline + semantic model + data agent, desktop | 8 clicks, 3.8 s | **4 clicks, 2.3 s** |
+| The same at 390 px | 8 clicks, 3.6 s | **4 clicks, 2.3 s** |
+| Steps and their names | 6: Source · Keys and links · Choose · Dry run · Built · Data product | **5: Your data · Check · Decide · Dry run · Create**, as in the chat |
+| Ticked by default | API for GraphQL | **Pipeline (with its silver and gold notebooks), semantic model, data agent**, as in the chat |
+| Output cards shown on Choose | 9 | **3**; the other 6, the data product and the suggested products under **More outputs** |
+| Words above the outputs on Choose | 45 | 23 |
+| Accept-all buttons | 2: "Accept all (n)" and "Accept all that passed the check (n)" | 1: **Accept all that passed the check (n)** |
+| Cards that hand a typed request to Claude | 2: the drift monitor ("Copy the request for Claude") and "Ask Krusgraph in Claude for app_readiness" | 0 |
+
+The chat was not changed: `tools/smooth_measure.py` on this branch, Start to all three dry runs in 4 taps, 2.3 s.
+
+What changed for the person:
+- **Check runs on its own.** Find keys and relationships reads the lakehouse and then checks the keys and links
+  against the rows, in one wait. "Check against the rows again" stays one click away.
+- **Decide** is Choose what to build: the three defaults ticked, each with its name. Ticking or unticking the pipeline
+  ticks its silver and gold notebooks with it. A next step's Dry run (an ontology, say) opens More outputs with it ticked.
+- **Dry run** is the button's name (it was Preview). Create, the result and the data product are step 5.
+- Hidden until they have a Dry run and Create here (D7): the drift monitor card. Microsoft's app builder card keeps
+  its guide and no longer sends the person to Claude first.
+- Kept and folded into the steps: WB4's Recommended analyses (under the result, after the check), WB14's Save to
+  lakehouse Files (beside Download under the map).
+
+One test reads both surfaces: `tests/test_sm3_same_path.py` (the five words and the default outputs in
+`start_flow.py` and in the editor's `stepWords.ts`). Screenshots: `media/editor-sm3-desktop-choose.png`,
+`media/editor-sm3-390-dry-run.png` (before: `media/editor-sm3-390-dry-run-before.png`).

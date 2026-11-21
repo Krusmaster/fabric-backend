@@ -25,6 +25,10 @@ Baseline, measured by SM1 (AUDIT.md):
 **SM2 is done** (21 November 2026): 4 taps and 2.8 s locally from Start to all three dry runs, at most 25 words and 3
 buttons plus Next per step, no step scrolls at 390 x 800 (AUDIT.md section 7, `measure-2026-11-21.json`).
 
+**SM3 is done** (21 November 2026): in the editor, open to the dry run of pipeline + semantic model + data agent in 4
+clicks and 2.3 s locally, at 390 px and on a desktop (from 8 clicks and 3.6-3.8 s); five steps with the chat's words; 3
+outputs shown and 6 under More outputs; one accept-all (AUDIT.md section 8, `measure-editor-2026-11-21.json`).
+
 SM5-SM7 change the engine (`infer.py`, `graphs.py`, `server.py`'s write path). They come after SM2-SM4 because those
 three change what every later round's UI looks like, and the multi-source flow should be built straight into five steps.
 
