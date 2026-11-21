@@ -40,9 +40,18 @@ opened from the session that wrote this, so the pages' sources were read):
 The descriptions are generated from the plan only: table names, the ontology's entity names, counts and rule names. No
 row value, no column name (so no column the privacy rules mask is ever named), no statement about quality beyond the
 counts validate_plan returned.
+
+BL29 (21 November 2026, backlog P-15): every description ends with one dated quality line from counts.summary (BL3),
+kept whole when a description is shortened to fit: "Quality checked 2026-11-21: keys 6 of 6 hold; links 7 of 7 hold."
+(an ISO date and the counts only: no row value, no column name). With no validation it says "Quality: not checked
+yet." and never "hold". The tags are a fixed, documented set (TAG_SET): the same plan with the same kind of answer
+(counted or not) gives the same tags, and no tag has a date in it.
 """
 from __future__ import annotations
 
+from datetime import date as _date, datetime as _datetime, timezone as _tz
+
+from . import counts as _counts
 from . import domains as _domains
 from . import graphs as _graphs
 from .ontology import entity_name
@@ -52,6 +61,19 @@ DESCRIPTION_MAX = 256          # UpdateItemRequest.description
 TAG_MAX = 40                   # BulkCreateTags displayName
 TAGS_PER_ITEM = 10             # tags-overview.md
 PROVENANCE_TAG = "Krusgraph"
+CHECKED_TAG = "krusgraph-checked"          # BL29: the plan's keys and links were counted against the rows for this draft
+# BL29: one tag per knowledge pack the plan's keys and links came from (plan.pack["pack"], or each schema's when combined).
+PACK_TAGS = {"sap": "krusgraph-sap", "dynamics365": "krusgraph-dynamics365", "salesforce": "krusgraph-salesforce",
+             "younium_salesforce": "krusgraph-younium-salesforce"}
+DOMAIN_TAG = "domain: "
+# BL29: every tag name a draft can carry, in this order; nothing else, and never a date.
+TAG_SET = [
+    {"tag": PROVENANCE_TAG, "when": "always: the description was drafted by Krusgraph"},
+    {"tag": CHECKED_TAG, "when": "a validation was given (check_rows=true); the quality line has the date and the counts. "
+                                 "The tag says the plan was counted, not that everything holds"},
+    *({"tag": t, "when": f"the plan's keys and links came from the {k} knowledge pack"} for k, t in PACK_TAGS.items()),
+    {"tag": DOMAIN_TAG + "<name>", "when": "one per domain that domain_draft proposes for the plan's tables"},
+]
 
 # Item types with their own documented update operation (fabric-rest-api-specs 6f817cb): {type: (operation, path, type scope)}.
 UPDATABLE = {
@@ -155,29 +177,59 @@ def facts(p, validation: dict | None = None, tables: list[str] | None = None) ->
     proposal = _domains.propose_plan(p, validation)
     doms = [{"name": d["name"], "tables": [t for t in d["tables"] if t in keep]} for d in proposal["domains"]]
     doms = [d for d in doms if d["tables"]]
-    return {"tables": table_facts, "relationships": rel_facts, "domains": doms, "counted": validation is not None}
-
-
-def _checked(f: dict) -> str:
-    if not f["counted"]:
-        return "not counted against the rows"
-    keys = [t for t in f["tables"] if "key_counted" in t]
-    rels = [r for r in f["relationships"] if "counted" in r]
-    return (f"counted: {sum(1 for t in keys if t['key_counted']['unique'])} of {len(keys)} keys unique, "
-            f"{sum(1 for r in rels if r['counted']['orphans'] == 0)} of {len(rels)} relationships without orphans")
+    return {"tables": table_facts, "relationships": rel_facts, "domains": doms, "counted": validation is not None,
+            "packs": pack_ids(p)}
 
 
 def _by_role(f: dict, role: str, entities: bool = False) -> list[str]:
     return [t["entity"] if entities else t["table"] for t in f["tables"] if t["role"] == role]
 
 
-def _fit(*versions: str) -> str:
-    """The first version that fits the 256 characters of UpdateItemRequest.description; the last is cut on a word."""
+def _fit(*versions: str, line: str = "") -> str:
+    """The first version that fits the 256 characters of UpdateItemRequest.description; the last is cut on a word.
+    `line` (BL29: the quality line) follows it and is always kept whole: the version gets the room that is left."""
+    room = DESCRIPTION_MAX - (len(line) + 1 if line else 0)
     for v in versions:
-        if len(v) <= DESCRIPTION_MAX:
-            return v
-    v = versions[-1]
-    return v[:DESCRIPTION_MAX - 1].rsplit(" ", 1)[0] + "…"
+        if len(v) <= room:
+            break
+    else:
+        v = versions[-1][:room - 1].rsplit(" ", 1)[0] + "…"
+    return f"{v} {line}" if line else v
+
+
+def checked_day(validation: dict | None, checked_on: str | None = None) -> str | None:
+    """BL29: the ISO date of the check: `checked_on`, else the validation's own checked_on or checked_at, else today
+    (UTC). None without a validation."""
+    if validation is None:
+        return None
+    for d in (checked_on, validation.get("checked_on"), validation.get("checked_at")):
+        try:
+            return _date.fromisoformat(str(d or "").strip()[:10]).isoformat()
+        except ValueError:
+            continue
+    return _today()
+
+
+def _today() -> str:
+    """Today in UTC as an ISO date (tests/test_golden.py pins it to the day the golden answers were recorded)."""
+    return _datetime.now(_tz.utc).date().isoformat()
+
+
+def _part(what: str, t: dict) -> str:
+    return f"no {what}" if not t["total"] else f"{what} {_counts._sentence(what, t)}"
+
+
+def quality(p, validation: dict | None, tables: list[str] | None = None, checked_on: str | None = None) -> dict:
+    """BL29: the dated quality line, from counts.summary (BL3): {"checked_on", "keys", "links", "line"}, where keys and
+    links are its tallies (total, holds, fails, no_rows, not_counted). Counts only: no row value, no column name. With no
+    validation: checked_on None and "Quality: not checked yet.", which never says "hold"."""
+    day = checked_day(validation, checked_on)
+    if day is None:
+        return {"checked_on": None, "keys": None, "links": None, "line": "Quality: not checked yet."}
+    s = _counts.summary(p, validation, tables=tables)
+    keys, links = ({k: s[w][k] for k in ("total", *_counts.STATES)} for w in ("keys", "links"))
+    return {"checked_on": day, "keys": keys, "links": links,
+            "line": f"Quality checked {day}: {_part('keys', keys)}; {_part('links', links)}."}
 
 
 def _list(xs: list[str]) -> str:
@@ -195,55 +247,67 @@ def _domain_part(f: dict) -> str:
 
 # ------------------------------------------------------------------ descriptions per item ---------------------------
 
-def source_description(f: dict, schema: str) -> str:
+def source_description(f: dict, schema: str, line: str = "") -> str:
     ts, keyed = f["tables"], [t for t in f["tables"] if t["key_rule"]]
     head = f"Schema {schema}, planned by Krusgraph: {len(ts)} tables"
-    tail = f"{len(keyed)} with a key ({_rules(t['key_rule'] for t in keyed) or 'none'}); {_rel_part(f)}, {_checked(f)}; {_domain_part(f)}."
+    tail = f"{len(keyed)} with a key ({_rules(t['key_rule'] for t in keyed) or 'none'}); {_rel_part(f)}; {_domain_part(f)}."
     roles = [(r, _by_role(f, r)) for r in ("fact", "dimension", "bridge")]
     named = "; ".join(f"{r}s {', '.join(xs)}" for r, xs in roles if xs)
     counted = "; ".join(f"{len(xs)} {r}s" for r, xs in roles if xs)
-    return _fit(f"{head} ({named}), {tail}", f"{head} ({counted}), {tail}", f"{head}, {tail}")
+    return _fit(f"{head} ({named}), {tail}", f"{head} ({counted}), {tail}", f"{head}, {tail}", line=line)
 
 
 def _entities(f: dict, role: str | None = None) -> list[str]:
     return [t["entity"] for t in f["tables"] if role is None or t["role"] == role]
 
 
-def item_description(tool: str, item_type: str, f: dict, label: str, names: dict, schemas: dict) -> str:
-    rel = f"{_rel_part(f)} from Krusgraph's plan, {_checked(f)}"
+def item_description(tool: str, item_type: str, f: dict, label: str, names: dict, schemas: dict, line: str = "") -> str:
+    rel = f"{_rel_part(f)} from Krusgraph's plan"
     if item_type == "GraphQLApi":
         return _fit(f"API for GraphQL over {label}: types {_list(_entities(f))}; {rel}.",
-                    f"API for GraphQL over {label}: {len(f['tables'])} types; {rel}.")
+                    f"API for GraphQL over {label}: {len(f['tables'])} types; {rel}.", line=line)
     if item_type == "SemanticModel":
         return _fit(f"Direct Lake model over {label}: facts {_list(_entities(f, 'fact'))}; dimensions "
                     f"{_list(_entities(f, 'dimension'))}; {rel}.",
-                    f"Direct Lake model over {label}: {len(f['tables'])} tables; {rel}.")
+                    f"Direct Lake model over {label}: {len(f['tables'])} tables; {rel}.", line=line)
     keys = sum(1 for t in f["tables"] if t["key_rule"])
     if tool == "create_silver_notebook":
         return _fit(f"Writes de-duplicated silver tables in {schemas['silver']} from {label}: {keys} keys, "
                     f"{len(f['relationships'])} references checked per row, rows without a match go to a quarantine table. "
-                    "Generated by Krusgraph from the plan.")
+                    "Generated by Krusgraph from the plan.", line=line)
     if tool == "create_gold_views":
         return _fit(f"Creates materialized lake views in {schemas['gold']} over the silver tables of {label}, with the plan's "
-                    "keys and relationships as data quality rules. Generated by Krusgraph from the plan.")
+                    "keys and relationships as data quality rules. Generated by Krusgraph from the plan.", line=line)
     if tool == "create_drift_monitor" and item_type == "Notebook":
-        return _fit(f"Compares the tables of {label} with the last plan and sends the changes to a webhook. Generated by Krusgraph.")
+        return _fit(f"Compares the tables of {label} with the last plan and sends the changes to a webhook. Generated by Krusgraph.", line=line)
     if tool == "create_drift_monitor":
-        return _fit(f"Runs the notebook {names['create_drift_monitor']} each night. Generated by Krusgraph.")
+        return _fit(f"Runs the notebook {names['create_drift_monitor']} each night. Generated by Krusgraph.", line=line)
     if tool == "pipeline" and item_type == "Notebook":
         return _fit(f"Checks keys and orphans in {schemas['silver']} and the rows and sums of each gold view of {label}; "
-                    "raises an error when one does not hold. Generated by Krusgraph.")
+                    "raises an error when one does not hold. Generated by Krusgraph.", line=line)
     if tool == "pipeline":
         return _fit(f"Runs {names['create_silver_notebook']}, then {names['create_gold_views']}, then {names['pipeline']}_check "
-                    f"for {label}; a failed check fails the run. Generated by Krusgraph.")
-    return _fit(f"Built by Krusgraph from the plan of {label}.")
+                    f"for {label}; a failed check fails the run. Generated by Krusgraph.", line=line)
+    return _fit(f"Built by Krusgraph from the plan of {label}.", line=line)
 
 
 # ------------------------------------------------------------------ tags and calls ----------------------------------
 
+def pack_ids(p) -> list[str]:
+    """The knowledge packs the plan's keys and links came from (plan.pack; each schema's pack when combined), sorted."""
+    pack = getattr(p, "pack", None) or {}
+    ids = {str(x.get("pack")) for x in (pack.get("by_schema") or {}).values() if isinstance(x, dict) and x.get("pack")}
+    if pack.get("pack"):
+        ids.add(str(pack["pack"]))
+    return sorted(ids)
+
+
 def tag_names(f: dict) -> tuple[list[str], list[str]]:
-    """The provenance tag and one per proposed domain, each at most 40 characters; at most 10. Returns (kept, left out)."""
-    names = [PROVENANCE_TAG] + [("domain: " + d["name"])[:TAG_MAX].rstrip() for d in f["domains"]]
+    """From TAG_SET only: the provenance tag, krusgraph-checked when counted, one per knowledge pack the plan used
+    (f["packs"]), one per proposed domain; each at most 40 characters, no date; at most 10. Returns (kept, left out)."""
+    names = ([PROVENANCE_TAG] + ([CHECKED_TAG] if f.get("counted") else [])
+             + [PACK_TAGS[k] for k in f.get("packs", []) if k in PACK_TAGS]
+             + [(DOMAIN_TAG + d["name"])[:TAG_MAX].rstrip() for d in f["domains"]])
     names = list(dict.fromkeys(names))
     return names[:TAGS_PER_ITEM], names[TAGS_PER_ITEM:]
 
@@ -265,10 +329,13 @@ def calls(item_type: str, workspace_id: str, item_id: str, description: str, tag
 
 
 def draft(p, info: dict, made: list[dict], names: dict, schemas: dict, validation: dict | None = None,
-          tables: list[str] | None = None) -> dict:
+          tables: list[str] | None = None, checked_on: str | None = None) -> dict:
     """The catalog draft for the source item and the items in `made` ({tool, type, name}). Deterministic: the same plan,
-    names and counts give the same answer."""
+    names, counts and day give the same answer. `checked_on` (BL29): the ISO date of the count; without it, the
+    validation's own date or today (UTC)."""
     f = facts(p, validation, tables)
+    q = quality(p, validation, tables, checked_on)
+    line = q["line"]
     schema = info["schema"]
     label = f"{info['item_name']}.{schema}"
     tags, tags_left = tag_names(f)
@@ -283,16 +350,18 @@ def draft(p, info: dict, made: list[dict], names: dict, schemas: dict, validatio
         items.append({"item": name, "type": item_type, "tool": tool, "exists": exists, "description": description,
                       "description_chars": len(description), "tags": tags,
                       "calls": calls(item_type, ws, item_id or f"<id of {name} once created>", description, tags)})
-    one(info["item_name"], info["item_kind"], None, info["item_id"] or None, source_description(f, schema))
+    one(info["item_name"], info["item_kind"], None, info["item_id"] or None, source_description(f, schema, line))
     for m in made:
         if m["type"] == "T-SQL":
             continue
-        one(m["name"], m["type"], m["tool"], None, item_description(m["tool"], m["type"], f, label, names, schemas))
+        one(m["name"], m["type"], m["tool"], None, item_description(m["tool"], m["type"], f, label, names, schemas, line))
     out = {
         "summary": (f"{len(items)} item(s) with a description and {len(tags)} tag(s) each; "
                     + ("counts from validate_plan" if f["counted"] else "rules only, not counted (check_rows=true counts)")
                     + "; nothing sent"),
         "items": items,
+        "quality": q,
+        "tag_set": TAG_SET,
         "tag_setup": {
             "tags": tags,
             "calls": [{"operation": "Tags_ListTags", "method": "GET", "url": f"{FABRIC}/v1/tags", "scopes": "Tag.Read.All",

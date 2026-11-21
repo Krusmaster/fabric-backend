@@ -10625,6 +10625,7 @@
        ]
       }
      ],
+     "packs": [],
      "relationships": [
       {
        "counted": {
@@ -10792,7 +10793,7 @@
       "calls": [
        {
         "body": {
-         "description": "Schema shop, planned by Krusgraph: 7 tables (3 facts; 4 dimensions), 6 with a key (K2, K5); 7 relationships (R1, R5), counted: 6 of 6 keys unique, 7 of 7 relationships without orphans; proposed domains: customers, products."
+         "description": "Schema shop, planned by Krusgraph: 7 tables (3 facts; 4 dimensions), 6 with a key (K2, K5); 7 relationships (R1, R5); proposed domains: customers, products. Quality checked 2026-10-26: keys 6 of 6 hold; links 7 of 7 hold."
         },
         "method": "PATCH",
         "operation": "Items_UpdateItem",
@@ -10804,6 +10805,7 @@
         "body": {
          "tags": [
           "<id of tag 'Krusgraph' from GET /v1/tags>",
+          "<id of tag 'krusgraph-checked' from GET /v1/tags>",
           "<id of tag 'domain: customers' from GET /v1/tags>",
           "<id of tag 'domain: products' from GET /v1/tags>"
          ]
@@ -10814,12 +10816,13 @@
         "url": "https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/items/aaaaaaaa-0000-0000-0000-000000000001/applyTags"
        }
       ],
-      "description": "Schema shop, planned by Krusgraph: 7 tables (3 facts; 4 dimensions), 6 with a key (K2, K5); 7 relationships (R1, R5), counted: 6 of 6 keys unique, 7 of 7 relationships without orphans; proposed domains: customers, products.",
-      "description_chars": 223,
+      "description": "Schema shop, planned by Krusgraph: 7 tables (3 facts; 4 dimensions), 6 with a key (K2, K5); 7 relationships (R1, R5); proposed domains: customers, products. Quality checked 2026-10-26: keys 6 of 6 hold; links 7 of 7 hold.",
+      "description_chars": 221,
       "exists": true,
       "item": "demo_lh",
       "tags": [
        "Krusgraph",
+       "krusgraph-checked",
        "domain: customers",
        "domain: products"
       ],
@@ -10830,7 +10833,7 @@
       "calls": [
        {
         "body": {
-         "description": "API for GraphQL over demo_lh.shop: types Addresses, AuditLog, Categories, Customers, OrderItems, Orders, Products; 7 relationships (R1, R5) from Krusgraph's plan, counted: 6 of 6 keys unique, 7 of 7 relationships without orphans."
+         "description": "API for GraphQL over demo_lh.shop: types Addresses, AuditLog, Categories, Customers, OrderItems, Orders, Products; 7 relationships (R1, R5) from Krusgraph's plan. Quality checked 2026-10-26: keys 6 of 6 hold; links 7 of 7 hold."
         },
         "method": "PATCH",
         "operation": "Items_UpdateItem",
@@ -10842,6 +10845,7 @@
         "body": {
          "tags": [
           "<id of tag 'Krusgraph' from GET /v1/tags>",
+          "<id of tag 'krusgraph-checked' from GET /v1/tags>",
           "<id of tag 'domain: customers' from GET /v1/tags>",
           "<id of tag 'domain: products' from GET /v1/tags>"
          ]
@@ -10852,12 +10856,13 @@
         "url": "https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/items/<id of demo_lh_api once created>/applyTags"
        }
       ],
-      "description": "API for GraphQL over demo_lh.shop: types Addresses, AuditLog, Categories, Customers, OrderItems, Orders, Products; 7 relationships (R1, R5) from Krusgraph's plan, counted: 6 of 6 keys unique, 7 of 7 relationships without orphans.",
-      "description_chars": 229,
+      "description": "API for GraphQL over demo_lh.shop: types Addresses, AuditLog, Categories, Customers, OrderItems, Orders, Products; 7 relationships (R1, R5) from Krusgraph's plan. Quality checked 2026-10-26: keys 6 of 6 hold; links 7 of 7 hold.",
+      "description_chars": 227,
       "exists": false,
       "item": "demo_lh_api",
       "tags": [
        "Krusgraph",
+       "krusgraph-checked",
        "domain: customers",
        "domain: products"
       ],
@@ -10868,7 +10873,7 @@
       "calls": [
        {
         "body": {
-         "description": "Direct Lake model over demo_lh.shop: facts AuditLog, OrderItems, Orders; dimensions Addresses, Categories, Customers, Products; 7 relationships (R1, R5) from Krusgraph's plan, counted: 6 of 6 keys unique, 7 of 7 relationships without orphans."
+         "description": "Direct Lake model over demo_lh.shop: facts AuditLog, OrderItems, Orders; dimensions Addresses, Categories, Customers, Products; 7 relationships (R1, R5) from Krusgraph's plan. Quality checked 2026-10-26: keys 6 of 6 hold; links 7 of 7 hold."
         },
         "method": "PATCH",
         "operation": "Items_UpdateItem",
@@ -10880,6 +10885,7 @@
         "body": {
          "tags": [
           "<id of tag 'Krusgraph' from GET /v1/tags>",
+          "<id of tag 'krusgraph-checked' from GET /v1/tags>",
           "<id of tag 'domain: customers' from GET /v1/tags>",
           "<id of tag 'domain: products' from GET /v1/tags>"
          ]
@@ -10890,12 +10896,13 @@
         "url": "https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/items/<id of demo_lh_model once created>/applyTags"
        }
       ],
-      "description": "Direct Lake model over demo_lh.shop: facts AuditLog, OrderItems, Orders; dimensions Addresses, Categories, Customers, Products; 7 relationships (R1, R5) from Krusgraph's plan, counted: 6 of 6 keys unique, 7 of 7 relationships without orphans.",
-      "description_chars": 242,
+      "description": "Direct Lake model over demo_lh.shop: facts AuditLog, OrderItems, Orders; dimensions Addresses, Categories, Customers, Products; 7 relationships (R1, R5) from Krusgraph's plan. Quality checked 2026-10-26: keys 6 of 6 hold; links 7 of 7 hold.",
+      "description_chars": 240,
       "exists": false,
       "item": "demo_lh_model",
       "tags": [
        "Krusgraph",
+       "krusgraph-checked",
        "domain: customers",
        "domain: products"
       ],
@@ -10906,7 +10913,7 @@
       "calls": [
        {
         "body": {
-         "description": "Writes de-duplicated silver tables in silver from demo_lh.shop: 6 keys, 7 references checked per row, rows without a match go to a quarantine table. Generated by Krusgraph from the plan."
+         "description": "Writes de-duplicated silver tables in silver from demo_lh.shop: 6 keys, 7 references checked per row, rows without a match go to a quarantine table. Generated by Krusgraph from the plan. Quality checked 2026-10-26: keys 6 of 6 hold; links 7 of 7 hold."
         },
         "method": "PATCH",
         "operation": "Items_UpdateItem",
@@ -10918,6 +10925,7 @@
         "body": {
          "tags": [
           "<id of tag 'Krusgraph' from GET /v1/tags>",
+          "<id of tag 'krusgraph-checked' from GET /v1/tags>",
           "<id of tag 'domain: customers' from GET /v1/tags>",
           "<id of tag 'domain: products' from GET /v1/tags>"
          ]
@@ -10928,12 +10936,13 @@
         "url": "https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/items/<id of silver_shop once created>/applyTags"
        }
       ],
-      "description": "Writes de-duplicated silver tables in silver from demo_lh.shop: 6 keys, 7 references checked per row, rows without a match go to a quarantine table. Generated by Krusgraph from the plan.",
-      "description_chars": 186,
+      "description": "Writes de-duplicated silver tables in silver from demo_lh.shop: 6 keys, 7 references checked per row, rows without a match go to a quarantine table. Generated by Krusgraph from the plan. Quality checked 2026-10-26: keys 6 of 6 hold; links 7 of 7 hold.",
+      "description_chars": 251,
       "exists": false,
       "item": "silver_shop",
       "tags": [
        "Krusgraph",
+       "krusgraph-checked",
        "domain: customers",
        "domain: products"
       ],
@@ -10944,7 +10953,7 @@
       "calls": [
        {
         "body": {
-         "description": "Compares the tables of demo_lh.shop with the last plan and sends the changes to a webhook. Generated by Krusgraph."
+         "description": "Compares the tables of demo_lh.shop with the last plan and sends the changes to a webhook. Generated by Krusgraph. Quality checked 2026-10-26: keys 6 of 6 hold; links 7 of 7 hold."
         },
         "method": "PATCH",
         "operation": "Items_UpdateItem",
@@ -10956,6 +10965,7 @@
         "body": {
          "tags": [
           "<id of tag 'Krusgraph' from GET /v1/tags>",
+          "<id of tag 'krusgraph-checked' from GET /v1/tags>",
           "<id of tag 'domain: customers' from GET /v1/tags>",
           "<id of tag 'domain: products' from GET /v1/tags>"
          ]
@@ -10966,12 +10976,13 @@
         "url": "https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/items/<id of drift_monitor_shop once created>/applyTags"
        }
       ],
-      "description": "Compares the tables of demo_lh.shop with the last plan and sends the changes to a webhook. Generated by Krusgraph.",
-      "description_chars": 114,
+      "description": "Compares the tables of demo_lh.shop with the last plan and sends the changes to a webhook. Generated by Krusgraph. Quality checked 2026-10-26: keys 6 of 6 hold; links 7 of 7 hold.",
+      "description_chars": 179,
       "exists": false,
       "item": "drift_monitor_shop",
       "tags": [
        "Krusgraph",
+       "krusgraph-checked",
        "domain: customers",
        "domain: products"
       ],
@@ -10982,7 +10993,7 @@
       "calls": [
        {
         "body": {
-         "description": "Runs the notebook drift_monitor_shop each night. Generated by Krusgraph."
+         "description": "Runs the notebook drift_monitor_shop each night. Generated by Krusgraph. Quality checked 2026-10-26: keys 6 of 6 hold; links 7 of 7 hold."
         },
         "method": "PATCH",
         "operation": "Items_UpdateItem",
@@ -10994,6 +11005,7 @@
         "body": {
          "tags": [
           "<id of tag 'Krusgraph' from GET /v1/tags>",
+          "<id of tag 'krusgraph-checked' from GET /v1/tags>",
           "<id of tag 'domain: customers' from GET /v1/tags>",
           "<id of tag 'domain: products' from GET /v1/tags>"
          ]
@@ -11004,12 +11016,13 @@
         "url": "https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/items/<id of drift_monitor_shop_nightly once created>/applyTags"
        }
       ],
-      "description": "Runs the notebook drift_monitor_shop each night. Generated by Krusgraph.",
-      "description_chars": 72,
+      "description": "Runs the notebook drift_monitor_shop each night. Generated by Krusgraph. Quality checked 2026-10-26: keys 6 of 6 hold; links 7 of 7 hold.",
+      "description_chars": 137,
       "exists": false,
       "item": "drift_monitor_shop_nightly",
       "tags": [
        "Krusgraph",
+       "krusgraph-checked",
        "domain: customers",
        "domain: products"
       ],
@@ -11020,7 +11033,7 @@
       "calls": [
        {
         "body": {
-         "description": "Creates materialized lake views in gold over the silver tables of demo_lh.shop, with the plan's keys and relationships as data quality rules. Generated by Krusgraph from the plan."
+         "description": "Creates materialized lake views in gold over the silver tables of demo_lh.shop, with the plan's keys and relationships as data quality rules. Generated by Krusgraph from the plan. Quality checked 2026-10-26: keys 6 of 6 hold; links 7 of 7 hold."
         },
         "method": "PATCH",
         "operation": "Items_UpdateItem",
@@ -11032,6 +11045,7 @@
         "body": {
          "tags": [
           "<id of tag 'Krusgraph' from GET /v1/tags>",
+          "<id of tag 'krusgraph-checked' from GET /v1/tags>",
           "<id of tag 'domain: customers' from GET /v1/tags>",
           "<id of tag 'domain: products' from GET /v1/tags>"
          ]
@@ -11042,12 +11056,13 @@
         "url": "https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/items/<id of gold_shop once created>/applyTags"
        }
       ],
-      "description": "Creates materialized lake views in gold over the silver tables of demo_lh.shop, with the plan's keys and relationships as data quality rules. Generated by Krusgraph from the plan.",
-      "description_chars": 179,
+      "description": "Creates materialized lake views in gold over the silver tables of demo_lh.shop, with the plan's keys and relationships as data quality rules. Generated by Krusgraph from the plan. Quality checked 2026-10-26: keys 6 of 6 hold; links 7 of 7 hold.",
+      "description_chars": 244,
       "exists": false,
       "item": "gold_shop",
       "tags": [
        "Krusgraph",
+       "krusgraph-checked",
        "domain: customers",
        "domain: products"
       ],
@@ -11090,7 +11105,55 @@
       "Tenant.ReadWrite.All with a Fabric administrator: creating the tags (bulkCreateTags); Krusgraph should not hold it"
      ]
     },
+    "quality": {
+     "checked_on": "2026-10-26",
+     "keys": {
+      "fails": 0,
+      "holds": 6,
+      "no_rows": 0,
+      "not_counted": 0,
+      "total": 6
+     },
+     "line": "Quality checked 2026-10-26: keys 6 of 6 hold; links 7 of 7 hold.",
+     "links": {
+      "fails": 0,
+      "holds": 7,
+      "no_rows": 0,
+      "not_counted": 0,
+      "total": 7
+     }
+    },
     "sources": "microsoft/fabric-rest-api-specs 6f817cb (2 Nov 2026); MicrosoftDocs/fabric-docs 28d4ff3 governance/tags-*.md, onelake-catalog-*.md; microsoft/mcp 42c66a2 servers/Fabric.Mcp.Server/README.md; read 6 Nov 2026",
+    "tag_set": [
+     {
+      "tag": "Krusgraph",
+      "when": "always: the description was drafted by Krusgraph"
+     },
+     {
+      "tag": "krusgraph-checked",
+      "when": "a validation was given (check_rows=true); the quality line has the date and the counts. The tag says the plan was counted, not that everything holds"
+     },
+     {
+      "tag": "krusgraph-sap",
+      "when": "the plan's keys and links came from the sap knowledge pack"
+     },
+     {
+      "tag": "krusgraph-dynamics365",
+      "when": "the plan's keys and links came from the dynamics365 knowledge pack"
+     },
+     {
+      "tag": "krusgraph-salesforce",
+      "when": "the plan's keys and links came from the salesforce knowledge pack"
+     },
+     {
+      "tag": "krusgraph-younium-salesforce",
+      "when": "the plan's keys and links came from the younium_salesforce knowledge pack"
+     },
+     {
+      "tag": "domain: <name>",
+      "when": "one per domain that domain_draft proposes for the plan's tables"
+     }
+    ],
     "tag_setup": {
      "calls": [
       {
@@ -11105,6 +11168,9 @@
         "createTagsRequest": [
          {
           "displayName": "Krusgraph"
+         },
+         {
+          "displayName": "krusgraph-checked"
          },
          {
           "displayName": "domain: customers"
@@ -11123,6 +11189,7 @@
      ],
      "tags": [
       "Krusgraph",
+      "krusgraph-checked",
       "domain: customers",
       "domain: products"
      ]
@@ -11152,7 +11219,7 @@
    },
    "hint": "Pass the creating tools in items as well for their files in Fabric's Git format.",
    "skipped": [],
-   "summary": "7 tables, 6 with keys, 7 relationships; OneLake catalog draft: 7 item(s) with a description and 3 tag(s) each; counts from validate_plan; nothing sent"
+   "summary": "7 tables, 6 with keys, 7 relationships; OneLake catalog draft: 7 item(s) with a description and 4 tag(s) each; counts from validate_plan; nothing sent"
   },
   "args": {
    "check_rows": true,
