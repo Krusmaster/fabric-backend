@@ -4737,7 +4737,7 @@
     "read_only_hint": true,
     "title": "Start Krusgraph: a guided path (experimental)"
    },
-   "description": "A guided path for a first or vague message ('start', 'start Krusgraph', 'help', 'what can you do', 'check my\ndata', 'help me with my SAP data in Fabric'): workspace, source, schema, map, check, decide, doubled totals, a dry run of all builds with the data flow,\nthen create after a second confirmation of the names. Returns JSON {step, path, actions: [{tool, arguments, say}],\nafter}: each action is an existing tool; after is the next start call. Changes nothing. Errors: {error, kind, hint}.",
+   "description": "A guided path for a first or vague message ('start', 'start Krusgraph', 'help', 'what can you do', 'check my\ndata', 'help me with my SAP data in Fabric'): five steps: your data (workspace, source, schema), check (the map,\nthe rows and the doubled totals, counted), decide, a dry run of everything, then create after a second confirmation\nof the names. Returns JSON {step, path, actions: [{tool, arguments, say}],\nafter}: each action is an existing tool; after is the next start call. Changes nothing. Errors: {error, kind, hint}.",
    "input_schema": {
     "properties": {
      "confirm": {
@@ -4796,7 +4796,7 @@
      },
      "step": {
       "default": "",
-      "description": "Step to show: map, check, decide, totals, dry_run or create (the answer's after names it).",
+      "description": "Step to show: data, check, decide, dry_run, create or done (the answer's after names it).",
       "title": "Step",
       "type": "string"
      },

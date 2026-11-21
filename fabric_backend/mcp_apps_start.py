@@ -4,12 +4,13 @@ Behind the n119 flag (KRUSGRAPH_MCP_APPS, off unless "1"): with the flag off not
 `start` answers text only, as every client gets it.
 
 What the card draws, all from the answer (start_flow.guide), never invented by the card:
-- the path, nine steps, each marked done, now or later and "reads" or "writes";
+- the path, five steps (SM2: your data, check, decide, dry run, create), each marked done, now or later and "reads"
+  or "writes";
 - what was chosen so far, the step's sentence, and for the synthetic shop what the tool found there;
 - the step's buttons. Each runs its tool through the host with n218's runner (mcp_apps_next NEXT_JS: `tools/call` when
   the host has serverTools, otherwise the button's `say` goes to the chat with `ui/message`), and the tool's answer is
   drawn under the button with n218's answerView (check rows, next steps). Only the tools in ALLOWED can be called;
-  a creating tool only as a dry run (no dry_run argument: the tool's default is true), except on step 9 after the
+  a creating tool only as a dry run (no dry_run argument: the tool's default is true), except on step 5 after the
   user's confirmation of exactly that name (the answer's confirmed_by_user), and even then it is armed by a first
   click and runs on the second, as n218's Create does;
 - "Next": the `start` call in `after`. Its answer replaces the card's content, so the card walks the path in place.
@@ -21,7 +22,7 @@ WB12 (Gustav's chat test in claude.ai, 18 November 2026, issues #66-#77), all dr
   each calls start with the decision in plan.decisions); Next is secondary while a decision is open;
 - step 5 draws the proof tiles (rows counted, keys unique, links holding, orphans, duplicate keys) and the grain line;
 - the rule codes are said in words once (`found.rules`); the finished steps fold into one line ("Done: 1-5");
-- the "Steps 1-8 only read" sentence in full on the first card only, then "Only step 9 writes" that opens to it;
+- the "Steps 1-4 only read" sentence in full on the first card only, then "Only step 5 writes" that opens to it;
 - before a choice, Next is shown disabled with its reason (`next_waits`);
 - the card reports the height of its content, not of its frame. Before WB12 it sent
   `document.documentElement.scrollHeight`, which is never less than the frame's own height, so a frame the host had
@@ -138,6 +139,10 @@ details.st-details > summary, details.st-more > summary { cursor: pointer; color
 details.st-details[open] { display: grid; gap: 8px }
 .st-moreinfo { display: grid; gap: 6px; font-size: 13.5px }
 .st-moved { margin: 0 }
+.st-chosen { font-weight: 650; font-size: 16px }
+.st-dry { margin: 0 }
+.st-lines { display: grid; gap: 2px }
+.st-dryout { display: grid; gap: 4px; border-top: 1px solid var(--kg-line); padding-top: 6px }
 """
 
 _HTML = """<!DOCTYPE html>
@@ -177,7 +182,7 @@ __RESULT_CSS__
 </head>
 <body>
 <main id="main">
-  <div class="kg-head"><h1 id="title">Start Krusgraph</h1>__MASCOT_TOGGLE__</div>
+  <div class="kg-head"><h1 id="title">Start Krusgraph</h1></div>
   <section id="coach" class="st-coach" aria-label="Your coach" hidden></section>
   <p class="muted" role="status" id="verdict">Waiting for the tool's answer.</p>
   <div id="answer"></div>
@@ -185,7 +190,8 @@ __RESULT_CSS__
   __PICTURES__
   __MASCOTS__
   <details id="details" class="st-details" hidden><summary>Details</summary><div id="more" class="st-moreinfo"></div>
-    <ol class="st-path" id="path" aria-label="The steps"></ol><p class="muted" id="honest"></p></details>
+    <ol class="st-path" id="path" aria-label="The steps"></ol><p class="muted" id="honest"></p>
+    __MASCOT_TOGGLE__</details>
   <p id="moved" class="muted st-moved" role="status" hidden></p>
 </main>
 <script>
@@ -211,6 +217,11 @@ __READ_JS__
     if (!isObj(a) || typeof a.label !== "string" || typeof a.say !== "string" || !isObj(a.arguments)) return false;
     var kind = ALLOWED[a.tool];
     if (!kind) return false;
+    if (a.kind === "link") return typeof a.url === "string" && /^https:[/][/]/.test(a.url);       // SM2: Open in Fabric
+    if (a.kind === "dry_run_all" && a.tool !== "start") {          // SM2: every run a dry run of a building tool
+      return Array.isArray(a.runs) && a.runs.length > 0 && a.runs.every(function (r) {
+        return isObj(r) && ALLOWED[r.tool] === "build" && isObj(r.arguments) && r.arguments.dry_run !== false; });
+    }
     if ((a.kind === "choose" || a.kind === "decide" || a.kind === "confirm") && a.tool !== "start") return false;
     if (a.arguments.dry_run === false) {
       return kind === "build" && a.kind === "create" && Array.isArray(d.confirmed_by_user) &&
@@ -296,9 +307,12 @@ __READ_JS__
     if (a.tool === "start") b.setAttribute("data-start", "1");
     if (a.decision) b.setAttribute("data-decision", a.decision);
     var out = el("div", null, "out"); out.hidden = true;
-    if (create) row.appendChild(el("span", "Creates " + a.arguments.name + " in Fabric.", "muted"));
     var armed = false;
+    if (a.secondary && readable(a.why)) b.title = a.why;
     b.addEventListener("click", function () {
+      if (a.kind === "link") { openOrShow(a.url, out, b); return; }
+      if (a.kind === "chat") { out.hidden = false; sayInChat(askOf(a), out, b); return; }
+      if (a.kind === "dry_run_all" && a.tool !== "start") { dryAll(a, out, b); return; }
       if (create && !armed) {                                 // never writes on the first click
         armed = true; b.textContent = "Yes, create " + a.arguments.name + " in Fabric"; b.setAttribute("data-armed", "true");
         out.hidden = false; out.textContent = "Tap again to create " + a.arguments.name + ". Nothing has been created yet.";
@@ -320,6 +334,42 @@ __READ_JS__
       runOrSay(a.tool, args, askOf(a), out, b, function (r) { out.appendChild(stepAnswer(a.tool, r)); }, act);
     });
     row.insertBefore(b, row.firstChild); row.appendChild(out); box.appendChild(row);
+  }
+  // SM2: Dry run everything. The dry runs one after the other in this card, each as one line ("✓ demo_lh_model");
+  // each tool's answer goes under Details. Nothing is created: every run is a building tool without dry_run=false.
+  function dryAll(a, out, b) {
+    if (busy || moved) return;
+    out.hidden = false; out.textContent = "";
+    if (!canCallTools()) { b.disabled = true; sayInChat(askOf(a), out, b); return; }
+    var runs = a.runs.slice(), more = document.getElementById("more"), details = document.getElementById("details");
+    busy = true; setBusy(true); b.disabled = true;
+    var list = el("div", null, "st-lines"); out.appendChild(list);
+    function finish() {
+      busy = false; setBusy(false); b.disabled = false; b.textContent = "Dry run again";
+      b.className = "nx-b st-secondary"; b.removeAttribute("data-primary");
+      var nb = document.querySelector('#next button[data-kind="next"]');
+      if (nb) { nb.className = "nx-b nx-primary"; nb.setAttribute("data-primary", "true"); }
+      if (typeof reportSize === "function") reportSize();
+    }
+    function one() {
+      if (!runs.length) { finish(); return; }
+      var r = runs.shift(), line = el("p", "\u2026 " + (r.name || r.label), "st-dry");
+      line.setAttribute("data-tool", r.tool); list.appendChild(line);
+      callTool(r.tool, JSON.parse(JSON.stringify(r.arguments))).then(function (res) {
+        var dd = answerOf(res), bad = isObj(dd) && readable(dd.error);
+        line.textContent = (bad ? "\u2717 " : "\u2713 ") + (r.name || r.label) + (bad ? ": " + String(dd.error).slice(0, 90) : "");
+        line.setAttribute("data-ok", bad ? "false" : "true");
+        var sec = el("section", null, "st-dryout"); sec.setAttribute("data-tool", r.tool);
+        sec.appendChild(el("p", r.label, "st-q")); sec.appendChild(stepAnswer(r.tool, res));
+        more.insertBefore(sec, more.firstChild); details.hidden = false;
+        one();
+      }, function (e) {
+        line.textContent = "\u2717 " + (r.name || r.label) + ": " + callProblem(e, r.tool, r.label);
+        line.setAttribute("data-ok", "false");
+        one();
+      });
+    }
+    one();
   }
   // n227 (9): Check status: the same tool with `check` set, which reads how the create went and creates nothing.
   function statusRow(a, check, box) {
@@ -393,12 +443,13 @@ __READ_JS__
       var q = readable(x.question) ? String(x.question) : "";
       card.appendChild(el("p", q.indexOf("? ") > 0 ? q.slice(0, q.indexOf("? ") + 1) : q, "st-q"));
       var ev = strings(x.evidence);
-      if (ev.length) card.appendChild(el("p", ev[0], "st-count"));
+      if (readable(x.count)) { card.appendChild(el("p", x.count, "st-count")); }        // SM2: "5 of 6 found (83%)"
+      else if (ev.length) { card.appendChild(el("p", ev[0], "st-count")); ev = ev.slice(1).concat([ev[0]]); }
       if (x.state && x.state !== "open") card.appendChild(el("p", "Your decision: " + (x.state === "skipped" ? "skipped for now" : x.state) + ".", "st-mine"));
       var row = el("div", null, "st-row");
-      acts.filter(function (a) { return a.item === x.item; }).forEach(function (a) { button(a, d, row); });
+      acts.filter(function (a) { return a.item === x.item && a.decision !== "skipped"; }).forEach(function (a) { button(a, d, row); });
       if (row.childNodes.length) card.appendChild(row);
-      var why = ev.slice(1).concat(q.indexOf("? ") > 0 ? [q.slice(q.indexOf("? ") + 2)] : []).filter(readable);
+      var why = ev.concat(q.indexOf("? ") > 0 ? [q.slice(q.indexOf("? ") + 2)] : []).filter(readable);
       if (why.length) { var w = el("details", null, "st-more"); w.appendChild(el("summary", "Why")); w.appendChild(listOf(why)); card.appendChild(w); }
       box.appendChild(card);
     });
@@ -448,9 +499,13 @@ __READ_JS__
     drawChoices(d, actions, answer);
     var f = isObj(d.found) ? d.found : {}, key = String(st.key || "");
     var box = el("div", null, "res-box");
-    if (isObj(f.proof)) { box.appendChild(tiles(f.proof)); if (readable(f.proof.grain)) more.appendChild(el("p", f.proof.grain)); }
+    // SM2: one line each (the data you chose; the map, the rows and the totals); the evidence is under Details
+    if (readable(d.line)) box.appendChild(el("p", d.line, "st-chosen"));
+    strings(d.lines).forEach(function (x) { box.appendChild(el("p", x, "st-dry")); });
+    if (isObj(f.proof)) { more.appendChild(tiles(f.proof)); if (readable(f.proof.grain)) more.appendChild(el("p", f.proof.grain)); }
     if (Array.isArray(f.decisions)) drawDecisions(d, f, box);
-    if (Array.isArray(f.doubled)) box.appendChild(listOf(f.doubled));
+    if (Array.isArray(f.doubled)) more.appendChild(listOf(f.doubled));
+    if (Array.isArray(f.dry_runs)) more.appendChild(listOf(f.dry_runs.filter(isObj).map(function (x) { return x.name + ": " + x.line; })));
     if (Array.isArray(d.would_create) && d.would_create.length && d.needs_confirmation) {
       box.appendChild(listOf(d.would_create.filter(isObj).map(function (w) { return w.name; })));
     }
@@ -484,8 +539,9 @@ __READ_JS__
     });
     if (isObj(d.after) && !d.sample && okButton({ kind: "call", label: d.after.label, say: d.after.say, tool: d.after.tool, arguments: d.after.arguments }, d))
       button({ kind: "next", label: d.after.label, say: d.after.say, ask: d.after.ask, tool: "start", arguments: d.after.arguments,
-               secondary: !!d.after.secondary, primary: !d.after.secondary && !actions.some(function (a) { return a.primary; }) }, d, acts);
-    if (isObj(d.after) && d.after.secondary && readable(d.after.why)) acts.appendChild(el("span", d.after.why, "muted"));
+               secondary: !!d.after.secondary, why: d.after.why,
+               primary: !d.after.secondary && !actions.some(function (a) { return a.primary && !a.more; }) }, d, acts);
+    // SM2: the reason a Next is secondary is its tooltip, not another line on the step
     if (isObj(d.next_waits) && readable(d.next_waits.label)) {            // WB12 (#77): no Next before the choice
       var w = el("div", null, "st-wait"), nb = el("button", d.next_waits.label, "nx-b st-secondary");
       nb.type = "button"; nb.disabled = true; nb.setAttribute("data-kind", "next-waits");

@@ -612,13 +612,13 @@ mcp.tool = _titled_tool(mcp.tool)
 START = ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=True)
 
 
-def _start_options(workspace: str, source: str, schema: str, sample: bool, ctx) -> dict | None:
+def _start_options(workspace: str, source: str, schema: str, sample: bool, ctx, step: str = "") -> dict | None:
     """WB12 (#76): what step 1, 2 or 3 offers as buttons, read with the user's own sign-in: names and counts only, no
     row values. None on the sample or from step 4 on; {step, error} when it cannot be read (the step then offers the
     listing tool's button, as before)."""
     if sample:
         return None
-    now = _start_flow.current(None, {"workspace": (workspace or "").strip() or None,
+    now = _start_flow.current(step, {"workspace": (workspace or "").strip() or None,
                                      "source": (source or "").strip() or None, "schema": (schema or "").strip() or None})
     if now not in ("workspace", "source", "schema"):
         return None
@@ -731,8 +731,9 @@ def start(workspace: _p.StartPick = "", source: _p.StartPick = "", schema: _p.St
           plan: _p.StartPlan = None, create: _p.StartCreate = None, confirm: _p.StartConfirm = False,
           sample: _p.StartSample = False, ctx: Context = None) -> str:
     """A guided path for a first or vague message ('start', 'start Krusgraph', 'help', 'what can you do', 'check my
-    data', 'help me with my SAP data in Fabric'): workspace, source, schema, map, check, decide, doubled totals, a dry run of all builds with the data flow,
-    then create after a second confirmation of the names. Returns JSON {step, path, actions: [{tool, arguments, say}],
+    data', 'help me with my SAP data in Fabric'): five steps: your data (workspace, source, schema), check (the map,
+    the rows and the doubled totals, counted), decide, a dry run of everything, then create after a second confirmation
+    of the names. Returns JSON {step, path, actions: [{tool, arguments, say}],
     after}: each action is an existing tool; after is the next start call. Changes nothing. Errors: {error, kind, hint}."""
     plan = dict(plan) if isinstance(plan, dict) else {}
     kept = {"seq": 0}
@@ -743,12 +744,26 @@ def start(workspace: _p.StartPick = "", source: _p.StartPick = "", schema: _p.St
             kept = _flow_state.record(who, workspace, source, schema, (step or "").strip().lower() or None,
                                       plan.get("decisions"), plan.get("confirmed"), tapped)
             plan["decisions"], plan["confirmed"] = kept["decisions"], kept["confirmed"]
-    options = _start_options(workspace, source, schema, bool(sample), ctx)
+    options, picked = _start_options(workspace, source, schema, bool(sample), ctx, step), []
+    while not sample and not (step or "").strip() and options and len(picked) < 3:
+        # SM2: a choosing stage with one usable option is chosen here, and the next one is read, so a workspace with
+        # one source and one schema shows "demo › demo_lh › dbo ✓" on the first card instead of three taps of Next
+        one = _start_flow.only_choice(options.get("step"), options)
+        if not one:
+            break
+        picked.append(options["step"])
+        workspace, source, schema = (one, source, schema) if options["step"] == "workspace" else \
+            (workspace, one, schema) if options["step"] == "source" else (workspace, source, one)
+        options = _start_options(workspace, source, schema, False, ctx, step)
+    if picked and workspace and source and schema:
+        kept = _flow_state.record(_flow_who(ctx), workspace, source, schema, None, plan.get("decisions"),
+                                  plan.get("confirmed"), False)
+        plan["decisions"], plan["confirmed"] = kept["decisions"], kept["confirmed"]
     review = _start_review(workspace, source, schema, step, plan, bool(sample), ctx)
     out = _start_flow.guide(workspace=workspace, source=source, schema=schema, step=step,
                             keys=plan.get("keys"), confirmed=plan.get("confirmed"),
                             decisions=plan.get("decisions"), create=create, confirm=confirm,
-                            sample=sample, options=options, review=review)
+                            sample=sample, options=options, review=review, picked=picked)
     out["seq"] = kept.get("seq") or 0
     return json.dumps(out, indent=2)
 
@@ -763,11 +778,11 @@ def _start_review(workspace: str, source: str, schema: str, step: str, plan: dic
     c = {"workspace": (workspace or "").strip() or None, "source": (source or "").strip() or None,
          "schema": (schema or "").strip() or None}
     now = _start_flow.current((step or "").strip().lower() or None, c)
-    if now not in ("map", "decide"):                        # step 4 draws the map, step 6 asks with the counts
+    if now not in ("check", "decide"):                      # SM2: Check counts the map, the rows and the totals itself
         return None
     try:
         return _review_file(c["workspace"], c["source"], c["schema"], plan.get("keys"), plan.get("confirmed"), None, None,
-                            now == "decide", None, 60, ctx)
+                            True, None, 60, ctx)
     except Exception as e:                                       # noqa: BLE001 - the step keeps its review_plan button
         return {"error": (str(e) or type(e).__name__).splitlines()[0][:200]}
 

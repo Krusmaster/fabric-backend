@@ -1,4 +1,4 @@
-Coach (step 1 of 9: Choose data)
+Coach (step 1 of 5: Choose data)
 Where the user is, in plain words: Hi! Pick your workspace and the lakehouse your tables are in, and I will show how its tables connect.
 Possible next step for the user: Choose a workspace (start()).
 Where a card is drawn, it already shows this result's lists and counts.

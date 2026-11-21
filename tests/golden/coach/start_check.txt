@@ -1,4 +1,4 @@
-Coach (step 5 of 9: Check against the rows)
-Where the user is, in plain words: Let me count each key and link in the rows, so nothing is built on a guess.
+Coach (step 2 of 5: Check)
+Where the user is, in plain words: I could not count the rows yet. Check against the rows tries again.
 Possible next step for the user: Check against the rows (validate_plan(workspace="demo", source="demo_lh", schema="sap_silver")).
 Where a card is drawn, it already shows this result's lists and counts.

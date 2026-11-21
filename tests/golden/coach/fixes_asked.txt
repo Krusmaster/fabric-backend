@@ -1,4 +1,4 @@
-Coach (step 6 of 9: You decide the open links)
+Coach (step 3 of 5: You decide the open links)
 Where the user is, in plain words: A few links need you: I show the counts. The count supports it, and you decide.
 Possible next step for the user: Decide the open links (start(workspace="demo", source="demo_lh", schema="sap_silver", step="decide")).
 Where a card is drawn, it already shows this result's lists and counts.

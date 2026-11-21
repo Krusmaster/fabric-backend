@@ -153,3 +153,40 @@ tools other than `KRUSGRAPH_READ_ONLY` and `KRUSGRAPH_NO_ROW_VALUES`, so SM4 add
 - `coach.py`'s docstring still said "Step N of 8"; it now says "Step N of 9", as the code does.
 - `tools/smooth_measure.py` and `tools/smooth_measure.js` are the measurement used above, so every later round can
   measure the same way.
+
+## 7. After SM2: five steps (21 November 2026)
+
+Round SM2 (PLAN.md row 1) changed the start card from nine steps to five: **Your data** · **Check** · **Decide** ·
+**Dry run** · **Create**. Measured with `tools/smooth_measure.py` on the same synthetic SAP demo and fake host, locally,
+before and after the change on the same machine; raw numbers in `measure-2026-11-21.json`. Nothing was run in claude.ai
+or in Fabric, so the phone test (SM8) still has to confirm them.
+
+| | Before (9 steps) | After (5 steps) |
+|---|---|---|
+| Lazy: Start to all three dry runs, 390 px | 10 taps, 4.2 s | **4 taps, 2.8 s** |
+| Careful (accept the link), 390 px | 13 taps, 5.7 s | 5 taps, 3.2 s |
+| Most words on one step, besides buttons | 151 (lazy) / 193 (careful), the dry runs | ≤ 25 on every step |
+| Most buttons on one step | 7 | 3 plus Next |
+| Steps that scroll at 390 x 800 | the dry run | none, the dry run included |
+| The shop sample to its dry run | no dry-run buttons | 2 taps to the dry run, 3 to its result, from `start sample=true` |
+| Tools listed | 48 | 48 (SM4) |
+
+What changed for the person:
+- **Your data.** The start tool chooses a workspace, source or schema itself when it is the only usable one and reads
+  the next, so the first card says "demo › demo_lh › dbo ✓" with **Change** and **Next: Check**. With two or more, the
+  card lists them as before; the last choice goes straight to Check.
+- **Check.** The map, the row check and the doubled totals run on their own (review_plan's file with the checks
+  counted, one read) and are one line each: "17 tables, 24 links, 1 needs you." · "40 of 41 checks hold." · "3 header
+  amounts would count twice." The map, the rules in words and every count are under Details.
+- **Decide.** The question, "5 of 6 found (83%).", Accept and Reject; Next leaves an open decision open (Skip is gone
+  from the card, the reasons are under Why).
+- **Dry run.** One **Dry run everything** button runs the pipeline, model and agent dry runs one after another in the
+  card, one line each ("✓ demo_lh_model"); each tool's answer is under Details. The single dry runs are there too.
+- **Create.** Confirm the names, one Create per item (each on a second tap), then **Next: what now?**: **Open in
+  Fabric**, **Add a source**, **Schedule it** (D1).
+- **The sample** has the same steps and the same Dry run everything button (D2); it starts on Check.
+- Moved into Details: the "Mascots: on" switch, the shop-sample button when you have data, the map, the separate
+  Check and Find doubled totals buttons, the three single dry-run buttons.
+
+The names of the nine steps still work as `step` (map and totals open Check; workspace, source and schema open the
+list on step 1), so an older card or a typed request lands on the right step.

@@ -1,4 +1,4 @@
-Coach (step 8 of 9: Build silver and gold)
+Coach (step 4 of 5: Build silver and gold)
 Where the user is, in plain words: That was a dry run: nothing was created. Say yes and it is created in Fabric with these names.
 Possible next step for the user: Build silver and gold in Fabric (create_pipeline(workspace="demo", source="demo_lh", schema="sap_silver", name="sap_silver_pipeline", dry_run=false)).
 That step creates items in Fabric; Krusgraph creates nothing without dry_run=false and the user's yes to the names.

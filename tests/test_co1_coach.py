@@ -76,12 +76,16 @@ EXPECT = {                                     # name: (step n of the start path
     "agent_made": (9, "Start again on another schema"), "error": (5, "Show where we are"),
     "start_first": (1, "List my workspaces"), "start_map": (4, "Show the map"), "start_check": (5, "Check against the rows"),
 }
+# SM2: the start path has five steps; the stages of the nine steps before it map onto them (coach.STAGE_STEP)
+NINE_TO_FIVE = {1: 1, 2: 1, 3: 1, 4: 2, 5: 2, 6: 3, 7: 2, 8: 4, 9: 5}
+EXPECT = {k: (NINE_TO_FIVE[n], label) for k, (n, label) in EXPECT.items()}
+EXPECT["start_map"] = (1, "Next: Check")              # all chosen: "demo › demo_lh › dbo ✓" and Next
 
 
 @pytest.mark.parametrize("name,tool,call,answer", STATES, ids=[s[0] for s in STATES])
 def test_each_plan_state_has_exactly_one_primary_step_that_is_new(name, tool, call, answer):
     c = coach.coach(tool, call, answer)
-    assert 1 <= c["n"] <= c["of"] == 9                            # WB15: the start path's nine steps everywhere
+    assert 1 <= c["n"] <= c["of"] == 5                            # SM2: the start path's five steps everywhere
     if tool == "start":
         assert c["title"] == start_flow.SHORT[answer["step"]["key"]]
     else:
@@ -178,7 +182,8 @@ def test_a_plain_sentence_starts_the_path(fabric):
     assert "Coach block" in server.mcp.instructions
     r = _sc("start")
     d = r.structured_content
-    assert d["step"]["key"] == "workspace" and d["coach"]["n"] == 1 and d["coach"]["title"] == "Choose the workspace"
+    # SM2: the one workspace is chosen for you; its two sources are the choice, still step 1, "Your data"
+    assert d["step"]["key"] == "data" and d["stage"] == "source" and d["coach"]["n"] == 1 and d["coach"]["title"] == "Your data"
     choices = [a for a in d["actions"] if a.get("kind") == "choose"]
     assert choices and all(a["arguments"].get("workspace") for a in choices)   # clickable workspaces, nothing else asked
 
@@ -206,7 +211,7 @@ def _result(r) -> dict:
 
 
 def _first_view(out, c):
-    assert out["stage"] == f"Step {c['n']} of 9: {c['title']}" and out["line"] == c["line"] and out["who"] == c["name"]
+    assert out["stage"] == f"Step {c['n']} of 5: {c['title']}" and out["line"] == c["line"] and out["who"] == c["name"]
     assert out["firstAfterHead"] and out["lineShown"] and out["figure"] and out["oldFigures"] == 0
     assert not out["figureAfterToggle"] and out["lineAfterToggle"]                     # Mascots: off keeps the words
     assert not out["overflow"]
@@ -230,7 +235,7 @@ def test_the_check_card_coaches_at_390(fabric, tmp_path, scheme):
 @needs_browser
 @pytest.mark.parametrize("scheme", ["light", "dark"])
 def test_the_start_card_coaches_at_390(fabric, tmp_path, scheme):
-    # WB15: the start card draws its own coach (the mascot on top, one sentence) under "Step N of 9: <step>"; the rest of
+    # WB15: the start card draws its own coach (the mascot on top, one sentence) under "Step N of 5: <step>"; the rest of
     # it, and the click-through, is tests/test_wb15_click_through.py
     r = _sc("start")
     (tmp_path / "card.html").write_text(mcp_apps_start.card_html(), encoding="utf-8")
@@ -240,6 +245,6 @@ def test_the_start_card_coaches_at_390(fabric, tmp_path, scheme):
     assert run.returncode == 0, run.stderr[-2000:]
     out = json.loads(run.stdout)
     assert out["errors"] == [] and not out["overflow"]
-    assert out["text"].startswith("Step 1 of 9: Choose the workspace") and "Onto" in out["text"]
+    assert out["text"].startswith("Step 1 of 5: Your data") and "Onto" in out["text"]
     assert any("demo" in b["text"] for b in out["buttons"])                                # the workspace as a click
     assert "Details" in out["text"] and "The map: keys and links" not in out["text"]
