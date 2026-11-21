@@ -44,6 +44,12 @@ WB14 adds flow **24** at 390 px, light and dark: with `?onelake=1` (the meta tag
 flush, a second Save gets 409 and asks **Replace**, and Replace overwrites. OneLake's endpoint is answered in the browser
 (`page.route`); nothing leaves the machine.
 
+SM3 adds flow **26**, at desktop width and at 390 px: a fresh item, from opening it to the dry run of the pipeline, the
+semantic model and the data agent, with every click counted and the seconds from the first click to the dry run on the
+page (results.json, `lazy`). It fails above 4 clicks. With `--before` it counts the same goal on an older editor.
+The main path follows the five steps: the check runs on its own after Find keys, the defaults are ticked on Choose
+(Decide), and the button is Dry run.
+
 A network failure is made in the browser (`page.route(...).abort()`). What the doubles cannot show: a data agent
 (the double has no route for it, so its card shows Try again), real Fabric ids (Look for leftovers expects GUIDs),
 Fabric's own frame (the iframe's width, theme, the picker's look). `tests/test_w13_workload_e2e.py` checks the scenarios

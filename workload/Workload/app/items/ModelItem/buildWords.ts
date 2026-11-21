@@ -7,6 +7,7 @@
  * permissions mirror fabric_backend/workload_api.KINDS (tests/test_workload_build.py checks the copy). Nothing here runs
  * or schedules a notebook or a pipeline, so no Execute permission is ever listed.
  */
+import { DEFAULT_BUILD, PIPELINE_PARTS } from "./stepWords";
 import { CreatedItem, OutputChoice, OutputsDefinition, ProductDefinition } from "./ModelItemDefinition";
 import {
   BuildCard, CreatedRef, DataProduct, EngineCallError, EngineError, ExistingCounts, ManyAnswer, OutputKind, OutputRequest,
@@ -555,7 +556,10 @@ export function resultLine(a: ManyAnswer): string {
 }
 
 /** The choices the outputs view starts from: what outputs.json saved (phase 1 saved the API for GraphQL), the rest off
- * with a default name. A new item starts with the API for GraphQL on, as before. */
+ * with a default name. SM3: a new item starts with the chat's default build on (stepWords.DEFAULT_BUILD: the pipeline
+ * with its silver and gold notebooks, the semantic model and the data agent); the API for GraphQL is off. */
+const STARTS_ON: string[] = [...PIPELINE_PARTS, ...DEFAULT_BUILD];
+
 export function choicesFor(
   saved: OutputChoice[],
   displayName: string,
@@ -568,7 +572,7 @@ export function choicesFor(
   const old = previous?.displayName;
   return KINDS.map((k) => {
     const c = saved.find((x) => x.type === k.kind);
-    if (!c) return { type: k.kind, name: defaultName(k.kind, displayName), enabled: k.kind === "graphql" && saved.length === 0 };
+    if (!c) return { type: k.kind, name: defaultName(k.kind, displayName), enabled: saved.length === 0 && STARTS_ON.includes(k.kind) };
     const stale = old !== undefined && c.name === defaultName(k.kind, old) && !built.has(c.name.toLowerCase());
     return stale ? { ...c, name: defaultName(k.kind, displayName) } : c;
   });

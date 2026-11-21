@@ -90,13 +90,14 @@ async function main() {
   await step("3 Find keys and relationships (review)", async () => {
     const t0 = Date.now();
     await button(p, "Find keys and relationships").click();
-    await button(p, /Check against the rows/).waitFor({ timeout: 30000 });
+    // SM3: the check against the rows runs on its own after Find keys (the button then says "again")
+    await button(p, BEFORE ? /Check against the rows/ : /Check against the rows again/).waitFor({ timeout: 30000 });
     const t = await text(p);
     expectTrue(/7 tables, 6 with a key, and 7 links/.test(t), "unexpected review summary");
     return `${await shot(p, "03-review")}; 7 tables, 6 keys, 7 links in ${Date.now() - t0} ms`;
   });
   await step("4 Check against the rows (evidence)", async () => {
-    await button(p, "Check against the rows").click(); await settle(p, 2500);
+    if (BEFORE) { await button(p, "Check against the rows").click(); await settle(p, 2500); }   // SM3: it ran on its own
     const t = await text(p);
     expectTrue(t.includes("6 of 6 keys are unique in the rows") && t.includes("7 of 7 links hold"), "check result missing");
     if (!BEFORE) {
@@ -105,23 +106,32 @@ async function main() {
     return `${await shot(p, "04-check", true)}; 13 passed, 0 failed` + (BEFORE ? "" : "; tiles: 232 rows counted, 6 of 6 keys, 7 of 7 links, 0 orphans, 0 duplicate keys; 134 order_items over 60 orders = 2.2×");
   });
   await step("5 Accept what passed, go on to Choose what to build", async () => {
+    if (!BEFORE) expectTrue((await p.getByRole("button", { name: /^Accept all \(\d+\)$/ }).count()) === 0, "a second accept-all next to Accept all that passed");
     await button(p, /Accept all that passed/).click(); await settle(p, 600);
-    await (BEFORE ? button(p, "Next", true) : button(p, "Next: choose what to build")).click(); await settle(p);
+    await (BEFORE ? button(p, "Next", true) : button(p, "Next: Decide what to build")).click(); await settle(p);
     expectTrue((await text(p)).includes("Choose what to build"), "not on Choose");
-    const names = await p.getByRole("checkbox").evaluateAll((els) => els.map((e) => e.getAttribute("aria-label") || (e.labels && e.labels[0] ? e.labels[0].innerText : "")));
-    for (const n of ["Semantic model", "Data agent"]) await p.getByRole("checkbox", { name: n }).first().check();
+    if (BEFORE) for (const n of ["Semantic model", "Data agent"]) await p.getByRole("checkbox", { name: n }).first().check();
+    else {
+      // SM3: the chat's default build is ticked; the other six outputs are folded under More outputs
+      const ticked = await p.getByRole("checkbox", { checked: true }).evaluateAll((els) => els.map((e) => (e.closest("section") || e).getAttribute("aria-label")));
+      for (const n of ["Pipeline", "Semantic model", "Data agent"]) expectTrue(ticked.includes(n), `${n} not ticked: ${ticked.join(", ")}`);
+      expectTrue(!ticked.includes("API for GraphQL"), "API for GraphQL is preticked");
+      expectTrue(!(await p.locator("details.kg-more-outputs").evaluate((d) => d.open)), "More outputs is open");
+      const shown = await p.locator(".krusgraph-outputs > section.krusgraph-output:visible").evaluateAll((els) => els.map((e) => e.getAttribute("aria-label")));
+      expectTrue(JSON.stringify(shown) === JSON.stringify(["Pipeline", "Semantic model", "Data agent"]), `shown on Choose: ${shown.join(", ")}`);
+    }
     const snap = await p.locator("body").ariaSnapshot();
     const dup = /checkbox "Semantic model Semantic model"/.test(snap);
     if (!BEFORE) expectTrue(!dup, "checkbox name repeats the item type");
     return `${await shot(p, "05-outputs")}; checkbox names read by a screen reader: ${snap.split("\n").filter((l) => l.includes("checkbox")).slice(0, 4).map((l) => l.trim()).join(" | ")}`;
   });
   await step("6 Preview (dry run of each output)", async () => {
-    await button(p, "Preview", true).click(); await settle(p, 4000);
+    await button(p, BEFORE ? "Preview" : "Dry run", true).click(); await settle(p, 4000);
     const t = await text(p);
     expectTrue(t.includes("Nothing was created or changed in Fabric"), "no dry-run sentence");
     return `${await shot(p, "06-preview")}; three outputs previewed, nothing written`;
   });
-  await step("7 Create (semantic model, API for GraphQL, data agent)", async () => {
+  await step(BEFORE ? "7 Create (semantic model, API for GraphQL, data agent)" : "7 Create (the pipeline with its notebooks, semantic model, data agent)", async () => {
     await button(p, /^Create/).click(); await settle(p, 7000);
     const t = await text(p);
     const log = await (await fetch(`${BASE}/e2e/log`)).json();
@@ -401,7 +411,7 @@ async function main() {
       const engineCalls = [];
       d.on("request", (q) => { if (q.url().includes("/workload/v1/")) engineCalls.push(`${q.method()} ${new URL(q.url()).pathname}`); });
       const savesBefore = await d.evaluate(() => window.__host.saves);
-      await d.getByRole("button", { name: /^Accept all \(\d+\)$/ }).first().click();
+      await d.getByRole("button", { name: /^Accept all that passed the check \(\d+\)$/ }).first().click();   // SM3: the only accept-all
       const quick = (await d.locator(".kg-autosave-line").innerText()).trim();
       await d.locator(".kg-autosave-line", { hasText: /Saved/ }).waitFor({ timeout: 10000 });
       const line = (await d.locator(".kg-autosave-line").innerText()).trim();
@@ -413,7 +423,7 @@ async function main() {
       await e.getByRole("button", { name: /Check against the rows/ }).first().waitFor({ timeout: 30000 });
       await settle(e, 2500);
       const now = await decisions(e);
-      const allLeft = await e.getByRole("button", { name: /^Accept all \(\d+\)$/ }).first().innerText();
+      const allLeft = await e.getByRole("button", { name: /^Accept all that passed the check \(\d+\)$/ }).first().innerText();
       const recovered = await e.getByText(/Recovered changes from/).count();
       const createdAfter = (await (await fetch(`${BASE}/e2e/log`)).json()).created.length;
       expectTrue(savesAfter === savesBefore + 1, `saves ${savesBefore} -> ${savesAfter}, expected one more`);
@@ -545,6 +555,8 @@ async function main() {
       const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 });
       const r = await ctx.newPage();
       r.on("pageerror", (e) => errors.push(e.message));
+      const routes = [];                                         // SM3: the engine routes in the order the page asked
+      r.on("request", (q) => { if (q.url().includes("/workload/v1/")) routes.push(new URL(q.url()).pathname); });
       await r.goto(`${BASE}/index.html?fresh=1`); await settle(r, 1200);
       const press = async (loc, key = "Enter") => { await loc.scrollIntoViewIfNeeded(); await loc.focus(); await r.keyboard.press(key); };
       await press(button(r, "Choose a source")); await settle(r);
@@ -552,16 +564,25 @@ async function main() {
       expectTrue(await sap.count() === 1, "no sap_sd schema to choose");
       if (!(await sap.isChecked())) await press(sap, "Space");
       await press(button(r, "Find keys and relationships"));
-      await button(r, /Check against the rows/).waitFor({ timeout: 30000 });
-      const before = await (await fetch(`${BASE}/e2e/log`)).json();
-      expectTrue(!before.fabric_calls.some((c) => c.includes("/workload/v1/analysis")) && (await r.locator("section.kg-analysis").count()) === 0,
-        "Recommended analyses before the check");
+      // SM3: the check runs on its own after Find keys; the ranking is still asked only after the check answered
+      await button(r, /Check against the rows again/).waitFor({ timeout: 30000 });
+      await settle(r, 1500);
+      const calls = routes.slice();
+      const firstAnalysis = calls.findIndex((c) => c.includes("/workload/v1/analysis"));
+      const lastCheck = calls.map((c) => c.includes("/workload/v1/check")).lastIndexOf(true);
+      expectTrue(firstAnalysis < 0 || (lastCheck >= 0 && firstAnalysis > lastCheck), `Recommended analyses before the check: ${calls.slice(-6).join(", ")}`);
       await press(button(r, "Check against the rows")); await settle(r, 3000);
       await press(button(r, /Accept all that passed/)); await settle(r, 600);
-      await press(button(r, "Next: choose what to build")); await settle(r);
-      for (const box of await r.getByRole("checkbox", { checked: true }).all()) await press(box, "Space");
+      await press(button(r, "Next: Decide what to build")); await settle(r);
+      // SM3: the defaults are ticked; unticking the pipeline unticks its notebooks under More outputs
+      // (all() gives nth locators that are read again, so untick the first visible ticked box until none is left)
+      for (let i = 0; i < 12; i++) {
+        const on = r.locator(".krusgraph-outputs > section.krusgraph-output:visible").getByRole("checkbox", { checked: true }).first();
+        if (!(await on.count())) break;
+        await press(on, "Space"); await settle(r, 200);
+      }
       await press(r.getByRole("checkbox", { name: "Semantic model" }).first(), "Space");
-      await press(button(r, "Preview", true)); await settle(r, 4000);
+      await press(button(r, "Dry run", true)); await settle(r, 4000);
       await press(button(r, /^Create/)); await settle(r, 6000);
       const section = r.locator("section.kg-analysis").first();
       await section.waitFor({ timeout: 30000 });
@@ -598,10 +619,52 @@ async function main() {
     });
   }
 
+  // SM3 (docs/SMOOTH/PLAN.md row 2): the lazy path, counted. A fresh item, from opening it to the dry run of the pipeline,
+  // the semantic model and the data agent, at desktop width and at 390 px; every click the person makes is counted and
+  // the seconds run from the first click to the dry run on the page. --before counts the same goal on the older editor
+  // (it needs Check, Next, three ticks and Preview). Fabric's own OneLake picker is answered at once by the harness.
+  const lazy = [];
+  for (const [label, viewport] of [["desktop", { width: 1280, height: 860 }], ["390 px", { width: 390, height: 844 }]]) {
+    await step(`26 SM3: open to the dry run of pipeline + model + agent, ${label}`, async () => {
+      await scenario("shop");
+      const ctx = await browser.newContext({ viewport, deviceScaleFactor: 1 });
+      const r = await ctx.newPage();
+      r.on("pageerror", (e) => errors.push(e.message));
+      await r.goto(`${BASE}/index.html?fresh=1`); await settle(r, 1200);
+      let clicks = 0; let t0 = 0;
+      const click = async (loc) => { if (!clicks) t0 = Date.now(); clicks++; await loc.scrollIntoViewIfNeeded(); await loc.click(); };
+      await click(button(r, "Choose a source")); await button(r, "Find keys and relationships").waitFor({ timeout: 30000 });
+      await click(button(r, "Find keys and relationships"));
+      if (BEFORE) {
+        await button(r, /Check against the rows/).waitFor({ timeout: 30000 });
+        await click(button(r, "Check against the rows")); await button(r, /Check against the rows again/).waitFor({ timeout: 30000 });
+        await click(button(r, "Next", true)); await r.getByText("Choose what to build").first().waitFor();
+        for (const n of ["Pipeline", "Semantic model", "Data agent"]) await click(r.getByRole("checkbox", { name: n }).first());
+        await click(button(r, "Preview", true));
+      } else {
+        await button(r, "Next: Decide what to build").waitFor({ timeout: 30000 });
+        await click(button(r, "Next: Decide what to build")); await r.getByText("Choose what to build").first().waitFor();
+        await click(button(r, "Dry run", true));
+      }
+      await r.getByText(/Nothing was created or changed in Fabric/).first().waitFor({ timeout: 30000 });
+      const ms = Date.now() - t0;
+      const t = await text(r);
+      for (const n of ["demo_lh_pipeline", "demo_lh_model", "demo_lh_agent"]) expectTrue(t.includes(n), `${n} not in the dry run`);
+      const overflow = await r.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      const name = `26-lazy-${label === "desktop" ? "desktop" : "390"}`;
+      await shot(r, name);
+      await ctx.close();
+      lazy.push({ width: label, clicks, ms });
+      if (!BEFORE) expectTrue(clicks <= 4, `${clicks} clicks, more than 4`);
+      expectTrue(overflow <= 0, `horizontal overflow ${overflow} px`);
+      return `${name}.png; ${clicks} clicks, ${ms} ms from the first click to the dry run (pipeline, semantic model, data agent); overflow ${overflow} px`;
+    });
+  }
+
   await browser.close();
   engine.kill();
   record("No uncaught errors in the page", errors.length === 0, errors.slice(0, 3).join(" | ") || "none");
-  fs.writeFileSync(path.join(OUT, "results.json"), JSON.stringify({ before: BEFORE, at: new Date().toISOString(), results }, null, 1));
+  fs.writeFileSync(path.join(OUT, "results.json"), JSON.stringify({ before: BEFORE, at: new Date().toISOString(), lazy, results }, null, 1));
   fs.rmSync(dist, { recursive: true, force: true });
   if (engineLog.trim()) fs.writeFileSync(path.join(OUT, "engine.log"), engineLog);
   process.exit(results.some((r) => r.result === "fail") ? 1 : 0);

@@ -36,6 +36,7 @@ describe("WB11: every Fabric item type the editor names has its icon", () => {
       ...SOURCE_TYPES,                                    // the source
       ...PICKER_TYPES.map((t) => restType(t)!).filter((t) => SOURCE_TYPES.includes(t)),
       ...nextSteps({ review: REVIEW, created: [], source: SOURCE }).steps.flatMap((s) => s.items),
+      "Reflex",                                           // SM3: the drift monitor's card is hidden; its icon is kept
     ]);
     for (const t of named) expect(typeIcon(t), t).toBeTruthy();
     expect(ICON_TYPES.sort()).toEqual([...named].sort());
@@ -83,7 +84,6 @@ describe("WB11: the next steps' cards", () => {
       ["factory", "Data Factory · Pipeline, Notebook"],
       ["api", "Data Engineering · API for GraphQL"],
       ["iq", "Fabric IQ · Ontology"],
-      ["drift", "Real-Time Intelligence · Activator"],
       ["app", "Apps · App"],
     ]);
     for (const s of steps) {
