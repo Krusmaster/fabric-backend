@@ -22,6 +22,7 @@ import json
 
 from .infer import Plan
 from .drift import plan_snapshot as _snapshot, snapshot_diff as _diff
+from . import counts as _counts
 
 FORMAT = "krusgraph-review"
 VERSION = 1
@@ -216,6 +217,28 @@ def build(plan: Plan, base: Plan, source: dict, *, decisions: list[dict] | None 
         else:
             it["check"] = {"status": "not_checked"}
 
+    # BL3: one count (counts.summary) sets every item's check status and the file's totals; a check this call did not
+    # count is "not counted" with its reason, an old pass carried from the previous file still counts, a stale one does not
+    carried = {}
+    for it in items:
+        c = it["check"]
+        if it["id"] in fresh:
+            continue
+        if c.get("status") in ("passed", "failed"):
+            carried[it["id"]] = {"state": "holds" if c["status"] == "passed" else "fails", "reason": c.get("verdict", "")}
+        elif c.get("status") == "stale":
+            carried[it["id"]] = {"state": "not_counted", "reason": f"stale: {c.get('stale_because', 'changed since the check')}"}
+    one = _counts.summary(plan, checks if checks else None, tables=tables, carried=carried)
+    state_of = {x["id"]: x for x in one["items"]}
+    for it in items:
+        x = state_of.get(it["id"])
+        if x is None:
+            continue
+        if it["id"] in fresh:
+            it["check"]["status"] = {"holds": "passed", "fails": "failed"}.get(x["state"], "not_checked")
+        if x["state"] == "not_counted" and it["check"].get("status") == "not_checked" and x["reason"] != _counts.NOT_ASKED:
+            it["check"]["not_counted"] = x["reason"]
+
     # what the rules alone proposed that the corrections took out of the plan (a key on the referencing column, say)
     final_rels = {rel_id(r.source, r.source_cols, r.target) for r in plan.relationships}
     dropped = [{"id": rel_id(r.source, r.source_cols, r.target), "rule": r.rule,
@@ -236,6 +259,9 @@ def build(plan: Plan, base: Plan, source: dict, *, decisions: list[dict] | None 
     other = other_checks(checks) if checks else (previous or {}).get("other_checks") or {}
     if other:                                                         # WB13 (#90): what the check counted beyond the items
         out["other_checks"] = other
+    out["counts"] = {"keys": one["keys"], "links": one["links"], "questions": len(out["open_questions"]),
+                     "open": [{"id": x["id"], "kind": x["kind"], "state": x["state"], "reason": x["reason"]} for x in one["open"]],
+                     "sentence": one["sentence"]}
     out["arguments"] = carried_arguments(out)
     return out
 
@@ -356,6 +382,7 @@ def attention(review: dict) -> list[str]:
         c = it.get("check", {})
         if c.get("status") == "stale":
             out.append(f"Check is stale ({c.get('stale_because')}): {_what(it)}; run the checks again.")
+    out += _open_counts(review)
     for d in review.get("left_out_by_corrections", []):
         out.append(f"Not in the plan after your corrections: {d['relationship']} ({d['rule']}, proposed by the rules alone). "
                    f"Add it with confirmed if it should stay.")
@@ -369,6 +396,30 @@ def attention(review: dict) -> list[str]:
     return out
 
 
+def _open_counts(review: dict) -> list[str]:
+    """BL3: what counts.summary leaves open that the lines above do not say: a link the pack lists with a condition whose
+    check failed, checks with no rows to check, and checks not counted, one line per reason (a stale check has its own)."""
+    c = review.get("counts") or {}
+    opn = [x for x in c.get("open") or [] if not str(x.get("reason", "")).startswith("stale:")]
+    out = [f"Check failed: {x['id']} (a join the pack lists with a condition): {x['reason']}."
+           for x in opn if x["state"] == "fails" and x["kind"] == "extended link"]
+    empty = [x["id"] for x in opn if x["state"] == "no_rows"]
+    if empty:
+        out.append(f"{_counts._plural(len(empty), 'check has', 'checks have')} no rows to check, so "
+                   f"{'it does' if len(empty) == 1 else 'they do'} not pass: {', '.join(empty[:5])}"
+                   + (f" and {len(empty) - 5} more" if len(empty) > 5 else "") + ".")
+    by_reason: dict[str, list[str]] = {}
+    for x in opn:
+        if x["state"] == "not_counted":
+            by_reason.setdefault(x["reason"], []).append(x["id"])
+    for reason, ids in by_reason.items():
+        again = " Run review_plan with validate=true to count them." if reason == _counts.NOT_ASKED else " Count them again."
+        why = reason.removeprefix("not counted: ").rstrip(".")
+        out.append(f"{_counts._plural(len(ids), 'check', 'checks')} {'was' if len(ids) == 1 else 'were'} not counted: "
+                   f"{', '.join(ids[:5])}" + (f" and {len(ids) - 5} more" if len(ids) > 5 else "") + f". Why: {why}." + again)
+    return out
+
+
 def markdown(review: dict) -> str:
     """A short report to keep next to the file: what needs attention, then every key and relationship."""
     s = review["source"]
@@ -378,6 +429,8 @@ def markdown(review: dict) -> str:
              f"{review['scope'] if isinstance(review['scope'], str) else ', '.join(review['scope'])}.", "",
              "Review status is what a person decided; check status is what the counting checks found. They are separate: "
              "a check that passes shows the data agrees with the plan, not that the plan means the right thing.", ""]
+    if review.get("counts"):
+        lines += [f"One count: {review['counts']['sentence']}", ""]
     todo = attention(review)
     lines += ["## Needs attention", ""] + ([f"- {t}" for t in todo] or ["- Nothing open."]) + [""]
     lines += ["## Keys and relationships", "", "| Item | Review | Reason | Check | Checked |", "| --- | --- | --- | --- | --- |"]
@@ -407,10 +460,20 @@ def summary(review: dict) -> str:
     items = review["items"]
     n = lambda f, v: sum(1 for it in items if f(it) == v)                    # noqa: E731
     rv, ck = (lambda it: it["review"]), (lambda it: it.get("check", {}).get("status", "not_checked"))
+    c = review.get("counts")
+    if c:                                                            # BL3: the totals come from counts.summary
+        st = {x["id"]: x["state"] for x in c.get("open") or []}
+        ids = [it["id"] for it in items]
+        passed = sum(1 for i in ids if i not in st)
+        failed = sum(1 for i in ids if st.get(i) == "fails")
+        stale = n(ck, "stale")
+        rest = len(ids) - passed - failed - stale
+    else:
+        passed, failed, stale, rest = n(ck, "passed"), n(ck, "failed"), n(ck, "stale"), n(ck, "not_checked")
     return (f"{n(lambda it: it['type'], 'key')} keys and {n(lambda it: it['type'], 'relationship')} relationships: "
             f"{n(rv, 'accepted')} accepted, {n(rv, 'rejected')} rejected, {n(rv, 'open')} open, {n(rv, 'proposed')} still "
-            f"proposed; checks: {n(ck, 'passed')} passed, {n(ck, 'failed')} failed, {n(ck, 'stale')} stale, "
-            f"{n(ck, 'not_checked')} not checked." + _other_words(review.get("other_checks")))
+            f"proposed; checks: {passed} passed, {failed} failed, {stale} stale, "
+            f"{rest} not checked." + _other_words(review.get("other_checks")) + (f" One count: {c['sentence']}" if c else ""))
 
 
 def _other_words(other: dict | None) -> str:
