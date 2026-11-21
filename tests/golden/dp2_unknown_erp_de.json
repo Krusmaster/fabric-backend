@@ -1,0 +1,1032 @@
+{
+ "counted": {
+  "queries": 6,
+  "with_rows": true
+ },
+ "details": [
+  "Order to cash: 5 of 7 products present; delivery without its line table, and receivables and payables missing, so a question like “Which deliveries left later than the customer was promised?” cannot be answered.",
+  "Procure to pay: 3 of 7 products present; purchase order, goods receipt, supplier invoice and receivables and payables missing, so a question like “What do we spend per supplier and month?” cannot be answered.",
+  "Subscription: 3 of 4 products present; subscription or contract missing, so a question like “What is the MRR per customer and month?” cannot be answered.",
+  "Lead to cash: 2 of 7 products present; account, contact, lead, opportunity and quote missing, so a question like “Which accounts in our target segment have no open opportunity?” cannot be answered.",
+  "Customer service: 1 of 5 products present; account, contact, case or ticket and activity missing, so a question like “Which accounts in our target segment have no open opportunity?” cannot be answered.",
+  "Inventory: 1 of 5 products present; delivery without its line table, and organisation and company, inventory movement and stock and goods receipt missing, so a question like “Which deliveries left later than the customer was promised?” cannot be answered.",
+  "Artikel: product (master), high. the table name reads as artikel: product or material; ArtikelNr reads as the business key (product_number); 2 relationship(s) of the plan point at it; key ArtikelNr counted: unique in all 6 rows.",
+  "Auftragskopf: sales order (header), high. the table name reads as auftrag + kopf: sales order (header and line); AuftragsNr reads as the business key (order_number); Auftragspositionen holds its lines by AuftragsNr; amount column(s): Nettobetrag; key AuftragsNr counted: unique in all 12 rows.",
+  "Auftragspositionen: sales order (line), high. the table name reads as auftrag + positionen: sales order (header and line); AuftragsNr+PosNr reads as the business key (order_number, line_number); its lines point at Auftragskopf through AuftragsNr (same document number column); amount column(s): Betrag; key AuftragsNr+PosNr counted: unique in all 24 rows; Auftragspositionen.AuftragsNr -> Auftragskopf counted: holds for all 24 rows with a value.",
+  "Kunden: customer (master), high. the table name reads as kunden: customer; KundenNr reads as the business key (customer_number); 2 relationship(s) of the plan point at it; key KundenNr counted: unique in all 8 rows.",
+  "Lieferanten: supplier (master), high. the table name reads as lieferanten: supplier; LieferantenNr reads as the business key (supplier_number); key LieferantenNr counted: unique in all 3 rows.",
+  "Lieferscheine: delivery (header), high. the table name reads as lieferscheine: delivery (outbound shipment); LieferscheinNr reads as the business key (delivery_number); key LieferscheinNr counted: unique in all 10 rows.",
+  "Rechnungen: invoice (header), high. the table name reads as rechnungen: customer invoice (billing); RechnungsNr reads as the business key (invoice_number); Rechnungspositionen holds its lines by RechnungsNr; amount column(s): Betrag; key RechnungsNr counted: unique in all 9 rows.",
+  "Rechnungspositionen: invoice (line), high. the table name reads as rechnung + positionen: customer invoice (billing); RechnungsNr+PosNr reads as the business key (invoice_number, line_number); its lines point at Rechnungen through RechnungsNr (same document number column); amount column(s): Betrag; key RechnungsNr+PosNr counted: unique in all 18 rows; Rechnungspositionen.RechnungsNr -> Rechnungen counted: holds for all 18 rows with a value.",
+  "Zahlungen: payment (header), high. the table name reads as zahlungen: payment; ZahlungsNr reads as the business key (payment_number); amount column(s): Betrag; key ZahlungsNr counted: unique in all 6 rows."
+ ],
+ "how": "By rules, no AI: table and column names read through a word list in English, German and Swedish, the plan's keys and links, and the row counts. high = names and keys agree and the rows confirm it; medium = names and keys agree, the rows not counted; low = one signal only or the rows disagree, a hint and never counted as present.",
+ "line": "Data products: Order to cash: 5 of 7 products present; delivery without its line table, and receivables and payables missing, so a question like “Which deliveries left later than the customer was promised?” cannot be answered.",
+ "processes": [
+  {
+   "can_answer": [
+    "How many active customers do we have per country and sales organisation?",
+    "Which customers buy from more than one company in the group?",
+    "Which products sell the most per month?",
+    "Which products have no sales in the last year?",
+    "What is the order intake per customer and month?",
+    "Which order lines are not delivered yet?",
+    "What is the average order value per sales organisation?",
+    "What is the revenue per customer and month?",
+    "Which products have the highest credit-memo share?",
+    "How many days do customers take to pay?",
+    "Which payments are not matched to an invoice?"
+   ],
+   "cannot_answer": [
+    {
+     "product": "open_item",
+     "question": "Which customers have unpaid invoices past their due date?",
+     "title": "Receivables and payables (open and cleared items)",
+     "why": "receivables and payables (open and cleared items) is missing"
+    },
+    {
+     "product": "open_item",
+     "question": "What do we owe our suppliers per due week?",
+     "title": "Receivables and payables (open and cleared items)",
+     "why": "receivables and payables (open and cleared items) is missing"
+    },
+    {
+     "product": "delivery",
+     "question": "Which deliveries left later than the customer was promised?",
+     "title": "Delivery (outbound shipment)",
+     "why": "delivery (outbound shipment) has no line table"
+    },
+    {
+     "product": "delivery",
+     "question": "What share of order lines was delivered in full and on time?",
+     "title": "Delivery (outbound shipment)",
+     "why": "delivery (outbound shipment) has no line table"
+    }
+   ],
+   "checked": [
+    "customer",
+    "product",
+    "sales_order",
+    "invoice",
+    "payment"
+   ],
+   "line": "Order to cash: 5 of 7 products present; delivery without its line table, and receivables and payables missing, so a question like “Which deliveries left later than the customer was promised?” cannot be answered.",
+   "missing": [
+    "open_item"
+   ],
+   "partial": [
+    "delivery"
+   ],
+   "present": [
+    "customer",
+    "product",
+    "sales_order",
+    "invoice",
+    "payment"
+   ],
+   "process": "order_to_cash",
+   "products": 7,
+   "title": "Order to cash"
+  },
+  {
+   "can_answer": [
+    "How many suppliers do we buy from per purchasing organisation?",
+    "Which suppliers are also customers?",
+    "Which products sell the most per month?",
+    "Which products have no sales in the last year?",
+    "How many days do customers take to pay?",
+    "Which payments are not matched to an invoice?"
+   ],
+   "cannot_answer": [
+    {
+     "product": "purchase_order",
+     "question": "What do we spend per supplier and month?",
+     "title": "Purchase order (header and line)",
+     "why": "purchase order (header and line) is missing"
+    },
+    {
+     "product": "purchase_order",
+     "question": "Which purchase order lines are overdue for delivery?",
+     "title": "Purchase order (header and line)",
+     "why": "purchase order (header and line) is missing"
+    },
+    {
+     "product": "goods_receipt",
+     "question": "Do suppliers deliver on the date they confirmed?",
+     "title": "Goods receipt",
+     "why": "goods receipt is missing"
+    },
+    {
+     "product": "goods_receipt",
+     "question": "What has been received but not invoiced yet?",
+     "title": "Goods receipt",
+     "why": "goods receipt is missing"
+    },
+    {
+     "product": "supplier_invoice",
+     "question": "Which invoices differ from the purchase order price?",
+     "title": "Supplier invoice",
+     "why": "supplier invoice is missing"
+    },
+    {
+     "product": "supplier_invoice",
+     "question": "What is the spend per supplier, invoiced rather than ordered?",
+     "title": "Supplier invoice",
+     "why": "supplier invoice is missing"
+    },
+    {
+     "product": "open_item",
+     "question": "Which customers have unpaid invoices past their due date?",
+     "title": "Receivables and payables (open and cleared items)",
+     "why": "receivables and payables (open and cleared items) is missing"
+    },
+    {
+     "product": "open_item",
+     "question": "What do we owe our suppliers per due week?",
+     "title": "Receivables and payables (open and cleared items)",
+     "why": "receivables and payables (open and cleared items) is missing"
+    }
+   ],
+   "checked": [
+    "supplier",
+    "product",
+    "payment"
+   ],
+   "line": "Procure to pay: 3 of 7 products present; purchase order, goods receipt, supplier invoice and receivables and payables missing, so a question like “What do we spend per supplier and month?” cannot be answered.",
+   "missing": [
+    "purchase_order",
+    "goods_receipt",
+    "supplier_invoice",
+    "open_item"
+   ],
+   "partial": [],
+   "present": [
+    "supplier",
+    "product",
+    "payment"
+   ],
+   "process": "procure_to_pay",
+   "products": 7,
+   "title": "Procure to pay"
+  },
+  {
+   "can_answer": [
+    "How many active customers do we have per country and sales organisation?",
+    "Which customers buy from more than one company in the group?",
+    "What is the revenue per customer and month?",
+    "Which products have the highest credit-memo share?",
+    "How many days do customers take to pay?",
+    "Which payments are not matched to an invoice?"
+   ],
+   "cannot_answer": [
+    {
+     "product": "subscription",
+     "question": "What is the MRR per customer and month?",
+     "title": "Subscription or contract",
+     "why": "subscription or contract is missing"
+    },
+    {
+     "product": "subscription",
+     "question": "How much recurring revenue did we lose to churn last quarter?",
+     "title": "Subscription or contract",
+     "why": "subscription or contract is missing"
+    }
+   ],
+   "checked": [
+    "customer",
+    "invoice",
+    "payment"
+   ],
+   "line": "Subscription: 3 of 4 products present; subscription or contract missing, so a question like “What is the MRR per customer and month?” cannot be answered.",
+   "missing": [
+    "subscription"
+   ],
+   "partial": [],
+   "present": [
+    "customer",
+    "invoice",
+    "payment"
+   ],
+   "process": "subscription",
+   "products": 4,
+   "title": "Subscription"
+  },
+  {
+   "can_answer": [
+    "What is the order intake per customer and month?",
+    "Which order lines are not delivered yet?",
+    "What is the average order value per sales organisation?",
+    "What is the revenue per customer and month?",
+    "Which products have the highest credit-memo share?"
+   ],
+   "cannot_answer": [
+    {
+     "product": "crm_account",
+     "question": "Which accounts in our target segment have no open opportunity?",
+     "title": "Account (CRM)",
+     "why": "account (crm) is missing"
+    },
+    {
+     "product": "crm_account",
+     "question": "How many accounts does each sales representative own?",
+     "title": "Account (CRM)",
+     "why": "account (crm) is missing"
+    },
+    {
+     "product": "contact",
+     "question": "Which contacts at our top accounts have had no activity in 90 days?",
+     "title": "Contact",
+     "why": "contact is missing"
+    },
+    {
+     "product": "lead",
+     "question": "How many leads per source and month became opportunities?",
+     "title": "Lead",
+     "why": "lead is missing"
+    },
+    {
+     "product": "lead",
+     "question": "How long does a lead take to be qualified?",
+     "title": "Lead",
+     "why": "lead is missing"
+    },
+    {
+     "product": "opportunity",
+     "question": "What is the weighted pipeline per quarter and sales representative?",
+     "title": "Opportunity (pipeline)",
+     "why": "opportunity (pipeline) is missing"
+    },
+    {
+     "product": "opportunity",
+     "question": "What is our win rate per product?",
+     "title": "Opportunity (pipeline)",
+     "why": "opportunity (pipeline) is missing"
+    },
+    {
+     "product": "quote",
+     "question": "How many quotes turn into orders, and how fast?",
+     "title": "Quote",
+     "why": "quote is missing"
+    },
+    {
+     "product": "quote",
+     "question": "What discount do we give on quotes per product?",
+     "title": "Quote",
+     "why": "quote is missing"
+    }
+   ],
+   "checked": [
+    "sales_order",
+    "invoice"
+   ],
+   "line": "Lead to cash: 2 of 7 products present; account, contact, lead, opportunity and quote missing, so a question like “Which accounts in our target segment have no open opportunity?” cannot be answered.",
+   "missing": [
+    "crm_account",
+    "contact",
+    "lead",
+    "opportunity",
+    "quote"
+   ],
+   "partial": [],
+   "present": [
+    "sales_order",
+    "invoice"
+   ],
+   "process": "lead_to_cash",
+   "products": 7,
+   "title": "Lead to cash"
+  },
+  {
+   "can_answer": [
+    "Which products sell the most per month?",
+    "Which products have no sales in the last year?"
+   ],
+   "cannot_answer": [
+    {
+     "product": "crm_account",
+     "question": "Which accounts in our target segment have no open opportunity?",
+     "title": "Account (CRM)",
+     "why": "account (crm) is missing"
+    },
+    {
+     "product": "crm_account",
+     "question": "How many accounts does each sales representative own?",
+     "title": "Account (CRM)",
+     "why": "account (crm) is missing"
+    },
+    {
+     "product": "contact",
+     "question": "Which contacts at our top accounts have had no activity in 90 days?",
+     "title": "Contact",
+     "why": "contact is missing"
+    },
+    {
+     "product": "case",
+     "question": "How long does it take to resolve a case per product?",
+     "title": "Case or ticket (customer service)",
+     "why": "case or ticket (customer service) is missing"
+    },
+    {
+     "product": "case",
+     "question": "Which customers open the most cases?",
+     "title": "Case or ticket (customer service)",
+     "why": "case or ticket (customer service) is missing"
+    },
+    {
+     "product": "activity",
+     "question": "How many customer meetings did each sales representative have last month?",
+     "title": "Activity (calls, meetings, tasks, e-mails)",
+     "why": "activity (calls, meetings, tasks, e-mails) is missing"
+    }
+   ],
+   "checked": [
+    "product"
+   ],
+   "line": "Customer service: 1 of 5 products present; account, contact, case or ticket and activity missing, so a question like “Which accounts in our target segment have no open opportunity?” cannot be answered.",
+   "missing": [
+    "crm_account",
+    "contact",
+    "case",
+    "activity"
+   ],
+   "partial": [],
+   "present": [
+    "product"
+   ],
+   "process": "service",
+   "products": 5,
+   "title": "Customer service"
+  },
+  {
+   "can_answer": [
+    "Which products sell the most per month?",
+    "Which products have no sales in the last year?"
+   ],
+   "cannot_answer": [
+    {
+     "product": "organisation",
+     "question": "Which companies and plants belong to the group?",
+     "title": "Organisation and company",
+     "why": "organisation and company is missing"
+    },
+    {
+     "product": "organisation",
+     "question": "Which business unit owns this record?",
+     "title": "Organisation and company",
+     "why": "organisation and company is missing"
+    },
+    {
+     "product": "inventory_movement",
+     "question": "How much stock do we hold per product and plant at month end?",
+     "title": "Inventory movement and stock",
+     "why": "inventory movement and stock is missing"
+    },
+    {
+     "product": "inventory_movement",
+     "question": "Which products have not moved for six months?",
+     "title": "Inventory movement and stock",
+     "why": "inventory movement and stock is missing"
+    },
+    {
+     "product": "goods_receipt",
+     "question": "Do suppliers deliver on the date they confirmed?",
+     "title": "Goods receipt",
+     "why": "goods receipt is missing"
+    },
+    {
+     "product": "goods_receipt",
+     "question": "What has been received but not invoiced yet?",
+     "title": "Goods receipt",
+     "why": "goods receipt is missing"
+    },
+    {
+     "product": "delivery",
+     "question": "Which deliveries left later than the customer was promised?",
+     "title": "Delivery (outbound shipment)",
+     "why": "delivery (outbound shipment) has no line table"
+    },
+    {
+     "product": "delivery",
+     "question": "What share of order lines was delivered in full and on time?",
+     "title": "Delivery (outbound shipment)",
+     "why": "delivery (outbound shipment) has no line table"
+    }
+   ],
+   "checked": [
+    "product"
+   ],
+   "line": "Inventory: 1 of 5 products present; delivery without its line table, and organisation and company, inventory movement and stock and goods receipt missing, so a question like “Which deliveries left later than the customer was promised?” cannot be answered.",
+   "missing": [
+    "organisation",
+    "inventory_movement",
+    "goods_receipt"
+   ],
+   "partial": [
+    "delivery"
+   ],
+   "present": [
+    "product"
+   ],
+   "process": "inventory",
+   "products": 5,
+   "title": "Inventory"
+  }
+ ],
+ "products": {
+  "activity": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Activity (calls, meetings, tasks, e-mails)"
+  },
+  "budget": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Budget and plan"
+  },
+  "campaign": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Marketing campaign"
+  },
+  "case": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Case or ticket (customer service)"
+  },
+  "chart_of_accounts": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Chart of accounts (G/L accounts)"
+  },
+  "contact": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Contact"
+  },
+  "cost_centre": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Cost centre and profit centre"
+  },
+  "crm_account": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Account (CRM)"
+  },
+  "currency": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Currency and exchange rate"
+  },
+  "customer": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "master": [
+     "Kunden"
+    ]
+   },
+   "title": "Customer"
+  },
+  "date": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "generated",
+   "tables": {},
+   "title": "Date (calendar)"
+  },
+  "delivery": {
+   "checked": false,
+   "missing_roles": [
+    "line"
+   ],
+   "state": "partial",
+   "tables": {
+    "header": [
+     "Lieferscheine"
+    ]
+   },
+   "title": "Delivery (outbound shipment)"
+  },
+  "employee": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Employee or user"
+  },
+  "gl_journal_entry": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "General ledger journal entry"
+  },
+  "goods_receipt": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Goods receipt"
+  },
+  "inventory_movement": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Inventory movement and stock"
+  },
+  "invoice": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "header": [
+     "Rechnungen"
+    ],
+    "line": [
+     "Rechnungspositionen"
+    ]
+   },
+   "title": "Customer invoice (billing)"
+  },
+  "lead": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Lead"
+  },
+  "open_item": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Receivables and payables (open and cleared items)"
+  },
+  "opportunity": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Opportunity (pipeline)"
+  },
+  "organisation": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Organisation and company"
+  },
+  "payment": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "header": [
+     "Zahlungen"
+    ]
+   },
+   "title": "Payment"
+  },
+  "price": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Price and condition"
+  },
+  "product": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "master": [
+     "Artikel"
+    ]
+   },
+   "title": "Product or material"
+  },
+  "purchase_order": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Purchase order (header and line)"
+  },
+  "quote": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Quote"
+  },
+  "sales_order": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "header": [
+     "Auftragskopf"
+    ],
+    "line": [
+     "Auftragspositionen"
+    ]
+   },
+   "title": "Sales order (header and line)"
+  },
+  "subscription": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Subscription or contract"
+  },
+  "supplier": {
+   "checked": true,
+   "missing_roles": [],
+   "state": "present",
+   "tables": {
+    "master": [
+     "Lieferanten"
+    ]
+   },
+   "title": "Supplier"
+  },
+  "supplier_invoice": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Supplier invoice"
+  }
+ },
+ "rule_version": "DP2-1 (21 November 2026)",
+ "tables": [
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-N1",
+     "what": "the table name reads as artikel: product or material"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "ArtikelNr reads as the business key (product_number)"
+    },
+    {
+     "rule": "DP2-M1",
+     "what": "2 relationship(s) of the plan point at it"
+    },
+    {
+     "counts": {
+      "distinct": 6,
+      "nulls": 0,
+      "rows": 6
+     },
+     "rule": "DP2-C1",
+     "what": "key ArtikelNr counted: unique in all 6 rows"
+    }
+   ],
+   "key": [
+    "ArtikelNr"
+   ],
+   "product": "product",
+   "role": "master",
+   "score": 6,
+   "source": "names",
+   "table": "Artikel"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-N1",
+     "what": "the table name reads as auftrag + kopf: sales order (header and line)"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "AuftragsNr reads as the business key (order_number)"
+    },
+    {
+     "rule": "DP2-L2",
+     "what": "Auftragspositionen holds its lines by AuftragsNr"
+    },
+    {
+     "rule": "DP2-A1",
+     "what": "amount column(s): Nettobetrag"
+    },
+    {
+     "counts": {
+      "distinct": 12,
+      "nulls": 0,
+      "rows": 12
+     },
+     "rule": "DP2-C1",
+     "what": "key AuftragsNr counted: unique in all 12 rows"
+    }
+   ],
+   "key": [
+    "AuftragsNr"
+   ],
+   "product": "sales_order",
+   "role": "header",
+   "score": 8,
+   "source": "names",
+   "table": "Auftragskopf"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-N1",
+     "what": "the table name reads as auftrag + positionen: sales order (header and line)"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "AuftragsNr+PosNr reads as the business key (order_number, line_number)"
+    },
+    {
+     "rule": "DP2-L1",
+     "what": "its lines point at Auftragskopf through AuftragsNr (same document number column)"
+    },
+    {
+     "rule": "DP2-A1",
+     "what": "amount column(s): Betrag"
+    },
+    {
+     "counts": {
+      "distinct": 24,
+      "nulls": 0,
+      "rows": 24
+     },
+     "rule": "DP2-C1",
+     "what": "key AuftragsNr+PosNr counted: unique in all 24 rows"
+    },
+    {
+     "counts": {
+      "orphans": 0,
+      "rows_with_value": 24
+     },
+     "rule": "DP2-C2",
+     "what": "Auftragspositionen.AuftragsNr -> Auftragskopf counted: holds for all 24 rows with a value"
+    }
+   ],
+   "header": "Auftragskopf",
+   "key": [
+    "AuftragsNr",
+    "PosNr"
+   ],
+   "product": "sales_order",
+   "role": "line",
+   "score": 8,
+   "source": "names",
+   "table": "Auftragspositionen"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-N1",
+     "what": "the table name reads as kunden: customer"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "KundenNr reads as the business key (customer_number)"
+    },
+    {
+     "rule": "DP2-M1",
+     "what": "2 relationship(s) of the plan point at it"
+    },
+    {
+     "counts": {
+      "distinct": 8,
+      "nulls": 0,
+      "rows": 8
+     },
+     "rule": "DP2-C1",
+     "what": "key KundenNr counted: unique in all 8 rows"
+    }
+   ],
+   "key": [
+    "KundenNr"
+   ],
+   "product": "customer",
+   "role": "master",
+   "score": 6,
+   "source": "names",
+   "table": "Kunden"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-N1",
+     "what": "the table name reads as lieferanten: supplier"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "LieferantenNr reads as the business key (supplier_number)"
+    },
+    {
+     "counts": {
+      "distinct": 3,
+      "nulls": 0,
+      "rows": 3
+     },
+     "rule": "DP2-C1",
+     "what": "key LieferantenNr counted: unique in all 3 rows"
+    }
+   ],
+   "key": [
+    "LieferantenNr"
+   ],
+   "product": "supplier",
+   "role": "master",
+   "score": 5,
+   "source": "names",
+   "table": "Lieferanten"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-N1",
+     "what": "the table name reads as lieferscheine: delivery (outbound shipment)"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "LieferscheinNr reads as the business key (delivery_number)"
+    },
+    {
+     "counts": {
+      "distinct": 10,
+      "nulls": 0,
+      "rows": 10
+     },
+     "rule": "DP2-C1",
+     "what": "key LieferscheinNr counted: unique in all 10 rows"
+    }
+   ],
+   "key": [
+    "LieferscheinNr"
+   ],
+   "product": "delivery",
+   "role": "header",
+   "score": 5,
+   "source": "names",
+   "table": "Lieferscheine"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-N1",
+     "what": "the table name reads as rechnungen: customer invoice (billing)"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "RechnungsNr reads as the business key (invoice_number)"
+    },
+    {
+     "rule": "DP2-L2",
+     "what": "Rechnungspositionen holds its lines by RechnungsNr"
+    },
+    {
+     "rule": "DP2-A1",
+     "what": "amount column(s): Betrag"
+    },
+    {
+     "counts": {
+      "distinct": 9,
+      "nulls": 0,
+      "rows": 9
+     },
+     "rule": "DP2-C1",
+     "what": "key RechnungsNr counted: unique in all 9 rows"
+    }
+   ],
+   "key": [
+    "RechnungsNr"
+   ],
+   "product": "invoice",
+   "role": "header",
+   "score": 8,
+   "source": "names",
+   "table": "Rechnungen"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-N1",
+     "what": "the table name reads as rechnung + positionen: customer invoice (billing)"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "RechnungsNr+PosNr reads as the business key (invoice_number, line_number)"
+    },
+    {
+     "rule": "DP2-L1",
+     "what": "its lines point at Rechnungen through RechnungsNr (same document number column)"
+    },
+    {
+     "rule": "DP2-A1",
+     "what": "amount column(s): Betrag"
+    },
+    {
+     "counts": {
+      "distinct": 18,
+      "nulls": 0,
+      "rows": 18
+     },
+     "rule": "DP2-C1",
+     "what": "key RechnungsNr+PosNr counted: unique in all 18 rows"
+    },
+    {
+     "counts": {
+      "orphans": 0,
+      "rows_with_value": 18
+     },
+     "rule": "DP2-C2",
+     "what": "Rechnungspositionen.RechnungsNr -> Rechnungen counted: holds for all 18 rows with a value"
+    }
+   ],
+   "header": "Rechnungen",
+   "key": [
+    "RechnungsNr",
+    "PosNr"
+   ],
+   "product": "invoice",
+   "role": "line",
+   "score": 8,
+   "source": "names",
+   "table": "Rechnungspositionen"
+  },
+  {
+   "checked": true,
+   "confidence": "high",
+   "evidence": [
+    {
+     "rule": "DP2-N1",
+     "what": "the table name reads as zahlungen: payment"
+    },
+    {
+     "rule": "DP2-K1",
+     "what": "ZahlungsNr reads as the business key (payment_number)"
+    },
+    {
+     "rule": "DP2-A1",
+     "what": "amount column(s): Betrag"
+    },
+    {
+     "counts": {
+      "distinct": 6,
+      "nulls": 0,
+      "rows": 6
+     },
+     "rule": "DP2-C1",
+     "what": "key ZahlungsNr counted: unique in all 6 rows"
+    }
+   ],
+   "key": [
+    "ZahlungsNr"
+   ],
+   "product": "payment",
+   "role": "header",
+   "score": 6,
+   "source": "names",
+   "table": "Zahlungen"
+  }
+ ],
+ "unmatched": [
+  "Zahlungsarten"
+ ]
+}

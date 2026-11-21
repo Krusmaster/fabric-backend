@@ -81,7 +81,7 @@ def test_the_default_is_the_summary_and_full_is_the_previous_answer():
         assert "keys" in full["answer"] and "relationships" in full["answer"] and "detail" not in full["answer"]
         assert default["answer"]["detail"] == "summary"
         # n226: both answers also carry evidence and coverage (coverage.attach), which the summary does not compute
-        extra = ("evidence", "coverage", "time_budget")
+        extra = ("evidence", "coverage", "time_budget", "data_products")      # DP2: data_products as well
         bare = lambda a: {k: v for k, v in a.items() if k not in extra}
         assert bare(default["answer"]) == bare(json.loads(_text(evidence.summarize(bare(full["answer"])))))
         assert default["answer"]["coverage"] == full["answer"]["coverage"]
@@ -175,9 +175,10 @@ def test_the_hosted_tool_answers_measure_the_same_on_the_shop():
     in full (5 608 before n108 added the combined statements of orders and order_items), 3 197 as the summary, which
     n108 did not change (2 246 before n103's next_steps)."""
     calls = [e for e in json.loads((GOLDEN / "hosted_tools.json").read_text(encoding="utf-8")) if e.get("tool") == "validate_plan"]
-    sizes = {e["args"].get("detail", "summary"): len(_text(e["answer"])) for e in calls if e["args"]["source"] == "demo_lh"}
+    sizes = {e["args"].get("detail", "summary"): len(_text({k: v for k, v in e["answer"].items() if k != "data_products"}))
+             for e in calls if e["args"]["source"] == "demo_lh"}       # DP2's data_products is measured in its own tests
     # n226: evidence, coverage and time_budget on both; without them the sizes are those of before
-    bare = {e["args"].get("detail", "summary"): len(_text({k: v for k, v in e["answer"].items() if k not in ("evidence", "coverage", "time_budget")}))
+    bare = {e["args"].get("detail", "summary"): len(_text({k: v for k, v in e["answer"].items() if k not in ("evidence", "coverage", "time_budget", "data_products")}))
             for e in calls if e["args"]["source"] == "demo_lh"}
     assert bare == {"full": 8175, "summary": 3197}
     assert sizes == {"full": 9479, "summary": 4501}
