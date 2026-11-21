@@ -5,14 +5,17 @@
  * WB4: below them, Recommended analyses (analysisPlan.ts): analysis_plan's ranking on this item, once the check passed.
  */
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { Badge, Body1, Button, Caption1, Subtitle2 } from "@fluentui/react-components";
+import { Badge, Body1, Button, Caption1, Checkbox, Subtitle2 } from "@fluentui/react-components";
 import { Open20Regular, Play20Regular } from "@fluentui/react-icons";
 import { CopyText, FileActions, OutLink } from "./fileOffer";
-import { NextInput, NextStep, grainLine, nextSteps, proofLine, proofOf, workloadLine } from "./nextSteps";
+import { NextInput, NextStep, grainLine, nextSteps, proofLine, proofOf, staleCheckLine, workloadLine } from "./nextSteps";
 import { TypeIcon } from "./itemIcons";
 import { AnalysisAnswer, AnalysisCard, analysisCards, analysisKey, analysisSummary } from "./analysisPlan";
 import type { OutputKind } from "./engineClient";
 import type { CreatedItem } from "./ModelItemDefinition";
+import { CreatedActions } from "./RunNowView";
+import { outputTable } from "./runNow";
+import { analysisName, ipynbCells, madeFor, pickedByDefault } from "./advancedAnalytics";
 
 /** WB10 (#64): the Data Science starter's Dry run, then Create (POST /workload/v1/starter): the notebook in the item's
  * workspace, attached to the source lakehouse. Never run by Krusgraph. */
@@ -22,9 +25,11 @@ export interface StarterAnswer {
   words: string;
   confirm: string | null;
   created?: CreatedItem;
+  /** ED3: the lakehouse the notebook is attached to (the data product's silver and gold), for Run now's preview */
+  lakehouse_id?: string;
 }
 export interface StarterSource {
-  run: (opts: { name: string; cells: string[]; dryRun: boolean; confirm?: string | null }) => Promise<StarterAnswer>;
+  run: (opts: { name: string; cells: string[]; dryRun: boolean; confirm?: string | null; output?: string }) => Promise<StarterAnswer>;
   onCreated?: (item: CreatedItem) => void;
 }
 export const StarterContext = createContext<StarterSource | undefined>(undefined);
@@ -45,9 +50,12 @@ function StarterCreate(props: { name: string; cells: string[] }) {
     }
   };
   const a = state.answer;
+  // ED3: once created the card shows the item with Open in Fabric and Run now and one line; nothing more is said here
+  if (a?.would === "created") return null;
   return (
     <>
-      {a?.would !== "created" && (
+      {(
+
         <Button appearance="secondary" icon={<Play20Regular />} onClick={(): void => void go(true)} disabled={state.busy}
           aria-label={`Dry run: create the notebook ${props.name}`}>
           Dry run
@@ -82,8 +90,53 @@ const READINESS_COLOR: Record<AnalysisCard["readiness"], "success" | "warning" |
   ready: "success", partial: "warning", missing: "subtle",
 };
 
-function AnalysisCardView(props: { card: AnalysisCard }) {
-  const { card } = props;
+/** ED3: Dry run and Create for the ticked analyses (the top one ticked by default): each a notebook in this item's
+ * workspace, attached to the data product's lakehouse, through the same starter route as the feature table. */
+function AnalysisCreate(props: {
+  cards: AnalysisCard[]; picked: string[]; where: { displayName: string; schema: string }; created?: CreatedItem[];
+  state: Record<string, { busy?: boolean; answer?: StarterAnswer; problem?: string }>;
+  setState: React.Dispatch<React.SetStateAction<Record<string, { busy?: boolean; answer?: StarterAnswer; problem?: string }>>>;
+}) {
+  const starter = useContext(StarterContext);
+  if (!starter) return null;
+  const chosen = props.cards.filter((c) => props.picked.includes(c.id) && c.action.kind === "notebook" && !madeFor(c, props.created, props.where));
+  const dry = chosen.every((c) => props.state[c.id]?.answer?.would === "create" && props.state[c.id]?.answer?.confirm);
+  const busy = chosen.some((c) => props.state[c.id]?.busy);
+  const go = async (dryRun: boolean) => {
+    for (const c of chosen) {
+      if (c.action.kind !== "notebook") continue;
+      props.setState((s) => ({ ...s, [c.id]: { ...s[c.id], busy: true, problem: undefined } }));
+      try {
+        const answer = await starter.run({ name: analysisName(c, props.where), cells: ipynbCells(c.action.content, c.action.code), dryRun,
+          confirm: dryRun ? null : props.state[c.id]?.answer?.confirm, output: `analysis_${c.id}` });
+        if (answer.created) starter.onCreated?.(answer.created);
+        props.setState((s) => ({ ...s, [c.id]: { answer } }));
+      } catch (e) {
+        const err = e as { answer?: { error?: string; hint?: string }; message?: string };
+        props.setState((s) => ({ ...s, [c.id]: { problem: [err.answer?.error ?? err.message ?? "The engine could not answer.", err.answer?.hint].filter(Boolean).join(" ") } }));
+      }
+    }
+  };
+  if (!chosen.length) return <Caption1>Tick an analysis above to create its notebook here.</Caption1>;
+  return (
+    <div className="kg-next-actions" role="group" aria-label="Create the ticked analyses">
+      <Button appearance={dry ? "secondary" : "primary"} icon={<Play20Regular />} disabled={busy} onClick={(): void => void go(true)}>
+        {`Dry run: ${chosen.length === 1 ? "1 notebook" : `${chosen.length} notebooks`}`}
+      </Button>
+      {dry && (
+        <Button appearance="primary" disabled={busy} onClick={(): void => void go(false)}>
+          {`Create ${chosen.length === 1 ? analysisName(chosen[0], props.where) : `${chosen.length} notebooks`}`}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function AnalysisCardView(props: {
+  card: AnalysisCard; name?: string; created?: CreatedItem; ticked?: boolean; onTick?: (on: boolean) => void;
+  said?: { busy?: boolean; answer?: StarterAnswer; problem?: string };
+}) {
+  const { card, created } = props;
   const a = card.action;
   return (
     <li className="kg-analysis-card" data-analysis={card.id} data-readiness={card.readiness}>
@@ -95,12 +148,26 @@ function AnalysisCardView(props: { card: AnalysisCard }) {
       <Subtitle2 as="h4">{card.title}</Subtitle2>
       <Body1>{card.line}</Body1>
       <Caption1>{card.missing}</Caption1>
+      {a.kind === "notebook" && !created && props.ticked !== undefined && (
+        <Checkbox className="kg-analysis-pick" checked={props.ticked} onChange={(_, d) => props.onTick?.(!!d.checked)}
+          label={`Create the notebook ${props.name ?? card.title} in this workspace`} />
+      )}
+      {!created && (props.said?.problem || props.said?.answer) && (
+        <Caption1 role="status" className="kg-next-starter-said">{props.said.problem ?? props.said.answer?.words}</Caption1>
+      )}
+      {a.kind === "notebook" && created && (
+        <>
+          <Caption1>{`The notebook ${created.name} is in this item's workspace. It writes ${a.output} when it runs.`}</Caption1>
+          <CreatedActions item={{ id: created.id, workspaceId: created.workspace, type: created.type, displayName: created.name }}
+            preview={created.attached && /^[A-Za-z_][A-Za-z0-9_]*$/.test(a.output) ? { lakehouse: created.attached, table: a.output, schema: "dbo" } : undefined} />
+        </>
+      )}
       <div className="kg-next-actions" role="group" aria-label={`${card.title}: ${card.word}`}>
         {a.kind === "notebook" ? (
           <>
             <FileActions file={{ filename: a.filename, mime: a.mime, text: a.content }} label={a.label} copy={false}
-              ariaLabel={`${a.label}: ${card.title}`} />
-            <CopyText text={a.code} label="Copy the code" />
+              appearance="secondary" ariaLabel={`${a.label}: ${card.title}`} />
+            <CopyText text={a.code} label="Copy the code" appearance="secondary" />
           </>
         ) : (
           <CopyText text={a.text} label={a.label} appearance="secondary" />
@@ -108,7 +175,7 @@ function AnalysisCardView(props: { card: AnalysisCard }) {
       </div>
       {a.kind === "notebook" && (
         <>
-          <Caption1>{`Writes ${a.output} when you run it in Fabric. Krusgraph does not run it and trains no model.`}</Caption1>
+          {!created && <Caption1>{`Writes ${a.output} when it runs. Krusgraph trains no model.`}</Caption1>}
           <details className="kg-next-code">
             <summary><Caption1>Show the code</Caption1></summary>
             <pre>{a.code}</pre>
@@ -122,8 +189,11 @@ function AnalysisCardView(props: { card: AnalysisCard }) {
 
 /** WB4: the SAP order-to-cash analyses analysis_plan ranks on this item, after the check has passed. Ranked; each with a
  * readiness word, one line of why, what is missing and one action. Not shown without the editor's AnalysisContext. */
-export function RecommendedAnalyses(props: { review: NextInput["review"]; source: NextInput["source"] }) {
+export function RecommendedAnalyses(props: { review: NextInput["review"]; source: NextInput["source"]; created?: CreatedItem[] }) {
   const source = useContext(AnalysisContext);
+  const starter = useContext(StarterContext);
+  const [picked, setPicked] = useState<string[] | undefined>();
+  const [made, setMade] = useState<Record<string, { busy?: boolean; answer?: StarterAnswer; problem?: string }>>({});
   const key = analysisKey(props.source, props.review);
   const [state, setState] = useState<{ key?: string; busy?: boolean; answer?: AnalysisAnswer; problem?: string }>(
     () => (analysisAnswers.has(key) ? { key, answer: analysisAnswers.get(key) } : {}));
@@ -159,7 +229,7 @@ export function RecommendedAnalyses(props: { review: NextInput["review"]; source
       <Subtitle2 as="h3" id="kg-analysis-title">Recommended analyses</Subtitle2>
       <Caption1>
         SAP order-to-cash analyses, ranked by fixed rules over the proven model and row counts (analysis_plan); no AI. Counts
-        only: no row value leaves the lakehouse. Krusgraph runs no analysis: you import the notebook and run it.
+        only: no row value leaves the lakehouse. Krusgraph runs a notebook only when you choose Run now.
       </Caption1>
       {state.busy && <Body1 role="status">Ranking the analyses: counting rows, read-only…</Body1>}
       {state.problem && (
@@ -175,8 +245,17 @@ export function RecommendedAnalyses(props: { review: NextInput["review"]; source
           <Body1 role="status">{analysisSummary(cards)}</Body1>
           {ready.length > 0 && (
             <ol className="kg-next-list kg-analysis-list" aria-label="Ready and partly ready analyses, ranked">
-              {ready.map((c) => <AnalysisCardView key={c.id} card={c} />)}
+              {ready.map((c) => (
+                <AnalysisCardView key={c.id} card={c} name={analysisName(c, where)} created={madeFor(c, props.created, where)}
+                  ticked={starter ? (picked ?? pickedByDefault(cards)).includes(c.id) : undefined}
+                  onTick={(on) => setPicked((p) => { const now = p ?? pickedByDefault(cards); return on ? [...new Set([...now, c.id])] : now.filter((x) => x !== c.id); })}
+                  said={made[c.id]} />
+              ))}
             </ol>
+          )}
+          {starter && ready.some((c) => c.action.kind === "notebook") && (
+            <AnalysisCreate cards={ready} picked={picked ?? pickedByDefault(cards)} where={where} created={props.created}
+              state={made} setState={setMade} />
           )}
           {notYet.length > 0 && (
             <details className="kg-analysis-later" open={!ready.length}>
@@ -200,8 +279,8 @@ const STATUS_WORD: Record<NextStep["status"], string> = {
   builds: "Krusgraph builds it", starter: "Starter to download", "in Claude": "Krusgraph in Claude", "guide only": "Guide only",
 };
 
-function StepCard(props: { step: NextStep; onBuild: (outputs: OutputKind[]) => void }) {
-  const { step } = props;
+function StepCard(props: { step: NextStep; onBuild: (outputs: OutputKind[]) => void; made?: CreatedItem }) {
+  const { step, made } = props;
   const how = step.how;
   return (
     <li className="kg-next-card" data-step={step.id}>
@@ -216,6 +295,11 @@ function StepCard(props: { step: NextStep; onBuild: (outputs: OutputKind[]) => v
       <Subtitle2 as="h3">{step.title}</Subtitle2>
       <Body1>{step.why}</Body1>
       {step.note && <Caption1>{step.note}</Caption1>}
+      {/* ED3: a notebook this item created: Open in Fabric first (a new tab), Run now beside it */}
+      {how.kind === "starter" && made && (
+        <CreatedActions item={{ id: made.id, workspaceId: made.workspace, type: made.type, displayName: made.name }}
+          preview={made.attached && outputTable(how.code) ? { lakehouse: made.attached, table: outputTable(how.code)!, schema: "dbo" } : undefined} />
+      )}
       <div className="kg-next-actions">
         {how.kind === "build" && (
           <Button appearance="secondary" icon={<Play20Regular />} onClick={() => props.onBuild(how.outputs)}
@@ -225,10 +309,10 @@ function StepCard(props: { step: NextStep; onBuild: (outputs: OutputKind[]) => v
         )}
         {how.kind === "starter" && (
           <>
-            <StarterCreate name={how.name} cells={how.cells} />
+            {!made && <StarterCreate name={how.name} cells={how.cells} />}
             <FileActions file={{ filename: how.filename, mime: how.mime, text: how.content }} label={how.label} copy={false}
-              ariaLabel={`${how.label}: ${how.filename}`} />
-            <CopyText text={how.code} label="Copy the code" />
+              appearance="secondary" ariaLabel={`${how.label}: ${how.filename}`} />
+            <CopyText text={how.code} label="Copy the code" appearance="secondary" />
           </>
         )}
         {how.kind === "ask" && (
@@ -274,10 +358,13 @@ export function ProofStrip(props: { review: NextInput["review"] }) {
   );
 }
 
-export function NextStepsPanel(props: NextInput & { onBuild: (outputs: OutputKind[]) => void }) {
+export function NextStepsPanel(props: NextInput & { onBuild: (outputs: OutputKind[]) => void; onAnalytics?: () => void; now?: Date }) {
   const { proof, steps, waiting } = nextSteps(props);
   const proven = proofLine(proof);
   const grain = grainLine(proof.grains[0]);
+  // ED3: the notebook this item's starter made (the newest), for Open in Fabric and Run now on its card
+  const made = ([...(props.created ?? [])] as Partial<CreatedItem>[]).reverse()
+    .find((c) => c.output === "ds_features" && c.type === "Notebook" && c.id && c.workspace) as CreatedItem | undefined;
   return (
     <section className="kg-next" aria-labelledby="kg-next-title">
       <Subtitle2 as="h2" id="kg-next-title">Next, with other Fabric workloads</Subtitle2>
@@ -286,14 +373,41 @@ export function NextStepsPanel(props: NextInput & { onBuild: (outputs: OutputKin
       ) : (
         <>
           <Body1 data-say="thinker"><strong>Thinker:</strong> {proven}</Body1>
+          {props.now && staleCheckLine(proof.checkedAt, props.now) && <Caption1 data-ed3="stale-check">{staleCheckLine(proof.checkedAt, props.now)}</Caption1>}
           {grain && <Body1 data-say="onto"><strong>Onto:</strong> {grain}</Body1>}
           <Caption1>Suggestions by rules from what was proven; no AI. A dry run comes before anything is created.</Caption1>
           <ul className="kg-next-list">
-            {steps.map((s) => <StepCard key={s.id} step={s} onBuild={props.onBuild} />)}
+            {steps.map((s) => <StepCard key={s.id} step={s} onBuild={props.onBuild} made={s.id === "ds-features" ? made : undefined} />)}
           </ul>
-          <RecommendedAnalyses review={props.review} source={props.source} />
+          {/* ED3: Advanced analytics is one section on the Data product step; here, the way there */}
+          {props.onAnalytics ? (
+            <section className="kg-analysis" aria-labelledby="kg-analysis-link-title">
+              <Subtitle2 as="h3" id="kg-analysis-link-title">Advanced analytics</Subtitle2>
+              <Caption1>Forecasts, segments and the order-to-cash analyses the rules recommend for this data product, each with Dry run, Create, Open in Fabric and Run now.</Caption1>
+              <div className="kg-next-actions">
+                <Button appearance="secondary" onClick={props.onAnalytics}>Go to Advanced analytics on the Data product step</Button>
+              </div>
+            </section>
+          ) : (
+            <RecommendedAnalyses review={props.review} source={props.source} created={props.created as CreatedItem[]} />
+          )}
         </>
       )}
+    </section>
+  );
+}
+
+/** ED3: "Advanced analytics", one section on the Data product step (Gustav: "vart är advanced analytics-spåret?"). */
+export function AdvancedAnalytics(props: { review: NextInput["review"]; source: NextInput["source"]; created?: CreatedItem[] }) {
+  if (!proofOf(props.review).keysPassed) return null;
+  return (
+    <section className="kg-advanced" id="kg-advanced-analytics" aria-labelledby="kg-advanced-title">
+      <Subtitle2 as="h2" id="kg-advanced-title">Advanced analytics</Subtitle2>
+      <Caption1>
+        Notebooks Krusgraph writes by rules on this data product's proven keys and links, created in this item's workspace
+        on the data product's lakehouse. No AI, and Krusgraph trains no model: the notebooks are yours to run.
+      </Caption1>
+      <RecommendedAnalyses review={props.review} source={props.source} created={props.created} />
     </section>
   );
 }

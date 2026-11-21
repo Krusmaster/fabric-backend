@@ -289,3 +289,33 @@ notebook; a lakehouse of that name used; no lakehouse in the workspace; the repo
 drawn; the owner; one grouping; today's check in the dry run) and `workload/Workload/app/items/ModelItem/ed2Create.test.ts`
 with `createEach.test.ts` (silver fails, gold is not created; Fix and finish sends only the missing outputs and reuses
 what exists; the same error once; the blocker and its button).
+
+## 11. After ED3, part 1: open it, run it, see it (21 November 2026)
+
+Gustav's third editor test (about 13:00 to 14:10 UTC, the same shop sample) after ED2's Create. What he saw, and what
+the Model item does now. Deterministic rules; nothing here uses AI.
+
+| # | Before | After |
+|---|---|---|
+| 1 | After Create of `shop_lh_orders_features` the Data Science card offered only "Download notebook (.ipynb)" and "Copy the code" ("jag vill kunna öppna notebooken från Krusgraph eller ha en ny flik") | Every created item has a primary **Open in Fabric** that opens it in a new browser tab (`openInFabric.tsx`: the portal address from the starter kit's `getFrontendPath`, opened with the workload client's `navigation.openBrowserTab`; the link's own `target=_blank rel=noopener` as the fallback). The Data product rows and the result lists open in a new tab too. Download and Copy are secondary |
+| 2 | No way to see the result ("sen kanske se resultatet?") | **Run now** beside Open in Fabric for a notebook or pipeline Krusgraph created (`RunNowView.tsx`, `runNow.ts`, `POST /workload/v1/run`): one click starts one run with Fabric's Run On Demand Item Job (learn.microsoft.com/rest/api/fabric/core/job-scheduler/run-on-demand-item-job; job types `RunNotebook` and `Pipeline`), and Get Item Job Instance (…/get-item-job-instance) is read every 5 s, then every 15 s, for at most 30 minutes: Queued, Running, Succeeded, or Failed with Fabric's message once. After a run that wrote a table: its row count and first 10 rows, read once the way `sample_rows` reads (masked by the privacy rules), not stored. Never automatic. Card text: "Krusgraph runs it only when you choose Run now." |
+| 3 | "The notebook is in your workspace: open it and run it …" and "Created the notebook … open it in Fabric and run it yourself." | One line: "The notebook is in this item's workspace, attached to the data product's lakehouse." plus the Run now line once |
+| 4 | Thinker "checked 2026-11-11 20:23 UTC"; "Silver notebook and gold views; the pipeline is built" while silver had failed | Thinker's time is the newest check of any item (the same source as ED2's `freshestReview`); when it is more than a day old one line says how old and what refreshes it. The Data Factory card says "the pipeline exists but has nothing to run until they are built" |
+| 9a | The starter was created next to the source lakehouse, in the source's workspace, not the item's | Created where every output goes (`build_place`: the item's workspace by default), attached to the data product's lakehouse (the one chosen, else the one Create made or reused, else the workspace's first), reading the source through OneLake; the dry run and the answer say where |
+| 9b | The analysis pack (AP1, WB4's Recommended analyses) was not a visible track | One section **Advanced analytics** on the Data product step, linked from the Next page: the analyses the rules recommend, why each, the top one ticked, Dry run then Create (each a notebook in this workspace, through the starter route), then Open in Fabric and Run now. Nothing is created without Create; Krusgraph trains no model |
+| 9c | 409 "already in use" for `shop_lh_krusgraph_test`, which was in this very workspace | ED2's check uses a lakehouse of that name; now also after a 409 (the listing had not caught up): a lakehouse of exactly that name is used, never `_2` |
+
+**The preview and permissions.** Run now asks for no new Entra permission. It uses the sign-in's
+`Notebook.Execute.All`, `DataPipeline.Execute.All` or `Item.Execute.All` when the sign-in already carries one (the
+hosted app has `DataPipeline.Execute.All` only where the operator switched `pipeline_execute` on); without one, Run now
+says so in one line and points to Run in Fabric. Running a notebook from the item therefore needs an administrator to
+grant `Notebook.Execute.All` (or `Item.Execute.All`) to the workload's app, which this round did not do. The preview
+needs nothing new: it is part of Run now's answer and reads the lakehouse's SQL analytics endpoint with the same token
+as the row check.
+
+Tests: `tests/test_ed3_open_run.py` (fake Fabric: the starter in the item's workspace and lakehouse; Run now's job type,
+states and failure message once; no new permission; the preview read once after success; the same-name lakehouse after a
+409) and `workload/Workload/app/items/ModelItem/ed3OpenRun.test.tsx` (the Open in Fabric address per item type and the
+new tab, Run now's states and preview, no sentence twice on the card, the stale check line, Advanced analytics with the
+top recommendation ticked). `tools/smooth_measure.py` before and after: the same taps, words and buttons on all six
+paths (the guided chat path is not changed by this part).

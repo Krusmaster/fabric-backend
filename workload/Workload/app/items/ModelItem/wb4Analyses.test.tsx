@@ -131,7 +131,7 @@ describe("the section in Next, with other Fabric workloads", () => {
     expect(a7.querySelector("[role=group]")!.getAttribute("aria-label")).toBe("A7 Demand and revenue forecasting: Ready");
     const names = Array.from(a7.querySelectorAll("button")).map((b) => b.getAttribute("aria-label") ?? b.textContent);
     expect(names).toEqual(["Download notebook (.ipynb): A7 Demand and revenue forecasting", "Copy the code"]);
-    expect(a7.textContent).toContain("Krusgraph does not run it and trains no model");
+    expect(a7.textContent).toContain("Krusgraph trains no model");
     const a8 = section.querySelector("[data-analysis=A8]")!;
     expect(a8.querySelector(".fui-Badge")!.textContent).toBe("Partly ready");
     expect(Array.from(a8.querySelectorAll("button")).map((b) => b.textContent)).toEqual(["Copy the request for Claude"]);

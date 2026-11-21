@@ -260,7 +260,7 @@ function ItemRows(props: { rows: ProductRow[]; chosen: string[]; toggle: (id: st
             {x.why && <span className="kg-dp-why">{x.why}</span>}
             {(x.openable && x.id) || (x.id && x.state !== "removed") ? (
               <span className="kg-dp-actions">
-                {x.openable && x.id && <button type="button" onClick={() => props.onOpen?.(x)}>Open in Fabric<span className="kg-dp-sr">: {x.name}</span></button>}
+                {x.openable && x.id && <button type="button" className="kg-dp-open" onClick={() => props.onOpen?.(x)}>Open in Fabric<span className="kg-dp-sr">: {x.name}</span><span className="kg-dp-sr"> (opens a new tab)</span></button>}
                 {x.id && x.state !== "removed" && (
                   <label><input type="checkbox" checked={chosen.includes(x.id)} onChange={() => toggle(x.id!)} disabled={busy} />Choose {x.name} for Retire</label>
                 )}

@@ -7,6 +7,7 @@
  * (green passed, red failed with its orphans or duplicates, grey not checked), Onto, Thinker and Builder in their own
  * colours with the site's figures, Thinker's questions with their choices inline, and Accept all. Words: modelWords.ts.
  */
+import { RunNow } from "./RunNowView";
 import { ReadOnlySource, SapOffer, isReadOnly, restType, sapMark, schemaProblem, sourceButton, sourceNotes, targetButton, targetLine } from "./sourceWords";
 import React, { useState } from "react";
 import {
@@ -1073,9 +1074,13 @@ export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["i
       {links.length > 0 && (
         <div className="krusgraph-actions">
           {links.map((l) => (
-            <Button key={l.item.id} icon={<Open24Regular />} onClick={() => props.onOpen?.(l.item)}>
-              Open in Fabric: {l.label}
-            </Button>
+            <React.Fragment key={l.item.id}>
+              {/* ED3: primary, a new tab; Run now beside a notebook or pipeline this Create made */}
+              <Button appearance="primary" icon={<Open24Regular />} onClick={() => props.onOpen?.(l.item)}>
+                Open in Fabric: {l.label}
+              </Button>
+              <RunNow item={l.item} />
+            </React.Fragment>
           ))}
         </div>
       )}
@@ -1394,9 +1399,12 @@ export function ResultView(props: {
           <Subtitle2>Created items</Subtitle2>
           <div className="krusgraph-actions">
             {earlier.map((l) => (
-              <Button key={l.item.id} icon={<Open24Regular />} onClick={() => props.onOpen(l.item)}>
-                Open in Fabric: {l.label}
-              </Button>
+              <React.Fragment key={l.item.id}>
+                <Button appearance="primary" icon={<Open24Regular />} onClick={() => props.onOpen(l.item)}>
+                  Open in Fabric: {l.label}
+                </Button>
+                <RunNow item={l.item} />
+              </React.Fragment>
             ))}
           </div>
         </section>
