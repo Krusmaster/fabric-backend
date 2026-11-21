@@ -101,9 +101,9 @@ async function main() {
     const t = await text(p);
     expectTrue(t.includes("6 of 6 keys are unique in the rows") && t.includes("7 of 7 links hold"), "check result missing");
     if (!BEFORE) {
-      for (const w of ["rows counted", "keys unique", "links holding", "orphans", "duplicate keys", "2.2×"]) expectTrue(t.includes(w), `proof tile missing: ${w}`);
+      for (const w of ["rows counted", "keys unique", "links holding", "orphans", "duplicate keys", "about 2 times"]) expectTrue(t.includes(w), `proof tile missing: ${w}`);
     }
-    return `${await shot(p, "04-check", true)}; 13 passed, 0 failed` + (BEFORE ? "" : "; tiles: 232 rows counted, 6 of 6 keys, 7 of 7 links, 0 orphans, 0 duplicate keys; 134 order_items over 60 orders = 2.2×");
+    return `${await shot(p, "04-check", true)}; 13 passed, 0 failed` + (BEFORE ? "" : "; tiles: 232 rows counted, 6 of 6 keys, 7 of 7 links, 0 orphans, 0 duplicate keys; order items over orders: about 2 times");
   });
   await step("5 Accept what passed, go on to Choose what to build", async () => {
     if (!BEFORE) expectTrue((await p.getByRole("button", { name: /^Accept all \(\d+\)$/ }).count()) === 0, "a second accept-all next to Accept all that passed");
@@ -423,7 +423,9 @@ async function main() {
       await e.getByRole("button", { name: /Check against the rows/ }).first().waitFor({ timeout: 30000 });
       await settle(e, 2500);
       const now = await decisions(e);
-      const allLeft = await e.getByRole("button", { name: /^Accept all that passed the check \(\d+\)$/ }).first().innerText();
+      // ED1: with every passed item accepted there is nothing left to accept, so the accept-all is hidden (it read "(0)")
+      const left = e.getByRole("button", { name: /^Accept all that passed the check \(\d+\)$/ });
+      const allLeft = (await left.count()) ? await left.first().innerText() : "Accept all that passed the check: hidden (0)";
       const recovered = await e.getByText(/Recovered changes from/).count();
       const createdAfter = (await (await fetch(`${BASE}/e2e/log`)).json()).created.length;
       expectTrue(savesAfter === savesBefore + 1, `saves ${savesBefore} -> ${savesAfter}, expected one more`);

@@ -52,7 +52,9 @@ def test_icons_come_only_from_the_cited_package_at_the_pinned_version():
     assert "from: `./${FABRIC_ICONS.sourceDir}/${file}`" in web
     # the editor points at the served copies only, through fabricIcons.ts
     ts = (MODEL / "fabricIcons.ts").read_text(encoding="utf-8")
-    assert "`${ICONS.servedAt}/${k.file}`" in ts
+    assert "`${ICONS.servedAt}/${file}`" in ts and ts.count("iconSrc(k.file)") == 2
+    # ED1: the production build also carries the same files, byte for byte, as data: URLs (tests/test_ed1_editor.py)
+    assert "readFileSync(path.join(__dirname, FABRIC_ICONS.sourceDir, file))" in web
     views = (MODEL / "ModelItemViews.tsx").read_text(encoding="utf-8")
     assert "fabric-icons" not in views and "svg-icons" not in views
     assert re.search(r'<img className="krusgraph-item-icon" src=\{icon\.src\} alt=\{altBeside\(icon\.alt, label\)\} width=\{ICON_SIZE\} height=\{ICON_SIZE\}', views)

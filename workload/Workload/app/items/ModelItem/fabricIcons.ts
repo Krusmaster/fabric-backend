@@ -23,12 +23,31 @@ export interface ItemIcon {
 }
 
 export const ICON_PACKAGE = `${ICONS.package}@${ICONS.version}`;
+
+/** ED1 (Gustav's editor test, 21 November 2026: a broken image beside every output card's title): the production build
+ * carries each icon file, byte for byte, as a data: URL (webpack.config.js, KRUSGRAPH_FABRIC_ICONS), so the icon shows
+ * without a second request to the host; img-src allows data: (fabric_backend/workload_host.py). Without the build (unit
+ * tests, the dev server) the served copy under /assets/fabric-icons/ is used, as before. */
+function inlined(): Record<string, string> {
+  try {
+    const raw = process.env.KRUSGRAPH_FABRIC_ICONS;
+    return raw ? (JSON.parse(raw) as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+const INLINE = inlined();
+
+/** Where the editor loads an icon file from: the bundle's own copy, else the served one. */
+export function iconSrc(file: string): string {
+  return INLINE[file] ?? `${ICONS.servedAt}/${file}`;
+}
 export const ICON_SIZE = 20;
 
 /** The icon of an output kind (silver_notebook, graphql, ...), or undefined for a kind without one. */
 export function itemIcon(kind: string | undefined): ItemIcon | undefined {
   const k = (ICONS.kinds as Record<string, { file: string; alt: string }>)[kind ?? ""];
-  return k ? { src: `${ICONS.servedAt}/${k.file}`, alt: k.alt } : undefined;
+  return k ? { src: iconSrc(k.file), alt: k.alt } : undefined;
 }
 
 /** W13: the icon's alt text next to a label: empty (decorative) when the label already names the item type, so a screen
@@ -41,7 +60,7 @@ export function altBeside(alt: string, label: string | undefined): string {
 /** WB11: the icon of a Fabric item type as the REST API names it (Lakehouse, Notebook, GraphQLApi, ...), or undefined. */
 export function typeIcon(type: string | undefined): ItemIcon | undefined {
   const k = (ICONS.types as Record<string, { file: string; alt: string }>)[type ?? ""];
-  return k ? { src: `${ICONS.servedAt}/${k.file}`, alt: k.alt } : undefined;
+  return k ? { src: iconSrc(k.file), alt: k.alt } : undefined;
 }
 
 /** WB11: every Fabric item type the editor can name, with its icon (or the documented fallback). */
