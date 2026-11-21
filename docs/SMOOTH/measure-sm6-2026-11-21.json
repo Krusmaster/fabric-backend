@@ -1,0 +1,1004 @@
+[
+ {
+  "path": "careful",
+  "width": 390,
+  "steps": [
+   {
+    "title": "Step 1 of 5: Your data",
+    "line": "Your data, picked for you. Change it if it is wrong.",
+    "words": 22,
+    "buttonWords": 3,
+    "buttons": 2,
+    "labels": [
+     "Change",
+     "Next: Check"
+    ],
+    "text": "Step 1 of 5: Your data\n\nOnto\n\nYour data, picked for you. Change it if it is wrong.\n\ndemo \u203a demo_lh \u203a dbo \u2713\n\nChange\nNext: Check\nDetails",
+    "bottom": 306,
+    "key": "data",
+    "taps": 0,
+    "seconds": 0.36,
+    "scroll": false
+   },
+   {
+    "title": "Step 2 of 5: Check",
+    "line": "17 tables, 24 links, 1 needs you.",
+    "words": 57,
+    "buttonWords": 2,
+    "buttons": 1,
+    "labels": [
+     "Next: Decide"
+    ],
+    "text": "Step 2 of 5: Check\n\nThinker\n\n17 tables, 24 links, 1 needs you.\n\n40 of 41 checks hold.\n\n3 header amounts would count twice.\n\nData products: Order to cash: 5 of 7 products present; receivables and payables and payment missing, so a question like \u201cWhich customers have unpaid invoices past their due date?\u201d cannot be answered.\n\nNext: Decide\nDetails",
+    "bottom": 391,
+    "key": "check",
+    "taps": 1,
+    "seconds": 1.2,
+    "scroll": false
+   },
+   {
+    "title": "Step 3 of 5: Decide",
+    "line": "One link needs you.",
+    "words": 21,
+    "buttonWords": 7,
+    "buttons": 3,
+    "labels": [
+     "Accept with quarantine",
+     "Reject",
+     "Next: Dry run"
+    ],
+    "text": "Step 3 of 5: Decide\n\nThinker\n\nOne link needs you.\n\nIs sap_vbap.MANDT+VBELN \u2192 sap_vbak right?\n\n5 of 6 found (83%).\n\nAccept with quarantine\nReject\nWhy\nNext: Dry run\nDetails",
+    "bottom": 384,
+    "key": "decide",
+    "taps": 2,
+    "seconds": 1.93,
+    "scroll": false
+   },
+   {
+    "title": "Step 4 of 5: Dry run",
+    "line": "One tap dry-runs everything. Nothing is created.",
+    "words": 15,
+    "buttonWords": 5,
+    "buttons": 2,
+    "labels": [
+     "Dry run everything",
+     "Next: Create"
+    ],
+    "text": "Step 4 of 5: Dry run\n\nBuilder\n\nOne tap dry-runs everything. Nothing is created.\n\nDry run everything\nNext: Create\nDetails",
+    "bottom": 282,
+    "key": "dry_run",
+    "taps": 4,
+    "seconds": 2.88,
+    "scroll": false
+   },
+   {
+    "title": "Step 4 of 5: Dry run",
+    "line": "One tap dry-runs everything. Nothing is created.",
+    "words": 18,
+    "buttonWords": 5,
+    "buttons": 2,
+    "labels": [
+     "Dry run again",
+     "Next: Create"
+    ],
+    "text": "Step 4 of 5: Dry run\n\nBuilder\n\nOne tap dry-runs everything. Nothing is created.\n\nDry run again\n\n\u2713 demo_lh_pipeline\n\n\u2713 demo_lh_model\n\n\u2713 demo_lh_agent\n\nNext: Create\nDetails",
+    "bottom": 356,
+    "key": "dry_runs_done",
+    "taps": 5,
+    "seconds": 3.76,
+    "scroll": false
+   },
+   {
+    "title": "Step 5 of 5: Create",
+    "line": "Confirm these names; then each gets its own Create button.",
+    "words": 20,
+    "buttonWords": 8,
+    "buttons": 2,
+    "labels": [
+     "Confirm these names",
+     "Back to the dry run"
+    ],
+    "text": "Step 5 of 5: Create\n\nBuilder\n\nConfirm these names; then each gets its own Create button.\n\ndemo_lh_pipeline\ndemo_lh_model\ndemo_lh_agent\nConfirm these names\nBack to the dry run\nDetails",
+    "bottom": 348,
+    "key": "create",
+    "taps": 6,
+    "seconds": 4.1,
+    "scroll": false
+   },
+   {
+    "title": "Step 5 of 5: Create",
+    "line": "Confirmed. Each button creates one item in Fabric, on a second tap. Nothing is deleted.",
+    "words": 22,
+    "buttonWords": 9,
+    "buttons": 4,
+    "labels": [
+     "Create demo_lh_pipeline",
+     "Create demo_lh_model",
+     "Create demo_lh_agent",
+     "Next: what now?"
+    ],
+    "text": "Step 5 of 5: Create\n\nBuilder\n\nConfirmed. Each button creates one item in Fabric, on a second tap. Nothing is deleted.\n\nCreate demo_lh_pipeline\nCreate demo_lh_model\nCreate demo_lh_agent\nNext: what now?\nDetails",
+    "bottom": 385,
+    "key": "confirmed",
+    "taps": 7,
+    "seconds": 4.46,
+    "scroll": false
+   },
+   {
+    "title": "Step 5 of 5: Create",
+    "line": "Done. What next?",
+    "words": 10,
+    "buttonWords": 8,
+    "buttons": 3,
+    "labels": [
+     "Open in Fabric",
+     "Add a source",
+     "Schedule it"
+    ],
+    "text": "Step 5 of 5: Create\n\nBuilder\n\nDone. What next?\n\nOpen in Fabric\nAdd a source\nSchedule it\nDetails",
+    "bottom": 311,
+    "key": "done",
+    "taps": 8,
+    "seconds": 4.79,
+    "scroll": false
+   }
+  ],
+  "calls": [
+   {
+    "name": "start",
+    "step": "check",
+    "ms": 233
+   },
+   {
+    "name": "start",
+    "step": "decide",
+    "ms": 61
+   },
+   {
+    "name": "start",
+    "step": "decide",
+    "ms": 39
+   },
+   {
+    "name": "start",
+    "step": "dry_run",
+    "ms": 7
+   },
+   {
+    "name": "create_pipeline",
+    "step": "",
+    "ms": 208
+   },
+   {
+    "name": "create_semantic_model",
+    "step": "",
+    "ms": 54
+   },
+   {
+    "name": "create_data_agent",
+    "step": "",
+    "ms": 191
+   },
+   {
+    "name": "start",
+    "step": "create",
+    "ms": 4
+   },
+   {
+    "name": "start",
+    "step": "create",
+    "ms": 4
+   },
+   {
+    "name": "start",
+    "step": "done",
+    "ms": 3
+   }
+  ]
+ },
+ {
+  "path": "careful",
+  "width": 1280,
+  "steps": [
+   {
+    "title": "Step 1 of 5: Your data",
+    "line": "Your data, picked for you. Change it if it is wrong.",
+    "words": 22,
+    "buttonWords": 3,
+    "buttons": 2,
+    "labels": [
+     "Change",
+     "Next: Check"
+    ],
+    "text": "Step 1 of 5: Your data\n\nOnto\n\nYour data, picked for you. Change it if it is wrong.\n\ndemo \u203a demo_lh \u203a dbo \u2713\n\nChange\nNext: Check\nDetails",
+    "bottom": 294,
+    "key": "data",
+    "taps": 0,
+    "seconds": 0.34,
+    "scroll": false
+   },
+   {
+    "title": "Step 2 of 5: Check",
+    "line": "17 tables, 24 links, 1 needs you.",
+    "words": 57,
+    "buttonWords": 2,
+    "buttons": 1,
+    "labels": [
+     "Next: Decide"
+    ],
+    "text": "Step 2 of 5: Check\n\nThinker\n\n17 tables, 24 links, 1 needs you.\n\n40 of 41 checks hold.\n\n3 header amounts would count twice.\n\nData products: Order to cash: 5 of 7 products present; receivables and payables and payment missing, so a question like \u201cWhich customers have unpaid invoices past their due date?\u201d cannot be answered.\n\nNext: Decide\nDetails",
+    "bottom": 326,
+    "key": "check",
+    "taps": 1,
+    "seconds": 1.27,
+    "scroll": false
+   },
+   {
+    "title": "Step 3 of 5: Decide",
+    "line": "One link needs you.",
+    "words": 21,
+    "buttonWords": 7,
+    "buttons": 3,
+    "labels": [
+     "Accept with quarantine",
+     "Reject",
+     "Next: Dry run"
+    ],
+    "text": "Step 3 of 5: Decide\n\nThinker\n\nOne link needs you.\n\nIs sap_vbap.MANDT+VBELN \u2192 sap_vbak right?\n\n5 of 6 found (83%).\n\nAccept with quarantine\nReject\nWhy\nNext: Dry run\nDetails",
+    "bottom": 362,
+    "key": "decide",
+    "taps": 2,
+    "seconds": 1.94,
+    "scroll": false
+   },
+   {
+    "title": "Step 4 of 5: Dry run",
+    "line": "One tap dry-runs everything. Nothing is created.",
+    "words": 15,
+    "buttonWords": 5,
+    "buttons": 2,
+    "labels": [
+     "Dry run everything",
+     "Next: Create"
+    ],
+    "text": "Step 4 of 5: Dry run\n\nBuilder\n\nOne tap dry-runs everything. Nothing is created.\n\nDry run everything\nNext: Create\nDetails",
+    "bottom": 271,
+    "key": "dry_run",
+    "taps": 4,
+    "seconds": 2.85,
+    "scroll": false
+   },
+   {
+    "title": "Step 4 of 5: Dry run",
+    "line": "One tap dry-runs everything. Nothing is created.",
+    "words": 18,
+    "buttonWords": 5,
+    "buttons": 2,
+    "labels": [
+     "Dry run again",
+     "Next: Create"
+    ],
+    "text": "Step 4 of 5: Dry run\n\nBuilder\n\nOne tap dry-runs everything. Nothing is created.\n\nDry run again\n\n\u2713 demo_lh_pipeline\n\n\u2713 demo_lh_model\n\n\u2713 demo_lh_agent\n\nNext: Create\nDetails",
+    "bottom": 344,
+    "key": "dry_runs_done",
+    "taps": 5,
+    "seconds": 3.67,
+    "scroll": false
+   },
+   {
+    "title": "Step 5 of 5: Create",
+    "line": "Confirm these names; then each gets its own Create button.",
+    "words": 20,
+    "buttonWords": 8,
+    "buttons": 2,
+    "labels": [
+     "Confirm these names",
+     "Back to the dry run"
+    ],
+    "text": "Step 5 of 5: Create\n\nBuilder\n\nConfirm these names; then each gets its own Create button.\n\ndemo_lh_pipeline\ndemo_lh_model\ndemo_lh_agent\nConfirm these names\nBack to the dry run\nDetails",
+    "bottom": 336,
+    "key": "create",
+    "taps": 6,
+    "seconds": 4.03,
+    "scroll": false
+   },
+   {
+    "title": "Step 5 of 5: Create",
+    "line": "Confirmed. Each button creates one item in Fabric, on a second tap. Nothing is deleted.",
+    "words": 22,
+    "buttonWords": 9,
+    "buttons": 4,
+    "labels": [
+     "Create demo_lh_pipeline",
+     "Create demo_lh_model",
+     "Create demo_lh_agent",
+     "Next: what now?"
+    ],
+    "text": "Step 5 of 5: Create\n\nBuilder\n\nConfirmed. Each button creates one item in Fabric, on a second tap. Nothing is deleted.\n\nCreate demo_lh_pipeline\nCreate demo_lh_model\nCreate demo_lh_agent\nNext: what now?\nDetails",
+    "bottom": 351,
+    "key": "confirmed",
+    "taps": 7,
+    "seconds": 4.4,
+    "scroll": false
+   },
+   {
+    "title": "Step 5 of 5: Create",
+    "line": "Done. What next?",
+    "words": 10,
+    "buttonWords": 8,
+    "buttons": 3,
+    "labels": [
+     "Open in Fabric",
+     "Add a source",
+     "Schedule it"
+    ],
+    "text": "Step 5 of 5: Create\n\nBuilder\n\nDone. What next?\n\nOpen in Fabric\nAdd a source\nSchedule it\nDetails",
+    "bottom": 311,
+    "key": "done",
+    "taps": 8,
+    "seconds": 4.75,
+    "scroll": false
+   }
+  ],
+  "calls": [
+   {
+    "name": "start",
+    "step": "check",
+    "ms": 239
+   },
+   {
+    "name": "start",
+    "step": "decide",
+    "ms": 39
+   },
+   {
+    "name": "start",
+    "step": "decide",
+    "ms": 39
+   },
+   {
+    "name": "start",
+    "step": "dry_run",
+    "ms": 6
+   },
+   {
+    "name": "create_pipeline",
+    "step": "",
+    "ms": 119
+   },
+   {
+    "name": "create_semantic_model",
+    "step": "",
+    "ms": 48
+   },
+   {
+    "name": "create_data_agent",
+    "step": "",
+    "ms": 245
+   },
+   {
+    "name": "start",
+    "step": "create",
+    "ms": 5
+   },
+   {
+    "name": "start",
+    "step": "create",
+    "ms": 4
+   },
+   {
+    "name": "start",
+    "step": "done",
+    "ms": 4
+   }
+  ]
+ },
+ {
+  "path": "lazy",
+  "width": 390,
+  "steps": [
+   {
+    "title": "Step 1 of 5: Your data",
+    "line": "Your data, picked for you. Change it if it is wrong.",
+    "words": 22,
+    "buttonWords": 3,
+    "buttons": 2,
+    "labels": [
+     "Change",
+     "Next: Check"
+    ],
+    "text": "Step 1 of 5: Your data\n\nOnto\n\nYour data, picked for you. Change it if it is wrong.\n\ndemo \u203a demo_lh \u203a dbo \u2713\n\nChange\nNext: Check\nDetails",
+    "bottom": 306,
+    "key": "data",
+    "taps": 0,
+    "seconds": 0.34,
+    "scroll": false
+   },
+   {
+    "title": "Step 2 of 5: Check",
+    "line": "17 tables, 24 links, 1 needs you.",
+    "words": 57,
+    "buttonWords": 2,
+    "buttons": 1,
+    "labels": [
+     "Next: Decide"
+    ],
+    "text": "Step 2 of 5: Check\n\nThinker\n\n17 tables, 24 links, 1 needs you.\n\n40 of 41 checks hold.\n\n3 header amounts would count twice.\n\nData products: Order to cash: 5 of 7 products present; receivables and payables and payment missing, so a question like \u201cWhich customers have unpaid invoices past their due date?\u201d cannot be answered.\n\nNext: Decide\nDetails",
+    "bottom": 391,
+    "key": "check",
+    "taps": 1,
+    "seconds": 1.17,
+    "scroll": false
+   },
+   {
+    "title": "Step 3 of 5: Decide",
+    "line": "One link needs you.",
+    "words": 21,
+    "buttonWords": 7,
+    "buttons": 3,
+    "labels": [
+     "Accept with quarantine",
+     "Reject",
+     "Next: Dry run"
+    ],
+    "text": "Step 3 of 5: Decide\n\nThinker\n\nOne link needs you.\n\nIs sap_vbap.MANDT+VBELN \u2192 sap_vbak right?\n\n5 of 6 found (83%).\n\nAccept with quarantine\nReject\nWhy\nNext: Dry run\nDetails",
+    "bottom": 384,
+    "key": "decide",
+    "taps": 2,
+    "seconds": 1.91,
+    "scroll": false
+   },
+   {
+    "title": "Step 4 of 5: Dry run",
+    "line": "One tap dry-runs everything. Nothing is created.",
+    "words": 15,
+    "buttonWords": 5,
+    "buttons": 2,
+    "labels": [
+     "Dry run everything",
+     "Next: Create"
+    ],
+    "text": "Step 4 of 5: Dry run\n\nBuilder\n\nOne tap dry-runs everything. Nothing is created.\n\nDry run everything\nNext: Create\nDetails",
+    "bottom": 282,
+    "key": "dry_run",
+    "taps": 3,
+    "seconds": 2.27,
+    "scroll": false
+   },
+   {
+    "title": "Step 4 of 5: Dry run",
+    "line": "One tap dry-runs everything. Nothing is created.",
+    "words": 18,
+    "buttonWords": 5,
+    "buttons": 2,
+    "labels": [
+     "Dry run again",
+     "Next: Create"
+    ],
+    "text": "Step 4 of 5: Dry run\n\nBuilder\n\nOne tap dry-runs everything. Nothing is created.\n\nDry run again\n\n\u2713 demo_lh_pipeline\n\n\u2713 demo_lh_model\n\n\u2713 demo_lh_agent\n\nNext: Create\nDetails",
+    "bottom": 356,
+    "key": "dry_runs_done",
+    "taps": 4,
+    "seconds": 3,
+    "scroll": false
+   },
+   {
+    "title": "Step 5 of 5: Create",
+    "line": "Confirm these names; then each gets its own Create button.",
+    "words": 20,
+    "buttonWords": 8,
+    "buttons": 2,
+    "labels": [
+     "Confirm these names",
+     "Back to the dry run"
+    ],
+    "text": "Step 5 of 5: Create\n\nBuilder\n\nConfirm these names; then each gets its own Create button.\n\ndemo_lh_pipeline\ndemo_lh_model\ndemo_lh_agent\nConfirm these names\nBack to the dry run\nDetails",
+    "bottom": 348,
+    "key": "create",
+    "taps": 5,
+    "seconds": 3.36,
+    "scroll": false
+   },
+   {
+    "title": "Step 5 of 5: Create",
+    "line": "Confirmed. Each button creates one item in Fabric, on a second tap. Nothing is deleted.",
+    "words": 22,
+    "buttonWords": 9,
+    "buttons": 4,
+    "labels": [
+     "Create demo_lh_pipeline",
+     "Create demo_lh_model",
+     "Create demo_lh_agent",
+     "Next: what now?"
+    ],
+    "text": "Step 5 of 5: Create\n\nBuilder\n\nConfirmed. Each button creates one item in Fabric, on a second tap. Nothing is deleted.\n\nCreate demo_lh_pipeline\nCreate demo_lh_model\nCreate demo_lh_agent\nNext: what now?\nDetails",
+    "bottom": 385,
+    "key": "confirmed",
+    "taps": 6,
+    "seconds": 3.71,
+    "scroll": false
+   },
+   {
+    "title": "Step 5 of 5: Create",
+    "line": "Done. What next?",
+    "words": 10,
+    "buttonWords": 8,
+    "buttons": 3,
+    "labels": [
+     "Open in Fabric",
+     "Add a source",
+     "Schedule it"
+    ],
+    "text": "Step 5 of 5: Create\n\nBuilder\n\nDone. What next?\n\nOpen in Fabric\nAdd a source\nSchedule it\nDetails",
+    "bottom": 311,
+    "key": "done",
+    "taps": 7,
+    "seconds": 4.06,
+    "scroll": false
+   }
+  ],
+  "calls": [
+   {
+    "name": "start",
+    "step": "check",
+    "ms": 237
+   },
+   {
+    "name": "start",
+    "step": "decide",
+    "ms": 58
+   },
+   {
+    "name": "start",
+    "step": "dry_run",
+    "ms": 4
+   },
+   {
+    "name": "create_pipeline",
+    "step": "",
+    "ms": 84
+   },
+   {
+    "name": "create_semantic_model",
+    "step": "",
+    "ms": 51
+   },
+   {
+    "name": "create_data_agent",
+    "step": "",
+    "ms": 189
+   },
+   {
+    "name": "start",
+    "step": "create",
+    "ms": 4
+   },
+   {
+    "name": "start",
+    "step": "create",
+    "ms": 4
+   },
+   {
+    "name": "start",
+    "step": "done",
+    "ms": 3
+   }
+  ]
+ },
+ {
+  "path": "lazy",
+  "width": 1280,
+  "steps": [
+   {
+    "title": "Step 1 of 5: Your data",
+    "line": "Your data, picked for you. Change it if it is wrong.",
+    "words": 22,
+    "buttonWords": 3,
+    "buttons": 2,
+    "labels": [
+     "Change",
+     "Next: Check"
+    ],
+    "text": "Step 1 of 5: Your data\n\nOnto\n\nYour data, picked for you. Change it if it is wrong.\n\ndemo \u203a demo_lh \u203a dbo \u2713\n\nChange\nNext: Check\nDetails",
+    "bottom": 294,
+    "key": "data",
+    "taps": 0,
+    "seconds": 0.34,
+    "scroll": false
+   },
+   {
+    "title": "Step 2 of 5: Check",
+    "line": "17 tables, 24 links, 1 needs you.",
+    "words": 57,
+    "buttonWords": 2,
+    "buttons": 1,
+    "labels": [
+     "Next: Decide"
+    ],
+    "text": "Step 2 of 5: Check\n\nThinker\n\n17 tables, 24 links, 1 needs you.\n\n40 of 41 checks hold.\n\n3 header amounts would count twice.\n\nData products: Order to cash: 5 of 7 products present; receivables and payables and payment missing, so a question like \u201cWhich customers have unpaid invoices past their due date?\u201d cannot be answered.\n\nNext: Decide\nDetails",
+    "bottom": 326,
+    "key": "check",
+    "taps": 1,
+    "seconds": 1.3,
+    "scroll": false
+   },
+   {
+    "title": "Step 3 of 5: Decide",
+    "line": "One link needs you.",
+    "words": 21,
+    "buttonWords": 7,
+    "buttons": 3,
+    "labels": [
+     "Accept with quarantine",
+     "Reject",
+     "Next: Dry run"
+    ],
+    "text": "Step 3 of 5: Decide\n\nThinker\n\nOne link needs you.\n\nIs sap_vbap.MANDT+VBELN \u2192 sap_vbak right?\n\n5 of 6 found (83%).\n\nAccept with quarantine\nReject\nWhy\nNext: Dry run\nDetails",
+    "bottom": 362,
+    "key": "decide",
+    "taps": 2,
+    "seconds": 2.02,
+    "scroll": false
+   },
+   {
+    "title": "Step 4 of 5: Dry run",
+    "line": "One tap dry-runs everything. Nothing is created.",
+    "words": 15,
+    "buttonWords": 5,
+    "buttons": 2,
+    "labels": [
+     "Dry run everything",
+     "Next: Create"
+    ],
+    "text": "Step 4 of 5: Dry run\n\nBuilder\n\nOne tap dry-runs everything. Nothing is created.\n\nDry run everything\nNext: Create\nDetails",
+    "bottom": 271,
+    "key": "dry_run",
+    "taps": 3,
+    "seconds": 2.38,
+    "scroll": false
+   },
+   {
+    "title": "Step 4 of 5: Dry run",
+    "line": "One tap dry-runs everything. Nothing is created.",
+    "words": 18,
+    "buttonWords": 5,
+    "buttons": 2,
+    "labels": [
+     "Dry run again",
+     "Next: Create"
+    ],
+    "text": "Step 4 of 5: Dry run\n\nBuilder\n\nOne tap dry-runs everything. Nothing is created.\n\nDry run again\n\n\u2713 demo_lh_pipeline\n\n\u2713 demo_lh_model\n\n\u2713 demo_lh_agent\n\nNext: Create\nDetails",
+    "bottom": 344,
+    "key": "dry_runs_done",
+    "taps": 4,
+    "seconds": 3.25,
+    "scroll": false
+   },
+   {
+    "title": "Step 5 of 5: Create",
+    "line": "Confirm these names; then each gets its own Create button.",
+    "words": 20,
+    "buttonWords": 8,
+    "buttons": 2,
+    "labels": [
+     "Confirm these names",
+     "Back to the dry run"
+    ],
+    "text": "Step 5 of 5: Create\n\nBuilder\n\nConfirm these names; then each gets its own Create button.\n\ndemo_lh_pipeline\ndemo_lh_model\ndemo_lh_agent\nConfirm these names\nBack to the dry run\nDetails",
+    "bottom": 336,
+    "key": "create",
+    "taps": 5,
+    "seconds": 3.62,
+    "scroll": false
+   },
+   {
+    "title": "Step 5 of 5: Create",
+    "line": "Confirmed. Each button creates one item in Fabric, on a second tap. Nothing is deleted.",
+    "words": 22,
+    "buttonWords": 9,
+    "buttons": 4,
+    "labels": [
+     "Create demo_lh_pipeline",
+     "Create demo_lh_model",
+     "Create demo_lh_agent",
+     "Next: what now?"
+    ],
+    "text": "Step 5 of 5: Create\n\nBuilder\n\nConfirmed. Each button creates one item in Fabric, on a second tap. Nothing is deleted.\n\nCreate demo_lh_pipeline\nCreate demo_lh_model\nCreate demo_lh_agent\nNext: what now?\nDetails",
+    "bottom": 351,
+    "key": "confirmed",
+    "taps": 6,
+    "seconds": 3.97,
+    "scroll": false
+   },
+   {
+    "title": "Step 5 of 5: Create",
+    "line": "Done. What next?",
+    "words": 10,
+    "buttonWords": 8,
+    "buttons": 3,
+    "labels": [
+     "Open in Fabric",
+     "Add a source",
+     "Schedule it"
+    ],
+    "text": "Step 5 of 5: Create\n\nBuilder\n\nDone. What next?\n\nOpen in Fabric\nAdd a source\nSchedule it\nDetails",
+    "bottom": 311,
+    "key": "done",
+    "taps": 7,
+    "seconds": 4.3,
+    "scroll": false
+   }
+  ],
+  "calls": [
+   {
+    "name": "start",
+    "step": "check",
+    "ms": 346
+   },
+   {
+    "name": "start",
+    "step": "decide",
+    "ms": 43
+   },
+   {
+    "name": "start",
+    "step": "dry_run",
+    "ms": 4
+   },
+   {
+    "name": "create_pipeline",
+    "step": "",
+    "ms": 78
+   },
+   {
+    "name": "create_semantic_model",
+    "step": "",
+    "ms": 49
+   },
+   {
+    "name": "create_data_agent",
+    "step": "",
+    "ms": 321
+   },
+   {
+    "name": "start",
+    "step": "create",
+    "ms": 3
+   },
+   {
+    "name": "start",
+    "step": "create",
+    "ms": 5
+   },
+   {
+    "name": "start",
+    "step": "done",
+    "ms": 3
+   }
+  ]
+ },
+ {
+  "path": "shop",
+  "width": 390,
+  "steps": [
+   {
+    "title": "Step 2 of 5: Check (sample)",
+    "line": "7 tables, 6 links, 1 needs you.",
+    "words": 60,
+    "buttonWords": 2,
+    "buttons": 1,
+    "labels": [
+     "Next: Decide"
+    ],
+    "text": "Step 2 of 5: Check (sample)\n\nThinker\n\n7 tables, 6 links, 1 needs you.\n\n6 of 6 links hold.\n\n1 amount would count twice.\n\nData products: Order to cash: 3 of 7 products present; delivery, customer invoice, receivables and payables and payment missing, so a question like \u201cWhich deliveries left later than the customer was promised?\u201d cannot be answered.\n\nNext: Decide\nDetails",
+    "bottom": 391,
+    "key": "check",
+    "taps": 0,
+    "seconds": 0.96,
+    "scroll": false
+   },
+   {
+    "title": "Step 3 of 5: Decide (sample)",
+    "line": "One link needs you.",
+    "words": 23,
+    "buttonWords": 5,
+    "buttons": 3,
+    "labels": [
+     "Accept",
+     "Reject",
+     "Next: Dry run"
+    ],
+    "text": "Step 3 of 5: Decide (sample)\n\nThinker\n\nOne link needs you.\n\nDoes orders.ship_to_id point at addresses?\n\n60 of 60 found (100%).\n\nAccept\nReject\nWhy\nNext: Dry run\nDetails",
+    "bottom": 362,
+    "key": "decide",
+    "taps": 1,
+    "seconds": 1.38,
+    "scroll": false
+   },
+   {
+    "title": "Step 4 of 5: Dry run (sample)",
+    "line": "One tap dry-runs everything on the shop.",
+    "words": 16,
+    "buttonWords": 5,
+    "buttons": 2,
+    "labels": [
+     "Dry run everything",
+     "Next: Create"
+    ],
+    "text": "Step 4 of 5: Dry run (sample)\n\nBuilder\n\nOne tap dry-runs everything on the shop.\n\nDry run everything\nNext: Create\nDetails",
+    "bottom": 282,
+    "key": "dry_run",
+    "taps": 2,
+    "seconds": 1.75,
+    "scroll": false
+   },
+   {
+    "title": "Step 4 of 5: Dry run (sample)",
+    "line": "Dry run done on the shop. Nothing was created.",
+    "words": 21,
+    "buttonWords": 2,
+    "buttons": 1,
+    "labels": [
+     "Next: Create"
+    ],
+    "text": "Step 4 of 5: Dry run (sample)\n\nBuilder\n\nDry run done on the shop. Nothing was created.\n\n\u2713 shop_pipeline\n\n\u2713 shop_model\n\n\u2713 shop_agent\n\nNext: Create\nDetails",
+    "bottom": 316,
+    "key": "dry_runs_done",
+    "taps": 3,
+    "seconds": 2.13,
+    "scroll": false
+   },
+   {
+    "title": "Step 5 of 5: Create (sample)",
+    "line": "This is the sample, so nothing is created. Try it on your own data.",
+    "words": 22,
+    "buttonWords": 9,
+    "buttons": 2,
+    "labels": [
+     "Start on my data",
+     "Show the dry run again"
+    ],
+    "text": "Step 5 of 5: Create (sample)\n\nBuilder\n\nThis is the sample, so nothing is created. Try it on your own data.\n\nStart on my data\nShow the dry run again\nDetails",
+    "bottom": 282,
+    "key": "create",
+    "taps": 4,
+    "seconds": 2.5,
+    "scroll": false
+   }
+  ],
+  "calls": [
+   {
+    "name": "start",
+    "step": "decide",
+    "ms": 26
+   },
+   {
+    "name": "start",
+    "step": "dry_run",
+    "ms": 23
+   },
+   {
+    "name": "start",
+    "step": "dry_run",
+    "ms": 18
+   },
+   {
+    "name": "start",
+    "step": "create",
+    "ms": 21
+   }
+  ]
+ },
+ {
+  "path": "shop",
+  "width": 1280,
+  "steps": [
+   {
+    "title": "Step 2 of 5: Check (sample)",
+    "line": "7 tables, 6 links, 1 needs you.",
+    "words": 60,
+    "buttonWords": 2,
+    "buttons": 1,
+    "labels": [
+     "Next: Decide"
+    ],
+    "text": "Step 2 of 5: Check (sample)\n\nThinker\n\n7 tables, 6 links, 1 needs you.\n\n6 of 6 links hold.\n\n1 amount would count twice.\n\nData products: Order to cash: 3 of 7 products present; delivery, customer invoice, receivables and payables and payment missing, so a question like \u201cWhich deliveries left later than the customer was promised?\u201d cannot be answered.\n\nNext: Decide\nDetails",
+    "bottom": 326,
+    "key": "check",
+    "taps": 0,
+    "seconds": 0.52,
+    "scroll": false
+   },
+   {
+    "title": "Step 3 of 5: Decide (sample)",
+    "line": "One link needs you.",
+    "words": 23,
+    "buttonWords": 5,
+    "buttons": 3,
+    "labels": [
+     "Accept",
+     "Reject",
+     "Next: Dry run"
+    ],
+    "text": "Step 3 of 5: Decide (sample)\n\nThinker\n\nOne link needs you.\n\nDoes orders.ship_to_id point at addresses?\n\n60 of 60 found (100%).\n\nAccept\nReject\nWhy\nNext: Dry run\nDetails",
+    "bottom": 362,
+    "key": "decide",
+    "taps": 1,
+    "seconds": 0.96,
+    "scroll": false
+   },
+   {
+    "title": "Step 4 of 5: Dry run (sample)",
+    "line": "One tap dry-runs everything on the shop.",
+    "words": 16,
+    "buttonWords": 5,
+    "buttons": 2,
+    "labels": [
+     "Dry run everything",
+     "Next: Create"
+    ],
+    "text": "Step 4 of 5: Dry run (sample)\n\nBuilder\n\nOne tap dry-runs everything on the shop.\n\nDry run everything\nNext: Create\nDetails",
+    "bottom": 271,
+    "key": "dry_run",
+    "taps": 2,
+    "seconds": 1.38,
+    "scroll": false
+   },
+   {
+    "title": "Step 4 of 5: Dry run (sample)",
+    "line": "Dry run done on the shop. Nothing was created.",
+    "words": 21,
+    "buttonWords": 2,
+    "buttons": 1,
+    "labels": [
+     "Next: Create"
+    ],
+    "text": "Step 4 of 5: Dry run (sample)\n\nBuilder\n\nDry run done on the shop. Nothing was created.\n\n\u2713 shop_pipeline\n\n\u2713 shop_model\n\n\u2713 shop_agent\n\nNext: Create\nDetails",
+    "bottom": 304,
+    "key": "dry_runs_done",
+    "taps": 3,
+    "seconds": 1.76,
+    "scroll": false
+   },
+   {
+    "title": "Step 5 of 5: Create (sample)",
+    "line": "This is the sample, so nothing is created. Try it on your own data.",
+    "words": 22,
+    "buttonWords": 9,
+    "buttons": 2,
+    "labels": [
+     "Start on my data",
+     "Show the dry run again"
+    ],
+    "text": "Step 5 of 5: Create (sample)\n\nBuilder\n\nThis is the sample, so nothing is created. Try it on your own data.\n\nStart on my data\nShow the dry run again\nDetails",
+    "bottom": 271,
+    "key": "create",
+    "taps": 4,
+    "seconds": 2.11,
+    "scroll": false
+   }
+  ],
+  "calls": [
+   {
+    "name": "start",
+    "step": "decide",
+    "ms": 29
+   },
+   {
+    "name": "start",
+    "step": "dry_run",
+    "ms": 33
+   },
+   {
+    "name": "start",
+    "step": "dry_run",
+    "ms": 20
+   },
+   {
+    "name": "start",
+    "step": "create",
+    "ms": 29
+   }
+  ]
+ }
+]

@@ -894,6 +894,12 @@
       "title": "Dry Run",
       "type": "boolean"
      },
+     "gold_lakehouse": {
+      "default": "",
+      "description": "Lakehouse of this workspace for the gold views. Default \"\": where silver goes.",
+      "title": "Gold Lakehouse",
+      "type": "string"
+     },
      "gold_schema": {
       "default": "",
       "description": "Schema of the gold views read. Default \"\": the pipeline's, else \"gold\".",
@@ -976,6 +982,12 @@
      "source": {
       "description": "Lakehouse, warehouse or SQL database, name or id.",
       "title": "Source",
+      "type": "string"
+     },
+     "target_lakehouse": {
+      "default": "",
+      "description": "Lakehouse of this workspace for the silver tables. Default \"\": the source lakehouse.",
+      "title": "Target Lakehouse",
       "type": "string"
      },
      "test_questions": {
@@ -1148,6 +1160,12 @@
       "title": "Dry Run",
       "type": "boolean"
      },
+     "gold_lakehouse": {
+      "default": "",
+      "description": "Lakehouse of this workspace for the gold views. Default \"\": where silver goes.",
+      "title": "Gold Lakehouse",
+      "type": "string"
+     },
      "gold_schema": {
       "default": "gold",
       "description": "Lakehouse schema for the gold views. Default \"gold\". Example: \"gold\".",
@@ -1216,6 +1234,12 @@
       "default": null,
       "description": "Exact table names to include. Default all.",
       "title": "Tables"
+     },
+     "target_lakehouse": {
+      "default": "",
+      "description": "Lakehouse of this workspace for the silver tables. Default \"\": the source lakehouse.",
+      "title": "Target Lakehouse",
+      "type": "string"
      },
      "workspace": {
       "description": "Fabric workspace, name or id.",
@@ -1350,6 +1374,12 @@
       "description": "Exact table names to include. Default all.",
       "title": "Tables"
      },
+     "target_lakehouse": {
+      "default": "",
+      "description": "Lakehouse of this workspace for the silver tables. Default \"\": the source lakehouse.",
+      "title": "Target Lakehouse",
+      "type": "string"
+     },
      "workspace": {
       "description": "Fabric workspace, name or id.",
       "title": "Workspace",
@@ -1419,6 +1449,12 @@
       "description": "true (default) returns what would be created and the REST calls, changing nothing; false creates or updates.",
       "title": "Dry Run",
       "type": "boolean"
+     },
+     "gold_lakehouse": {
+      "default": "",
+      "description": "Lakehouse of this workspace for the gold views. Default \"\": where silver goes.",
+      "title": "Gold Lakehouse",
+      "type": "string"
      },
      "gold_name": {
       "default": "",
@@ -1520,6 +1556,12 @@
       "default": null,
       "description": "Exact table names to include. Default all.",
       "title": "Tables"
+     },
+     "target_lakehouse": {
+      "default": "",
+      "description": "Lakehouse of this workspace for the silver tables. Default \"\": the source lakehouse.",
+      "title": "Target Lakehouse",
+      "type": "string"
      },
      "workspace": {
       "description": "Fabric workspace, name or id.",
@@ -1729,6 +1771,12 @@
       "description": "Exact table names to include. Default all.",
       "title": "Tables"
      },
+     "target_lakehouse": {
+      "default": "",
+      "description": "Lakehouse of this workspace for the silver tables. Default \"\": the source lakehouse.",
+      "title": "Target Lakehouse",
+      "type": "string"
+     },
      "workspace": {
       "description": "Fabric workspace, name or id.",
       "title": "Workspace",
@@ -1885,6 +1933,12 @@
       "default": null,
       "description": "Exact table names to include. Default all.",
       "title": "Tables"
+     },
+     "target_lakehouse": {
+      "default": "",
+      "description": "Lakehouse of this workspace for the silver tables. Default \"\": the source lakehouse.",
+      "title": "Target Lakehouse",
+      "type": "string"
      },
      "workspace": {
       "description": "Fabric workspace, name or id.",

@@ -231,6 +231,7 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", gold_schema: str
     return {"source": {"item": info.get("item_name") or "", "item_id": info.get("item_id") or "", "workspace_id": info.get("workspace_id") or "",
                        "schema": schema, "tables": sorted(t.name for t in plan.schema)},
             "silver_schema": silver_schema, "gold_schema": gold_schema, "owner": owner, "views": views,
+            **({"silver_lakehouse": info["silver_from"]["lakehouse"]} if info.get("silver_from") else {}),   # SM6
             "header_amounts_left_out": levels,
             "personal_data": {"shown": bool(show_personal_data), "omitted": omitted, "kept_for_joins": kept,
                               "flagged": _privacy.findings({k: v for k, v in flagged.items() if k[0] in {t for v in views for t in v["tables"]}})}}
@@ -258,12 +259,14 @@ def where_sql(view: dict, quote=q, comments: bool = False) -> str:
     return ("\n" + "\n".join(out)) if out else ""
 
 
-def select_sql(view: dict, silver_schema: str, quote=q, comments: bool = False) -> str:
+def select_sql(view: dict, silver_schema: str, quote=q, comments: bool = False, silver_lakehouse: str | None = None) -> str:
+    """SM6: `silver_lakehouse` (another lakehouse of the workspace) reads the silver tables by their three-part name."""
     cols = ",\n    ".join(f"{c['alias']}.{quote(c['column'])} AS {quote(c['as'])}" for c in view["columns"])
-    joins = "".join(f"\n    LEFT JOIN {quote(silver_schema)}.{quote(j['to'])} AS {j['alias']} ON "
+    at = f"{quote(silver_lakehouse)}.{quote(silver_schema)}" if silver_lakehouse else quote(silver_schema)
+    joins = "".join(f"\n    LEFT JOIN {at}.{quote(j['to'])} AS {j['alias']} ON "
                     + " AND ".join(f"{j['from_alias']}.{quote(a)} = {j['alias']}.{quote(b)}" for a, b in zip(j["source_cols"], j["target_cols"]))
                     for j in view["joins"])
-    return f"SELECT\n    {cols}\nFROM {quote(silver_schema)}.{quote(view['fact'])} AS f{joins}{where_sql(view, quote, comments)}"
+    return f"SELECT\n    {cols}\nFROM {at}.{quote(view['fact'])} AS f{joins}{where_sql(view, quote, comments)}"
 
 
 def create_sql(view: dict, s: dict) -> str:
@@ -284,7 +287,7 @@ def create_sql(view: dict, s: dict) -> str:
     lines.append('COMMENT "' + _one_line(comment).replace("\\", "\\\\").replace('"', "'") + '"')
     lines.append(f'TBLPROPERTIES ("{PROPERTY}"="' + s["owner"].replace("\\", "\\\\").replace('"', "'") + '")')
     lines.append("AS")
-    lines.append(select_sql(view, s["silver_schema"], comments=True))
+    lines.append(select_sql(view, s["silver_schema"], comments=True, silver_lakehouse=s.get("silver_lakehouse")))
     return "\n".join(lines)
 
 
@@ -351,21 +354,30 @@ def cells(s: dict) -> list[tuple[str, str]]:
                   + f". Generate again with {_privacy.PARAMETER}=true to include them.")
     params = (f"GOLD_SCHEMA = {_py_literal(s['gold_schema'])}     # where the gold views go; never the source or silver schema\n"
               f"SILVER_SCHEMA = {_py_literal(s['silver_schema'])}   # where create_silver_notebook wrote the silver tables")
+    lh = s.get("silver_lakehouse")                     # SM6: the silver tables are in another lakehouse of this workspace
+    if lh:
+        params += f"\nSILVER_LAKEHOUSE = {_py_literal(lh)}   # the lakehouse of the silver tables; the gold views go to this notebook's"
     reads = sorted({t for v in s["views"] for t in v["tables"]}, key=str.lower)
     setup = SETUP.format(source_schema=_py_literal(s["source"]["schema"]), owner=_py_literal(s["owner"]),
                          source_tables=_py_literal(s["source"]["tables"]), silver_tables=_py_literal(reads),
                          writes=_py_literal([v["name"].split(".", 1)[1] for v in s["views"]]))
+    if lh:
+        intro += (f"\n\nThe silver tables are in the lakehouse `{lh}` of this workspace and are read by their three-part name "
+                  f"`{lh}.{s['silver_schema']}.<table>`; the views are created in this notebook's default lakehouse.")
+        setup = setup.replace("spark.catalog.tableExists(q(SILVER_SCHEMA, t))", "spark.catalog.tableExists(q(SILVER_LAKEHOUSE, SILVER_SCHEMA, t))")
     out = [("markdown", intro), ("parameters", params), ("code", setup)]
     for v in s["views"]:
         sql = create_sql(v, s)
         # the schema names become the parameters' values at run time; the SQL is a plain (not f-) string with backslashes and
         # triple quotes escaped, so any table or column name survives as it is
-        body = sql.replace(f"{q(s['gold_schema'])}.", f"`{GOLD_TOKEN}`.").replace(f"{q(s['silver_schema'])}.", f"`{SILVER_TOKEN}`.")
+        silver_at = f"{q(lh)}.{q(s['silver_schema'])}." if lh else f"{q(s['silver_schema'])}."
+        body = sql.replace(f"{q(s['gold_schema'])}.", f"`{GOLD_TOKEN}`.").replace(silver_at, f"`{SILVER_TOKEN}`.")
         body = body.replace("\\", "\\\\").replace('"""', '\\"\\"\\"')
         name = v["name"].split(".", 1)[1]
         out.append(("code", "\n".join([_comment(f"---- {v['name']} ----"), *[_comment(f"{c['name']}: {c['why']}") for c in v["constraints"] + v.get("filters", [])],
                                        f'spark.sql("""\n{body}\n""".replace("{GOLD_TOKEN}", GOLD_SCHEMA.replace("`", "``"))'
-                                       f'.replace("{SILVER_TOKEN}", SILVER_SCHEMA.replace("`", "``")))',
+                                       + (f'.replace("{SILVER_TOKEN}", SILVER_LAKEHOUSE.replace("`", "``") + "`.`" + SILVER_SCHEMA.replace("`", "``")))'
+                                          if lh else f'.replace("{SILVER_TOKEN}", SILVER_SCHEMA.replace("`", "``")))'),
                                        f"created.append({_py_literal(name)})"])))
     out.append(("code", "print(f\"{len(created)} gold view(s) in {GOLD_SCHEMA}: {', '.join(created)}\")\n"
                         "display(spark.sql(f\"SHOW MATERIALIZED LAKE VIEWS IN {q(GOLD_SCHEMA)}\"))"))

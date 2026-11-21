@@ -130,6 +130,40 @@ def layer_of(name: str) -> str | None:
     return hit[0] if len(hit) == 1 else None
 
 
+def layer_targets(source: str | None, names: list[str]) -> dict | None:
+    """SM6 (G2): {"silver": lakehouse, "gold": lakehouse} where a build from `source` writes, by name rule L1: the source
+    is named as the raw layer and exactly one other source is named silver; gold goes to the one named gold, else beside
+    silver. None otherwise: the build writes into the source, as before."""
+    if not source or layer_of(source) != "bronze":
+        return None
+    others = [str(n) for n in names if str(n) != source]
+    silver = [n for n in others if layer_of(n) == "silver"]
+    gold = [n for n in others if layer_of(n) == "gold"]
+    if len(silver) != 1:
+        return None
+    return {"silver": silver[0], "gold": gold[0] if len(gold) == 1 else silver[0]}
+
+
+def targets_line(t: dict) -> str:
+    """SM6: the one line the dry run says: "silver → silver_lh, gold → gold_lh"."""
+    return f"silver {ARROW} {t['silver']}, gold {ARROW} {t['gold']}"
+
+
+# SM6: the arguments a build tool takes for the layer lakehouses (tool_params TargetLakehouse, GoldLakehouse)
+TARGET_ARGS = {"create_pipeline": ("target_lakehouse", "gold_lakehouse"), "create_semantic_model": ("target_lakehouse",),
+               "create_ontology": ("target_lakehouse",)}
+
+
+def _build_args(c: dict, tool: str) -> dict:
+    """_plan_args, plus SM6's layer lakehouses for the tools that take them."""
+    out = _plan_args(c)
+    t = c.get("targets")
+    if isinstance(t, dict):
+        for k in TARGET_ARGS.get(tool, ()):
+            out[k] = t["silver"] if k == "target_lakehouse" else t["gold"]
+    return out
+
+
 def suggest_source(items: list[dict]) -> dict | None:
     """SM5: {name, rule, why, say, others: {name: what happens to it}} for the source the name rules point at, or None.
     `items` are the source step's options ({name, hint})."""
@@ -142,8 +176,11 @@ def suggest_source(items: list[dict]) -> dict | None:
         layered = [n for n in names if n != pick and layer_of(n) in ("silver", "gold")]
         others = {n: f"{layer_of(n)} layer: not read" for n in layered}
         rest = ", ".join(layered[:2]) if layered else ""
-        say = (f"I picked {pick}: its name says raw data." + (f" {rest} stay untouched." if rest else ""))
-        return {"name": pick, "rule": "L1", "why": "the name says raw data (bronze)", "say": say, "others": others}
+        targets = layer_targets(pick, names)
+        say = (f"I picked {pick}: its name says raw data." + (f" S{targets_line(targets)[1:]}." if targets else
+                                                              f" {rest} stay untouched." if rest else ""))
+        return {"name": pick, "rule": "L1", "why": "the name says raw data (bronze)", "say": say, "others": others,
+                **({"targets": targets} if targets else {})}
     product = [n for n in names if _words(n) & set(PRODUCT_WORDS) and layer_of(n) is None]
     if len(product) == 1:
         pick = product[0]
@@ -352,7 +389,8 @@ def _choices(now: str, c: dict, options: dict | None) -> tuple[list[dict], dict]
 def guide(workspace: str | None = None, source: str | None = None, schema: str | None = None, step: str | None = None,
           keys: dict | None = None, confirmed: list | None = None, decisions: list | None = None,
           create: list | None = None, confirm: bool = False, sample: bool = False, options: dict | None = None,
-          review: dict | None = None, picked: list | None = None, suggested: dict | None = None) -> dict:
+          review: dict | None = None, picked: list | None = None, suggested: dict | None = None,
+          targets: dict | None = None) -> dict:
     """The stepper's answer (see the module docstring). Pure: no Fabric, no SQL. `options` (WB12, #76) is what the
     start tool read for a choosing stage: {step, items: [{name, hint?, tables?}]} or {step, error}. `review` (WB13, #66)
     is review_plan's file with the checks counted, built by the start tool for Check and Decide, or {error}. `picked`
@@ -360,6 +398,8 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
     c = {"workspace": (workspace or "").strip() or None, "source": (source or "").strip() or None,
          "schema": (schema or "").strip() or None, "keys": keys or None, "confirmed": confirmed or None,
          "decisions": decisions or None, "sample": bool(sample)}
+    if isinstance(targets, dict) and targets.get("silver") and targets.get("gold") and not c["sample"]:
+        c["targets"] = {"silver": str(targets["silver"]), "gold": str(targets["gold"])}       # SM6: one lakehouse per layer
     if c["sample"]:
         return _sample(step, c, run=bool(confirm))
     now = current(step, c)
@@ -368,7 +408,7 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
     n = KEYS.index(key) + 1
     out = {"flow": PROMPT_TITLE, "step": {"n": n, "of": len(STEPS), "key": key, "title": title, "does": does,
                                           "short": SHORT[key]},
-           "stage": now, "who": WHO[key], "path": _path(key), "chosen": {k: v for k, v in c.items() if v and k != "sample"}}
+           "stage": now, "who": WHO[key], "path": _path(key), "chosen": {k: v for k, v in c.items() if v and k not in ("sample", "targets")}}
     out["done_line"] = _finished(out["path"])
     actions: list[dict] = []
     nxt = _next_key(now) if now not in CHOOSE else None
@@ -474,13 +514,16 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
     elif now == "dry_run":
         names = build_names(c["source"], c["schema"])
         out["say"] = "One tap dry-runs everything. Nothing is created."
+        if c.get("targets"):                               # SM6: where the build writes, in one line
+            out["layers_to"] = targets_line(c["targets"])
+            out["say"] = f"One tap dry-runs everything: {out['layers_to']}."
         out["would_build"] = [{"tool": t, "name": names[t], "what": w} for t, _, w in BUILDS]
         out["data_flow"] = list(FLOW)
         runs = []
         for t, _, w in BUILDS:
             if t == "create_report":
                 continue
-            args = {**_plan_args(c), "name": names[t]}
+            args = {**_build_args(c, t), "name": names[t]}
             label = {"create_pipeline": "Dry run: silver and gold", "create_semantic_model": "Dry run: semantic model",
                      "create_data_agent": "Dry run: data agent"}.get(t, f"Dry run: {w}")
             a = _call(label, t, args, kind="dry_run")
@@ -664,7 +707,7 @@ def _create(c: dict, create: list | None, confirm: bool) -> dict:
             actions.append(_call(f"Dry run: {names[t]} on {names['create_semantic_model']}, once the model exists",
                                  t, args, kind="dry_run"))
             continue
-        args = {**_plan_args(c), "name": names[t], "dry_run": False}
+        args = {**_build_args(c, t), "name": names[t], "dry_run": False}
         actions.append(_call(f"Create {names[t]}", t, args, kind="create"))
     return {"confirmed_by_user": [names[t] for t in ordered],
             "say": "Confirmed. Each button creates one item in Fabric, on a second tap. Nothing is deleted.",
