@@ -65,7 +65,7 @@ Status words: **works**; **partial** (works with a workaround or only in part); 
 
 | Capability | Status | Why |
 |---|---|---|
-| Plan | Partial | Each lakehouse can be planned on its own. Picking `bronze_lh` is a manual choice at step 2: no suggestion, and Next waits |
+| Plan | **Works** (SM5) | Start suggests `bronze_lh` by name rule L1 and takes it like a single option: the first card is "mlh_demo › bronze_lh › sap ✓", 0 extra taps; `silver_lh` and `gold_lh` are named and left untouched |
 | Check joins across lakehouses | No | Two-part names on one connection. Not needed for (a), because the joins are inside bronze |
 | Write silver to `silver_lh` and gold to `gold_lh` | **No** | A lakehouse source writes into itself, so silver and gold would land in `bronze_lh` under new schemas. A target exists only for read-only sources or another workspace, and even there silver and gold share one target |
 | One model / ontology / agent over the gold layer | Partial | They read `silver_schema`/`gold_schema` inside the source item. When the build moves elsewhere (n221), only the data agent is pointed at the target (`server.py:2606-2611`); the model and the ontology are not, unverified |
@@ -74,7 +74,7 @@ Status words: **works**; **partial** (works with a workaround or only in part); 
 
 | Capability | Status | Why |
 |---|---|---|
-| Plan | Partial | One source per plan; two plans cannot be merged. The bare table name is the key everywhere |
+| Plan | Partial (SM5) | Each source lakehouse plans on its own. With a product lakehouse (name rule L2) whose schemas are the sources, one plan covers both, as in (c). Without one, two plans still cannot be merged |
 | Check joins across lakehouses | No | Rules X0-X3 for links across items exist only as a design (`docs/MULTI-SOURCE.md`) |
 | Write silver/gold | Works per source | Each lakehouse gets its own silver and gold, in itself |
 | One model / ontology / agent / data product over both | **No** | One `Sql.Database` expression, one ontology item binding, one agent data source, one Model item per product. Workaround: shortcuts into one lakehouse, then plan that one |
@@ -83,8 +83,8 @@ Status words: **works**; **partial** (works with a workaround or only in part); 
 
 | Capability | Status | Why |
 |---|---|---|
-| Plan | Works, one schema at a time | `plan_backend` without a schema asks which (`server.py:890-895,964-973`) |
-| Check joins | Works inside one schema | A foreign key to another schema is dropped (`schema.py:151`) |
+| Plan | **Works, over several schemas** (SM5) | `schema="sap+crm"` plans both: tables keyed `sap.KNA1`, `crm.Account`; each schema gets its own pack. Start offers "crm+sap" ("38 tables, one plan") beside each schema, never chosen for you |
+| Check joins | **Works across schemas** (SM5) | A link across schemas, confirmed by the person, is counted in one query on one connection (`[crm].[Account]` → `[sap].[KNA1]`). No link across schemas is guessed: that is SM7's match rules |
 | Write silver/gold | Works | `silver_schema`/`gold_schema` in the same lakehouse; the pipeline's own parameters are read back (WB2, `layer_schemas.py`) |
 | One model / ontology / agent | Partial | Over one layer schema. Two source schemas (`sap_silver` + `crm_silver`) cannot be combined into one output |
 
@@ -108,4 +108,6 @@ Status words: **works**; **partial** (works with a workaround or only in part); 
 - `tests/test_wb15_click_through.py::test_one_usable_source_or_workspace_is_preselected_and_next_works`: two sources mean
   no preselection.
 
-PLAN.md (SM5) adds the synthetic multi-lakehouse fixture that the gaps are measured against.
+PLAN.md (SM5) adds the synthetic multi-lakehouse fixture that the gaps are measured against. SM5 (21 November 2026)
+built it (`tests/fixtures/multi_lakehouse.py`) and closed G1 and the plan and check part of G4; the status rows marked
+SM5 above were updated then. The generators (silver, gold, model) over a combined plan are SM6 and SM7.

@@ -105,6 +105,53 @@ ARROW = "\u2192"
 CHOICES_MAX = 60
 CHOOSE = {"workspace": "Choose a workspace first.", "source": "Choose a source first.", "schema": "Choose a schema first."}
 SKIPPED_ON_SAMPLE = ("data",)
+# SM5 (G1 in docs/SMOOTH/MULTI-LAKEHOUSE.md): with several sources, step 1 suggests one by name rules, never by reading
+# rows. A name's words are its parts split at anything that is not a letter or a digit ("bronze_lh" -> bronze, lh).
+#   L1 layer: exactly one source is named as the raw layer (bronze, raw, landing, staging): it is the source, and the
+#      ones named silver or gold are left as they are (they are where a build may write, SM6).
+#   L2 product: no raw layer, exactly one source is named as a data product (product): it holds the sources as
+#      schemas (layout (c), COMBINE-SOURCES.md section 1).
+# Otherwise nothing is suggested and Next waits, as before. A suggestion is taken like a single option (0 extra taps)
+# and is one tap from Change.
+LAYERS = {"bronze": ("bronze", "raw", "landing", "staging"), "silver": ("silver", "curated", "cleansed"),
+          "gold": ("gold", "serving", "mart")}
+PRODUCT_WORDS = ("product",)
+
+
+def _words(name: str) -> set[str]:
+    import re
+    return {w for w in re.split(r"[^0-9a-z]+", str(name).lower()) if w}
+
+
+def layer_of(name: str) -> str | None:
+    """'bronze', 'silver' or 'gold' when the name says so by one of LAYERS' words, else None."""
+    w = _words(name)
+    hit = [k for k, words in LAYERS.items() if w & set(words)]
+    return hit[0] if len(hit) == 1 else None
+
+
+def suggest_source(items: list[dict]) -> dict | None:
+    """SM5: {name, rule, why, say, others: {name: what happens to it}} for the source the name rules point at, or None.
+    `items` are the source step's options ({name, hint})."""
+    names = [str(x.get("name") or "").strip() for x in items if isinstance(x, dict) and str(x.get("name") or "").strip()]
+    if len(names) < 2:
+        return None
+    raw = [n for n in names if layer_of(n) == "bronze"]
+    if len(raw) == 1:
+        pick = raw[0]
+        layered = [n for n in names if n != pick and layer_of(n) in ("silver", "gold")]
+        others = {n: f"{layer_of(n)} layer: not read" for n in layered}
+        rest = ", ".join(layered[:2]) if layered else ""
+        say = (f"I picked {pick}: its name says raw data." + (f" {rest} stay untouched." if rest else ""))
+        return {"name": pick, "rule": "L1", "why": "the name says raw data (bronze)", "say": say, "others": others}
+    product = [n for n in names if _words(n) & set(PRODUCT_WORDS) and layer_of(n) is None]
+    if len(product) == 1:
+        pick = product[0]
+        return {"name": pick, "rule": "L2", "why": "the name says data product: the sources as schemas",
+                "say": f"I picked {pick}: its name says data product.", "others": {}}
+    return None
+
+
 # SM2: after Create, one closing step: open it in Fabric, add a source, schedule it
 FABRIC_URL = "https://app.fabric.microsoft.com/"
 HONEST = ("Steps 1-4 only read: they list, count and draft, and the dry runs create nothing. Only step 5 writes, and only "
@@ -212,8 +259,12 @@ def only_choice(stage: str, options: dict | None) -> str | None:
         return None
     usable = [x for x in options["items"] if isinstance(x, dict) and str(x.get("name") or "").strip()
               and not str(x.get("hint") or "").startswith("no capacity")
-              and (stage != "schema" or int(x.get("tables") or 0) > 0)]
-    return str(usable[0]["name"]) if len(usable) == 1 else None
+              and (stage != "schema" or int(x.get("tables") or 0) > 0)
+              and (stage != "schema" or "+" not in str(x.get("name")))]          # SM5: "all together" is never taken alone
+    if len(usable) == 1:
+        return str(usable[0]["name"])
+    hit = suggest_source(usable) if stage == "source" else None             # SM5: the name rules' suggestion
+    return hit["name"] if hit else None
 
 
 def _path(now: str, sample: bool = False) -> list[dict]:
@@ -276,22 +327,32 @@ def _choices(now: str, c: dict, options: dict | None) -> tuple[list[dict], dict]
             out.append(_choice(name, str(x.get("hint") or ""), {"workspace": c["workspace"], "source": name}))
         else:
             n = int(x.get("tables") or 0)
-            hint = f"{n} table" + ("" if n == 1 else "s")
+            hint = f"{n} table" + ("" if n == 1 else "s") + (", one plan" if "+" in name else "")
             out.append(_choice(name, hint, {"workspace": c["workspace"], "source": c["source"], "schema": name,
                                             "step": "check"},                 # SM2: the last choice goes on
                                disabled="" if n else "no tables"))
     meta = {"count": len(items), "shown": len(shown), "search": len(items) > 8}
-    usable = [a for a in out if not a.get("disabled") and not str(a.get("hint", "")).startswith("no capacity")]
+    usable = [a for a in out if not a.get("disabled") and not str(a.get("hint", "")).startswith("no capacity")
+              and not (now == "schema" and "+" in a["label"])]
     if len(usable) == 1:                                   # WB15 (A): one usable option is chosen for you
         usable[0]["selected"] = True
         meta["preselected"] = usable[0]["label"]
+    elif now == "source" and (hit := suggest_source([{"name": a["label"]} for a in usable])):
+        for a in out:                                      # SM5: the name rules' suggestion, chosen like one option
+            if a["label"] == hit["name"]:
+                a["selected"] = True
+                a["hint"] = (a.get("hint") + "; " if a.get("hint") else "") + "suggested"
+            elif a["label"] in hit["others"]:
+                a["hint"] = (a.get("hint") + "; " if a.get("hint") else "") + hit["others"][a["label"]]
+        meta["preselected"] = hit["name"]
+        meta["suggested"] = {k: hit[k] for k in ("rule", "why")}
     return out, meta
 
 
 def guide(workspace: str | None = None, source: str | None = None, schema: str | None = None, step: str | None = None,
           keys: dict | None = None, confirmed: list | None = None, decisions: list | None = None,
           create: list | None = None, confirm: bool = False, sample: bool = False, options: dict | None = None,
-          review: dict | None = None, picked: list | None = None) -> dict:
+          review: dict | None = None, picked: list | None = None, suggested: dict | None = None) -> dict:
     """The stepper's answer (see the module docstring). Pure: no Fabric, no SQL. `options` (WB12, #76) is what the
     start tool read for a choosing stage: {step, items: [{name, hint?, tables?}]} or {step, error}. `review` (WB13, #66)
     is review_plan's file with the checks counted, built by the start tool for Check and Decide, or {error}. `picked`
@@ -333,7 +394,9 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
     elif now == "source":
         out["say"] = f"Which lakehouse or warehouse in {c['workspace']} holds your tables?"
         if picks:
-            if meta.get("preselected"):
+            if meta.get("suggested"):                  # SM5: several sources, one named as the source
+                out["say"] = f"I suggest {meta['preselected']}: {meta['suggested']['why']}."
+            elif meta.get("preselected"):
                 out["say"] = f"{c['workspace']} has one source, {meta['preselected']}. I picked it for you."
             actions += picks
         elif isinstance(options, dict) and options.get("step") == "source" and options.get("items") == []:
@@ -360,6 +423,9 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
         out["say"] = ("Your data, picked for you. Change it if it is wrong." if auto else "Your data. Change it if it is wrong.")
         if auto:
             out["picked"] = auto
+        if isinstance(suggested, dict) and suggested.get("name") == c["source"]:    # SM5: why this source, in one line
+            out["suggested"] = {k: suggested[k] for k in ("rule", "why", "others") if k in suggested}
+            out["say"] = str(suggested.get("say") or out["say"])
         actions.append({**_call("Change", TOOL, {"step": "workspace"}), "kind": "call", "secondary": True,
                         "ask": "Change the workspace, source or schema."})
         actions.append({**sample_button, "more": True})

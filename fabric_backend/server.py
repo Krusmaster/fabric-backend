@@ -44,6 +44,7 @@ from . import semantic_model as _semantic_model, paths as _paths, dictionary as 
 from . import views as _views, data_agent as _data_agent, app_starter as _app_starter, graphs as _graphs, readiness as _readiness
 from . import lineage as _lineage, compact as _compact, sap_pack as _sap_pack
 from . import coverage as _coverage
+from . import multi_schema as _multi_schema  # SM5: a plan over several schemas of one item
 from . import domains as _domains
 from . import limits as _limits, usage as _usage, entitlements as _entitlements
 from . import usage_metrics as _usage_metrics  # UM1: anonymous daily counts for /metrics
@@ -428,7 +429,7 @@ def _plan_read(workspace: str, source: str, schema: str, keys, confirmed, ctx, c
     execute = _execute_factory(item, auth.sql(ctx))
     _attach_csn(execute, found)
     try:
-        s = _fabric.PLATFORM.read_schema(execute, schema)
+        s = _multi_schema.read(_fabric.PLATFORM.read_schema, execute, schema)   # SM5: "sap+crm" reads both
         if len(s) == 0:
             raise SchemaEmpty(f"Schema {schema!r} has no tables in {source!r} (workspace {workspace}); it may not exist in this source.")
         _note_schema(schema, s.schema)                                     # n175: "Shop" typed, "shop" read and queried
@@ -658,6 +659,10 @@ def _start_options(workspace: str, source: str, schema: str, sample: bool, ctx, 
         else:
             items = [{"name": x["schema"], "tables": x["tables"]}
                      for x in _candidate_schemas(_source_schemas(workspace, source, ctx))]
+            full = [x for x in items if x["tables"]]
+            if 2 <= len(full) <= 4:                              # SM5 (G4): the source schemas together, as one plan
+                items.append({"name": _multi_schema.SEP.join(x["name"] for x in full),
+                              "tables": sum(x["tables"] for x in full)})
     except Exception as e:                                       # noqa: BLE001 - the step keeps its listing button
         return {"step": now, "error": (str(e) or type(e).__name__).splitlines()[0][:200]}
     return {"step": now, "items": items}
@@ -757,7 +762,7 @@ def start(workspace: _p.StartPick = "", source: _p.StartPick = "", schema: _p.St
             kept = _flow_state.record(who, workspace, source, schema, (step or "").strip().lower() or None,
                                       plan.get("decisions"), plan.get("confirmed"), tapped)
             plan["decisions"], plan["confirmed"] = kept["decisions"], kept["confirmed"]
-    options, picked = _start_options(workspace, source, schema, bool(sample), ctx, step), []
+    options, picked, suggested = _start_options(workspace, source, schema, bool(sample), ctx, step), [], None
     while not sample and not (step or "").strip() and options and len(picked) < 3:
         # SM2: a choosing stage with one usable option is chosen here, and the next one is read, so a workspace with
         # one source and one schema shows "demo › demo_lh › dbo ✓" on the first card instead of three taps of Next
@@ -765,6 +770,8 @@ def start(workspace: _p.StartPick = "", source: _p.StartPick = "", schema: _p.St
         if not one:
             break
         picked.append(options["step"])
+        if options["step"] == "source":                  # SM5: several sources, one suggested by the name rules
+            suggested = _start_flow.suggest_source(options.get("items") or [])
         workspace, source, schema = (one, source, schema) if options["step"] == "workspace" else \
             (workspace, one, schema) if options["step"] == "source" else (workspace, source, one)
         options = _start_options(workspace, source, schema, False, ctx, step)
@@ -776,7 +783,7 @@ def start(workspace: _p.StartPick = "", source: _p.StartPick = "", schema: _p.St
     out = _start_flow.guide(workspace=workspace, source=source, schema=schema, step=step,
                             keys=plan.get("keys"), confirmed=plan.get("confirmed"),
                             decisions=plan.get("decisions"), create=create, confirm=confirm,
-                            sample=sample, options=options, review=review, picked=picked)
+                            sample=sample, options=options, review=review, picked=picked, suggested=suggested)
     out["seq"] = kept.get("seq") or 0
     return json.dumps(out, indent=2)
 
@@ -1045,7 +1052,7 @@ def _connected(workspace: str, source: str, schema: str, ctx, csn_path: str | No
     except AttributeError:
         pass
     try:
-        s = _fabric.PLATFORM.read_schema(execute, schema)
+        s = _multi_schema.read(_fabric.PLATFORM.read_schema, execute, schema)   # SM5: "sap+crm" reads both
     except Exception:
         getattr(execute, "close", lambda: None)()
         raise
