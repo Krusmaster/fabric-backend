@@ -183,6 +183,8 @@ other routes). The SQL endpoint may show a fresh Delta write a little later (Unv
 | Part | File |
 |---|---|
 | The verbatim notebook code (`ALERT_CODE`, `DRIFT_CODE`, `HEALTH_CODE`), the specs, the read SQL and `summarize` | `fabric_backend/health.py` |
+| The daily rules: the rule set (`daily_rules`) and its runner (`RULES_CODE`) | `fabric_backend/health.py` |
+| The daily rules notebook (`daily_rules_cells`) | `fabric_backend/monitor.py` |
 | The check notebook's parameters and cells, the pipeline's parameters | `fabric_backend/pipeline.py` |
 | The drift cell in the pipeline's silver notebook | `fabric_backend/silver.py` (`cells`, when the spec has `drift`) |
 | The plan mark handed to the pipeline; `POST /workload/v1/health` | `fabric_backend/workload_api.py` |
@@ -190,3 +192,63 @@ other routes). The SQL endpoint may show a fresh Delta write a little later (Unv
 
 `export_item_definitions(items=["pipeline"])` exports the check notebook with the health step; its silver notebook stays
 the stand-alone draft (no drift cell).
+
+## 6. The proven rules, every day (round BL14, 21 November 2026, backlog P-27)
+
+Written 21 November 2026 by round BL14. What `validate_plan` proved once is checked again every day, against the same
+rows, by a separate nightly notebook. The code is `health.daily_rules` (the rule set), `health.RULES_CODE` (the
+runner, written into the notebook verbatim) and `monitor.daily_rules_cells` (the notebook). No AI, no new permission.
+
+**Status:** unit-tested on SQLite and, where PySpark is installed, on a local Spark (`tests/test_bl14_daily_rules.py`,
+the shop sample with a break planted between two runs). **Not run in Fabric.** Nothing in this round created,
+imported or scheduled a notebook in a workspace. Running health and alerts once in Fabric (backlog P-01) is still
+Gustav's to do, and comes first.
+
+### The rule set
+
+`health.daily_rules(plan, validation, plan_mark)` turns `validate_plan`'s answer (`evidence.validate`) into rules.
+Only what was counted becomes a rule:
+
+| Rule id | What it says | `allowed` |
+|---|---|---|
+| `key:<table>` | the key counted unique (no NULL, no duplicate) stays so | 0 |
+| `orphans:<source>.<cols>:<target>` | the link's orphans stay at or below what was counted | the counted orphans |
+| `level:<table>.<amount>` | a counted header amount stays one value per header (its header key counted unique, or a flat table's pattern) | 0 |
+
+A key that was not unique, a link or amount that was not counted and a conditional link are listed under `not_rules`
+with the reason, and named at the top of the notebook as not checked. They are never checked as if proven.
+
+Each rule carries its own read-only Spark SQL that returns one count `n`: the same statements `validate_plan` counts
+with (`evidence.key_sql`, `evidence.relationship_sql`), in Spark's dialect. So the count a rule shows on day one is the
+count `validate_plan` showed (the tests check this on the shop).
+
+### What a run writes
+
+The notebook (plain Python on spark, no `%pip`, no import of this library) runs every rule and appends one row per
+rule to the same health table (section 1): `check` = `proven`, `object` = the table or link, `rule` = the rule id,
+`status` = `pass` while the count is at or below `allowed`, else `fail`, `count` = the count, `baseline` = the same
+rule's count in the last daily run, `checked_at` = the time. A rule whose statement cannot run (a table gone) is a
+`fail` with an empty count. No row value is written, and the table's columns are unchanged.
+
+The change against the last run is read from the rows: `first run`, `new break`, `still broken`, `fixed` or
+`unchanged`. The notebook prints it per rule. The pipeline's own baseline (section 1) leaves the daily runs out, so the
+two do not mix.
+
+### The alert
+
+When a rule breaks, the existing webhook (section 3, a Key Vault secret; empty means no alert) gets one line per broken
+rule, built from the rule set and the counts only:
+
+> BROKE orphans:order_items.product_id:products: every order_items row with a value in product_id finds its products
+> row, but for at most 0 (rule R1). Now 1 order_items row(s) without their products row, allowed 0 (counted when the
+> plan was validated); broken since 2026-11-12 06:00 UTC (1 run(s), new break); last held 2026-11-11 06:00 UTC.
+
+"Since" is the first run of the unbroken row of failing runs of that rule. The text is the same for the same rows.
+
+### What is left
+
+- P-01: one run of health and alerts in Fabric (Gustav's). Then the daily rules notebook, imported and scheduled by
+  the owner.
+- No tool creates or schedules this notebook yet. A later round can add it next to `create_drift_monitor`.
+- The rule set is made from one `validate_plan` answer. A new validation gives a new rule set. Nothing updates it
+  automatically.
