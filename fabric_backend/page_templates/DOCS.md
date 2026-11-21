@@ -368,6 +368,47 @@ Onto drew it on the whiteboard: one sign-in, one approval, and a sensible defaul
 
 **What is never a helper.** The compiler, which turns a plan into Fabric items, and the approver are not agents. So the same plan gives the same result every time.
 
+#### What Krusgraph builds in your Fabric
+
+<!-- figure:heading-sketch-fabric -->
+- **Your Fabric tenant** (a dashed line around everything): every item below is built there.
+- **Sources:** SAP, Salesforce, Dynamics and more sources, brought in by mirroring or shortcuts.
+- **Bronze → Silver → Gold:** bronze is a lakehouse with the raw data, silver is a notebook where the keys are checked, gold is views in a star schema.
+- **Data products · domain: Sales:** the cards Customer, Product and Order, each with a key, an owner and a contract; interface arrows lead into Product.
+- **What people use:** Semantic model, Ontology, Data agent, Report, GraphQL API.
+- **Around it:** Pipeline, dbt tests, Catalog, Domains, Alerts, Fabric Git.
+- **Same plan, same items · every change is a PR.**
+- **Colours:** coral is raw, amber is refined, purple is a data product, teal is what people use, gray is run and govern.
+<!-- /figure -->
+
+- **Sources:** SAP, Salesforce and Dynamics 365, and other sources, land in your Fabric by mirroring or shortcuts, and {{PRODUCT}} reads what has landed there.
+- **Bronze, silver, gold:** the raw tables stay as they are, a silver notebook checks every key, and gold views shape the tables into a star schema.
+- **Data products:** each product in a domain has a key, an owner and a contract, and the products meet through named interfaces.
+- **What people use:** the semantic model, ontology, data agent, report and GraphQL API are all built from the same plan, so they agree with each other.
+- **Around it:** a pipeline runs the layers, dbt tests and alerts watch them, the catalog and domains describe them, and Fabric Git keeps every version.
+
+**What it builds today.** From one plan, {{PRODUCT}} builds each of these on its own when you ask, with a dry run first: the silver notebook (`create_silver_notebook`), the gold views (`create_gold_views`), the pipeline (`create_pipeline`), the semantic model (`create_semantic_model`), the ontology (`create_ontology`), the data agent (`create_data_agent`), the report (`create_report`), the GraphQL API (`create_backend`), a nightly drift monitor that sends its changes to a webhook (`create_drift_monitor`), and the catalog entries of the data products (`publish_catalog`). It drafts dbt tests (`dbt_schema`) and domains with their contracts (`domain_draft`) for you to apply. Mirroring and shortcuts are set up in Fabric; {{PRODUCT}} reads mirrored databases but does not create them. **The direction:** building all of it in one go from one plan, with every change arriving as a pull request in Fabric Git.
+
+#### How it keeps itself up to date
+
+<!-- figure:heading-sketch-loop -->
+- **It watches:** a new column in a source, a new table, a key that is no longer unique, data that is not fresh, a broken relationship, unused items, cost running away.
+- **Watch** (every night + on change) → **Compare** (desired vs actual = plan) → **Classify** (rules decide the risk).
+- Two branches: **Safe: done on its own** (catalog, tests, a new column) and **Risky: draft PR** (a mascot explains, you approve).
+- **Rebuild + test** (dbt tests, the rows prove it) → **Learn from the decision** (the same choice becomes the default) → back to **Watch**, round after round.
+- **Today: watching and dry runs. Next: fixing on its own.**
+<!-- /figure -->
+
+- **It watches** the sources and what is built on them for anything that would make the plan and Fabric disagree.
+- **Watch** runs every night and whenever something changes.
+- **Compare** sets what you want, the plan, next to what is in Fabric.
+- **Classify** uses rules, not a model, to decide how risky each difference is.
+- **Safe changes** are done on their own; **risky ones** become a draft pull request that a mascot explains and you approve.
+- **Rebuild + test** runs the dbt tests and counts the rows, so the result is proved, not assumed.
+- **Learn from the decision** makes the choice you made the default the next time the same thing happens.
+
+**What it does today.** The nightly drift monitor (`create_drift_monitor`) compares the plan with the last saved one and reports tables and columns that were added or removed, changed types, changed keys and relationships that are no longer inferred, with what reads the tables that changed. `plan_drift` compares today's plan with an existing GraphQL API, and `verify_build` reads back what was built and compares it with the dry run. Every change is a dry run until you confirm it. **The direction:** watching freshness, usage and cost, classifying by risk, fixing safe changes on its own, opening draft pull requests for the rest and learning from your decisions.
+
 You can try today's version: [use it in Claude](#connect), or start with the [guided demo](/check?example=sample&guide=1).
 
 ## Explore and check

@@ -1710,6 +1710,13 @@ a.chip:hover{text-decoration:underline}
 .hs-svg .hs-h-lav{stroke:var(--lav);stroke-width:2}
 .hs-svg .hs-h-mustard{stroke:var(--mustard);stroke-width:2}
 .hs-svg .hs-h-gray{stroke:var(--muted);stroke-width:1.5;opacity:.55}
+/* DOCV2: the two more sketches' raw (coral) and what-people-use (teal) fills; the teal is the sketches' own, lighter in dark mode */
+.hs-svg{--hs-teal:#2F8F8A}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .hs-svg{--hs-teal:#7CCBC4}}
+:root[data-theme="dark"] .hs-svg{--hs-teal:#7CCBC4}
+.hs-svg .hs-h-coral{stroke:var(--coral);stroke-width:1.6;opacity:.8}
+.hs-svg .hs-h-teal{stroke:var(--hs-teal);stroke-width:1.6;opacity:.8}
+.hs-svg .hs-halo{paint-order:stroke;stroke:var(--card);stroke-width:6px;stroke-linejoin:round}
 .hs-svg .hs-dot-coral{fill:var(--coral)}.hs-svg .hs-dot-mustard{fill:var(--mustard)}.hs-svg .hs-dot-sage{fill:var(--sage)}
 .hs-svg text{font-family:var(--font-head);font-size:19px;fill:var(--ink)}
 .hs-svg .hs-b{font-weight:600}
