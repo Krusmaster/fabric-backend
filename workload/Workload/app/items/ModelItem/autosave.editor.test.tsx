@@ -99,7 +99,7 @@ async function open(wc: unknown) {
       </MemoryRouter>
     );
   });
-  for (let i = 0; i < 40 && !/Accept all/.test(el.textContent ?? ""); i++) await flush(25);   // lazy parts
+  for (let i = 0; i < 40 && !/Accept all|Check against the rows/.test(el.textContent ?? ""); i++) await flush(25);   // lazy parts
   await flush();
 }
 function accept(n: number) {
@@ -261,8 +261,9 @@ describe("WB3 (F6): every review decision is saved without Save, and only to the
       const crud = h.wc.itemCrud;
       const reads = crud.getItem.mock.calls.length;
       accept(0);
-      const acceptAll = Array.from(el.querySelectorAll("button")).find((b) => /^Accept all/.test(b.textContent ?? "")) as HTMLButtonElement;
-      act(() => { acceptAll.click(); });
+      // ED1: with nothing passed there is no Accept all (it was a disabled button before ED1; a click did nothing)
+      const acceptAll = Array.from(el.querySelectorAll("button")).find((b) => /^Accept all/.test(b.textContent ?? "")) as HTMLButtonElement | undefined;
+      if (acceptAll) act(() => { acceptAll.click(); });
       await flush(AUTOSAVE_DELAY_MS + 200);
       expect(fetchSpy).not.toHaveBeenCalled();                  // no engine route: no build, no Create, no workspace write
       expect(engine.review).not.toHaveBeenCalled();

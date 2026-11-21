@@ -61,7 +61,8 @@ import { PREPARING, Ticked, chosenProducts, ticked } from "./productSuggestions"
 import { SuggestedProductsPanel } from "./SuggestedProductsView";
 import { Busy, EmptyView, ErrorBar, OutputsView, PreviewView, ResultView, ReviewView } from "./ModelItemViews";
 import { MapData } from "./cardMap";
-import { Choice, acceptAll } from "./modelWords";
+import { Choice, acceptAll, totalsOf } from "./modelWords";
+import { notCheckedLine } from "./ed1Words";
 import { readAppRecord, rememberApp, withAppChoices } from "./appWords";
 import {
   MAX_WAIT_MS, POLL_MS, agentAfterRun, jobsBlocked, pipelineItem, recordRun, recordSchedule, runFinished, scheduleIds, stillRunning,
@@ -428,6 +429,14 @@ export function ModelItemEditor(props: PageProps) {
     setDirty(true);
   }
 
+  /** ED1: the report's semantic model, picked from the semantic models in the workspace (no free text) */
+  async function pickReportModel() {
+    const picked = await callDatahubOpen(workloadClient, ["SemanticModel"], "Choose the semantic model the report is built on", false);
+    if (!picked) return;
+    setChoices((cs) => cs.map((c) => (c.type === "report" ? { ...c, model: picked.displayName } : c)));
+    setDirty(true);
+  }
+
   /** n221: Build in (this item's workspace, the default, or the source's) and the lakehouse Create may make there. */
   function chooseBuildIn(patch: { buildIn?: BuildIn; createLakehouse?: string | null }) {
     setDef((d) => {
@@ -479,6 +488,20 @@ export function ModelItemEditor(props: PageProps) {
     setDirty(true);
   }
 
+  // ED1: items the last check did not count that a check would count (changed since, or not part of it) are checked
+  // again on their own, once per plan, when the review step is shown
+  const autoChecked = React.useRef<string | undefined>(undefined);
+  React.useEffect(() => {
+    const r = def.review;
+    if (view !== "review" || busy || !r) return;
+    const key = `${r.plan_id ?? ""}`;
+    if (autoChecked.current === key) return;
+    const left = notCheckedLine(r.items as never, totalsOf(r).checked);
+    if (!left?.again) return;
+    autoChecked.current = key;
+    void checkRows();
+  }, [view, def.review, busy]);
+
   async function checkRows(from?: ModelDefinition) {
     const d0 = from ?? def;
     const a = await runEngine(checkLabel(d0.source?.schema), (o) =>
@@ -524,7 +547,7 @@ export function ModelItemEditor(props: PageProps) {
     setDef(d);
     // n222: the engine prepares the outputs side by side and says how many are prepared; the wait (n223) shows its words
     const a = await runEngine(PREPARING, (o) =>
-      engine.buildMany(workloadClient, sourceRequest(d), toRequests(choices), d.review, true, product.on ? { name: product.name.trim() } : null, d.outputs.created, d.outputs.pending ?? [],
+      engine.buildMany(workloadClient, sourceRequest(d), toRequests(choices, def.outputs.created), d.review, true, product.on ? { name: product.name.trim() } : null, d.outputs.created, d.outputs.pending ?? [],
         { ...o, products: chosenProducts(d) })
     );
     if (!a) return;
@@ -730,7 +753,7 @@ export function ModelItemEditor(props: PageProps) {
     setWait(undefined);
     const d0 = defRef.current;
     const src = sourceRequest(d0);
-    const outputs = resumeFrom ? resumeFrom.run.outputs : toRequests(choices);
+    const outputs = resumeFrom ? resumeFrom.run.outputs : toRequests(choices, def.outputs.created);
     const productReq = product.on ? { name: product.name.trim() } : d0.outputs.product ? { name: d0.outputs.product.name } : null;
     const run = resumeFrom?.run ?? startRun(newCreateId(), outputs, new Date().toISOString());
     const known: Known = resumeFrom?.known ?? { answers: {}, running: {}, progress: {} };
@@ -920,7 +943,7 @@ export function ModelItemEditor(props: PageProps) {
   /** n197 (2b): Try again on one card: its step sent again (what Fabric finished meanwhile is adopted through pending). */
   async function retryCard(card: engine.BuildCard) {
     const d = defRef.current;
-    const outputs = readRun(d.outputs.create_run)?.outputs ?? toRequests(choices);
+    const outputs = readRun(d.outputs.create_run)?.outputs ?? toRequests(choices, def.outputs.created);
     const o = outputs.find((x) => x.kind === card.output);
     if (!o) return;
     const src = sourceRequest(d);
@@ -987,7 +1010,7 @@ export function ModelItemEditor(props: PageProps) {
   /** n180: Update of an output built from another plan: the dry run first (its card shows what would change and offers
    * Update in Fabric), then the update with the dry run's confirmation. The created ids, with this plan, are saved. */
   async function updateCard(card: engine.BuildCard) {
-    const outputs = toRequests(choices);
+    const outputs = toRequests(choices, def.outputs.created);
     const o = outputs.find((x) => x.kind === card.output);
     if (!o) return;
     const src = sourceRequest(def);
@@ -1082,7 +1105,7 @@ export function ModelItemEditor(props: PageProps) {
   async function checkUpdates() {
     const d = defRef.current;
     if (!d.source || !d.review) return;
-    const outputs = readRun(d.outputs.create_run)?.outputs ?? toRequests(choices);
+    const outputs = readRun(d.outputs.create_run)?.outputs ?? toRequests(choices, def.outputs.created);
     const step2 = "Step 2 of 2: a dry run of every output…";
     const a = await productStep("Step 1 of 2: counting the rows…", async (o) => {
       const c = await engine.check(workloadClient, sourceRequest(d), d.review!, o);
@@ -1098,7 +1121,7 @@ export function ModelItemEditor(props: PageProps) {
   /** Update from the page: the dry run first (its card gives confirm_update), then the write with that confirmation. */
   async function updateFromPage(card: engine.BuildCard) {
     const d = defRef.current;
-    const outputs = readRun(d.outputs.create_run)?.outputs ?? toRequests(choices);
+    const outputs = readRun(d.outputs.create_run)?.outputs ?? toRequests(choices, def.outputs.created);
     const o = outputs.find((x) => x.kind === card.output);
     if (!o || !d.review) return;
     const got = await productStep(card.confirm_update ? `Updating ${card.name} in Fabric…` : `Dry run of the Update of ${card.name}…`, () =>
@@ -1260,6 +1283,7 @@ export function ModelItemEditor(props: PageProps) {
           itemWorkspaceId={itemMeta?.workspaceId}
           onBuildIn={chooseBuildIn}
           onChooseTarget={chooseTarget}
+          onPickModel={() => void pickReportModel()}
           extra={<SuggestedProductsPanel suggested={suggested} ticked={ticked(def)} disabled={!!busy || creating}
             onTicked={(list: Ticked[]) => void update((d) => ({ ...d, outputs: { ...d.outputs, products: list } }))} />}
         />

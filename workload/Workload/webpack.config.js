@@ -35,6 +35,11 @@ module.exports = {
             // Krusgraph: the engine API the Model editor calls (app/items/ModelItem/engineClient.ts)
             "process.env.KRUSGRAPH_ENGINE_URL": JSON.stringify(process.env.KRUSGRAPH_ENGINE_URL || ''),
             "process.env.KRUSGRAPH_ENGINE_SCOPE": JSON.stringify(process.env.KRUSGRAPH_ENGINE_SCOPE || ''),
+            // Krusgraph ED1: the same icon files, byte for byte, also inside the bundle as data: URLs, so an output card's
+            // icon never depends on a second request (Gustav's editor test, 21 November 2026: broken icons on the cards)
+            "process.env.KRUSGRAPH_FABRIC_ICONS": JSON.stringify(JSON.stringify(Object.fromEntries(Object.keys(FABRIC_ICONS.files).map((file) => [
+                file, "data:image/svg+xml;base64," + require("fs").readFileSync(path.join(__dirname, FABRIC_ICONS.sourceDir, file)).toString("base64"),
+            ])))),
         }),
         new Webpack.ProvidePlugin({
             process: 'process/browser.js',

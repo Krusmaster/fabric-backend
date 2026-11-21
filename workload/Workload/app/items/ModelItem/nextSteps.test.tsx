@@ -26,7 +26,7 @@ describe("W13: what the check proved", () => {
   it("finds the grain a sum would double: order lines over orders first (lines of a header), 134 over 60 is 2.2×", () => {
     const g = proofOf(REVIEW).grains[0];
     expect(g).toMatchObject({ child: "order_items", parent: "orders", childColumns: ["order_id"], childRows: 134, parentRows: 60, ratio: 2.2, lines: true });
-    expect(grainLine(g)).toBe("134 order_items rows over 60 orders rows: an amount on orders summed over order_items would count each orders row 2.2× on average. Sum order_items per orders row first.");
+    expect(grainLine(g)).toBe("Summing an orders amount over order items would count each order about 2 times; sum order items per order first.");
   });
 
   it("leaves out a rejected link and a failed key", () => {
@@ -39,7 +39,7 @@ describe("W13: what the check proved", () => {
 
   it("shows tiles and Onto's sentence, and nothing before a check", () => {
     const html = renderToStaticMarkup(<ProofStrip review={REVIEW} />);
-    for (const t of ["232", "rows counted", "6 of 6", "keys unique", "7 of 7", "links holding", "orphans", "duplicate keys", "2.2×"]) expect(html).toContain(t);
+    for (const t of ["232", "rows counted", "6 of 6", "keys unique", "7 of 7", "links holding", "orphans", "duplicate keys", "about 2 times"]) expect(html).toContain(t);
     expect(renderToStaticMarkup(<ProofStrip review={unchecked()} />)).toBe("");
   });
 });
