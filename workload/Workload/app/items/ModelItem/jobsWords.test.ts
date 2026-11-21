@@ -47,7 +47,7 @@ describe("off by default", () => {
       .toEqual([{ kind: "pipeline", name: "p" }, { kind: "data_agent", name: "a" }]);
     const html = renderToStaticMarkup(
       React.createElement(OutputsView, { choices: [{ type: "pipeline", name: "demo_lh_pipeline", enabled: true }, { type: "data_agent", name: "demo_lh_agent", enabled: true }],
-        onChange: () => {}, created: [], product: { on: false, name: "" }, onProduct: () => {}, onOpen: () => {}, onPreview: () => {} })
+        onChange: () => {}, created: [], product: { on: false, name: "" }, onProduct: () => {}, onOpen: () => {}, onPreview: () => {}, changeOpen: true })
     );
     expect(html).toContain("Run once after Create (silver, then gold, then the check)");
     expect(html).toContain("Publish the agent in Fabric");
@@ -99,7 +99,7 @@ describe("without DataPipeline.Execute.All", () => {
     expect(blocked?.granted).toBe(false);
     const html = renderToStaticMarkup(
       React.createElement(OutputsView, { choices: [{ type: "pipeline", name: "demo_lh_pipeline", enabled: true }], onChange: () => {}, created: [],
-        product: { on: false, name: "" }, onProduct: () => {}, onOpen: () => {}, onPreview: () => {}, jobsBlocked: blocked })
+        product: { on: false, name: "" }, onProduct: () => {}, onOpen: () => {}, onPreview: () => {}, jobsBlocked: blocked, changeOpen: true })
     );
     expect(html.match(/disabled=""/g)?.length).toBeGreaterThanOrEqual(2);
     expect(html).toContain("az ad app permission add");

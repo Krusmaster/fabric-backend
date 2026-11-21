@@ -150,8 +150,12 @@ export function proofLine(p: Proof): string {
 /** The doubled total the proven grain prevents, in one sentence; empty when no link repeats its target. */
 export function grainLine(g: Grain | undefined): string {
   if (!g) return "";
-  return `${plural(g.childRows, `${g.child} row`)} over ${plural(g.parentRows, `${g.parent} row`)}: an amount on ${g.parent} summed over ` +
-    `${g.child} would count each ${g.parent} row ${g.ratio}× on average. Sum ${g.child} per ${g.parent} row first.`;
+  // ED1 (Gustav, 21 November 2026): plain words, the way a person says it ("Summing an orders amount over order items
+  // would count each order about 2 times; sum items per order first.")
+  const child = g.child.replace(/_/g, " ");
+  const one = g.parent.replace(/_/g, " ").replace(/s$/, "");
+  const times = Math.max(2, Math.round(g.ratio));
+  return `Summing an ${g.parent.replace(/_/g, " ")} amount over ${child} would count each ${one} about ${times} times; sum ${child} per ${one} first.`;
 }
 
 // ------------------------------------------------------------------ the Data Science starter -------------------------

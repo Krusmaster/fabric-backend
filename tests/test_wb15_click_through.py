@@ -24,6 +24,11 @@ option each, chosen by the start tool); Check has run the map, the row check and
 them in one line each, the map under Details; one "Dry run everything" button runs the three dry runs; after Create a
 closing step offers Open in Fabric, Add a source and Schedule it. Every step fits 390 x 800, the dry run included.
 
+ED1 (Gustav's editor test of 21 November 2026, which showed the editor's six old steps Source, Keys and links, Choose,
+Dry run, Built, Data product beside this card's five) pins one set of names on purpose: the Fabric editor's step row
+says the same five words as this card, and Data product is the result shown after Create, not a step of its own
+(test_ed1_the_editor_and_this_card_name_the_same_five_steps).
+
 The unit tests below pin the parts: preselecting the one usable option, the shared state's latest-tap rule, the
 decisions flowing into the building tools, one numbering in the coach, and the plain-words guard.
 """
@@ -344,3 +349,17 @@ def test_sm2_the_sample_has_the_same_dry_run_button():
     s = sf.guide(sample=True)
     assert s["step"]["n"] == 2 and s["after"]["arguments"]["step"] == "decide"
     assert sf.guide(**s["after"]["arguments"])["after"]["arguments"]["step"] == "dry_run"
+
+
+def test_ed1_the_editor_and_this_card_name_the_same_five_steps():
+    model = Path(__file__).resolve().parent.parent / "workload" / "Workload" / "app" / "items" / "ModelItem"
+    steps = (model / "stepWords.ts").read_text(encoding="utf-8")
+    words = re.search(r"export const STEP_WORDS = \[([^\]]*)\]", steps).group(1)
+    editor = re.findall(r'"([^"]+)"', words)
+    card = [sf.SHORT[k] for k in sf.KEYS]
+    assert editor == card == ["Your data", "Check", "Decide", "Dry run", "Create"]
+    # five rows in the editor's step row, each labelled from STEP_WORDS; Data product is shown under Create's step
+    assert len(re.findall(r"\{ view: \"\w+\", label: STEP_WORDS\[\d\]", steps)) == 5
+    assert 'label: STEP_WORDS[4], also: ["product"]' in steps
+    for old in ("Source", "Keys and links", "Choose", "Built", "Data product"):
+        assert not re.search(rf'label: "{old}"', steps), old

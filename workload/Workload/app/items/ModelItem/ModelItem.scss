@@ -733,3 +733,8 @@
 @container (max-width: 640px) {
   .kg-analysis .kg-next-actions .fui-Button { min-height: 44px; flex: 1 1 100%; }
 }
+
+// ED1: the lines under an output's title (what it is, its name, what it is built on) close together
+.krusgraph-output p {
+  margin: 2px 0;
+}
