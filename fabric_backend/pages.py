@@ -85,6 +85,9 @@ PAGES = {
                  "Every cookie and browser storage key {{PRODUCT}}'s site and service can set, why and for how long. No analytics, no tracking, nothing from other websites, so no consent banner.", ""),
     "/accessibility": ("accessibility.html", "Accessibility — {{PRODUCT}}",
                        "How accessible {{PRODUCT}}'s website is against WCAG 2.2 AA, how it was checked, the known gaps and how to report a problem.", ""),
+    # BL30: the regression corpus's scores, read from docs/scores.json at request time (scores_html)
+    "/scores": ("scores.html", "Scores on the regression corpus — {{PRODUCT}}",
+                "Keys and links found, missed and wrong on synthetic and public schemas whose true keys and links are known, read from docs/scores.json, with the commit of the numbers.", ""),
     "/mascots": ("mascots.html", "Mascot review — {{PRODUCT}}",
                  "Review page for the three mascots: every pose and demo state.", ""),
 }
@@ -1180,6 +1183,8 @@ def render(path: str) -> str:
     if "{{GS_BODY}}" in body:                                              # BL2: /getting-started (tenant_settings.py)
         from .tenant_settings import page_html as gs_html
         body = body.replace("{{GS_BODY}}", gs_html())
+    if "{{SCORES_BODY}}" in body:                                          # BL30: /scores, from docs/scores.json
+        body = body.replace("{{SCORES_BODY}}", scores_html())
     if "{{UC_" in body:
         from .use_cases import page_vars
         uv = page_vars()
@@ -1191,6 +1196,92 @@ def render(path: str) -> str:
     out = _shell(title, description, body, page=template.split(".")[0], nav=nav, noindex=(path == "/mascots"), head=head, path=path,
                  chat=path not in CHAT_OFF)
     return out
+
+
+# BL30 (21 November 2026, backlog C-09): /scores shows docs/scores.json as it is, read when the page is opened, with
+# the misses and wrong answers next to the hits and no word beyond the numbers. tests/f2_corpus.py writes the file and
+# tests/test_f2_corpus.py keeps it equal to what the engine does; this page never rewrites it.
+SCORES_JSON = HERE.parent / "docs" / "scores.json"
+SCORES_HISTORY = GITHUB + "/commits/main/docs/scores.json"
+
+
+def scores_data() -> dict | None:
+    """docs/scores.json, or None when this build does not carry it (the image holds the package only)."""
+    try:
+        return json.loads(SCORES_JSON.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def scores_commit() -> tuple[str, str] | None:
+    """(short commit, date) of the last commit that changed docs/scores.json, from git when this is a full clone;
+    None in a shallow clone (its one commit would look like the change) or without git."""
+    import subprocess
+    root = str(SCORES_JSON.parent.parent)
+    try:
+        shallow = subprocess.run(["git", "-C", root, "rev-parse", "--is-shallow-repository"], capture_output=True, text=True, timeout=5)
+        if shallow.returncode != 0 or shallow.stdout.strip() != "false":
+            return None
+        out = subprocess.run(["git", "-C", root, "log", "-1", "--format=%h %cs", "--", "docs/scores.json"],
+                             capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    parts = out.stdout.split()
+    return (parts[0], parts[1]) if out.returncode == 0 and len(parts) == 2 else None
+
+
+def scores_rows(data: dict) -> list[dict]:
+    """One row per corpus: the "after" numbers (the engine on main), with the links missed counted as true minus found."""
+    rows = []
+    for c in data.get("corpora", []):
+        a = c["after"]
+        rows.append(dict(name=c["name"], title=c["title"], source=c.get("source", ""), row_count=c.get("row_count", 0),
+                         tables=a["tables"], keys_true=a["keys_true"], keys_right=a["keys_right"], keys_wrong=a["keys_wrong"],
+                         keys_missed=a["keys_missed"], keys_extra=a["keys_extra"], links_true=a["links_true"],
+                         links_found=a["links_found"], links_missed=a["links_true"] - a["links_found"], links_wrong=a["links_wrong"]))
+    return rows
+
+
+def scores_html() -> str:
+    e = html.escape
+    data = scores_data()
+    history = f'<a href="{e(SCORES_HISTORY, quote=True)}" rel="noopener">the file\'s history on GitHub</a>'
+    if data is None:
+        return (f'<p class="note">This build does not carry <code>docs/scores.json</code>. Read the numbers in '
+                f'<a href="{e(GITHUB, quote=True)}/blob/main/docs/scores.json" rel="noopener">the repository</a> and '
+                f'their commit in {history}.</p>')
+    rows = scores_rows(data)
+    when = scores_commit()
+    as_of = (f"These numbers were last changed in commit <code>{e(when[0])}</code> on {e(when[1])}; every change is in {history}."
+             if when else f"The commit and date of every change to these numbers are in {history}.")
+    th = lambda cells: "".join(f'<th scope="col">{c}</th>' for c in cells)
+    keys = "".join(f'<tr><th scope="row">{e(r["title"])} <code>{e(r["name"])}</code></th><td>{r["tables"]}</td>'
+                   f'<td>{r["keys_true"]}</td><td>{r["keys_right"]}</td><td>{r["keys_wrong"]}</td><td>{r["keys_missed"]}</td>'
+                   f'<td>{r["keys_extra"]}</td></tr>' for r in rows)
+    links = "".join(f'<tr><th scope="row">{e(r["title"])} <code>{e(r["name"])}</code></th><td>{r["links_true"]}</td>'
+                    f'<td>{r["links_found"]}</td><td>{r["links_missed"]}</td><td>{r["links_wrong"]}</td></tr>' for r in rows)
+    sources = "".join(f'<li><strong>{e(r["title"])}</strong> (<code>{e(r["name"])}</code>): {e(r["source"])}. '
+                      f'{r["row_count"]} rows in {r["tables"]} tables.</li>' for r in rows)
+    columns = data.get("columns", {})
+    return f"""<p>{as_of}</p>
+  <p>The corpora are synthetic rows or public schemas, never a customer's data, and nothing here was run in Fabric. How
+  the corpus is built and how to run it again: <a href="{e(GITHUB, quote=True)}/blob/main/docs/SCORES.md" rel="noopener"><code>docs/SCORES.md</code></a>.</p>
+  <p>The tables show the engine as it plans on main ({e(columns.get("after", "with the row profile"))}). How a key or a
+  link is scored: {e(data.get("how_scored", ""))}.</p>
+  <h2 id="keys">Keys</h2>
+  <div class="table-wrap" tabindex="0" role="region" aria-label="Keys per corpus"><table class="scores-keys">
+    <thead><tr>{th(["Corpus", "Tables", "True keys", "Right", "Wrong", "Missed", "Extra"])}</tr></thead>
+    <tbody>{keys}</tbody>
+  </table></div>
+  <h2 id="links">Links</h2>
+  <div class="table-wrap" tabindex="0" role="region" aria-label="Links per corpus"><table class="scores-links">
+    <thead><tr>{th(["Corpus", "True links", "Found", "Missed", "Wrong"])}</tr></thead>
+    <tbody>{links}</tbody>
+  </table></div>
+  <p>Missed links are the true links minus the ones found. The names-only and earlier numbers for each corpus are in
+  <code>docs/scores.json</code> and <code>docs/SCORES.md</code>.</p>
+  <h2 id="corpora">The corpora</h2>
+  <ul>{sources}</ul>"""
 
 
 PRIVACY_DESC = "How {{PRODUCT}} handles your Microsoft sign-in, access tokens, metadata, sample rows, query results, usage records and technical logs."
