@@ -359,6 +359,16 @@ def propose_plan(p, validation: dict | None = None, gamma: float = RESOLUTION, a
     return propose(tables, rels, validation, gamma, areas if areas is not None else _plan_areas(p), getattr(p, "label", None))
 
 
+def data_products(p) -> dict:
+    """ED2 (Gustav's editor test of 21 November 2026: the dry run's "Domains Krusgraph proposes", its "Data products"
+    section and the site's demo grouped the shop's tables three ways). The one grouping of a plan's tables into data
+    products that the editor's suggestions, the dry run's and the result's data product, and the site's demo all show:
+    propose_plan on the plan the review left, by its rules only. The row check does not move a table between products
+    (it only adds its verdict to the evidence), so checking the rows again never regroups them; a link rejected in the
+    review does, since the plan no longer has it."""
+    return propose_plan(p)
+
+
 def propose_from_check(result: dict, gamma: float = RESOLUTION) -> dict:
     """Domains from browser_check.analyze's result, for /check's engine in the browser (its tables and relationships)."""
     return propose(result.get("tables", []), result.get("relationships", []), None, gamma)

@@ -263,3 +263,29 @@ say something the build does not do.
 The chat was not changed: `tools/smooth_measure.py` on this branch, Start to all three dry runs in 4 taps (lazy, 390 px
 and desktop), at most 25 words per step, no step scrolls; 3.0 s locally against 2.8 s on `main` (the same steps; the
 difference is the laptop's load while the editor's e2e ran beside it).
+
+## 10. After ED2: Dry run and Create finish or explain once (21 November 2026)
+
+Gustav's second editor test (about 12:40 to 12:55 UTC, the shop sample, a Model item in a workspace with no lakehouse,
+`shop_lh` read from another workspace) went past the dry run to two Creates. What he saw, and what Krusgraph does now.
+Every rule is deterministic; nothing here uses AI.
+
+| # | Before | After |
+|---|---|---|
+| 1 | The dry run said "Checked against the rows (2026-11-11 20:23 UTC)" and listed a rejection and a "no longer suggested" product minutes after a fresh check: a re-read of the item's saved review, started when the item opened, replaced the check run meanwhile | The editor keeps the freshest review (`ed2Create.freshestReview`, by the newest check time); the dry run counts that one and shows its check time; when the saved review was older it says so once |
+| 2 | Choose: "Owner: (the signed-in person)"; dry run and result: "nobody has chosen one yet" | One sentence everywhere (`ownerLine`, `workload_api.owner_words`): the owner chosen, else the signed-in person, "Change it on the Choose step." |
+| 3 | No lakehouse in the workspace: "2 of 6 created, 1 creating, 3 failed", the same long error per output, Try again off, "Plan ?." | The dry run says "Create will make the lakehouse shop_lh for silver and gold." and goes on; Create stays off while a blocker the dry run knows remains, with one line and one fixing button; after a partial result one "Fix and finish (N not built)" builds only what is missing; an error shared by several outputs is said once; Try again shows only where it can work, else the reason |
+| 4 | HTTP 409 for `shop_lh_krusgraph_test` | The name is checked against the workspace's items before Create; a lakehouse of that name is used; a name taken by another item, or held by Fabric after a delete (409), moves to the next free name (`_2`, `_3`, ...), said once. The default is named after the data product (`shop_lh`), never `_test` |
+| 5 | Silver failed, gold was created anyway | Built in order (`ed2Create.BUILT_ON`: silver, gold, the pipeline, the model, its report and the agent); what is built on a failed output is not sent and says once "Waiting for silver" |
+| 6 | The report gave up after 3 tries on the new model's definition (404) and asked for Create again, with Try again off | In the editor's background step the report waits longer (5, 10, 20, 40, 60 and 90 s; Fabric's long-running operations are polled with waits, learn.microsoft.com/rest/api/fabric/articles/long-running-operation); if it still fails, Try again sends only the report |
+| 7 | "already built ... Choose a new name to make another one" | An item this Model built from an older plan is updated in place ("Updated in place (this item built it from an older plan)."); the semantic model's card says in one line what it reads |
+| 8 | "Creating runs nothing and schedules nothing ... Krusgraph adds none" | Run once after Create is the default (changeable); no schedule stays the default, with one line on how to add one |
+| 9 | The Data product card listed 16 items with duplicates from earlier Creates, each with an Open button | This build's items, one line each with its status and Open; earlier builds under one collapsed "Earlier builds (N)" with "Clean up earlier builds", which opens the Delete dry run of exactly those items (nothing is deleted without the person's confirm) |
+| 10 | Three groupings of the shop's tables (dry run, Data products, the site) | One function, `domains.data_products`: the plan the review left, by its rules; a row check adds evidence but never moves a table |
+| 11 | "Create api for graphql", "Plan ?." | Labels keep their case in a sentence ("API for GraphQL"); the plan is named only when known |
+
+Tests: `tests/test_ed2_create_finishes.py` (fake Fabric: a 409 name moves to the next free one; a name taken by a
+notebook; a lakehouse of that name used; no lakehouse in the workspace; the report's model read 404 four times, then
+drawn; the owner; one grouping; today's check in the dry run) and `workload/Workload/app/items/ModelItem/ed2Create.test.ts`
+with `createEach.test.ts` (silver fails, gold is not created; Fix and finish sends only the missing outputs and reuses
+what exists; the same error once; the blocker and its button).

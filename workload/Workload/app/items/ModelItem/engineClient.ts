@@ -364,6 +364,8 @@ export interface BuildCard {
   jobs?: JobsCard;
   /** n185: the data agent's layer and publishing */
   agent?: AgentCard;
+  /** ED2: the semantic model's one line: what it reads */
+  reads?: string;
 }
 
 /** n180 (workload_api.refresh_new_model): planned in the dry run; refreshed, refreshing (still running when the wait
@@ -442,6 +444,13 @@ export interface ManyAnswer {
   build_in?: BuildPlace;
   /** n221: the lakehouse Create made first, when the person ticked it */
   lakehouse_made?: { id: string; name: string; workspace: string; made: boolean };
+  /** ED2: the lakehouse silver and gold go to, named and checked against the workspace before Create: "Create will make
+   * the lakehouse shop_lh for silver and gold." (use: one of that name is there; asked/taken_by: the name moved) */
+  lakehouse?: { name: string; action: "use" | "make"; words: string; rule?: string; asked?: string; taken_by?: string };
+  /** ED2: a Create step that stopped before any output (the lakehouse could not be made): the reason, once */
+  error?: string;
+  kind?: string;
+  hint?: string;
   outputs: BuildCard[];
   order: OutputKind[];
   left_out_by_review: LeftOut[];
@@ -918,7 +927,7 @@ export function finish(
   source: SourceRequest,
   outputs: OutputRequest[],
   reviewFile: ReviewFile,
-  product: { name: string } | null,
+  product: { name: string; owner?: string } | null,
   created: CreatedRef[]
 ): Promise<ManyAnswer> {
   return call<ManyAnswer>(workloadClient, "build", { ...source, outputs, review: reviewFile, dry_run: false, product, created, finish: true });
@@ -932,7 +941,7 @@ export function buildMany(
   outputs: OutputRequest[],
   reviewFile: ReviewFile,
   dryRun: boolean,
-  product: { name: string } | null,
+  product: { name: string; owner?: string } | null,
   created: CreatedRef[],
   pending: PendingItem[] = [],
   opts: CallOptions & { products?: { id: string; name: string }[] } = {}

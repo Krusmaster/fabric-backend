@@ -5,6 +5,7 @@
  */
 import type { CreatedItem, OutputChoice } from "./ModelItemDefinition";
 import { agentOf } from "./jobsWords";
+import { ownerLine, planLine } from "./ed2Create";
 
 const on = (choices: OutputChoice[], kind: string) => choices.find((c) => c.type === kind && c.enabled);
 
@@ -67,10 +68,8 @@ export const JOINED = /(?:^|[\s(])[a-z]+[a-z)]\.[A-Z][a-z]+[\s,:;]/;
 /** ED1: the data product card's owner line. Never a "?" placeholder: the plan is named once it is known, otherwise the
  * clause is left out ("Owner: <name>. Plan ?." before). */
 export function productOwnerLine(p: { owner?: string | null; plan?: { plan_id?: string | null; schema_fingerprint?: string | null } | null }): string {
-  const owner = `Owner: ${p.owner || "nobody has chosen one yet"}.`;
-  const plan = p.plan?.plan_id;
-  if (!plan) return owner;
-  return `${owner} Plan ${plan}${p.plan?.schema_fingerprint ? `, schema ${p.plan.schema_fingerprint}` : ""}.`;
+  const plan = planLine(p.plan ?? undefined);                  // ED2: the same owner and plan sentences everywhere
+  return plan ? `${ownerLine(p.owner)} ${plan}` : ownerLine(p.owner);
 }
 
 type CheckedItem = {
