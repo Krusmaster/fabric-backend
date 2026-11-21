@@ -254,3 +254,18 @@ def test_one_schema_and_the_demo_are_unchanged(monkeypatch):
     d = json.loads(server.start(**{k: chosen[k] for k in ("workspace", "source", "schema")}, step="dry_run"))
     assert "combined" not in d and d["say"] == "One tap dry-runs everything. Nothing is created."
     assert not multi_schema.is_multi(chosen["schema"]) and sf.MATCH == combine.PREFIX
+
+
+def test_the_cached_demo_validation_is_the_same_whoever_calls_first():
+    """The start card's sample (start_flow.sample_products) may be the first to call demo.demo_validation, inside a
+    tool call's time budget; the cached answer must not carry that budget (tests/test_golden.py compares it)."""
+    from fabric_backend import budget, demo
+    demo.demo_validation.cache_clear()
+    try:
+        with budget.call(30):
+            inside = demo.demo_validation()
+        assert "time_budget" not in inside
+    finally:
+        demo.demo_validation.cache_clear()
+    assert demo.demo_validation() == inside
+
