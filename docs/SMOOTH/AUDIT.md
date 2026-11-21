@@ -340,7 +340,7 @@ fixture). Nothing reached Fabric; any POST, PATCH, PUT or DELETE fails the test.
 | (b) Start on `sap_lh`, `crm_lh`, `sales_product_lh` | step 1 waits | `sales_product_lh` suggested (rule L2); its two schemas are the person's choice |
 | (c) one plan over `sap` + `crm` in one lakehouse | not possible (one schema per plan) | **38 tables** keyed `schema.table`, SAP pack in `sap`, Salesforce pack in `crm`, 77 links, none guessed across |
 | (c) a confirmed link `crm.Account.SAP_Customer_No__c` → `sap.KNA1.KUNNR` | a foreign key into another schema was dropped | counted in **one query on one connection**: 4 rows with a value, 3 found |
-| One-lakehouse demo, lazy path, Start → all three dry runs | 4 taps (SM2) | see the measured line below |
+| One-lakehouse demo, lazy path, Start → all three dry runs | 4 taps, 2.8 s (SM2) | **4 taps, 2.8 s** at 390 px (`measure-sm5-2026-11-21.json`), every step ≤ 25 words, none scrolls |
 
 What changed:
 - **Name rules for the source (G1).** `start_flow.suggest_source`: L1, exactly one source named as the raw layer
