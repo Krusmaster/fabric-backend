@@ -382,7 +382,7 @@ Onto drew it on the whiteboard: one sign-in, one approval, and a sensible defaul
 <!-- /figure -->
 
 - **Sources:** SAP, Salesforce and Dynamics 365, and other sources, land in your Fabric by mirroring or shortcuts, and {{PRODUCT}} reads what has landed there.
-- **Bronze, silver, gold:** the raw tables stay as they are, a silver notebook checks every key, and gold views shape the tables into a star schema.
+- **Bronze, silver, gold:** the raw tables stay as they are, a silver notebook checks the keys, and gold views shape the tables into a star schema.
 - **Data products:** each product in a domain has a key, an owner and a contract, and the products meet through named interfaces.
 - **What people use:** the semantic model, ontology, data agent, report and GraphQL API are all built from the same plan, so they agree with each other.
 - **Around it:** a pipeline runs the layers, dbt tests and alerts watch them, the catalog and domains describe them, and Fabric Git keeps every version.
