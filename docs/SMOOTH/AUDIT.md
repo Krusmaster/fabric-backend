@@ -225,3 +225,41 @@ What changed for the person:
 One test reads both surfaces: `tests/test_sm3_same_path.py` (the five words and the default outputs in
 `start_flow.py` and in the editor's `stepWords.ts`). Screenshots: `media/editor-sm3-desktop-choose.png`,
 `media/editor-sm3-390-dry-run.png` (before: `media/editor-sm3-390-dry-run-before.png`).
+
+## 9. After ED1: Gustav's editor test (21 November 2026)
+
+Gustav opened the Model item in Fabric at about 12:30 UTC on the shop sample (`shop_lh` / `shop`, 7 tables). The goal:
+one sign-in and one approval; every other choice a visible default that can be changed and never has to be. The editor
+he saw was the one deployed before SM3: the Deploy runs for SM3 and the next commits were skipped because `main` moved
+on while CI ran (`deploy.yml` deploys only main's tip), so the six old step names were still live. ED1 fixes what he saw.
+Nothing ran in Fabric.
+
+| What he saw | Before | After |
+|---|---|---|
+| Output cards on Choose | a broken image beside every title | the Fabric icon: the production bundle carries each icon file, byte for byte, as a `data:` URL (no second request), and the served copies under `/assets/fabric-icons/` stay; `tests/test_ed1_editor.py` fetches every `/assets/` path the built bundle references through the workload host (200, the package's exact bytes) |
+| Help text | "…a lakehouse of this workspace.Silver and gold go to…" | one line; `ed1Editor.test.tsx` reads every Choose state, open and shut, for a sentence run into the next (`ed1Words.JOINED`) |
+| Data product built so far | "Owner: … Plan ?." | "Owner: <name>." until the plan is known, then "Plan p-…" |
+| Decisions on Choose (a build in a new workspace) | **16**: Build in, "Lakehouse for silver and gold: choose one", Make a lakehouse, 3 ticks, 3 names, Run once, Schedule, the agent's layer, Publish, 3 Permissions folds | **4**: the 3 ticks and **Change** |
+| Where silver and gold go | a dropdown, a checkbox and a sentence that contradicted them ("the first lakehouse by name") | one line, read from the request the dry run sends: "Silver and gold go to a lakehouse shop_lh_krusgraph in this workspace. Create makes it if it is not there yet." (or "…go to sales_lh in this workspace." when one is chosen) |
+| Names | a text box per output | shown ("Name: shop_lh_pipeline"), from the rule `<source>_<suffix>`; text boxes under Change |
+| Report | an empty free-text "Built on" | "Built on: shop_lh_model (the semantic model above)", following the model's name; with the model unticked, the model this item built before, else "A report needs a semantic model: tick Semantic model, or choose one under Change."; Change offers a picker of the workspace's semantic models, no free text |
+| Other outputs that read another | nothing said | "Built on: …" for the data agent (its layer), the ontology and the semantic model (the silver tables this build writes) and the API for GraphQL (the source's tables) |
+| Keys and links | "Accept all that passed the check (0)" shown | hidden at 0 |
+| "3 not checked" | a count | one line: which ones and why ("Not checked: the key of audit_log (audit_log has no rows); …"); those a check would count (changed since the check) are checked again on their own, once per plan |
+| Onto's doubled totals | "134 order_items rows over 60 orders rows: an amount on orders summed over order_items would count each orders row 2.2× on average." | "Summing an orders amount over order items would count each order about 2 times; sum order items per order first." |
+| Step names | 6 in the editor he saw, 5 in the chat | 5 in both (SM3, now deployed): Your data · Check · Decide · Dry run · Create; Data product is shown after Create, not as a step (`tests/test_wb15_click_through.py`, `test_ed1_…`) |
+
+Counted on the rendered Choose step by `ed1Editor.test.tsx` (every enabled checkbox, radio group, text box, button and
+Permissions fold visible without opening anything; the Dry run button and the More outputs fold not counted).
+
+Where silver and gold go in another workspace is now a default with a name: Create makes `<source>_krusgraph` there,
+or uses it when it is there (n221's "Make a lakehouse", ticked for you). Choosing another lakehouse is under Change.
+
+Not drawn: a line from the semantic model to gold. The model, like the API, the ontology and the agent on silver,
+binds to the tables the build writes or reads, not to the gold views (`fabric_backend/data_flow.py`, "Building them on
+the gold views is a later option"); the data flow already draws the report on the model. Drawing model → gold would
+say something the build does not do.
+
+The chat was not changed: `tools/smooth_measure.py` on this branch, Start to all three dry runs in 4 taps (lazy, 390 px
+and desktop), at most 25 words per step, no step scrolls; 3.0 s locally against 2.8 s on `main` (the same steps; the
+difference is the laptop's load while the editor's e2e ran beside it).
