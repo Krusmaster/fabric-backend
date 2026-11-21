@@ -47,6 +47,17 @@ The change: the model's expression points at **`silver_lh`**, not `gold_lh`, bec
 per fact table and the model's star (dimensions and facts, related) is the silver tables. A model over `gold_lh` needs
 star tables in gold first; that is Gustav's call (AUDIT.md section 14). Without the new parameters nothing changes.
 
+**SM7 is done in part** (21 November 2026; the rest is issue #152). On the fixture, layout (b): the match rules find
+`crm.Account.SAP_Customer_No__c` → `sap.KNA1.KUNNR` (M0; the party tables come from DP1's catalog, `customer` and
+`crm_account`) and count it on the rows: 3 of 4 filled values as written, 4 after normalising. The Check card says it in
+24 words ("SAP has 4 customers, the CRM 5 accounts. 4 accounts match on SAP_Customer_No__c after normalising. 1 only in
+SAP, 1 only in the CRM."). Decide asks for the match (Accept the match / Keep them apart); the decision is kept in the
+flow state, and nothing is combined until it is accepted. The model dry run then has 3 SAP facts and 7 CRM facts sharing
+one `dim_customer` (5 customers), no fact-to-fact relationship, with the gold SQL it reads. **Start → combined dry run in
+5 taps, 1.7-1.9 s** locally (`measure-sm7-2026-11-21.json`). Not yet: schema shortcuts (G5), M3 code-list dimensions,
+the gold SQL in the pipeline (Create of the combined model answers `not_yet`), ontology and agent over it (AUDIT.md
+section 15).
+
 SM5-SM7 change the engine (`infer.py`, `graphs.py`, `server.py`'s write path). They come after SM2-SM4 because those
 three change what every later round's UI looks like, and the multi-source flow should be built straight into five steps.
 

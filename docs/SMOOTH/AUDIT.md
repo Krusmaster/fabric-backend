@@ -418,3 +418,41 @@ shortcut), which is a new gold shape.
 Not verified: none of this has run in Fabric. Spark SQL reads `lakehouse.schema.table` across schema-enabled
 lakehouses of one workspace (*Lakehouse schemas*, Microsoft Learn); a materialized lake view over another lakehouse's
 tables has not been created in a Fabric workspace by Krusgraph. SM8's demo workspace is where that is checked.
+
+## 15. After SM7: combine SAP + CRM in one data product (21 November 2026)
+
+PLAN.md row 6, COMBINE-SOURCES.md. Everything below ran locally on the synthetic fixture
+`tests/fixtures/multi_lakehouse.py`, layout (b): `sap_lh`, `crm_lh` and `sales_product_lh`, whose `sap` and `crm` schemas
+are the sources (simulated schema shortcuts). Synthetic rows only. Nothing reached Fabric; any POST, PATCH, PUT or DELETE
+fails the test. Tests: `tests/test_sm7_combine.py`.
+
+| Measure | Before (main, 21 Nov) | After SM7 |
+|---|---|---|
+| (b) customers matched across SAP and CRM | none: a link across schemas only when typed in `confirmed` | **M0 `crm.Account.SAP_Customer_No__c` → `sap.KNA1.KUNNR`**, counted: 4 of 5 accounts hold a value, 3 match as written, 4 after normalising; 3 of 4 SAP customers found (1 is in another client), 1 SAP customer matched by 2 accounts |
+| (b) what the Check card says | "38 tables, 77 links, nothing needs you." | "38 tables, 77 links, 1 needs you." and, in 24 words, "SAP has 4 customers, the CRM 5 accounts. 4 accounts match on SAP_Customer_No__c after normalising. 1 only in SAP, 1 only in the CRM." |
+| (b) the decision | | Decide: Accept the match / Keep them apart, with the counted evidence; kept in the flow state (the latest tap wins); nothing combined before Accept |
+| (b) the model dry run | each source's tables, apart | **one `dim_customer` (5 customers), 3 SAP facts + 7 CRM facts re-keyed to `customer_key`, 10 relationships fact → dim_customer, 0 fact → fact**, Direct Lake on `sales_product_lh` (`gold`), with the gold SQL |
+| (b) Start → combined dry run (`tools/smooth_measure.py --combine`, server side, no browser) | not possible | **5 taps, 1.81 / 1.68 / 1.86 s** (3 runs, `measure-sm7-2026-11-21.json`), 0 errors, 0 writes |
+| One-lakehouse demo (browser, `tools/smooth_measure.py`) | 4 taps | unchanged: the combine step runs only on a plan over several schemas |
+
+What changed:
+- **`fabric_backend/combine.py`.** The party tables come from DP1's catalog (`customer`, `crm_account`, role master,
+  with their business keys). Rules M0 (a column that names the other source and an identifier), M1 (the same official
+  identifier: VAT id, organisation number, DUNS, GLN, by fixed normalising steps) and M2 (a key-shaped column, counted;
+  0.9 only with ≥ 95 % found and ≥ 50 distinct values). M4 (names) is never used. Two counting statements per
+  candidate, at most 4 candidates, on the one connection; counts only.
+- **Start.** Check shows the match line and counts the open decision; Decide asks for it first; the dry run says what it
+  combines ("SAP + CRM → 1 dim_customer (5 customers); 3 SAP facts and 7 CRM facts share it, no link between facts.").
+- **`create_semantic_model`** over a plan of several schemas with an accepted match drafts the conformed model and
+  returns the gold SQL (`xref_customer`, `dim_customer`, one view per fact). Its Create answers `not_yet` until the
+  pipeline builds that gold (issue #152).
+- **DP2's coverage on a plan over several schemas** now reads each schema's own pack (`data_product_match._pack_entries`):
+  before, the SAP tables of `crm+sap` were looked up in the Salesforce mapping, and Check said "customer missing".
+
+Decisions for Gustav: the master is the side the match points at (not "the most keys"), so no source row ever gets two
+customer keys; the SAP side is matched within its client with the most rows when the CRM field holds no client. Both
+are said on the card's evidence and in COMBINE-SOURCES.md.
+
+Not verified: none of this has run in Fabric. The gold SQL was run on SQLite in a test after fixed translations
+(`test_the_gold_sql_runs_and_conforms_the_fixture`), not on Spark. SM8's demo workspace is where that is checked.
+

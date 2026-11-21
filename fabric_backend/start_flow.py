@@ -390,7 +390,7 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
           keys: dict | None = None, confirmed: list | None = None, decisions: list | None = None,
           create: list | None = None, confirm: bool = False, sample: bool = False, options: dict | None = None,
           review: dict | None = None, picked: list | None = None, suggested: dict | None = None,
-          targets: dict | None = None) -> dict:
+          targets: dict | None = None, combine: dict | None = None) -> dict:
     """The stepper's answer (see the module docstring). Pure: no Fabric, no SQL. `options` (WB12, #76) is what the
     start tool read for a choosing stage: {step, items: [{name, hint?, tables?}]} or {step, error}. `review` (WB13, #66)
     is review_plan's file with the checks counted, built by the start tool for Check and Decide, or {error}. `picked`
@@ -472,6 +472,7 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
     elif now == "check":
         out.update(_check(c, review))
         actions += out.pop("actions")
+        _combine_check(out, combine, c)
     elif now == "decide":
         out["say"] = "Some links need you. The count supports it, and you decide."
         out["then"] = ("review_plan records the decisions (item ids are in its file); an accepted link goes into confirmed "
@@ -504,6 +505,7 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
                            "plan.confirmed for the next steps. Deciding writes nothing to Fabric. Next leaves an open "
                            "decision open.")
             out["open_decisions"] = len(waiting)
+            _combine_decide(out, actions, combine, c)
             if sent:                                     # the file to keep, once something is decided: under Details
                 actions.append({**_call("Keep my decisions as a review file", "review_plan", args), "secondary": True,
                                 "more": True})
@@ -517,6 +519,11 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
         if c.get("targets"):                               # SM6: where the build writes, in one line
             out["layers_to"] = targets_line(c["targets"])
             out["say"] = f"One tap dry-runs everything: {out['layers_to']}."
+        if isinstance(combine, dict) and combine.get("accepted"):      # SM7: the match the person accepted
+            out["combined"] = combine["accepted"]["line"]
+            out["say"] = f"One tap dry-runs everything over both sources: {combine['accepted']['customers']} customers in one dim_customer."
+        elif isinstance(combine, dict) and combine.get("proposed"):
+            out["combined"] = "No match accepted: each source is built apart. Accept the match on Decide to combine them."
         out["would_build"] = [{"tool": t, "name": names[t], "what": w} for t, _, w in BUILDS]
         out["data_flow"] = list(FLOW)
         runs = []
@@ -719,6 +726,10 @@ def _create(c: dict, create: list | None, confirm: bool) -> dict:
 
 def _decided_line(d: dict, sample: bool = True) -> str:
     item = str(d.get("item") or "")
+    if item.startswith(MATCH):                            # SM7: a match of two sources' customers
+        how = {"accepted": "accepted: the next steps combine the sources on it",
+               "rejected": "rejected: the sources stay apart"}.get(str(d.get("review")), "kept open: the sources stay apart")
+        return f"Match {item[len(MATCH):].replace('>', f' {ARROW} ')}: {how}."
     m = item[4:] if item.startswith("rel:") else item
     m = m.replace(">", f" {ARROW} ")
     how = {"accepted": "accepted", "rejected": "rejected", "skipped": "skipped for now"}.get(str(d.get("review")), str(d.get("review")))
@@ -728,6 +739,67 @@ def _decided_line(d: dict, sample: bool = True) -> str:
         # WB15 (G): a rejected link is now left out of every dry run and build on the path (flow_state.BUILD_TOOLS)
         use = ": kept open; decide it before you build"
     return f"{m}: {how}{use}."
+
+
+# SM7 (COMBINE-SOURCES.md): a plan over several schemas whose party tables the match rules pair. Check says the counts
+# in one line, Decide asks for the match with Accept and Reject (one tap; the flow state keeps it as a decision, like a
+# link), and the dry run says what it combines. Nothing is joined on a match that is not accepted.
+MATCH = "match:"
+
+
+def _combine_check(out: dict, combine: dict | None, c: dict) -> None:
+    """Check: the proposed match's counts as the first line, and the open decision counted in "N needs you"."""
+    if not isinstance(combine, dict):
+        return
+    if combine.get("error"):
+        out.setdefault("lines", []).insert(0, "The two sources' customers could not be counted, so nothing is combined.")
+        out["combine_error"] = str(combine["error"])[:200]
+        return
+    prop = combine.get("proposed")
+    if not prop:
+        out.setdefault("lines", []).insert(0, "No rule pairs the two sources' customers, so each is built apart.")
+        return
+    out.setdefault("lines", []).insert(0, prop["line"])
+    out["match"] = {k: prop[k] for k in ("id", "rule", "line", "counts", "customers")}
+    taken = {str(d.get("item")): str(d.get("review")) for d in c.get("decisions") or [] if isinstance(d, dict)}
+    if prop["id"] not in taken and isinstance(out.get("counts"), dict):
+        n = int(out["counts"].get("open_decisions") or 0) + 1
+        out["counts"]["open_decisions"] = n
+        head = str(out.get("say") or "").rsplit(", ", 1)[0]
+        out["say"] = f"{head}, {n} {'needs' if n == 1 else 'need'} you."
+
+
+def _combine_decide(out: dict, actions: list, combine: dict | None, c: dict) -> None:
+    """Decide: the match as a decision with its counted evidence, Accept and Reject (each one tap), first on the card."""
+    if not isinstance(combine, dict) or not combine.get("proposed"):
+        return
+    prop = combine["proposed"]
+    item = prop["id"]
+    taken = {str(d.get("item")): str(d.get("review")) for d in c.get("decisions") or [] if isinstance(d, dict)}
+    state = taken.get(item, "open")
+    acts = []
+    for review, label in (("accepted", "Accept the match"), ("rejected", "Keep them apart")):
+        args = _with_decision(c, item, review, None)
+        acts.append({"kind": "decide", "decision": review, "label": label, "who": "thinker", "tool": TOOL,
+                     "arguments": args, "item": item, "say": f"{label} ({item[len(MATCH):]}) (start with {_shown(args)}).",
+                     "ask": f"{label}: {prop['line']}"})
+    x = {"item": item, "question": f"Are these the same customers? {prop['line']}", "evidence": list(prop["evidence"]),
+         "state": state, "actions": acts, "rule": prop["rule"], "count": prop["line"]}
+    found = out.setdefault("found", {"tool": "start", "summary": "", "decisions": []})
+    found.setdefault("decisions", []).insert(0, {k: v for k, v in x.items() if k != "actions"})
+    if state == "open":
+        actions[:0] = acts
+    else:
+        other = [a for a in acts if a["decision"] != state]
+        actions[:0] = [{**a, "label": "Change to " + ("Keep them apart" if a["decision"] == "rejected" else "Accept the match")}
+                       for a in other]
+    waiting = int(out.get("open_decisions") or 0) + (state == "open")
+    out["open_decisions"] = waiting
+    if state == "open":
+        out["say"] = "The match needs you: are these the same customers?" if waiting == 1 else f"{waiting} decisions need you."
+    elif not waiting:
+        out["say"] = ("Match accepted. Next: the dry run over both sources." if state == "accepted"
+                      else "Kept apart. Next: the dry run, each source on its own.")
 
 
 def _with_decision(c: dict, item: str, review: str, link: dict | None) -> dict:
