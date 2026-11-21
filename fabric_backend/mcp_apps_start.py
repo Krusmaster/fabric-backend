@@ -514,6 +514,7 @@ __READ_JS__
     // everything else is under Details
     ["summary", "note"].forEach(function (k) { if (readable(f[k]) && !(k === "summary" && key === "map")) more.appendChild(el("p", f[k])); });
     if (Array.isArray(f.links)) more.appendChild(listOf(f.links));
+    if (strings(f.data_products).length) { more.appendChild(el("p", "Data products", "muted")); more.appendChild(listOf(strings(f.data_products))); }   // DP2
     if (strings(f.rules).length) more.appendChild(el("p", strings(f.rules).join(". ") + ".", "muted"));
     strings(f.advice).forEach(function (x) { more.appendChild(el("p", x)); });
     var decided = strings(d.decided).length ? strings(d.decided) : strings(f.decided);

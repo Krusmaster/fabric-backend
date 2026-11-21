@@ -518,11 +518,42 @@ def _check(c: dict, review: dict | None) -> dict:
     if amounts.get("checked"):
         lines.append(f"{bad} header {'amount' if bad == 1 else 'amounts'} would count twice." if bad else
                      "No total counts twice.")
+    found = {"tool": "review_plan", "summary": _review_summary(review)}
+    lines += products_line(review.get("data_products"), found)
     return {"say": f"{keys} tables, {rels} links, {need}.", "lines": lines,
             "counts": {"tables": keys, "links": rels, "checks": len(counted), "hold": held, "open_decisions": waiting,
                        "doubled_totals": bad},
-            "found": {"tool": "review_plan", "summary": _review_summary(review)},
+            "found": found,
             "actions": more}
+
+
+def sample_products() -> dict | None:
+    """DP2: the catalog data products on the synthetic shop, counted on its rows (demo.py's SQLite), as on your data.
+    Worked out once per process; None when it cannot be (the step stands without it)."""
+    if "products" not in _SAMPLE:
+        try:
+            from . import data_product_match as dpm, demo, seed
+            from .infer import plan
+            p = plan(seed.schema("shop"), keys=demo.DEMO_KEYS)
+            _SAMPLE["products"] = dpm.brief(dpm.suggest(p, demo.demo_validation(), demo._demo_db()), max_tables=25)
+        except Exception:                                                # noqa: BLE001
+            _SAMPLE["products"] = None
+    return _SAMPLE["products"]
+
+
+_SAMPLE: dict = {}
+
+
+def products_line(products: dict | None, found: dict) -> list[str]:
+    """DP2: the check step's one line about catalog data products (data_product_match.brief's `line`), and its detail
+    for Details in found["data_products"]: each process's coverage, then each table with its product, role, confidence
+    and evidence. Shared words for any card that shows a check: [] when there is nothing to say."""
+    if not isinstance(products, dict) or not products.get("line"):
+        return []
+    found["data_products"] = ([p["line"] for p in products.get("processes") or []]
+                              + [f"{t['table']}: {t['product'].replace('_', ' ')} ({t['role']}), {t['confidence']}. "
+                                 + "; ".join(t.get("evidence") or []) + "." for t in products.get("tables") or []])
+    return [products["line"]]
 
 
 def _closing(c: dict) -> dict:
@@ -812,6 +843,7 @@ def _sample(step: str | None, c: dict | None = None, run: bool = False) -> dict:
         lines = [f"{len(p['tables'])} tables, {len(p['relationships'])} links, {need}.",
                  f"{proof['links_holding']} of {proof['links']} links hold.",
                  (f"{len(f)} {'amount' if len(f) == 1 else 'amounts'} would count twice." if f else "No total counts twice.")]
+        lines += products_line(sample_products(), found)                 # DP2: the same line as on your own data
     elif now == "decide":
         first = decisions[0] if decisions else None
         found = {"tool": "review_plan", "decisions": [{k: v for k, v in x.items() if k != "actions"} for x in decisions],

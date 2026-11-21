@@ -1,0 +1,233 @@
+{
+ "counted": {
+  "queries": 0,
+  "with_rows": true
+ },
+ "details": [],
+ "how": "By rules, no AI: table and column names read through a word list in English, German and Swedish, the plan's keys and links, and the row counts. high = names and keys agree and the rows confirm it; medium = names and keys agree, the rows not counted; low = one signal only or the rows disagree, a hint and never counted as present.",
+ "line": "Data products: no table reads as a catalog data product by the names, keys and links.",
+ "processes": [],
+ "products": {
+  "activity": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Activity (calls, meetings, tasks, e-mails)"
+  },
+  "budget": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Budget and plan"
+  },
+  "campaign": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Marketing campaign"
+  },
+  "case": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Case or ticket (customer service)"
+  },
+  "chart_of_accounts": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Chart of accounts (G/L accounts)"
+  },
+  "contact": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Contact"
+  },
+  "cost_centre": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Cost centre and profit centre"
+  },
+  "crm_account": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Account (CRM)"
+  },
+  "currency": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Currency and exchange rate"
+  },
+  "customer": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Customer"
+  },
+  "date": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "generated",
+   "tables": {},
+   "title": "Date (calendar)"
+  },
+  "delivery": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Delivery (outbound shipment)"
+  },
+  "employee": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Employee or user"
+  },
+  "gl_journal_entry": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "General ledger journal entry"
+  },
+  "goods_receipt": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Goods receipt"
+  },
+  "inventory_movement": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Inventory movement and stock"
+  },
+  "invoice": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Customer invoice (billing)"
+  },
+  "lead": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Lead"
+  },
+  "open_item": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Receivables and payables (open and cleared items)"
+  },
+  "opportunity": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Opportunity (pipeline)"
+  },
+  "organisation": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Organisation and company"
+  },
+  "payment": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Payment"
+  },
+  "price": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Price and condition"
+  },
+  "product": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Product or material"
+  },
+  "purchase_order": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Purchase order (header and line)"
+  },
+  "quote": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Quote"
+  },
+  "sales_order": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Sales order (header and line)"
+  },
+  "subscription": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Subscription or contract"
+  },
+  "supplier": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Supplier"
+  },
+  "supplier_invoice": {
+   "checked": false,
+   "missing_roles": [],
+   "state": "missing",
+   "tables": {},
+   "title": "Supplier invoice"
+  }
+ },
+ "rule_version": "DP2-1 (21 November 2026)",
+ "tables": [],
+ "unmatched": [
+  "OrderTypes",
+  "PaymentMethods",
+  "audit_log",
+  "foo",
+  "settings",
+  "tmp_load_01",
+  "x_rel"
+ ]
+}
