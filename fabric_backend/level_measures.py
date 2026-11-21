@@ -75,7 +75,7 @@ def _not_additive(column: str, sql_type: str) -> bool:
     """A price or cost per unit or a percentage: a number on the row, not an amount to add up (UnitPrice, StandardCost,
     RecommendedRetailPrice, StandardDiscountPercentage)."""
     words = _amounts._words(column)
-    return (_amounts.is_price(column, sql_type) or bool(words) and words[-1] in ("percentage", "percent", "pct", "rate", "procent")
+    return (_amounts.is_unit_price(column, sql_type) or bool(words) and words[-1] in ("percentage", "percent", "pct", "rate", "procent")
             or any(w in ("unit", "standard", "list", "retail", "recommended") for w in words))
 
 
@@ -141,4 +141,80 @@ def suggest(plan, chosen, measures: list[dict], header_level: dict, consumed: se
                            f"amount_levels): it is the {hcol} level's amount copied onto each row, so a sum over {t} rows counts "
                            f"each {hcol} once per row; the measure takes the value once per {hcol} (VALUES, then CALCULATE and MAX) "
                            f"and sums those, and the column is not summed by default (summarizeBy: none)"})
+    measures[:] = [m for m in measures if m not in respect_units(plan, chosen, measures, validation)]   # BL10
+    out = [m for m in out if m not in respect_units(plan, chosen, out, validation)]
     return out, flat
+
+
+def _column(plan, table: str, column: str):
+    t = plan.schema.tables.get(table)
+    return next((c for c in (t.columns if t else []) if c.name == column), None)
+
+
+def respect_units(plan, chosen, measures: list[dict], validation: dict | None = None) -> list[dict]:
+    """BL10 (C-16): keep every suggested sum within one currency and one unit. Changes `measures` in place and returns the
+    ones that should not be suggested at all (each with `not_summed`, the reason); the caller leaves those out.
+
+    - A price per unit (NETPR, KBETR, unit_price) is never summed.
+    - An amount is in the currency of a currency column in its own table or its document header (amounts.label_columns:
+      VBAP.NETWR in VBAP.WAERK, VBRP.NETWR in VBRK.WAERK, ACDOCA.HSL in ACDOCA.RHCUR); a quantity in the unit of a unit
+      column (VBAP.KWMENG in VBAP.VRKME). An order amount from quantity x price is in the currency of the price's table.
+    - Counted with one value (validation["unit_counts"], from amounts.unit_counts): the plain sum stays.
+    - Otherwise (several values, or not counted): the measure is written per currency or unit,
+      `IF(HASONEVALUE('VBAP'[WAERK]), SUM('VBAP'[NETWR]))`, a value where the rows in the filter share one currency and
+      blank where they do not ("amounts in several currencies").
+    - A currency that is in no table of the model (EKBE.DMBTR, in the company code's currency): not suggested at all.
+    - A debit/credit indicator (SHKZG) in the table is noted in the description; the expression is not changed.
+    Deterministic, names and counts only."""
+    counts = (validation or {}).get("unit_counts") or {}
+    in_model = {(t.name, c) for t in chosen for c in t.column_names}
+    dropped: list[dict] = []
+    for m in measures:
+        if not m.get("column") or m.get("bl10"):
+            continue
+        if "price" in m and "dimension" in m:                      # quantity x price: the price's currency
+            t, c, kind = m["dimension"], m["price"], "currency"
+        else:
+            t, c = m["table"], m["column"]
+            col = _column(plan, t, c)
+            sql_type = col.data_type if col else "unknown"
+            if _amounts.is_unit_price(c, sql_type):
+                m["not_summed"] = f"{t}.{c} is a price per unit: a sum of prices is no amount"
+                dropped.append(m)
+                continue
+            words = _amounts._words(c)
+            if words and words[-1] in ("rate", "ratio", "percent", "percentage", "pct", "procent"):
+                continue                                           # a rate or a share is no amount in a currency
+            kind = "unit" if _amounts.is_quantity_like(c, sql_type) else "currency"
+        reason = _amounts.CURRENCY_REASON if kind == "currency" else _amounts.UNIT_REASON
+        lab = _amounts.label_columns(plan, t, c, kind)
+        notes: list[str] = []
+        if lab["where"] == "missing":
+            m["not_summed"] = f"{reason}: {lab['why']}, so the rows cannot be kept apart by currency"
+            dropped.append(m)
+            continue
+        if lab["columns"]:
+            outside = [x for x in lab["columns"] if x not in in_model]
+            if outside:
+                m["not_summed"] = f"{reason}: {lab['why']}, and " + ", ".join(f"{a}.{b}" for a, b in outside) + " is not in the model"
+                dropped.append(m)
+                continue
+            n = [counts.get(f"{a}.{b}") for a, b in lab["columns"]]
+            if all(v == 1 for v in n):
+                notes.append(f"{lab['why']}, counted with one value, so the sum stays within one {kind}")
+            else:
+                guard = " && ".join(f"HASONEVALUE({_dax_col(a, b)})" for a, b in lab["columns"])
+                m["expression"] = f"IF({guard}, {m['expression']})"
+                seen = ("counted: " + ", ".join(f"{a}.{b} {v} values" for (a, b), v in zip(lab["columns"], n) if v is not None)
+                        if any(v is not None for v in n) else "not counted")
+                notes.append(f"{lab['why']} ({seen}): {reason} are not added up, so the measure has a value only where the rows "
+                             f"in the filter share one {kind} (HASONEVALUE) and is blank otherwise; put the {kind} on the visual "
+                             f"to see one total per {kind}")
+        sign = _amounts.sign_column(plan, m["table"]) if kind == "currency" else None
+        if sign:
+            notes.append(f"sign: {m['table']}.{sign} marks each row as debit or credit and the sum adds the values as stored; "
+                         f"where they are stored without a sign, a credit adds up like a debit")
+        if notes:
+            m["why"] = f"{m['why']}; " + "; ".join(notes)
+        m["bl10"] = True
+    return dropped

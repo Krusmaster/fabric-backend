@@ -4,6 +4,7 @@ Runs the real hosted tools behind tests/wb15_fake.py's seams (no Fabric, no writ
 Krusgraph card with tools/smooth_measure.js, on the careful path and the lazy path, at 390 x 800 and 1280 x 900.
 
     python tools/smooth_measure.py [--shots DIR] [--out FILE.json]
+    python tools/smooth_measure.py --tools [--out FILE.json]     # SM4: tools listed and the cards' dead ends, no browser
 
 The numbers are what docs/SMOOTH/AUDIT.md reports. They measure the product's own time on a laptop; a real host adds
 the model's turn, the network and the SQL endpoint's latency on top (see AUDIT.md).
@@ -23,6 +24,10 @@ sys.path.insert(0, str(ROOT / "tests"))
 
 
 def main() -> int:
+    if "--tools" in sys.argv[1:]:                            # SM4: tools/smooth_measure_tools.py
+        sys.path.insert(0, str(ROOT / "tools"))
+        import smooth_measure_tools
+        return smooth_measure_tools.main([a for a in sys.argv[1:] if a != "--tools"])
     ap = argparse.ArgumentParser()
     ap.add_argument("--shots", default="")
     ap.add_argument("--out", default="")

@@ -1,0 +1,509 @@
+{
+ "tool": "sqllens",
+ "version": "1.11.0",
+ "results": {
+  "01_view_order_items": {
+   "parse_ok": true,
+   "error": null,
+   "glue": [
+    "prefix_schema",
+    "cst_select_reparse"
+   ],
+   "joins": [
+    "VBAK.MANDT = VBAP.MANDT",
+    "VBAK.VBELN = VBAP.VBELN"
+   ],
+   "lineage": {
+    "ORDER_NO": [
+     "VBAK.VBELN"
+    ],
+    "SOLD_TO": [
+     "VBAK.KUNNR"
+    ],
+    "ITEM_NO": [
+     "VBAP.POSNR"
+    ],
+    "MATERIAL": [
+     "VBAP.MATNR"
+    ],
+    "ITEM_NET": [
+     "VBAP.NETWR"
+    ]
+   },
+   "statement": "ddl",
+   "unsupported": [
+    "unparsed"
+   ]
+  },
+  "02_bracket_quoting": {
+   "parse_ok": true,
+   "error": null,
+   "glue": [
+    "prefix_schema"
+   ],
+   "joins": [
+    "MAKT.MANDT = MARA.MANDT",
+    "MAKT.MATNR = MARA.MATNR",
+    "MARA.MANDT = VBAP.MANDT",
+    "MARA.MATNR = VBAP.MATNR"
+   ],
+   "lineage": {
+    "VBELN": [
+     "VBAP.VBELN"
+    ],
+    "POSNR": [
+     "VBAP.POSNR"
+    ],
+    "MTART": [
+     "MARA.MTART"
+    ],
+    "MATERIAL_TEXT": [
+     "MAKT.MAKTX"
+    ]
+   },
+   "statement": "query"
+  },
+  "03_chained_ctes": {
+   "parse_ok": true,
+   "error": null,
+   "glue": [
+    "prefix_schema"
+   ],
+   "joins": [
+    "KNA1.KUNNR = VBAK.KUNNR",
+    "KNA1.MANDT = VBAK.MANDT",
+    "VBAK.MANDT = VBAP.MANDT",
+    "VBAK.VBELN = VBAP.VBELN"
+   ],
+   "lineage": {
+    "VBELN": [
+     "VBAK.VBELN"
+    ],
+    "CUSTOMER_NAME": [
+     "KNA1.NAME1"
+    ],
+    "HEADER_NET": [
+     "VBAK.NETWR"
+    ],
+    "ITEMS_NET": [
+     "VBAP.NETWR"
+    ]
+   },
+   "statement": "query"
+  },
+  "04_subquery_in_from": {
+   "parse_ok": true,
+   "error": null,
+   "glue": [
+    "prefix_schema"
+   ],
+   "joins": [
+    "LIKP.MANDT = LIPS.MANDT",
+    "LIKP.MANDT = VBAK.MANDT",
+    "LIKP.VBELN = LIPS.VBELN",
+    "LIPS.VGBEL = VBAK.VBELN"
+   ],
+   "lineage": {
+    "DELIVERY": [
+     "LIKP.VBELN"
+    ],
+    "ORDER_NO": [
+     "LIPS.VGBEL"
+    ],
+    "AUART": [
+     "VBAK.AUART"
+    ]
+   },
+   "statement": "query"
+  },
+  "05_old_style_where": {
+   "parse_ok": true,
+   "error": null,
+   "glue": [
+    "prefix_schema"
+   ],
+   "joins": [
+    "KNA1.KUNNR = VBRK.KUNRG",
+    "KNA1.MANDT = VBRK.MANDT",
+    "TVKO.MANDT = VBRK.MANDT",
+    "TVKO.VKORG = VBRK.VKORG"
+   ],
+   "lineage": {
+    "INVOICE": [
+     "VBRK.VBELN"
+    ],
+    "NETWR": [
+     "VBRK.NETWR"
+    ],
+    "PAYER_NAME": [
+     "KNA1.NAME1"
+    ],
+    "BUKRS": [
+     "TVKO.BUKRS"
+    ]
+   },
+   "statement": "query"
+  },
+  "06_outer_apply": {
+   "parse_ok": true,
+   "error": null,
+   "glue": [
+    "prefix_schema"
+   ],
+   "joins": [
+    "VBAP.MANDT = VBEP.MANDT",
+    "VBAP.POSNR = VBEP.POSNR",
+    "VBAP.VBELN = VBEP.VBELN"
+   ],
+   "lineage": {
+    "VBELN": [
+     "VBAP.VBELN"
+    ],
+    "POSNR": [
+     "VBAP.POSNR"
+    ],
+    "FIRST_DELIVERY_DATE": [
+     "VBEP.EDATU"
+    ]
+   },
+   "statement": "query"
+  },
+  "07_cross_apply": {
+   "parse_ok": true,
+   "error": null,
+   "glue": [
+    "prefix_schema"
+   ],
+   "joins": [
+    "KNA1.KUNNR = VBPA.KUNNR",
+    "KNA1.MANDT = VBPA.MANDT",
+    "VBAK.MANDT = VBPA.MANDT",
+    "VBAK.VBELN = VBPA.VBELN"
+   ],
+   "lineage": {
+    "VBELN": [
+     "VBAK.VBELN"
+    ],
+    "PARVW": [
+     "VBPA.PARVW"
+    ],
+    "PARTNER_NAME": [
+     "KNA1.NAME1"
+    ]
+   },
+   "statement": "query"
+  },
+  "08_merge": {
+   "parse_ok": true,
+   "error": null,
+   "glue": [
+    "prefix_schema",
+    "merge_as_select"
+   ],
+   "joins": [
+    "VBAK.MANDT = VBAP.MANDT",
+    "VBAK.VBELN = VBAP.VBELN"
+   ],
+   "lineage": {},
+   "statement": "dml",
+   "unsupported": [
+    "unparsed"
+   ]
+  },
+  "09_insert_select": {
+   "parse_ok": true,
+   "error": null,
+   "glue": [
+    "prefix_schema",
+    "cst_select_reparse"
+   ],
+   "joins": [
+    "ACCOUNT.ID = OPPORTUNITY.ACCOUNTID",
+    "OPPORTUNITY.ID = OPPORTUNITYLINEITEM.OPPORTUNITYID",
+    "OPPORTUNITYLINEITEM.PRICEBOOKENTRYID = PRICEBOOKENTRY.ID",
+    "PRICEBOOKENTRY.PRODUCT2ID = PRODUCT2.ID"
+   ],
+   "lineage": {
+    "OPPORTUNITY_ID": [
+     "OPPORTUNITY.ID"
+    ],
+    "ACCOUNT_NAME": [
+     "ACCOUNT.NAME"
+    ],
+    "PRODUCT_NAME": [
+     "PRODUCT2.NAME"
+    ],
+    "QUANTITY": [
+     "OPPORTUNITYLINEITEM.QUANTITY"
+    ],
+    "TOTAL_PRICE": [
+     "OPPORTUNITYLINEITEM.TOTALPRICE"
+    ]
+   },
+   "statement": "dml",
+   "unsupported": [
+    "unparsed"
+   ]
+  },
+  "10_union": {
+   "parse_ok": true,
+   "error": null,
+   "glue": [
+    "prefix_schema"
+   ],
+   "joins": [
+    "KNA1.KUNNR = VBAK.KUNNR",
+    "KNA1.KUNNR = VBRK.KUNAG",
+    "KNA1.MANDT = VBAK.MANDT",
+    "KNA1.MANDT = VBRK.MANDT"
+   ],
+   "lineage": {
+    "DOC_TYPE": [
+     "VBRK.VBELN"
+    ],
+    "DOC_NO": [
+     "KNA1.NAME1",
+     "VBAK.VBELN"
+    ],
+    "CUSTOMER_NAME": [
+     "KNA1.NAME1"
+    ]
+   },
+   "statement": "query"
+  },
+  "11_window": {
+   "parse_ok": true,
+   "error": null,
+   "glue": [
+    "prefix_schema"
+   ],
+   "joins": [
+    "ACCOUNT.ID = OPPORTUNITY.ACCOUNTID"
+   ],
+   "lineage": {
+    "ACCOUNT_NAME": [
+     "ACCOUNT.NAME"
+    ],
+    "OPPORTUNITY_NAME": [
+     "OPPORTUNITY.NAME"
+    ],
+    "AMOUNT": [
+     "OPPORTUNITY.AMOUNT"
+    ],
+    "RANK_IN_ACCOUNT": [
+     "OPPORTUNITY.ACCOUNTID",
+     "OPPORTUNITY.AMOUNT"
+    ],
+    "ACCOUNT_PIPELINE": [
+     "ACCOUNT.ID",
+     "OPPORTUNITY.AMOUNT"
+    ]
+   },
+   "statement": "query"
+  },
+  "12_date_range_not_a_key": {
+   "parse_ok": true,
+   "error": null,
+   "glue": [
+    "prefix_schema"
+   ],
+   "joins": [
+    "LIKP.KUNAG = VBAK.KUNNR",
+    "LIKP.KUNAG = VBRK.KUNAG",
+    "LIKP.MANDT = VBAK.MANDT",
+    "LIKP.MANDT = VBRK.MANDT"
+   ],
+   "lineage": {
+    "ORDER_NO": [
+     "VBAK.VBELN"
+    ],
+    "DELIVERY_NO": [
+     "LIKP.VBELN"
+    ],
+    "INVOICE_NO": [
+     "VBRK.VBELN"
+    ]
+   },
+   "statement": "query"
+  },
+  "13_spark_backticks": {
+   "parse_ok": true,
+   "error": null,
+   "glue": [
+    "prefix_schema"
+   ],
+   "joins": [
+    "ACCOUNT.ID = ORDER.ACCOUNTID",
+    "ORDER.ID = ORDERITEM.ORDERID",
+    "ORDERITEM.PRODUCT2ID = PRODUCT2.ID"
+   ],
+   "lineage": {
+    "ORDER_ID": [
+     "ORDER.ID"
+    ],
+    "ACCOUNT_NAME": [
+     "ACCOUNT.NAME"
+    ],
+    "QUANTITY": [
+     "ORDERITEM.QUANTITY"
+    ],
+    "PRODUCTCODE": [
+     "PRODUCT2.PRODUCTCODE"
+    ]
+   },
+   "statement": "query"
+  },
+  "14_spark_cte_lakehouse": {
+   "parse_ok": true,
+   "error": null,
+   "glue": [
+    "prefix_schema"
+   ],
+   "joins": [
+    "OPPORTUNITY.ID = QUOTE.OPPORTUNITYID",
+    "PRICEBOOK2.ID = QUOTE.PRICEBOOK2ID"
+   ],
+   "lineage": {
+    "OPPORTUNITY_NAME": [
+     "OPPORTUNITY.NAME"
+    ],
+    "QUOTE_TOTAL": [
+     "QUOTE.GRANDTOTAL"
+    ],
+    "PRICEBOOK_NAME": [
+     "PRICEBOOK2.NAME"
+    ]
+   },
+   "statement": "query"
+  },
+  "15_dbt_rendered": {
+   "parse_ok": true,
+   "error": null,
+   "glue": [
+    "prefix_schema"
+   ],
+   "joins": [
+    "OPPORTUNITY.ID = OPPORTUNITYLINEITEM.OPPORTUNITYID"
+   ],
+   "lineage": {
+    "OPPORTUNITY_ID": [
+     "OPPORTUNITY.ID"
+    ],
+    "HEADER_AMOUNT": [
+     "OPPORTUNITY.AMOUNT"
+    ],
+    "LINES_TOTAL": [
+     "OPPORTUNITYLINEITEM.TOTALPRICE"
+    ],
+    "LINE_COUNT": [
+     "OPPORTUNITYLINEITEM.ID"
+    ]
+   },
+   "statement": "query"
+  },
+  "16_dbt_ref_jinja": {
+   "parse_ok": true,
+   "error": null,
+   "glue": [
+    "prefix_schema",
+    "minijinja_option"
+   ],
+   "joins": [
+    "ACCOUNT.ID = CONTACT.ACCOUNTID"
+   ],
+   "lineage": {
+    "CONTACT_ID": [
+     "CONTACT.ID"
+    ],
+    "LAST_NAME": [
+     "CONTACT.LASTNAME"
+    ],
+    "ACCOUNT_NAME": [
+     "ACCOUNT.NAME"
+    ]
+   },
+   "statement": "query"
+  },
+  "17_spark_insert_overwrite": {
+   "parse_ok": true,
+   "error": null,
+   "glue": [
+    "prefix_schema"
+   ],
+   "joins": [
+    "VBAK.MANDT = VBRP.MANDT",
+    "VBAK.VBELN = VBRP.AUBEL",
+    "VBAP.MANDT = VBRP.MANDT",
+    "VBAP.POSNR = VBRP.AUPOS",
+    "VBAP.VBELN = VBRP.AUBEL",
+    "VBRK.MANDT = VBRP.MANDT",
+    "VBRK.VBELN = VBRP.VBELN"
+   ],
+   "lineage": {
+    "INVOICE_NO": [
+     "VBRP.VBELN"
+    ],
+    "INVOICE_ITEM": [
+     "VBRP.POSNR"
+    ],
+    "ORDER_NO": [
+     "VBRP.AUBEL"
+    ],
+    "SOLD_TO": [
+     "VBAK.KUNNR"
+    ],
+    "ITEM_NET": [
+     "VBRP.NETWR"
+    ]
+   },
+   "statement": "dml"
+  },
+  "18_spark_exists": {
+   "parse_ok": true,
+   "error": null,
+   "glue": [
+    "prefix_schema"
+   ],
+   "joins": [
+    "LIPS.MANDT = VBAK.MANDT",
+    "LIPS.VGBEL = VBAK.VBELN"
+   ],
+   "lineage": {
+    "VBELN": [
+     "VBAK.VBELN"
+    ],
+    "NETWR": [
+     "VBAK.NETWR"
+    ]
+   },
+   "statement": "query"
+  },
+  "19_spark_using": {
+   "parse_ok": true,
+   "error": null,
+   "glue": [
+    "prefix_schema",
+    "using_pairs"
+   ],
+   "joins": [
+    "VBAP.MANDT = VBEP.MANDT",
+    "VBAP.POSNR = VBEP.POSNR",
+    "VBAP.VBELN = VBEP.VBELN"
+   ],
+   "lineage": {
+    "VBELN": [],
+    "POSNR": [],
+    "MATNR": [
+     "VBAP.MATNR"
+    ],
+    "EDATU": [
+     "VBEP.EDATU"
+    ],
+    "WMENG": [
+     "VBEP.WMENG"
+    ]
+   },
+   "statement": "query"
+  }
+ }
+}

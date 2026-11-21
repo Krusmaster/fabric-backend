@@ -527,6 +527,8 @@ def project(plan: Plan, source_name: str, schema: str, database: str | None = No
     dbt-utils is not supported); profiles.example.yml without a secret; README.md says how to run it; `fixes`, the
     accepted fixes from validate_plan(fixes=true) as fix_plan.resolve returns them, become staging logic (the latest row
     by the accepted column; an orphan left out, or its reference set to NULL).
+    Round DBT1: tests/krusgraph_checks/ holds singular tests from what Krusgraph checked (dbt_checks.tests: composite keys
+    and references on the sources, header amounts per mart), and README.md says so in one line.
     Returns {"files", "models", "not_templated", "todo", "checked", "domains", ...}; same plan, same answer."""
     from . import domains as _domains
     wanted = {t.lower() for t in tables} if tables else None
@@ -636,8 +638,12 @@ def project(plan: Plan, source_name: str, schema: str, database: str | None = No
         *(["    marts:", "      +materialized: table"] if marts else [])])
     from .quality_suites import profiles_yml
     files["profiles.example.yml"] = profiles_yml(name, schema)
+    from . import dbt_checks                                 # DBT1: singular tests from Krusgraph's checks, in their own folder
+    checks = dbt_checks.tests(plan, source_name, models, ren, marts,
+                              {m["model"]: files[f"models/marts/{m['domain'] or 'unassigned'}/{m['model']}.sql"] for m in marts}, validation)
+    files.update(checks)
     files["README.md"] = _readme(name, source_name, schema, database, models, marts, not_templated, todo, ok, not_checked, validation,
-                                 applied, ren)
+                                 applied, ren, dbt_checks.readme_line(checks))
     files = dict(sorted(files.items()))
     return {"files": files, "project": name,
             "models": {"staging": [models[t] for t in chosen], "marts": [m["model"] for m in marts]},
@@ -676,14 +682,15 @@ def _relationship_test(r, models: dict[str, str], sc: list[str], tc: list[str]) 
 
 
 def _readme(name, source_name, schema, database, models, marts, not_templated, todo, ok, not_checked, validation,
-            applied=(), ren=None) -> str:
+            applied=(), ren=None, checks_line: str | None = None) -> str:
     out = [f"# {name}", "", f"A dbt project draft written by Krusgraph from the plan of `{schema}`"
            + (f" in `{database}`" if database else "") + f", for {ADAPTER} {ADAPTER_VERSION} on dbt-core {CORE_VERSION} and a "
            "Fabric Data Warehouse. " + NOTHING_CREATED, "",
            "The models are built in a Warehouse: a lakehouse's SQL analytics endpoint is read-only, so it is a source here "
            f"(`database:` in {sources_path(source_name)}), not a target.", "",
            "## Models", "", f"- staging ({len(models)}): views, one per table, typed and de-duplicated on the key",
-           f"- marts ({len(marts)}): tables, one per fact table, in a folder per proposed domain", "",
+           f"- marts ({len(marts)}): tables, one per fact table, in a folder per proposed domain",
+           *([checks_line] if checks_line else []), "",
            "## Joined over", ""]
     out += [f"- {_rel_text(r)}" for r in ok] or ["- nothing: " + ("no relationship was counted many-to-one" if validation is not None
                                                                    else "nothing was counted (check_rows=true)")]

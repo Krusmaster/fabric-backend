@@ -1,0 +1,1151 @@
+{
+ "sqlglot": {
+  "rows": [
+   {
+    "dialect": "tsql",
+    "expected": 2,
+    "found": 2,
+    "glue": [
+     "strip_prefix"
+    ],
+    "id": "01_view_order_items",
+    "lin_n": 5,
+    "lin_ok": 5,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 2,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [
+     "strip_prefix"
+    ],
+    "id": "02_bracket_quoting",
+    "lin_n": 4,
+    "lin_ok": 4,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [
+     "strip_prefix"
+    ],
+    "id": "03_chained_ctes",
+    "lin_n": 4,
+    "lin_ok": 4,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [
+     "strip_prefix"
+    ],
+    "id": "04_subquery_in_from",
+    "lin_n": 3,
+    "lin_ok": 3,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [
+     "strip_prefix"
+    ],
+    "id": "05_old_style_where",
+    "lin_n": 4,
+    "lin_ok": 4,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 3,
+    "found": 3,
+    "glue": [
+     "strip_prefix"
+    ],
+    "id": "06_outer_apply",
+    "lin_n": 3,
+    "lin_ok": 2,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 3,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [
+     "strip_prefix"
+    ],
+    "id": "07_cross_apply",
+    "lin_n": 3,
+    "lin_ok": 1,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [
+     "strip_prefix",
+     "merge_as_select"
+    ],
+    "id": "08_merge",
+    "lin_n": 0,
+    "lin_ok": 0,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [
+     "strip_prefix"
+    ],
+    "id": "09_insert_select",
+    "lin_n": 5,
+    "lin_ok": 5,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [
+     "strip_prefix"
+    ],
+    "id": "10_union",
+    "lin_n": 3,
+    "lin_ok": 3,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 1,
+    "found": 1,
+    "glue": [
+     "strip_prefix"
+    ],
+    "id": "11_window",
+    "lin_n": 5,
+    "lin_ok": 5,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 1,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [
+     "strip_prefix"
+    ],
+    "id": "12_date_range_not_a_key",
+    "lin_n": 3,
+    "lin_ok": 3,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "spark",
+    "expected": 3,
+    "found": 3,
+    "glue": [
+     "strip_prefix"
+    ],
+    "id": "13_spark_backticks",
+    "lin_n": 4,
+    "lin_ok": 4,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 3,
+    "wrong": []
+   },
+   {
+    "dialect": "spark",
+    "expected": 2,
+    "found": 2,
+    "glue": [
+     "strip_prefix"
+    ],
+    "id": "14_spark_cte_lakehouse",
+    "lin_n": 3,
+    "lin_ok": 3,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 2,
+    "wrong": []
+   },
+   {
+    "dialect": "spark",
+    "expected": 1,
+    "found": 1,
+    "glue": [
+     "strip_prefix"
+    ],
+    "id": "15_dbt_rendered",
+    "lin_n": 4,
+    "lin_ok": 4,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 1,
+    "wrong": []
+   },
+   {
+    "dialect": "spark",
+    "expected": 1,
+    "found": 1,
+    "glue": [
+     "render_jinja"
+    ],
+    "id": "16_dbt_ref_jinja",
+    "lin_n": 3,
+    "lin_ok": 3,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 1,
+    "wrong": []
+   },
+   {
+    "dialect": "spark",
+    "expected": 7,
+    "found": 7,
+    "glue": [
+     "strip_prefix"
+    ],
+    "id": "17_spark_insert_overwrite",
+    "lin_n": 5,
+    "lin_ok": 5,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 7,
+    "wrong": []
+   },
+   {
+    "dialect": "spark",
+    "expected": 2,
+    "found": 2,
+    "glue": [
+     "strip_prefix"
+    ],
+    "id": "18_spark_exists",
+    "lin_n": 2,
+    "lin_ok": 2,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 2,
+    "wrong": []
+   },
+   {
+    "dialect": "spark",
+    "expected": 3,
+    "found": 3,
+    "glue": [
+     "strip_prefix"
+    ],
+    "id": "19_spark_using",
+    "lin_n": 3,
+    "lin_ok": 3,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 3,
+    "wrong": []
+   }
+  ],
+  "total": {
+   "expected": 61,
+   "found": 61,
+   "lin_n": 66,
+   "lin_ok": 63,
+   "parse_fail": 0,
+   "tp": 61
+  },
+  "version": "30.33.0"
+ },
+ "sqlglot raw": {
+  "rows": [
+   {
+    "dialect": "tsql",
+    "expected": 2,
+    "found": 2,
+    "glue": [],
+    "id": "01_view_order_items",
+    "lin_n": 5,
+    "lin_ok": 5,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 2,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [],
+    "id": "02_bracket_quoting",
+    "lin_n": 4,
+    "lin_ok": 4,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [],
+    "id": "03_chained_ctes",
+    "lin_n": 4,
+    "lin_ok": 4,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [],
+    "id": "04_subquery_in_from",
+    "lin_n": 3,
+    "lin_ok": 3,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [],
+    "id": "05_old_style_where",
+    "lin_n": 4,
+    "lin_ok": 4,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 3,
+    "found": 3,
+    "glue": [],
+    "id": "06_outer_apply",
+    "lin_n": 3,
+    "lin_ok": 2,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 3,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [],
+    "id": "07_cross_apply",
+    "lin_n": 3,
+    "lin_ok": 1,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 2,
+    "glue": [],
+    "id": "08_merge",
+    "lin_n": 0,
+    "lin_ok": 0,
+    "missed": [
+     "ORDER_SUMMARY.MANDT = VBAK.MANDT",
+     "ORDER_SUMMARY.VBELN = VBAK.VBELN"
+    ],
+    "parse_ok": true,
+    "tp": 2,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [],
+    "id": "09_insert_select",
+    "lin_n": 5,
+    "lin_ok": 5,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [],
+    "id": "10_union",
+    "lin_n": 3,
+    "lin_ok": 3,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 1,
+    "found": 1,
+    "glue": [],
+    "id": "11_window",
+    "lin_n": 5,
+    "lin_ok": 5,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 1,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [],
+    "id": "12_date_range_not_a_key",
+    "lin_n": 3,
+    "lin_ok": 3,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "spark",
+    "expected": 3,
+    "found": 3,
+    "glue": [],
+    "id": "13_spark_backticks",
+    "lin_n": 4,
+    "lin_ok": 4,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 3,
+    "wrong": []
+   },
+   {
+    "dialect": "spark",
+    "expected": 2,
+    "found": 2,
+    "glue": [],
+    "id": "14_spark_cte_lakehouse",
+    "lin_n": 3,
+    "lin_ok": 3,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 2,
+    "wrong": []
+   },
+   {
+    "dialect": "spark",
+    "expected": 1,
+    "found": 1,
+    "glue": [],
+    "id": "15_dbt_rendered",
+    "lin_n": 4,
+    "lin_ok": 4,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 1,
+    "wrong": []
+   },
+   {
+    "dialect": "spark",
+    "expected": 1,
+    "found": 0,
+    "glue": [],
+    "id": "16_dbt_ref_jinja",
+    "lin_n": 3,
+    "lin_ok": 0,
+    "missed": [
+     "ACCOUNT.ID = CONTACT.ACCOUNTID"
+    ],
+    "parse_ok": false,
+    "tp": 0,
+    "wrong": []
+   },
+   {
+    "dialect": "spark",
+    "expected": 7,
+    "found": 7,
+    "glue": [],
+    "id": "17_spark_insert_overwrite",
+    "lin_n": 5,
+    "lin_ok": 5,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 7,
+    "wrong": []
+   },
+   {
+    "dialect": "spark",
+    "expected": 2,
+    "found": 2,
+    "glue": [],
+    "id": "18_spark_exists",
+    "lin_n": 2,
+    "lin_ok": 2,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 2,
+    "wrong": []
+   },
+   {
+    "dialect": "spark",
+    "expected": 3,
+    "found": 3,
+    "glue": [],
+    "id": "19_spark_using",
+    "lin_n": 3,
+    "lin_ok": 3,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 3,
+    "wrong": []
+   }
+  ],
+  "total": {
+   "expected": 61,
+   "found": 58,
+   "lin_n": 66,
+   "lin_ok": 60,
+   "parse_fail": 1,
+   "tp": 58
+  },
+  "version": "30.33.0"
+ },
+ "sqllens": {
+  "rows": [
+   {
+    "dialect": "tsql",
+    "expected": 2,
+    "found": 2,
+    "glue": [
+     "prefix_schema",
+     "cst_select_reparse"
+    ],
+    "id": "01_view_order_items",
+    "lin_n": 5,
+    "lin_ok": 5,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 2,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [
+     "prefix_schema"
+    ],
+    "id": "02_bracket_quoting",
+    "lin_n": 4,
+    "lin_ok": 4,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [
+     "prefix_schema"
+    ],
+    "id": "03_chained_ctes",
+    "lin_n": 4,
+    "lin_ok": 4,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [
+     "prefix_schema"
+    ],
+    "id": "04_subquery_in_from",
+    "lin_n": 3,
+    "lin_ok": 3,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [
+     "prefix_schema"
+    ],
+    "id": "05_old_style_where",
+    "lin_n": 4,
+    "lin_ok": 4,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 3,
+    "found": 3,
+    "glue": [
+     "prefix_schema"
+    ],
+    "id": "06_outer_apply",
+    "lin_n": 3,
+    "lin_ok": 3,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 3,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [
+     "prefix_schema"
+    ],
+    "id": "07_cross_apply",
+    "lin_n": 3,
+    "lin_ok": 3,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 2,
+    "glue": [
+     "prefix_schema",
+     "merge_as_select"
+    ],
+    "id": "08_merge",
+    "lin_n": 0,
+    "lin_ok": 0,
+    "missed": [
+     "ORDER_SUMMARY.MANDT = VBAK.MANDT",
+     "ORDER_SUMMARY.VBELN = VBAK.VBELN"
+    ],
+    "parse_ok": true,
+    "tp": 2,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [
+     "prefix_schema",
+     "cst_select_reparse"
+    ],
+    "id": "09_insert_select",
+    "lin_n": 5,
+    "lin_ok": 5,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [
+     "prefix_schema"
+    ],
+    "id": "10_union",
+    "lin_n": 3,
+    "lin_ok": 1,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 1,
+    "found": 1,
+    "glue": [
+     "prefix_schema"
+    ],
+    "id": "11_window",
+    "lin_n": 5,
+    "lin_ok": 5,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 1,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [
+     "prefix_schema"
+    ],
+    "id": "12_date_range_not_a_key",
+    "lin_n": 3,
+    "lin_ok": 3,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "spark",
+    "expected": 3,
+    "found": 3,
+    "glue": [
+     "prefix_schema"
+    ],
+    "id": "13_spark_backticks",
+    "lin_n": 4,
+    "lin_ok": 4,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 3,
+    "wrong": []
+   },
+   {
+    "dialect": "spark",
+    "expected": 2,
+    "found": 2,
+    "glue": [
+     "prefix_schema"
+    ],
+    "id": "14_spark_cte_lakehouse",
+    "lin_n": 3,
+    "lin_ok": 3,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 2,
+    "wrong": []
+   },
+   {
+    "dialect": "spark",
+    "expected": 1,
+    "found": 1,
+    "glue": [
+     "prefix_schema"
+    ],
+    "id": "15_dbt_rendered",
+    "lin_n": 4,
+    "lin_ok": 4,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 1,
+    "wrong": []
+   },
+   {
+    "dialect": "spark",
+    "expected": 1,
+    "found": 1,
+    "glue": [
+     "prefix_schema",
+     "minijinja_option"
+    ],
+    "id": "16_dbt_ref_jinja",
+    "lin_n": 3,
+    "lin_ok": 3,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 1,
+    "wrong": []
+   },
+   {
+    "dialect": "spark",
+    "expected": 7,
+    "found": 7,
+    "glue": [
+     "prefix_schema"
+    ],
+    "id": "17_spark_insert_overwrite",
+    "lin_n": 5,
+    "lin_ok": 5,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 7,
+    "wrong": []
+   },
+   {
+    "dialect": "spark",
+    "expected": 2,
+    "found": 2,
+    "glue": [
+     "prefix_schema"
+    ],
+    "id": "18_spark_exists",
+    "lin_n": 2,
+    "lin_ok": 2,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 2,
+    "wrong": []
+   },
+   {
+    "dialect": "spark",
+    "expected": 3,
+    "found": 3,
+    "glue": [
+     "prefix_schema",
+     "using_pairs"
+    ],
+    "id": "19_spark_using",
+    "lin_n": 3,
+    "lin_ok": 3,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 3,
+    "wrong": []
+   }
+  ],
+  "total": {
+   "expected": 61,
+   "found": 59,
+   "lin_n": 66,
+   "lin_ok": 64,
+   "parse_fail": 0,
+   "tp": 59
+  },
+  "version": "1.11.0"
+ },
+ "sqllens raw": {
+  "rows": [
+   {
+    "dialect": "tsql",
+    "expected": 2,
+    "found": 0,
+    "glue": [],
+    "id": "01_view_order_items",
+    "lin_n": 5,
+    "lin_ok": 0,
+    "missed": [
+     "VBAK.MANDT = VBAP.MANDT",
+     "VBAK.VBELN = VBAP.VBELN"
+    ],
+    "parse_ok": true,
+    "tp": 0,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [],
+    "id": "02_bracket_quoting",
+    "lin_n": 4,
+    "lin_ok": 4,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [],
+    "id": "03_chained_ctes",
+    "lin_n": 4,
+    "lin_ok": 4,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [],
+    "id": "04_subquery_in_from",
+    "lin_n": 3,
+    "lin_ok": 3,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [],
+    "id": "05_old_style_where",
+    "lin_n": 4,
+    "lin_ok": 4,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 3,
+    "found": 3,
+    "glue": [],
+    "id": "06_outer_apply",
+    "lin_n": 3,
+    "lin_ok": 3,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 3,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [],
+    "id": "07_cross_apply",
+    "lin_n": 3,
+    "lin_ok": 3,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 0,
+    "glue": [],
+    "id": "08_merge",
+    "lin_n": 0,
+    "lin_ok": 0,
+    "missed": [
+     "ORDER_SUMMARY.MANDT = VBAK.MANDT",
+     "ORDER_SUMMARY.VBELN = VBAK.VBELN",
+     "VBAK.MANDT = VBAP.MANDT",
+     "VBAK.VBELN = VBAP.VBELN"
+    ],
+    "parse_ok": true,
+    "tp": 0,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 0,
+    "glue": [],
+    "id": "09_insert_select",
+    "lin_n": 5,
+    "lin_ok": 0,
+    "missed": [
+     "ACCOUNT.ID = OPPORTUNITY.ACCOUNTID",
+     "OPPORTUNITY.ID = OPPORTUNITYLINEITEM.OPPORTUNITYID",
+     "OPPORTUNITYLINEITEM.PRICEBOOKENTRYID = PRICEBOOKENTRY.ID",
+     "PRICEBOOKENTRY.PRODUCT2ID = PRODUCT2.ID"
+    ],
+    "parse_ok": true,
+    "tp": 0,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [],
+    "id": "10_union",
+    "lin_n": 3,
+    "lin_ok": 1,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 1,
+    "found": 1,
+    "glue": [],
+    "id": "11_window",
+    "lin_n": 5,
+    "lin_ok": 5,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 1,
+    "wrong": []
+   },
+   {
+    "dialect": "tsql",
+    "expected": 4,
+    "found": 4,
+    "glue": [],
+    "id": "12_date_range_not_a_key",
+    "lin_n": 3,
+    "lin_ok": 3,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 4,
+    "wrong": []
+   },
+   {
+    "dialect": "spark",
+    "expected": 3,
+    "found": 3,
+    "glue": [],
+    "id": "13_spark_backticks",
+    "lin_n": 4,
+    "lin_ok": 4,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 3,
+    "wrong": []
+   },
+   {
+    "dialect": "spark",
+    "expected": 2,
+    "found": 2,
+    "glue": [],
+    "id": "14_spark_cte_lakehouse",
+    "lin_n": 3,
+    "lin_ok": 3,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 2,
+    "wrong": []
+   },
+   {
+    "dialect": "spark",
+    "expected": 1,
+    "found": 1,
+    "glue": [],
+    "id": "15_dbt_rendered",
+    "lin_n": 4,
+    "lin_ok": 4,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 1,
+    "wrong": []
+   },
+   {
+    "dialect": "spark",
+    "expected": 1,
+    "found": 0,
+    "glue": [],
+    "id": "16_dbt_ref_jinja",
+    "lin_n": 3,
+    "lin_ok": 0,
+    "missed": [
+     "ACCOUNT.ID = CONTACT.ACCOUNTID"
+    ],
+    "parse_ok": false,
+    "tp": 0,
+    "wrong": []
+   },
+   {
+    "dialect": "spark",
+    "expected": 7,
+    "found": 7,
+    "glue": [],
+    "id": "17_spark_insert_overwrite",
+    "lin_n": 5,
+    "lin_ok": 5,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 7,
+    "wrong": []
+   },
+   {
+    "dialect": "spark",
+    "expected": 2,
+    "found": 2,
+    "glue": [],
+    "id": "18_spark_exists",
+    "lin_n": 2,
+    "lin_ok": 2,
+    "missed": [],
+    "parse_ok": true,
+    "tp": 2,
+    "wrong": []
+   },
+   {
+    "dialect": "spark",
+    "expected": 3,
+    "found": 0,
+    "glue": [],
+    "id": "19_spark_using",
+    "lin_n": 3,
+    "lin_ok": 3,
+    "missed": [
+     "VBAP.MANDT = VBEP.MANDT",
+     "VBAP.POSNR = VBEP.POSNR",
+     "VBAP.VBELN = VBEP.VBELN"
+    ],
+    "parse_ok": true,
+    "tp": 0,
+    "wrong": []
+   }
+  ],
+  "total": {
+   "expected": 61,
+   "found": 47,
+   "lin_n": 66,
+   "lin_ok": 51,
+   "parse_fail": 1,
+   "tp": 47
+  },
+  "version": "1.11.0"
+ }
+}
