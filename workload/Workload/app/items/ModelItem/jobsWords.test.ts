@@ -38,13 +38,13 @@ function card(kind: OutputKind, extra: Partial<BuildCard> = {}): BuildCard {
   };
 }
 
-describe("off by default", () => {
-  it("sends no jobs and no agent options until ticked, and the choices start unticked", () => {
-    expect(jobsOf(undefined)).toEqual(NO_JOBS);
+describe("defaults: Run once on, no schedule, the agent unpublished (ED2)", () => {
+  it("sends Run once by default, no schedule and no agent options until ticked", () => {
+    expect(jobsOf(undefined)).toEqual({ run_once: true, schedule: null });   // ED2: the first Create gives filled tables
     expect(NO_JOBS).toEqual({ run_once: false, schedule: null });
     expect(agentOf(undefined)).toEqual({ layer: "silver", publish: false, copilot: false });
     expect(toRequests([{ type: "pipeline", name: "p", enabled: true }, { type: "data_agent", name: "a", enabled: true }]))
-      .toEqual([{ kind: "pipeline", name: "p" }, { kind: "data_agent", name: "a" }]);
+      .toEqual([{ kind: "pipeline", name: "p", jobs: { run_once: true, schedule: null } }, { kind: "data_agent", name: "a" }]);
     const html = renderToStaticMarkup(
       React.createElement(OutputsView, { choices: [{ type: "pipeline", name: "demo_lh_pipeline", enabled: true }, { type: "data_agent", name: "demo_lh_agent", enabled: true }],
         onChange: () => {}, created: [], product: { on: false, name: "" }, onProduct: () => {}, onOpen: () => {}, onPreview: () => {}, changeOpen: true })
@@ -53,7 +53,7 @@ describe("off by default", () => {
     expect(html).toContain("Publish the agent in Fabric");
     expect(html).toContain("Also make it available in Microsoft 365 Copilot");
     const part = (label: string) => html.slice(html.indexOf(`aria-label="${label}"`), html.indexOf("</fieldset>", html.indexOf(`aria-label="${label}"`)));
-    expect(part("Run and schedule")).not.toMatch(/checked=""/);           // Run once and Schedule: unticked
+    expect(part("Run and schedule").match(/checked=""/g)).toHaveLength(1);   // ED2: Run once ticked, Schedule not
     expect(part("Data agent: layer and publishing").match(/checked=""/g)).toHaveLength(1);   // only the layer (silver); Publish, Copilot unticked
     expect(part("Data agent: layer and publishing")).toMatch(/disabled=""/);                 // Copilot needs Publish
   });

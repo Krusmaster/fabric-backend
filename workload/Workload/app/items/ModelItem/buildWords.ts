@@ -7,6 +7,8 @@
  * permissions mirror fabric_backend/workload_api.KINDS (tests/test_workload_build.py checks the copy). Nothing here runs
  * or schedules a notebook or a pipeline, so no Execute permission is ever listed.
  */
+import { blockedBy, dependsOn, inSentence, waitingCard } from "./ed2Create";
+import { jobsOf } from "./jobsWords";
 import { DEFAULT_BUILD, PIPELINE_PARTS } from "./stepWords";
 import { CreatedItem, OutputChoice, OutputsDefinition, ProductDefinition } from "./ModelItemDefinition";
 import {
@@ -96,7 +98,7 @@ export function toRequests(choices: OutputChoice[], created: CreatedItem[] = [])
       name: c.name,
       ...(c.type === "report" && c.model ? { model: c.model } : {}),
       ...(c.type === "rayfin_app" && c.app ? { app: c.app } : {}),       // n181: the ticked key figures, pages, charts
-      ...(c.type === "pipeline" && c.jobs ? { jobs: c.jobs } : {}),        // n185: Run once and Schedule
+      ...(c.type === "pipeline" ? { jobs: jobsOf(c) } : {}),               // n185: Run once and Schedule; ED2: Run once by default
       ...(c.type === "data_agent" && c.agent ? { agent: c.agent } : {}),   // n185: the layer, Publish and Copilot
     }));
 }
@@ -152,7 +154,7 @@ export function nameAction(kind: OutputKind, name: string, created: CreatedItem[
     action: "new_name",
     button: "Create with a new name",
     suggestion: nextFreeName(name, created.map((c) => c.name)),
-    reason: `A ${info?.label.toLowerCase() ?? kind} is never updated in place; ${name} stays as it is.`,
+    reason: `A ${info ? inSentence(info.label) : kind} is never updated in place; ${name} stays as it is.`,
   };
 }
 
@@ -245,7 +247,7 @@ export function cardTitle(c: BuildCard): string {
   if (c.refusal) return `${c.label} ${c.name}: not built`;
   if (c.answer?.error) return `${c.label} ${c.name}: ${c.dry_run ? "the dry run stopped" : "not built"}`;
   if (!c.dry_run) return `${c.label} ${c.name}: ${c.would === "update" ? "updated" : "created"}`;
-  return `${c.would === "update" ? "Update" : "Create"} ${c.label.toLowerCase()} ${c.name}`;
+  return `${c.would === "update" ? "Update" : "Create"} ${inSentence(c.label)} ${c.name}`;   // ED2: "Create API for GraphQL ..."
 }
 
 /** The problem of a card in one line: the refusal, the tool's error, or the consent the dry run sees. */
@@ -440,22 +442,10 @@ export function dryRunRefused(said: BuildCard | undefined, o: OutputRequest): Bu
 /** Create, one output after another (n179): each its own request, so a slow output or a closed connection costs only
  * that output, never the answers of the others. `send` is the engine call; `onCard` shows each card as it changes.
  * `created` starts with outputs.json's list, so a re-run skips what is built and retries the rest. */
-/** n222: what each output waits for before its step is sent (the founder's live test of 11 November 2026: Create built
- * six outputs strictly one after another). The report is drawn on its semantic model, the pipeline runs its notebooks,
- * the data agent kept its place after the pipeline and the App after the API; everything else is sent at once, at most
- * CREATE_AT_ONCE steps at a time. A step waits for its outputs' answers, whatever they are, as it did in the old order. */
+/** n222: steps that do not depend on each other are sent at once, at most CREATE_AT_ONCE at a time. ED2: what waits
+ * for what is ed2Create.BUILT_ON (silver, then gold, then the pipeline, then the model and its report), and an output
+ * whose base failed is not sent: its card says once what it waits for. */
 export const CREATE_AT_ONCE = 4;
-
-export function waitsFor(o: OutputRequest, all: OutputRequest[]): OutputKind[] {
-  const has = (k: OutputKind) => all.some((x) => x.kind === k);
-  const need: OutputKind[] =
-    o.kind === "report" ? (o.model ? [] : ["semantic_model"])
-    : o.kind === "pipeline" ? ["silver_notebook", "gold_views"]
-    : o.kind === "data_agent" ? ["pipeline"]
-    : o.kind === "rayfin_app" ? ["graphql"]
-    : [];
-  return need.filter(has);
-}
 
 export async function createEach(
   outputs: OutputRequest[],
@@ -487,6 +477,12 @@ export async function createEach(
       set(i, refused);
       return;
     }
+    // ED2: what this output is built on failed in this Create (or was not built): it is not sent, and says once what it waits for
+    const dep = blockedBy(order[i], order, (k) => cards[order.findIndex((x) => x.kind === k)]);
+    if (dep) {
+      set(i, waitingCard(pendingCard(o, "waiting", before(o.kind)), dep));
+      return;
+    }
     set(i, pendingCard(o, "running", before(o.kind)));
     let card: BuildCard;
     try {
@@ -505,7 +501,7 @@ export async function createEach(
   while (started.size < order.length || inFlight.size) {
     const ready = order
       .map((o, i) => ({ o, i }))
-      .filter(({ o, i }) => !started.has(i) && waitsFor(o, order).every((k) => done.has(k)));
+      .filter(({ o, i }) => !started.has(i) && dependsOn(o, order).every((k) => done.has(k)));   // ED2: the build order
     for (const { o, i } of ready) {
       if (inFlight.size >= Math.max(1, atOnce)) break;
       started.add(i);

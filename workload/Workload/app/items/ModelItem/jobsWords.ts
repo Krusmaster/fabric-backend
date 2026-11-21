@@ -30,8 +30,13 @@ export function defaultSchedule(): ScheduleChoice {
   return { every: "day", at: "06:00", time_zone: DEFAULT_TIME_ZONE };
 }
 
+/** ED2 (Gustav's editor test of 21 November 2026: "Creating runs nothing and schedules nothing"): the pipeline runs once
+ * after Create by default, so the first Create gives filled tables; no schedule stays the default. Both change under
+ * Change on the Choose step. */
+export const DEFAULT_JOBS: PipelineJobs = { run_once: true, schedule: null };
+
 export function jobsOf(c: OutputChoice | undefined): PipelineJobs {
-  return (c?.jobs as PipelineJobs | undefined) ?? NO_JOBS;
+  return (c?.jobs as PipelineJobs | undefined) ?? DEFAULT_JOBS;
 }
 
 export function agentOf(c: OutputChoice | undefined): AgentOptions {

@@ -146,8 +146,9 @@ describe("ED1 2: no sentence runs into the next", () => {
 
 describe("ED1 3: no '?' placeholder on the data product card", () => {
   it("omits the plan until it is known", () => {
-    expect(productOwnerLine({ owner: "Data team", plan: {} })).toBe("Owner: Data team.");
-    expect(productOwnerLine({ owner: "Data team", plan: { plan_id: "p-7" } })).toBe("Owner: Data team. Plan p-7.");
+    // ED2: the owner sentence is the same everywhere (ed2Create.ownerLine)
+    expect(productOwnerLine({ owner: "Data team", plan: {} })).toBe("Owner: Data team. Change it on the Choose step.");
+    expect(productOwnerLine({ owner: "Data team", plan: { plan_id: "p-7" } })).toBe("Owner: Data team. Change it on the Choose step. Plan p-7.");
     const html = renderToStaticMarkup(<ProductView product={{ name: "shop", owner: "Data team", plan: {}, items: [], domains: [] } as never} />);
     expect(readText(html)).not.toContain("?");
     expect(readText(html)).toContain("Owner: Data team.");
