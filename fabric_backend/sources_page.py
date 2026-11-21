@@ -22,7 +22,7 @@ import html
 from functools import lru_cache
 from pathlib import Path
 
-import yaml
+from . import pack_manifest
 
 PACKS = Path(__file__).resolve().parent / "packs"
 
@@ -131,7 +131,8 @@ CROSS_SHORTCUTS = ("Several sources in one lakehouse work today: tables a lakeho
 
 @lru_cache(maxsize=None)
 def manifest(pack: str) -> dict:
-    return yaml.safe_load((PACKS / pack / "manifest.yaml").read_text(encoding="utf-8"))
+    # SRC3: read without PyYAML, which the server image does not install (it is in the test extra only)
+    return pack_manifest.load(pack)
 
 
 def _entities(pack: str) -> dict[str, dict]:
