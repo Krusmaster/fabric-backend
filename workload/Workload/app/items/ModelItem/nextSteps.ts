@@ -17,6 +17,7 @@
 import type { CreatedItem, ReviewFile, ReviewItem } from "./ModelItemDefinition";
 import type { OutputKind } from "./engineClient";
 import { KIND_TYPE, typeWord } from "./fabricIcons";
+import { AdvancedPlan, advancedStages, provenLinks } from "./advancedStages";
 
 /** Fabric's workloads, as Fabric names them (the Workload hub). */
 export type Workload =
@@ -43,6 +44,9 @@ export interface NextStep {
   /** WB11: the Fabric item types this step makes or names (REST names: Notebook, SemanticModel, ...), each shown with its
    * icon beside the workload's name at the card's top left (fabricIcons.ts) */
   items: string[];
+  /** AA1: the Data Science card's Advanced analytics: per recommended analysis, Feature table -> Model -> Predictions in
+   * gold (advancedStages.ts), and the names of the notebooks this item already created */
+  advanced?: AdvancedPlan & { inWorkspace: string[] };
 }
 
 /** WB11: the item types of the outputs a build step ticks, once each, in the outputs' order. */
@@ -313,6 +317,8 @@ export function nextSteps(input: NextInput): { proof: Proof; steps: NextStep[]; 
         content: toIpynb(cells), code: cells.join("\n\n# ----\n\n"), name: nbName, cells },
       status: "starter", items: ["Notebook", "MLExperiment"],
       // ED3 (Gustav: the card said it twice): one line; Open in Fabric and Run now are the card's buttons
+      advanced: { ...advancedStages(g, { name: src.displayName, schema: src.schema }, provenLinks(input.review)),
+        inWorkspace: input.created.filter((c) => c.type === "Notebook").map((c) => c.name ?? "") },
       note: nbBuilt
         ? "The notebook is in this item's workspace, attached to the data product's lakehouse."
         : "Dry run, then Create puts the notebook in this item's workspace, attached to the data product's lakehouse; or download it. Krusgraph trains no model.",

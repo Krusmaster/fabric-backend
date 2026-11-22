@@ -765,3 +765,10 @@
 }
 .kg-dp-open { font-weight: 600; background: var(--colorBrandBackground, #0f6cbd); color: var(--colorNeutralForegroundOnBrand, #fff);
   border: 1px solid transparent; border-radius: 4px; padding: 2px 10px; }
+
+/* AA1: in Advanced analytics on the Data product step, each analysis with its three stages, one column on a phone */
+.kg-adv { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--colorNeutralStroke2); }
+.kg-adv-list, .kg-adv-stages { margin: 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.kg-adv-analysis { display: flex; flex-direction: column; gap: 4px; }
+.kg-adv-stage { display: flex; flex-direction: column; gap: 4px; padding-left: 12px; border-left: 2px solid var(--colorNeutralStroke1); min-width: 0; }
+.kg-adv-stage .kg-next-actions { flex-wrap: wrap; }

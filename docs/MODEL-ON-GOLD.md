@@ -72,3 +72,6 @@ kept: key ... not checked` only when it did not run.
 
 Verified: unit tests (`tests/test_dpm1_model_on_gold.py`) on the shop sample, the SAP demo and the SAP full demo, on
 22 November 2026. Not yet created in a Fabric workspace.
+
+Round AA1 fills the display folder `Advanced analytics`: a prediction table in gold (customer segments, the weekly
+orders forecast) joins the model when it exists, with one measure each ([ADVANCED-ANALYTICS.md](ADVANCED-ANALYTICS.md)).

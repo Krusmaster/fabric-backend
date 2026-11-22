@@ -8,7 +8,12 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { Badge, Body1, Button, Caption1, Checkbox, Subtitle2 } from "@fluentui/react-components";
 import { Open20Regular, Play20Regular } from "@fluentui/react-icons";
 import { CopyText, FileActions, OutLink } from "./fileOffer";
-import { NextInput, NextStep, grainLine, nextSteps, proofLine, proofOf, staleCheckLine, workloadLine } from "./nextSteps";
+import { LEARN, NextInput, NextStep, grainLine, nextSteps, proofLine, proofOf, staleCheckLine, toIpynb, workloadLine } from "./nextSteps";
+import { FABRIC_PORTAL } from "./openInFabric";
+import { AnalysisPlan, STAGE_WORD, StageNotebook } from "./advancedStages";
+
+/** AA1: docs/ADVANCED-ANALYTICS.md on GitHub */
+export const ADVANCED_DOCS = "https://github.com/Krusmaster/fabric-backend/blob/main/docs/ADVANCED-ANALYTICS.md";
 import { TypeIcon } from "./itemIcons";
 import { AnalysisAnswer, AnalysisCard, analysisCards, analysisKey, analysisSummary } from "./analysisPlan";
 import type { OutputKind } from "./engineClient";
@@ -34,14 +39,15 @@ export interface StarterSource {
 }
 export const StarterContext = createContext<StarterSource | undefined>(undefined);
 
-function StarterCreate(props: { name: string; cells: string[] }) {
+function StarterCreate(props: { name: string; cells: string[]; output?: string }) {
   const source = useContext(StarterContext);
   const [state, setState] = useState<{ busy?: boolean; answer?: StarterAnswer; problem?: string }>({});
   if (!source) return null;
   const go = async (dryRun: boolean) => {
     setState((s) => ({ ...s, busy: true, problem: undefined }));
     try {
-      const answer = await source.run({ name: props.name, cells: props.cells, dryRun, confirm: dryRun ? null : state.answer?.confirm });
+      const answer = await source.run({ name: props.name, cells: props.cells, dryRun, confirm: dryRun ? null : state.answer?.confirm,
+        ...(props.output ? { output: props.output } : {}) });   // AA1: ds_model or ds_predictions
       if (answer.created) source.onCreated?.(answer.created);
       setState({ answer });
     } catch (e) {
@@ -68,6 +74,90 @@ function StarterCreate(props: { name: string; cells: string[] }) {
         <Caption1 role="status" className="kg-next-starter-said">{state.problem ?? a?.words}</Caption1>
       )}
     </>
+  );
+}
+
+// ------------------------------------------------------------------ AA1: Advanced analytics, three stages ------------
+
+const STAGE_OUTPUT: Record<StageNotebook["stage"], string> = { features: "ds_features", model: "ds_model", predictions: "ds_predictions" };
+
+/** The notebook this item created for a stage (outputs.json, by its name), with an id: Open in Fabric and Run now. */
+export function stageMade(s: StageNotebook, created: CreatedItem[] | undefined): CreatedItem | undefined {
+  return [...(created ?? [])].reverse().find((c) => c.type === "Notebook" && c.id && c.workspace && c.name.toLowerCase() === s.name.toLowerCase());
+}
+
+/** One stage of one analysis: its word, what it writes, and Dry run, Create and Download; once created, Open in Fabric
+ * and Run now (ED3's CreatedActions), with a preview of the table it writes. */
+function StageRow(props: { n: number; s: StageNotebook; analysis: AnalysisPlan; made?: CreatedItem; waits: boolean; featureCells: string[] }) {
+  const { s, made, analysis } = props;
+  const word = STAGE_WORD[s.stage];
+  const cells = s.stage === "features" ? props.featureCells : s.cells ?? [];
+  const writes = s.stage === "features" ? { table: s.output, schema: "dbo" }
+    : s.stage === "predictions" || analysis.analysis === "drivers" ? { table: analysis.gold_table.split(".")[1], schema: "gold" } : undefined;
+  const say = s.stage === "features" ? `Writes ${s.output}, one row per order: the items summed per order first.`
+    : props.waits ? "Waits for more rows."
+      : s.stage === "model" && analysis.analysis !== "drivers"
+        ? `Trains one baseline, logs it to the ML experiment and registers ${analysis.model_name} as an ML model.`
+        : s.stage === "model" ? `No model: writes ${analysis.gold_table} directly.`
+          : `Scores with the registered model (PREDICT) and writes ${s.output}, with the model version and run id on every row.`;
+  return (
+    <li className="kg-adv-stage" data-stage={s.stage}>
+      <Body1><strong>{`${props.n}. ${word}`}</strong>{` · ${s.output}`}</Body1>
+      <Caption1>{say}</Caption1>
+      {made ? (
+        <CreatedActions item={{ id: made.id, workspaceId: made.workspace, type: made.type, displayName: made.name }}
+          preview={made.attached && writes ? { lakehouse: made.attached, ...writes } : undefined} />
+      ) : !props.waits && cells.length > 0 && (
+        <div className="kg-next-actions" role="group" aria-label={`${analysis.title}: ${word}`}>
+          <StarterCreate name={s.name} cells={cells} output={STAGE_OUTPUT[s.stage]} />
+          <FileActions file={{ filename: `${s.name}.ipynb`, mime: "application/x-ipynb+json", text: toIpynb(cells) }}
+            label="Download (.ipynb)" copy={false} appearance="secondary" ariaLabel={`Download (.ipynb): ${s.name}`} />
+        </div>
+      )}
+    </li>
+  );
+}
+
+/** AA1: each analysis the rules recommend on the proven grain, in three stages: Feature table, Model, Predictions in gold.
+ * Krusgraph runs none of them unless you press Run now, and reads no metric: the experiment's metrics are your own run's. */
+export function ThreeStages(props: { plan: NonNullable<NextStep["advanced"]>; featureCells: string[]; created?: CreatedItem[] }) {
+  const { plan } = props;
+  const tooFew = plan.analyses.find((a) => a.too_few)?.too_few;
+  const ws = (props.created ?? []).find((c) => c.workspace)?.workspace;
+  return (
+    <section className="kg-adv" aria-labelledby="kg-adv-title">
+      <Subtitle2 as="h3" id="kg-adv-title">From the feature table to predictions in gold</Subtitle2>
+      <Caption1>
+        Each analysis in three stages, written by rules from the proven keys and links; no AI. Stage 2 logs one baseline model
+        to the ML experiment {plan.experiment} and registers it; stage 3 scores with it into gold, where the next semantic
+        model dry run adds the table. Nothing leaves Fabric.
+      </Caption1>
+      {tooFew && <Body1 role="status" data-say="thinker">{tooFew}</Body1>}
+      <ol className="kg-adv-list">
+        {plan.analyses.map((a) => (
+          <li key={a.analysis} className="kg-adv-analysis" data-stages={a.analysis}>
+            <Subtitle2 as="h4">{a.title}</Subtitle2>
+            <Body1>{a.why}</Body1>
+            <ol className="kg-adv-stages" aria-label={`${a.title}: the stages`}>
+              {a.stages.map((s, i) => (
+                <StageRow key={s.stage} n={i + 1} s={s} analysis={a} made={stageMade(s, props.created)} featureCells={props.featureCells}
+                  waits={!!a.too_few && s.stage !== "features"} />
+              ))}
+            </ol>
+            {a.analysis === "drivers" && <Caption1>Descriptive: no model, so there is nothing to score in a third stage.</Caption1>}
+          </li>
+        ))}
+      </ol>
+      <Caption1>
+        {`Metrics and parameters are in the ML experiment ${plan.experiment}, from your own run; Krusgraph does not read them `
+          + "(Fabric's REST API for experiments has no runs or metrics). "}
+        {ws
+          ? <OutLink url={`${FABRIC_PORTAL}/groups/${ws}`} className="kg-next-guide"><Open20Regular aria-hidden /> Open the experiment (in the workspace)</OutLink>
+          : <OutLink url={LEARN.experiment} className="kg-next-guide"><Open20Regular aria-hidden /> About ML experiments</OutLink>}
+        {" · "}
+        <OutLink url={ADVANCED_DOCS} className="kg-next-guide">How the three stages work</OutLink>
+      </Caption1>
+    </section>
   );
 }
 
@@ -400,6 +490,8 @@ export function NextStepsPanel(props: NextInput & { onBuild: (outputs: OutputKin
 /** ED3: "Advanced analytics", one section on the Data product step (Gustav: "vart är advanced analytics-spåret?"). */
 export function AdvancedAnalytics(props: { review: NextInput["review"]; source: NextInput["source"]; created?: CreatedItem[] }) {
   if (!proofOf(props.review).keysPassed) return null;
+  // AA1: the Data Science card's grain, in three stages (feature table, model, predictions in gold)
+  const stages = nextSteps({ review: props.review, created: props.created ?? [], source: props.source }).steps.find((s) => s.id === "ds-features");
   return (
     <section className="kg-advanced" id="kg-advanced-analytics" aria-labelledby="kg-advanced-title">
       <Subtitle2 as="h2" id="kg-advanced-title">Advanced analytics</Subtitle2>
@@ -407,6 +499,9 @@ export function AdvancedAnalytics(props: { review: NextInput["review"]; source: 
         Notebooks Krusgraph writes by rules on this data product's proven keys and links, created in this item's workspace
         on the data product's lakehouse. No AI, and Krusgraph trains no model: the notebooks are yours to run.
       </Caption1>
+      {stages?.advanced && stages.how.kind === "starter" && (
+        <ThreeStages plan={stages.advanced} featureCells={stages.how.cells} created={props.created} />
+      )}
       <RecommendedAnalyses review={props.review} source={props.source} created={props.created} />
     </section>
   );

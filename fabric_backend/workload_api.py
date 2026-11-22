@@ -1063,6 +1063,11 @@ def run_catalog(req: dict) -> dict:
 
 STARTER_MAX_CELLS = 12
 STARTER_MAX_CHARS = 60_000
+# AA1: the three stages of Advanced analytics (advanced_stages.py): the output recorded on the created item, and the
+# item's description in Fabric. The cells come from the editor, filled from advanced_stages' templates.
+STARTER_STAGES = {"features": ("ds_features", "Krusgraph starter: a feature table from the keys and links proven on {lh}"),
+                  "model": ("ds_model", "Krusgraph Advanced analytics, stage 2: a model on the feature table from {lh}"),
+                  "predictions": ("ds_predictions", "Krusgraph Advanced analytics, stage 3: predictions in gold from {lh}")}
 
 
 def starter_request(body) -> dict:
@@ -1080,10 +1085,15 @@ def starter_request(body) -> dict:
     confirm = body.get("confirm")
     if confirm is not None and (not isinstance(confirm, str) or len(confirm) > 40):
         raise BadRequest("'confirm' is the dry run's confirm value")
-    output = body.get("output") or "ds_features"
-    if not isinstance(output, str) or not re.match(r"^(ds_features|analysis_[A-Za-z0-9]{1,8})$", output):
-        raise BadRequest("'output' is ds_features (the feature table) or analysis_<id> (an analysis of Advanced analytics)")
-    return {**req, "name": name, "cells": cells, "dry_run": dry, "confirm": confirm, "output": output,
+    # AA1: the stage of Advanced analytics this notebook is; the editor sends it as the output (ds_model, ds_predictions)
+    stage = body.get("stage") or {"ds_model": "model", "ds_predictions": "predictions"}.get(body.get("output"), "features")
+    if stage not in STARTER_STAGES:
+        raise BadRequest(f"'stage' is one of {', '.join(STARTER_STAGES)}")
+    output = body.get("output") or STARTER_STAGES[stage][0]
+    if not isinstance(output, str) or not re.match(r"^(ds_features|ds_model|ds_predictions|analysis_[A-Za-z0-9]{1,8})$", output):
+        raise BadRequest("'output' is ds_features (the feature table), ds_model or ds_predictions (AA1's stages) or "
+                         "analysis_<id> (an analysis of Advanced analytics)")
+    return {**req, "name": name, "cells": cells, "dry_run": dry, "confirm": confirm, "output": output, "stage": stage,
             "target": target_request(body.get("target"))}   # ED3: the item's workspace and its lakehouse, as Create
 
 
@@ -1151,8 +1161,8 @@ def run_starter(req: dict) -> dict:
                 "hint": "Nothing was created. Run the dry run again."}
     source = _notebook.fabric_source([("code", c) for c in req["cells"]], _notebook.notebook_metadata(ws, lh_id, lh_name))
     got = create_item_with_definition("notebooks", "Notebook",
-                                      _notebook.envelope(req["name"], source, (f"Krusgraph starter: a feature table from the keys and links proven on {req['source_name']}"
-                                                                if req.get("output", "ds_features") == "ds_features" else
+                                      _notebook.envelope(req["name"], source, (STARTER_STAGES[req.get("stage", "features")][1].format(lh=req["source_name"])
+                                                                if req.get("output", "ds_features") in ("ds_features", "ds_model", "ds_predictions") else
                                                                 f"Krusgraph analysis notebook {req['name']}, by rules on the keys and links proven on {req['source_name']}")),
                                       ws, token_provider=lambda: S.auth.fabric(None), update_existing=False)
     log("starter", dry_run=False, status=got.get("status"))

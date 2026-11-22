@@ -2483,8 +2483,9 @@ def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.M
         if refusal:
             return refusal
         info = {**ginfo, "schema": gspec["gold_schema"]}
+        predictions = _prediction_tables(ginfo, gspec["gold_schema"], ctx)         # AA1: only the ones that exist
         draft = _semantic_model.draft_on_gold(p, ginfo, gspec, name, checked_validation(p), date_range=read["date_range"],
-                                              whole_quantities=read["whole"])
+                                              whole_quantities=read["whole"], predictions=predictions)
     else:
         draft = _semantic_model.draft(p, info, name, tables, date_range=read["date_range"], whole_quantities=read["whole"])
     _model_layers(draft, lay)
@@ -3295,6 +3296,22 @@ def _gold(workspace, source, schema, silver_schema, gold_schema, keys, confirmed
     spec = _gold_mod.spec(p, info, silver_schema, gold_schema, tables, show_personal_data,
                           dimensions=MODEL_ON_GOLD.get() is not None)          # DPM1: the star schema the model reads
     return p, info, spec, None
+
+
+def _prediction_tables(ginfo: dict, gold_schema: str, ctx) -> list[dict]:
+    """AA1: the tables in the gold schema that an Advanced analytics predictions notebook wrote (advanced_stages.
+    prediction_kind, by their columns), read from the lakehouse's metadata as the signed-in user, the same read as any
+    plan. Empty when there is none, or when the read fails: then the model is drafted without them, as before."""
+    from . import advanced_stages as _aa
+    try:
+        s, execute = _connected(ginfo["workspace_id"], ginfo.get("item_id") or ginfo["item_name"], gold_schema, ctx)
+    except Exception:                                              # noqa: BLE001 - no gold schema yet, or not readable: none
+        return []
+    try:
+        return [{"table": t.name, "columns": [{"name": c.name, "type": c.data_type} for c in t.columns]}
+                for t in s if _aa.prediction_kind([c.name for c in t.columns])]
+    finally:
+        getattr(execute, "close", lambda: None)()
 
 
 def checked_validation(p) -> dict | None:
