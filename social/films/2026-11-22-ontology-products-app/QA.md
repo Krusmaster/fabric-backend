@@ -23,7 +23,8 @@ founder's review. **Nothing is scheduled, posted or published.** Silent with tex
 | 16.4-19.5 s | Logo, "Ontologies, data products and apps in a few taps.", krusgraph.com, mascots | Fine print: "Demo on synthetic data. Ontology and Fabric apps are Fabric previews. Krusgraph is independent and not affiliated with Microsoft." |
 
 The two preview items carry a small "preview" tag on their cards. The card icons are drawn for this film. The Fabric
-logo stands after "in Fabric." in scene 1 and in the end card's "on Microsoft Fabric" line.
+logo stands in scene 1 ("Your data is in / ▰ Fabric.") and in the end card's "▰ Microsoft Fabric" line; "Fabric" and its
+logo always on a line of their own (FV6).
 
 **The Microsoft Fabric logo** (round FV5, at the founder's request) is Microsoft's own `fabric_48_color.svg`, unmodified, from the npm package `@fabric-msft/svg-icons@12.0.0` (MIT; the same pinned version the workload uses, see `THIRD_PARTY_NOTICES.md`, *Microsoft Fabric item icons in the workload editor*). No icon file is stored here: `source/film.html` reads it from `workload/Workload/node_modules/` (run `npm ci` in `workload/Workload` first). Microsoft's page on the icons (https://learn.microsoft.com/fabric/fundamentals/icons) offers them for Fabric platform extension development; Krusgraph is a Fabric workload, and the logo stands only beside the words Microsoft Fabric, next to the fine print "Krusgraph is independent and not affiliated with Microsoft". No Claude logo.
 
@@ -46,4 +47,4 @@ python3 social/films/2026-11-22-few-taps/source/sound.py sound.wav
 ffmpeg -y -i silent.mp4 -i sound.wav -filter_complex "[1]loudnorm=I=-14:TP=-1.5:LRA=11[a]" -map 0:v -map "[a]" -c:v copy -c:a aac -b:a 192k -shortest krusgraph-ontology-products-app-9x16.mp4
 ```
 
-sha256: `c7fa40cba3d135cfb992c89126822fead45e9cbe89f1d830c206ccf8b6b72f90`
+sha256: `41c1a2441317bc122170f55ff4ea31ead11debc8efe760513e9a4e313be92135`
