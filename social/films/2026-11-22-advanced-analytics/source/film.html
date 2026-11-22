@@ -13,7 +13,7 @@ html,body{margin:0;width:1080px;height:1920px;overflow:hidden;background:var(--b
 .done{position:absolute;left:170px;width:740px;height:118px;border-radius:30px;background:#2a2320;border:2px solid #3b312b;display:flex;align-items:center;gap:28px;padding:0 34px;box-sizing:border-box;font:800 46px N;color:#e9ded6}
 .tick{width:62px;height:62px;border-radius:50%;border:4px solid #5a4b42;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none}
 .tick.on{background:var(--gr);border-color:var(--gr)}
-.stg{position:absolute;left:190px;width:700px;height:150px;border-radius:36px;background:var(--card);color:var(--dark);display:flex;align-items:center;gap:30px;padding:0 40px;box-sizing:border-box;box-shadow:0 30px 80px rgba(0,0,0,.45);font:800 48px N}
+.stg{position:absolute;left:150px;width:780px;height:150px;border-radius:36px;background:var(--card);color:var(--dark);display:flex;align-items:center;gap:24px;padding:0 36px;box-sizing:border-box;box-shadow:0 30px 80px rgba(0,0,0,.45);font:800 48px N}
 .stg .n{width:76px;height:76px;border-radius:50%;background:#f2e9e4;color:#a0938b;font:800 40px N;display:flex;align-items:center;justify-content:center;flex:none}
 .stg .n.on{background:var(--gr);color:#fff}
 .arrow{position:absolute;left:520px;width:40px;height:60px}
@@ -41,11 +41,11 @@ html,body{margin:0;width:1080px;height:1920px;overflow:hidden;background:var(--b
 
   <!-- S3: three stages -->
   <div class="h" id="s3a" style="top:330px;font-size:84px">Three steps, by rules.</div>
-  <div class="stg" id="st1" style="top:560px"><div class="n">1</div><div>Feature table</div></div>
+  <div class="stg" id="st1" style="top:560px"><div class="n">1</div><img src="../../../../workload/Workload/node_modules/@fabric-msft/svg-icons/svg/notebook_48_item.svg" style="width:64px;height:64px"><div>Feature table</div></div>
   <svg class="arrow" id="ar1" style="top:722px" viewBox="0 0 40 60"><path d="M20 4v44M8 38l12 14 12-14" stroke="#9db8a0" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-  <div class="stg" id="st2" style="top:795px"><div class="n">2</div><div>Model</div></div>
+  <div class="stg" id="st2" style="top:795px"><div class="n">2</div><img src="../../../../workload/Workload/node_modules/@fabric-msft/svg-icons/svg/experiments_48_item.svg" style="width:64px;height:64px"><div>Model</div></div>
   <svg class="arrow" id="ar2" style="top:957px" viewBox="0 0 40 60"><path d="M20 4v44M8 38l12 14 12-14" stroke="#9db8a0" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-  <div class="stg" id="st3" style="top:1030px"><div class="n">3</div><div>Predictions in gold</div></div>
+  <div class="stg" id="st3" style="top:1030px"><div class="n">3</div><img src="../../../../workload/Workload/node_modules/@fabric-msft/svg-icons/svg/lakehouse_48_item.svg" style="width:64px;height:64px"><div>Predictions in gold</div></div>
 
   <!-- S4: boom -->
   <div class="h" id="s4a" style="top:300px;font-size:150px"><span class="or">Boom!</span></div>
@@ -84,9 +84,9 @@ const eo=x=>1-Math.pow(1-x,3);
 const back=x=>{const c=1.70158,c3=c+1;return 1+c3*Math.pow(x-1,3)+c*Math.pow(x-1,2)};
 function win(t,a,b,fi=.35,fo=.3){return Math.min(eo(lin(t,a,a+fi)),1-lin(t,b-fo,b))}
 function set(el,o,tx=0,ty=0,s=1){el.style.opacity=o;el.style.transform=`translate(${tx}px,${ty}px) scale(${s})`}
-const dn=['Pipeline','Semantic model','Data products'];
+const dn=['Pipeline','Semantic model','Data products'];const dni=['pipeline','semantic_model','lakehouse'];
 const dones=dn.map((n,i)=>{const d=document.createElement('div');d.className='done';d.style.top=(880+i*150)+'px';
- d.innerHTML=`<div class="tick"><svg width="34" height="34" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#1d1815" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div>${n}</div>`;$('dones').appendChild(d);return d});
+ d.innerHTML=`<div class="tick"><svg width="34" height="34" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#1d1815" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div><img src="../../../../workload/Workload/node_modules/@fabric-msft/svg-icons/svg/${dni[i]}_48_item.svg" style="width:56px;height:56px"><div>${n}</div>`;$('dones').appendChild(d);return d});
 const T=[0,3.2,6.0,10.4,13.8,16.4,19.5];
 window.DUR=19.5;
 window.render=function(t){

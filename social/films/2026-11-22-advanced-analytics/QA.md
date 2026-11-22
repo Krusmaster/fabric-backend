@@ -22,10 +22,12 @@ scene 5). 9:16 only.
 | 13.8-16.4 s | "With Krusgraph it's done in a heartbeat." An ECG line | The founder's line. **A figure of speech, not a measured time:** creating the notebooks takes a few taps, but training runs in the user's own Fabric workspace when they press Run now, and that takes as long as Spark takes |
 | 16.4-19.5 s | Logo, "Krusgraph", "Workload on Microsoft Fabric" with a "preview" tag, krusgraph.com, mascots | The workload runs in the founder's tenant as "Krusgraph (preview)"; `Krusgraph.Modeler` is not yet registered (`docs/MODELER-GO-LIVE.md`), so "preview" stays. Fine print: "Demo on synthetic data. You run each notebook in your own workspace. Krusgraph is independent and not affiliated with Microsoft." |
 
-The card icons are drawn for this film. The Fabric logo stands in scene 1 ("Your data in / ▰ Fabric / is ready.") and in the end card
+The card icons are Microsoft's Fabric item icons (below). The Fabric logo stands in scene 1 ("Your data in / ▰ Fabric / is ready.") and in the end card
 ("Workload on" / "▰ Microsoft Fabric" with the preview tag); "Fabric" and its logo always on a line of their own (FV6).
 
 **The Microsoft Fabric logo** (round FV5, at the founder's request) is Microsoft's own `fabric_48_color.svg`, unmodified, from the npm package `@fabric-msft/svg-icons@12.0.0` (MIT; the same pinned version the workload uses, see `THIRD_PARTY_NOTICES.md`, *Microsoft Fabric item icons in the workload editor*). No icon file is stored here: `source/film.html` reads it from `workload/Workload/node_modules/` (run `npm ci` in `workload/Workload` first). Microsoft's page on the icons (https://learn.microsoft.com/fabric/fundamentals/icons) offers them for Fabric platform extension development; Krusgraph is a Fabric workload, and the logo stands only beside the words Microsoft Fabric, next to the fine print "Krusgraph is independent and not affiliated with Microsoft". No Claude logo.
+
+**Microsoft's Fabric item icons** (round FV7, at the founder's request) are the ones the workload's Model editor shows (`workload/Workload/app/items/ModelItem/fabricIcons.json`), in their 48 px size, unmodified, from the same package `@fabric-msft/svg-icons@12.0.0` and read from `workload/Workload/node_modules/` like the logo. Scene 1: Pipeline `pipeline_48_item.svg`, Semantic model `semantic_model_48_item.svg`, Data products `lakehouse_48_item.svg`; scene 3: Feature table `notebook_48_item.svg` (the stage is a notebook), Model `experiments_48_item.svg` (the ML experiment the run lands in), Predictions in gold `lakehouse_48_item.svg`. The analysis cards keep their drawn charts: they are analyses, not Fabric items.
 
 ## Gates
 
@@ -51,4 +53,4 @@ python3 social/films/2026-11-22-advanced-analytics/source/sound.py sound.wav
 ffmpeg -y -i silent.mp4 -i sound.wav -filter_complex "[1]loudnorm=I=-14:TP=-1.5:LRA=11[a]" -map 0:v -map "[a]" -c:v copy -c:a aac -b:a 192k -shortest krusgraph-advanced-analytics-9x16.mp4
 ```
 
-sha256: `76b3bc66d3c621e7a799731bfdd89a6d62eec275372f6a2ca09847027ab31953`
+sha256: `84d00dca1c128ae44f4e6e8619d62b0a610ec8ec23fea77067a4e25bf81725d3`

@@ -54,13 +54,13 @@ html,body{margin:0;width:1080px;height:1920px;overflow:hidden;background:var(--b
   <!-- S5 -->
   <div class="h" id="s5a" style="top:300px;font-size:150px"><span class="or">Boom.</span></div>
   <div class="out" id="o1" style="top:560px">
-    <div class="ic" style="background:#eeeaf8"><svg width="96" height="96" viewBox="0 0 48 48"><circle cx="24" cy="10" r="6" fill="#7d6cc0"/><circle cx="9" cy="36" r="6" fill="#a99ad8"/><circle cx="39" cy="36" r="6" fill="#a99ad8"/><circle cx="24" cy="30" r="4" fill="#7d6cc0"/><path d="M24 16v10M21 32l-8 3M27 32l8 3M13 32l7-18M35 32l-7-18" stroke="#7d6cc0" stroke-width="2.4"/></svg></div>
+    <div class="ic" style="background:#f3efec"><img src="../../../../workload/Workload/node_modules/@fabric-msft/svg-icons/svg/ontology_48_item.svg" style="width:108px;height:108px"></div>
     <div><div class="t">Ontology <span class="pv">preview</span></div><div class="s">customer → order → invoice</div></div></div>
   <div class="out" id="o2" style="top:830px">
-    <div class="ic" style="background:#e7efe8"><svg width="96" height="96" viewBox="0 0 48 48"><path d="M24 6l16 8-16 8-16-8z" fill="#9db8a0"/><path d="M8 22l16 8 16-8" stroke="#5f8f68" stroke-width="3" fill="none" stroke-linejoin="round"/><path d="M8 31l16 8 16-8" stroke="#5f8f68" stroke-width="3" fill="none" stroke-linejoin="round"/></svg></div>
+    <div class="ic" style="background:#f3efec"><img src="../../../../workload/Workload/node_modules/@fabric-msft/svg-icons/svg/lakehouse_48_item.svg" style="width:108px;height:108px"></div>
     <div><div class="t">Data products</div><div class="s">in the OneLake catalog</div></div></div>
   <div class="out" id="o3" style="top:1100px">
-    <div class="ic" style="background:#fde9e4"><svg width="96" height="96" viewBox="0 0 48 48"><rect x="3" y="3" width="42" height="42" rx="8" fill="none" stroke="#f2735c" stroke-width="3"/><rect id="b1" x="7" y="26" width="8" height="16" rx="2" fill="#f2735c"/><rect id="b2" x="20" y="16" width="8" height="26" rx="2" fill="#f2735c"/><rect id="b3" x="33" y="8" width="8" height="34" rx="2" fill="#f2735c"/></svg></div>
+    <div class="ic" style="background:#f3efec"><img src="../../../../workload/Workload/node_modules/@fabric-msft/svg-icons/svg/fabric_apps_48_item.svg" style="width:108px;height:108px"></div>
     <div><div class="t">Fabric app <span class="pv">preview</span></div><div class="s">ready to publish</div></div></div>
 
   <!-- S6 -->
@@ -138,7 +138,6 @@ window.render=function(t){
  o=win(t,T[4],T[5]); const bs=back(lin(t,T[4],T[4]+.45)); set($('s5a'),o,0,0,.4+.6*bs);
  ['o1','o2','o3'].forEach((id,i)=>{const a=T[4]+.35+i*.4; const p=back(lin(t,a,a+.5));
    set($(id),Math.min(lin(t,a,a+.2),1-lin(t,T[5]-.3,T[5])),0,120*(1-p),.8+.2*p)});
- const bp=eo(lin(t,T[4]+1.4,T[4]+2.2)); [['b1',12,30],['b2',20,22],['b3',26,16]].forEach(([id,h,y])=>{const r=$(id);r.setAttribute('height',h*bp);r.setAttribute('y',42-h*bp)});
  // S6
  const e=T[5]; const lp=back(lin(t,e,e+.5));
  set($('logo'),win(t,e,T[6]+1,.3,.01),0,0,.5+.5*lp);
