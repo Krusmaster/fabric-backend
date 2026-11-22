@@ -1,0 +1,26 @@
+DRAFT, 2026-11-22, round FV2. Not approved. Do not post before Gustav says yes.
+
+INSTAGRAM REELS / YOUTUBE SHORTS / LINKEDIN (9:16)
+
+Your data is in Fabric. Making it useful shouldn't take years.
+
+Start Krusgraph, take a few taps (your data, check, decide, dry run, create) and get a data pipeline, a semantic model and a Power BI report, built on keys and links counted on your rows.
+
+Shown on synthetic demo data. Krusgraph is independent and not affiliated with Microsoft.
+
+#MicrosoftFabric #PowerBI #DataEngineering #Krusgraph
+
+krusgraph.com
+
+
+SVENSK BILDTEXT
+
+Din data finns i Fabric. Att göra den användbar ska inte ta år.
+
+Starta Krusgraph, några tryck (din data, kontroll, beslut, provkörning, skapa) och du får en datapipeline, en semantisk modell och en Power BI-rapport, byggda på nycklar och länkar som räknats på dina rader.
+
+Visat på syntetisk demodata. Krusgraph är oberoende och inte knutet till Microsoft.
+
+#MicrosoftFabric #PowerBI #DataEngineering #Krusgraph
+
+krusgraph.com
