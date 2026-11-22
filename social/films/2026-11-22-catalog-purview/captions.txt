@@ -1,0 +1,11 @@
+DRAFT, 2026-11-22, round FV9. Not approved. Do not post before Gustav says yes.
+
+Data products in Fabric. Who owns them? Can you trust them?
+
+Krusgraph fills the OneLake catalog for the data products it has checked: a description, the owner, the domain and tags, with a dated quality line counted on your rows. You see every change before it is written. For Purview, it hands over the glossary and the quality rules as a file to import.
+
+Shown on synthetic demo data. Krusgraph is independent and not affiliated with Microsoft.
+
+#MicrosoftFabric #OneLake #DataGovernance #DataProducts #Purview #Krusgraph
+
+krusgraph.com
