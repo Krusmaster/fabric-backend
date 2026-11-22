@@ -20,7 +20,7 @@ def test_the_dry_run_says_what_would_be_created_and_creates_nothing(api):
     fake.calls.clear()
     out = _post(client, "/starter", BODY, tok(priv)).json()
     assert out["would"] == "create" and out["runs"] is False and out["confirm"].startswith("starter-")
-    assert "trains no model" in out["words"] and "attached to demo_lh" in out["words"] and out["cells"] == 2
+    assert "runs it only when you choose Run now" in out["words"] and "attached to demo_lh" in out["words"] and out["cells"] == 2
     assert _writes(fake) == [] and not fake.created
 
 

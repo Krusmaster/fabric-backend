@@ -6,27 +6,27 @@ MLflow created the experiment `orders_experiment` with one run. This page descri
 model, and from the model to predictions that land in gold and in the semantic model.
 
 Krusgraph writes the notebooks by fixed rules from the keys and links it proved on the rows. It does not use AI to write
-them, it does not run them, it does not train anything, and it does not read your rows, your metrics or your models. You
-run each notebook in Fabric, and every number it shows comes from your own run.
+them, and it does not read your metrics or your models. It runs a notebook only when you press Run now (ED3); the
+training happens in that run, in your workspace, and every number it shows comes from your own run.
 
 ## The three stages
 
-The Data Science card under **Next, with other Fabric workloads** in the Model item shows each analysis the rules
-recommend, with three stages:
+The **Advanced analytics** section on the Data product step of the Model item (ED3's section, reached from the result
+page's "Go to Advanced analytics") shows, under "From the feature table to predictions in gold", each analysis the rules
+recommend on the Data Science card's grain, with three stages:
 
 | Stage | Notebook | What it writes | Who runs it |
 | --- | --- | --- | --- |
-| 1. Feature table | `<lakehouse>_<orders>_features` (the WB10 starter, unchanged) | `<orders>_features`: one row per order, with the items summed per order first | you, in Fabric |
-| 2. Model | `<lakehouse>_<orders>_<analysis>_model` | a run in the ML experiment `<orders>_experiment` with its parameters and metrics; a registered ML model | you, in Fabric |
-| 3. Predictions in gold | `<lakehouse>_<orders>_<analysis>_predictions` | a gold table with `model_name`, `model_version`, `run_id`, `scored_at` and `scored_with` on every row | you, in Fabric |
+| 1. Feature table | `<lakehouse>_<orders>_features` (the WB10 starter, unchanged) | `<orders>_features`: one row per order, with the items summed per order first | you: Run now, or Run all in Fabric |
+| 2. Model | `<lakehouse>_<orders>_<analysis>_model` | a run in the ML experiment `<orders>_experiment` with its parameters and metrics; a registered ML model | you: Run now, or Run all in Fabric |
+| 3. Predictions in gold | `<lakehouse>_<orders>_<analysis>_predictions` | a gold table with `model_name`, `model_version`, `run_id`, `scored_at` and `scored_with` on every row | you: Run now, or Run all in Fabric |
 
 Each stage has **Dry run** (what would be created, nothing written), **Create** (the notebook in the item's workspace,
-attached to the lakehouse, as you), **Open in Fabric** (after Create) and **Download (.ipynb)**. Create never overwrites
-a notebook of the same name. The model and prediction notebooks are recorded on the item as `ds_model` and
+attached to the data product's lakehouse, as you) and **Download (.ipynb)**. Once it is created, the stage shows ED3's
+**Open in Fabric** (a new tab) and **Run now** (Krusgraph starts the notebook only when you press it, then shows the
+run's status and the first rows of the table it writes: the feature table, or the gold table of stage 3). Create never
+overwrites a notebook of the same name. The model and prediction notebooks are recorded on the item as `ds_model` and
 `ds_predictions`, like the starter's `ds_features`.
-
-**Run now** is not part of this round. It comes from ED3's pull request #136, which is still waiting for the
-maintainer. Until #136 is merged, you run each notebook from Fabric with Open in Fabric, then Run all.
 
 ## The analyses and their rules
 
@@ -76,7 +76,8 @@ The editor does not show the experiment's metrics. Fabric's REST API for ML expe
 and nothing for its runs, parameters or metrics. Reading them would need MLflow's tracking API against the workspace's
 tracking endpoint, which Microsoft does not document for a workload's delegated token. That would mean a new permission
 or an undocumented call, and this round adds neither. So the section says where the metrics are and links to the
-experiment ("Open the experiment"). Status in the editor is what Krusgraph knows itself: which notebooks it created.
+workspace that holds the experiment ("Open the experiment"). Status in the editor is what Krusgraph knows itself: which
+notebooks it created, and the status of a run started with Run now.
 
 ## Into the semantic model and the report
 
@@ -103,8 +104,9 @@ If no prediction table exists, nothing is added, and the model is the same as be
 
 Nothing. The notebooks run in your workspace on your lakehouse. Their runs, models and gold tables stay there.
 Krusgraph creates the notebooks in your workspace with your token (the same Notebook create the starter has used since
-WB10) and reads table metadata for the semantic model's dry run. No row, metric or model reaches Krusgraph. This round
-adds no Entra permission.
+WB10) and reads table metadata for the semantic model's dry run. Run now (ED3) works as the privacy page describes since
+#136: it starts the run and shows its status and the first rows of the table written. No metric or model reaches
+Krusgraph. This round adds no Entra permission, and no privacy or security statement changes.
 
 ## How it was tested
 
@@ -115,4 +117,4 @@ makes a valid `.ipynb`. They also check the grain check, the value taken from th
 table the notebook did not write is never replaced, the too-few-rows sentence, the gold tables' columns, and the semantic
 model with and without prediction tables. In CI the tests that need pandas and scikit-learn are skipped where those
 packages are not installed. `advancedStages.test.tsx` checks that the editor fills the templates exactly as the Python
-does, and that it shows the three stages. None of this has run in Fabric yet. The next live test is Gustav's.
+does, and that ED3's section shows the three stages, with Open in Fabric and Run now once a stage is created. None of this has run in Fabric yet. The next live test is Gustav's.

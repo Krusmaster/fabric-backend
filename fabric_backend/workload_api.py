@@ -1085,10 +1085,16 @@ def starter_request(body) -> dict:
     confirm = body.get("confirm")
     if confirm is not None and (not isinstance(confirm, str) or len(confirm) > 40):
         raise BadRequest("'confirm' is the dry run's confirm value")
-    stage = body.get("stage", "features")                  # AA1: the stage of Advanced analytics this notebook is
+    # AA1: the stage of Advanced analytics this notebook is; the editor sends it as the output (ds_model, ds_predictions)
+    stage = body.get("stage") or {"ds_model": "model", "ds_predictions": "predictions"}.get(body.get("output"), "features")
     if stage not in STARTER_STAGES:
         raise BadRequest(f"'stage' is one of {', '.join(STARTER_STAGES)}")
-    return {**req, "name": name, "cells": cells, "dry_run": dry, "confirm": confirm, "stage": stage}
+    output = body.get("output") or STARTER_STAGES[stage][0]
+    if not isinstance(output, str) or not re.match(r"^(ds_features|ds_model|ds_predictions|analysis_[A-Za-z0-9]{1,8})$", output):
+        raise BadRequest("'output' is ds_features (the feature table), ds_model or ds_predictions (AA1's stages) or "
+                         "analysis_<id> (an analysis of Advanced analytics)")
+    return {**req, "name": name, "cells": cells, "dry_run": dry, "confirm": confirm, "output": output, "stage": stage,
+            "target": target_request(body.get("target"))}   # ED3: the item's workspace and its lakehouse, as Create
 
 
 def starter_confirm(workspace: str, name: str, cells: list[str]) -> str:
@@ -1096,23 +1102,56 @@ def starter_confirm(workspace: str, name: str, cells: list[str]) -> str:
     return "starter-" + hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
-STARTER_NOT_RUN = "Krusgraph does not run it and trains no model: open it in Fabric and run it yourself."
+STARTER_NOT_RUN = "Krusgraph runs it only when you choose Run now."
+
+
+def starter_lakehouse(req: dict, place: dict, items: list[dict], src: dict) -> dict | None:
+    """ED3 (Gustav, 21 November 2026: "vart är advanced analytics-spåret?"): a starter goes where the other outputs go,
+    the item's workspace by default (build_place), attached to the lakehouse of this data product's silver and gold: the
+    one chosen (target.lakehouse, an id or a name), else the one Create made or reuses (target.create_lakehouse, or the
+    name ED2 moved it to), else the workspace's first lakehouse. In the source's own workspace with none of these, the
+    source lakehouse, as before. None: nothing to attach to yet (Create silver and gold first)."""
+    tgt = req.get("target") or {}
+    lakes = [it for it in items if it.get("type") == "Lakehouse"]
+    want = (tgt.get("lakehouse") or "").lower()
+    if want:
+        hit = next((it for it in lakes if str(it.get("id", "")).lower() == want or str(it.get("displayName", "")).lower() == want), None)
+        if hit:
+            return {"id": hit["id"], "name": hit["displayName"]}
+    if tgt.get("create_lakehouse"):
+        plan = free_lakehouse_name(tgt["create_lakehouse"], items)
+        if plan["action"] == "use":
+            hit = next(it for it in lakes if str(it.get("displayName", "")).lower() == plan["name"].lower())
+            return {"id": hit["id"], "name": hit["displayName"]}
+    if not place.get("cross") and src.get("id"):
+        return {"id": src["id"], "name": src.get("displayName") or req["source_name"]}
+    if lakes:
+        return {"id": lakes[0]["id"], "name": lakes[0]["displayName"]}
+    return None
 
 
 def run_starter(req: dict) -> dict:
     from . import server as S, notebook as _notebook
     from .deploy import create_item_with_definition, find_item
     headers = S._headers(None)
-    ws = S._workspace_id(req["workspace"], headers)
-    src = S._resolve_source(ws, req["source"], headers)
-    lh_id, lh_name = src.get("id") or "", src.get("displayName") or req["source_name"]
+    place = build_place(req, headers)                              # ED3: the item's workspace, like every other output
+    ws = place["workspace_id"]
+    src = S._resolve_source(S._workspace_id(req["workspace"], headers), req["source"], headers)
+    lake = starter_lakehouse(req, place, S._list_items(ws, headers) if place["cross"] else [], src)
+    if lake is None:
+        return {"error": "There is no lakehouse in this item's workspace for the notebook to write to yet.", "kind": "bad_input",
+                "hint": "Create the silver notebook and gold views first: the starter is attached to their lakehouse. Nothing was created."}
+    lh_id, lh_name = lake["id"], lake["name"]
+    where = place.get("name") or "this item's workspace"
     exists = find_item(ws, req["name"], headers, "Notebook")
     confirm = starter_confirm(ws, req["name"], req["cells"])
-    out = {"name": req["name"], "type": "Notebook", "workspace": ws, "lakehouse": lh_name, "cells": len(req["cells"]),
-           "would": "exists" if exists else "create", "runs": False, "confirm": None if exists else confirm,
-           "words": (f"A notebook named {req['name']} is already in this workspace: Krusgraph does not overwrite it. "
+    reads = f"; it reads {req['source_name']} through OneLake" if place["cross"] else ""
+    out = {"name": req["name"], "type": "Notebook", "workspace": ws, "workspace_name": place.get("name"), "lakehouse": lh_name,
+           "lakehouse_id": lh_id,
+           "cells": len(req["cells"]), "would": "exists" if exists else "create", "runs": False, "confirm": None if exists else confirm,
+           "words": (f"A notebook named {req['name']} is already in {where}: Krusgraph does not overwrite it. "
                      "Choose another name, or open that one." if exists else
-                     f"Would create the notebook {req['name']} in this workspace, attached to {lh_name}, with "
+                     f"Would create the notebook {req['name']} in {where}, attached to {lh_name}{reads}, with "
                      f"{len(req['cells'])} cells. {STARTER_NOT_RUN}")}
     if req["dry_run"] or exists:
         log("starter", dry_run=req["dry_run"], exists=bool(exists))
@@ -1122,7 +1161,9 @@ def run_starter(req: dict) -> dict:
                 "hint": "Nothing was created. Run the dry run again."}
     source = _notebook.fabric_source([("code", c) for c in req["cells"]], _notebook.notebook_metadata(ws, lh_id, lh_name))
     got = create_item_with_definition("notebooks", "Notebook",
-                                      _notebook.envelope(req["name"], source, STARTER_STAGES[req.get("stage", "features")][1].format(lh=lh_name)),
+                                      _notebook.envelope(req["name"], source, (STARTER_STAGES[req.get("stage", "features")][1].format(lh=req["source_name"])
+                                                                if req.get("output", "ds_features") in ("ds_features", "ds_model", "ds_predictions") else
+                                                                f"Krusgraph analysis notebook {req['name']}, by rules on the keys and links proven on {req['source_name']}")),
                                       ws, token_provider=lambda: S.auth.fabric(None), update_existing=False)
     log("starter", dry_run=False, status=got.get("status"))
     if got.get("status") == "Timeout":
@@ -1131,10 +1172,178 @@ def run_starter(req: dict) -> dict:
     if got.get("status") != "Succeeded" or not got.get("id"):
         return {"error": f"Fabric did not create the notebook {req['name']} (HTTP {got.get('http', '?')}).", "kind": "fabric",
                 "hint": "Creating a notebook needs the Contributor role on the workspace. Nothing else was changed."}
-    created = {"type": "Notebook", "id": got["id"], "name": req["name"], "workspace": ws, "output": STARTER_STAGES[req.get("stage", "features")][0]}
+    created = {"type": "Notebook", "id": got["id"], "name": req["name"], "workspace": ws, "output": req.get("output") or "ds_features",
+               "attached": lh_id}
+    # ED3 (Gustav: the card said it twice): one sentence of what was made and where; the card adds Run now's one line
     return {**out, "would": "created", "created": created,
-            "words": f"Created the notebook {req['name']}, attached to {lh_name}. {STARTER_NOT_RUN}",
+            "words": f"Created the notebook {req['name']} in {where}, attached to {lh_name}{reads}.",
             "note": "Created as you; nothing was run."}
+
+
+# ------------------------------------------------------------------ ED3: Run now --------------------------------------
+# POST /workload/v1/run: Gustav, 21 November 2026, after Create: "sen kanske se resultatet?". One click by the person on
+# a notebook or pipeline Krusgraph created starts one run of it, as the signed-in user, with Fabric's Job Scheduler:
+#   Run On Demand Item Job  POST /v1/workspaces/{ws}/items/{id}/jobs/instances?jobType={RunNotebook|Pipeline}, 202 with
+#                           Location (learn.microsoft.com/rest/api/fabric/core/job-scheduler/run-on-demand-item-job;
+#                           the job types: learn.microsoft.com/fabric/data-engineering/notebook-public-api, "Run a notebook
+#                           on demand", and data-factory/pipeline-rest-api-capabilities, "Run on demand pipeline job")
+#   Get Item Job Instance   GET /v1/workspaces/{ws}/items/{id}/jobs/instances/{jobInstanceId}: status NotStarted,
+#                           InProgress, Completed, Failed, Cancelled or Deduped, failureReason.message
+#                           (learn.microsoft.com/rest/api/fabric/core/job-scheduler/get-item-job-instance)
+# Never automatic: no Create starts a run of a starter. The delegated scopes are the item type's Execute.All or
+# Item.Execute.All; Krusgraph asks for no new permission: without one the answer says so and Run in Fabric is the way.
+# After a run that succeeded, the output table's row count and first 10 rows are read once, the way sample_rows reads
+# (masked by the same privacy rules), and returned in the answer only: Krusgraph stores none of it.
+
+RUN_JOB_TYPE = {"Notebook": "RunNotebook", "DataPipeline": "Pipeline"}
+RUN_SCOPES = {"Notebook": ("Notebook.Execute.All", "Item.Execute.All"), "DataPipeline": ("DataPipeline.Execute.All", "Item.Execute.All")}
+RUN_STATE = {"NotStarted": "queued", "InProgress": "running", "Completed": "succeeded", "Failed": "failed",
+             "Cancelled": "failed", "Deduped": "failed"}
+RUN_DOC = "https://learn.microsoft.com/rest/api/fabric/core/job-scheduler/run-on-demand-item-job"
+RUN_ONLY_WHEN = "Krusgraph runs it only when you choose Run now."
+_TABLE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,127}$")
+
+
+def run_item_request(body) -> dict:
+    if not isinstance(body, dict):
+        raise BadRequest("the body must be a JSON object")
+    out = {}
+    for k in ("workspace", "item_id"):
+        v = body.get(k)
+        if not isinstance(v, str) or not _GUID.match(v.strip()):
+            raise BadRequest(f"'{k}' is a Fabric id (a GUID)")
+        out[k] = v.strip().lower()
+    if body.get("item_type") not in RUN_JOB_TYPE:
+        raise BadRequest("'item_type' is Notebook or DataPipeline: Run now runs only a notebook or pipeline Krusgraph created")
+    out["item_type"] = body["item_type"]
+    out["name"] = _item_name(body.get("name"), "The item's name")
+    run_id = body.get("run_id")
+    if run_id is not None and (not isinstance(run_id, str) or not _GUID.match(run_id)):
+        raise BadRequest("'run_id' is the job instance id Run now answered")
+    out["run_id"] = run_id.lower() if run_id else None
+    pv = body.get("preview")
+    if pv is not None:
+        if (not isinstance(pv, dict) or not isinstance(pv.get("lakehouse"), str) or not _GUID.match(pv["lakehouse"])
+                or not isinstance(pv.get("table"), str) or not _TABLE.match(pv["table"])
+                or not isinstance(pv.get("schema", "dbo"), str) or not _TABLE.match(pv.get("schema") or "dbo")):
+            raise BadRequest("'preview' is {lakehouse: its id, table, schema}: the table the run writes")
+        pv = {"lakehouse": pv["lakehouse"].lower(), "table": pv["table"], "schema": pv.get("schema") or "dbo"}
+    out["preview"] = pv
+    out["source_name"] = out["name"]                              # for the error layer's words
+    return out
+
+
+def run_permission(scopes: set[str] | None, item_type: str) -> dict | None:
+    """None when the sign-in may run it (or its permissions are not known: then Fabric is asked); else why not."""
+    need = RUN_SCOPES[item_type]
+    if scopes is None or set(need) & scopes:
+        return None
+    what = "notebook" if item_type == "Notebook" else "pipeline"
+    return {"error": f"Your sign-in cannot start a {what} from Krusgraph: it does not carry {need[0]} or {need[1]}, and "
+                     "Krusgraph asks for no new permission for this.", "kind": "needs_permission",
+            "hint": f"Open in Fabric and choose Run there; the result is the same. {RUN_ONLY_WHEN}", "doc": RUN_DOC}
+
+
+def start_item_run(http, workspace: str, item_id: str, item_type: str) -> dict:
+    """Run On Demand Item Job: one run, its job instance id from the Location header."""
+    r = http("post", f"{_fabric()}/v1/workspaces/{workspace}/items/{item_id}/jobs/instances?jobType={RUN_JOB_TYPE[item_type]}")
+    status = getattr(r, "status_code", 0)
+    if status != 202:
+        msg = ""
+        try:
+            msg = str((r.json() or {}).get("message") or "")[:300]
+        except Exception:  # noqa: BLE001 — the status is the answer
+            pass
+        return {"state": "failed", "http": status, "message": msg or f"Fabric did not start the run (HTTP {status})."}
+    loc = (getattr(r, "headers", {}) or {}).get("Location") or ""
+    run_id = loc.rstrip("/").rsplit("/", 1)[-1] if "/instances/" in loc else None
+    return {"state": "queued", "run_id": run_id}
+
+
+def read_item_run(http, workspace: str, item_id: str, run_id: str) -> dict:
+    """Get Item Job Instance, as one of queued, running, succeeded, failed (with Fabric's message, said once)."""
+    r = http("get", f"{_fabric()}/v1/workspaces/{workspace}/items/{item_id}/jobs/instances/{run_id}")
+    if getattr(r, "status_code", 0) >= 400:
+        return {"state": "unknown", "run_id": run_id, "http": getattr(r, "status_code", 0),
+                "message": "Fabric did not answer about the run; open the item in Fabric to see it."}
+    j = r.json() or {}
+    state = RUN_STATE.get(str(j.get("status")), "running")
+    out = {"state": state, "run_id": run_id, "fabric_status": j.get("status"), "start": j.get("startTimeUtc"), "end": j.get("endTimeUtc")}
+    if state == "failed":
+        out["message"] = str(((j.get("failureReason") or {}).get("message")) or j.get("status") or "")[:300]
+    return out
+
+
+def _fabric() -> str:
+    from . import server as S
+    return S.FABRIC
+
+
+def run_state_words(run: dict, name: str) -> str:
+    """One line per state; Fabric's own message once, on failed."""
+    s = run.get("state")
+    if s == "queued":
+        return f"{name}: queued in Fabric."
+    if s == "running":
+        return f"{name}: running in Fabric."
+    if s == "succeeded":
+        return f"{name}: succeeded."
+    if s == "failed":
+        return f"{name}: failed. Fabric says: {run.get('message') or 'no message'}"
+    return f"{name}: {run.get('message') or 'no answer from Fabric yet'}"
+
+
+def preview_table(workspace: str, lakehouse: str, schema: str, table: str) -> dict:
+    """The output table after a run that succeeded: its row count and first 10 rows, read the way sample_rows reads
+    (masked by the privacy rules), as the signed-in user. Returned once; nothing is kept."""
+    from . import server as S
+    s, execute = S._connected(workspace, lakehouse, schema, None)
+    try:
+        t = next((x for x in s if x.name.lower() == table.lower()), None)
+        if t is None:
+            return {"table": table, "missing": True,
+                    "words": f"The run succeeded, but {table} is not in the lakehouse yet: Fabric may still be writing it."}
+        q = S._evidence
+        types = {c.name: c.data_type for c in t.columns}
+        rows = execute(q.sample_sql(s.schema, t.name, t.column_names, 10, types))
+        counted = execute(f"SELECT COUNT_BIG(*) AS n FROM [{s.schema.replace(']', ']]')}].[{t.name.replace(']', ']]')}]")
+    finally:
+        getattr(execute, "close", lambda: None)()
+    shown = S._privacy_rows(t.name, t.column_names, [{k: (v if isinstance(v, (int, float, bool)) or v is None else str(v)[:200])
+                                                      for k, v in r.items()} for r in rows], s, False)
+    n = int((counted[0] if counted else {}).get("n") or 0)
+    return {**shown, "row_count": n, "words": f"{t.name}: {n:,} rows; the first {min(10, len(rows))} below. Read now, not stored."}
+
+
+def run_item(req: dict) -> dict:
+    """ED3: Run now (no run_id: start one run) or the run's state (run_id), and on succeeded the output's preview."""
+    from . import server as S
+    from .deploy import send
+    headers = S._headers(None)
+
+    def http(method, url, **kw):
+        return send(method, url, headers, write=method != "get", timeout=30, **kw)
+    if not req["run_id"]:
+        refused = run_permission(token_scopes(), req["item_type"])
+        if refused:
+            log("run_now", outcome="needs_permission")
+            return refused
+        run = start_item_run(http, req["workspace"], req["item_id"], req["item_type"])
+        log("run_now", outcome=run["state"])
+    else:
+        run = read_item_run(http, req["workspace"], req["item_id"], req["run_id"])
+    run["words"] = run_state_words(run, req["name"])
+    run["only_when"] = RUN_ONLY_WHEN
+    if run["state"] == "succeeded" and req.get("preview"):
+        pv = req["preview"]
+        try:
+            run["preview"] = preview_table(req["workspace"], pv["lakehouse"], pv["schema"], pv["table"])
+        except Exception as exc:  # noqa: BLE001 — the run's state stands; the preview says why it is missing
+            from .errors import explain
+            got = explain(exc, f"reading {pv['table']}")
+            run["preview"] = {"table": pv["table"], "missing": True,
+                              "words": f"The run succeeded; the preview of {pv['table']} could not be read: {got.get('error', 'no answer')}"}
+    return run
 
 
 # ------------------------------------------------------------------ WB4: Recommended analyses -----------------------
@@ -2598,8 +2807,17 @@ def make_lakehouse(ws: str, plan: dict, headers: dict, req: dict, list_items=Non
             return got
         if int(got.get("http") or 0) != 409 and "already in use" not in str(got.get("error", "")).lower():
             return got
+        listed = list_items()
+        # ED3 (Gustav, 21 November: shop_lh_krusgraph_test was in this very workspace, made by an earlier Create, and
+        # Create still got 409 "already in use"): when the listing now shows a lakehouse of exactly this name, it is
+        # this data product's own, made before (or a moment ago); it is used, never replaced by name_2
+        same = next((it for it in listed if it.get("type") == "Lakehouse"
+                     and str(it.get("displayName") or "").lower() == name.lower()), None)
+        if same:
+            return {"id": same.get("id"), "name": same.get("displayName") or name, "workspace": ws, "made": False,
+                    "words": f"Uses the lakehouse {same.get('displayName') or name}, already in this workspace (an earlier Create made it)."}
         tried.append(name)
-        nxt = free_lakehouse_name(first.get("asked") or first["name"], list_items(), tuple(tried))
+        nxt = free_lakehouse_name(first.get("asked") or first["name"], listed, tuple(tried))
         if nxt["action"] == "use":
             return {"id": None, "name": nxt["name"], "workspace": ws, "made": False}
         name = nxt["name"]
@@ -3186,6 +3404,7 @@ def routes(cfg, validator=None, obo=None) -> list:
             Route(f"{PREFIX}/verify", endpoint(verify_request, run_verify, "verify"), methods=["POST", "OPTIONS"]),   # n229
             Route(f"{PREFIX}/catalog", endpoint(catalog_request, run_catalog, "catalog"), methods=["POST", "OPTIONS"]),   # CA1
             Route(f"{PREFIX}/starter", endpoint(starter_request, run_starter, "starter"), methods=["POST", "OPTIONS"]),   # WB10
+            Route(f"{PREFIX}/run", endpoint(run_item_request, run_item, "run"), methods=["POST", "OPTIONS"]),   # ED3: Run now
             Route(f"{PREFIX}/analysis", endpoint(analysis_request, run_analysis, "analysis"), methods=["POST", "OPTIONS"]),   # WB4
             Route(f"{PREFIX}/access", endpoint(access_request, None, "access"), methods=["POST", "OPTIONS"])]
 

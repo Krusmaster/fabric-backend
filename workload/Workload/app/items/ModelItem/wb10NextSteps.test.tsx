@@ -87,6 +87,6 @@ describe("#64: the Data Science starter, created in the workspace", () => {
 
   it("says the notebook is in the workspace once it was created", () => {
     const n = nextSteps({ review: REVIEW, created: [{ type: "Notebook", name: "x", output: "ds_features" }], source: SOURCE });
-    expect(n.steps.find((s) => s.id === "ds-features")!.note).toContain("The notebook is in your workspace");
+    expect(n.steps.find((s) => s.id === "ds-features")!.note).toContain("The notebook is in this item's workspace");
   });
 });
