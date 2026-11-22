@@ -35,7 +35,7 @@ html,body{margin:0;width:1080px;height:1920px;overflow:hidden;background:var(--b
   <div class="glow" id="g3" style="width:700px;height:700px;background:#9db8a0"></div>
 
   <!-- S1 -->
-  <div class="h h1" id="s1a" style="top:520px">Your data is<br>in <span class="or">Fabric.</span></div>
+  <div class="h h1" id="s1a" style="top:520px">Your data is<br>in <span class="or">Fabric.</span><img src="../../../../workload/Workload/node_modules/@fabric-msft/svg-icons/svg/fabric_48_color.svg" class="fl" style="width:0.82em;height:0.82em;vertical-align:-0.1em;margin-left:0.18em"></div>
   <div id="chips"></div>
 
   <!-- S2 -->
@@ -67,7 +67,8 @@ html,body{margin:0;width:1080px;height:1920px;overflow:hidden;background:var(--b
   <div class="abs" id="logo" style="left:390px;top:430px;width:300px;height:300px"><img src="../../../../fabric_backend/static/favicon.svg" width="300" height="300" style="border-radius:60px"></div>
   <div class="h" id="s6a" style="top:790px;font-size:120px">Krusgraph</div>
   <div class="h" id="s6b" style="top:950px;font-size:62px;color:var(--ink)">Ontologies, data products<br>and <span class="or">apps</span> in a few taps.</div>
-  <div class="h" id="s6c" style="top:1150px;font-size:60px;color:var(--gr)">krusgraph.com</div>
+  <div class="h" id="s6c" style="top:1186px;font-size:60px;color:var(--gr)">krusgraph.com</div>
+  <div class="h" id="s6d" style="top:1104px;font-size:46px;color:var(--muted)">on <img src="../../../../workload/Workload/node_modules/@fabric-msft/svg-icons/svg/fabric_48_color.svg" style="width:50px;height:50px;vertical-align:-10px;margin:0 4px">Microsoft Fabric</div>
   <div class="fine" id="fine" style="top:1440px">Demo on synthetic data. Ontology and Fabric apps are Fabric previews.<br>Krusgraph is independent and not affiliated with Microsoft.</div>
 
   <img class="mascot" id="m1" src="../../../../fabric_backend/static/mascots/builder.png">
@@ -144,6 +145,7 @@ window.render=function(t){
  set($('s6a'),win(t,e+.3,T[6]+1,.35,.01),0,30*(1-eo(lin(t,e+.3,e+.7))));
  set($('s6b'),win(t,e+.7,T[6]+1,.35,.01),0,30*(1-eo(lin(t,e+.7,e+1.1))));
  set($('s6c'),win(t,e+1.1,T[6]+1,.35,.01));
+ set($('s6d'),win(t,e+0.9,T[6]+1,.35,.01));
  set($('fine'),win(t,e+1.1,T[6]+1,.35,.01));
  // mascots: S1 peek, S4 builder cheers, S6 all three
  const m=[$('m1'),$('m2'),$('m3')];
