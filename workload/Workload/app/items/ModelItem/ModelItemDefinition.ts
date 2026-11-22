@@ -82,6 +82,8 @@ export interface CreatedItem {
   output?: string;
   /** n180: the plan it was built from (absent for items built before n180: "plan unknown") */
   plan?: PlanMark;
+  /** ED3: a notebook's default lakehouse (its id): where Run now's preview reads the table the notebook wrote */
+  attached?: string;
   /** n185: a data agent Krusgraph published in Fabric */
   published?: boolean;
   /** n197: in the data product, an item an earlier Create of this item built */

@@ -68,6 +68,12 @@ two minutes before it expires. The server stores nothing on disk and never write
   on the auth path.
 - Every tool error goes through `errors.scrub`, which removes JWT-shaped strings, `Bearer …` values and
   `authorization`/`x-fabric-sql-token`/`client_secret` header-like pairs, then caps the length.
+- Run now (round ED3, `POST /workload/v1/run`): only the person's click starts a run, of a notebook or pipeline the
+  Krusgraph Model item created, through Fabric's Run On Demand Item Job with the signed-in user's delegated token
+  (`Notebook.Execute.All`, `DataPipeline.Execute.All` or `Item.Execute.All`, whichever the sign-in already carries; no
+  permission was added for it). Without one the answer says so and points to Run in Fabric. The item id and type are
+  validated as a GUID and `Notebook`/`DataPipeline`; the preview table name is an identifier, read with the same
+  quoted `sample_rows` query, masked by the privacy rules, never stored.
 - Discovery documents (`/.well-known/oauth-protected-resource`, `/mcp/server-card`, `llms.txt`, the site) stay
   public; the guard covers exactly `/mcp` and `/mcp/`, and the MCP transport is reachable nowhere else.
 

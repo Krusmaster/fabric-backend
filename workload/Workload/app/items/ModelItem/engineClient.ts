@@ -620,7 +620,7 @@ export function engineScope(
 
 export type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
-type Route = "review" | "check" | "build" | "schemas" | "pipeline-run" | "operation" | "product" | "health" | "access" | "drawio" | "verify" | "catalog" | "file" | "starter" | "analysis";
+type Route = "review" | "check" | "build" | "schemas" | "pipeline-run" | "operation" | "product" | "health" | "access" | "drawio" | "verify" | "catalog" | "file" | "starter" | "analysis" | "run";
 
 /** n197: send the request in the background (202 and an operation id) and read the operation until it ends; an engine
  * that answers at once (200, an older server, or no store for operations) is taken as it answers. */
@@ -1004,6 +1004,13 @@ export function file<T>(workloadClient: WorkloadClientAPI, body: object, fetchIm
  * unless dry_run is false and the dry run's confirm is sent back; never run by Krusgraph, never overwriting. */
 export function starter<T>(workloadClient: WorkloadClientAPI, body: object, fetchImpl?: Fetch): Promise<T> {
   return callOnce<T>(workloadClient, "starter", body, REQUEST_WAIT_MS, fetchImpl ?? ((u, i) => fetch(u, i)), false);
+}
+
+/** ED3: Run now (POST /workload/v1/run, fabric_backend/workload_api.run_item): without run_id one run of a notebook or
+ * pipeline Krusgraph created starts, as the signed-in user; with run_id its state is read (and, once it succeeded, the
+ * output table's row count and first 10 rows when `preview` names it). Only ever sent on the person's click. */
+export function runItem<T>(workloadClient: WorkloadClientAPI, body: object, fetchImpl?: Fetch): Promise<T> {
+  return callOnce<T>(workloadClient, "run", body, REQUEST_WAIT_MS, fetchImpl ?? ((u, i) => fetch(u, i)), false);
 }
 
 /** WB4: Recommended analyses (POST /workload/v1/analysis, fabric_backend/workload_api.run_analysis): analysis_plan's
