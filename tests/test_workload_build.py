@@ -298,10 +298,17 @@ def test_the_flow_is_the_engine_s_silver_gold_and_pipeline_output(make):
     steps_ = [nodes[i] for i in flow["pipeline"]["steps"]]
     assert [json.loads(s["code"]) for s in steps_] == acts
     assert [s["notebook"] for s in steps_] == ["shop_silver", "shop_gold", "shop_flow_check"]
-    # the model reads the source tables, its code its relationships and measures; the report is on the model
+    # DPM1: the model reads the gold views this build writes (a line from each), its code its relationships and measures;
+    # the report is on the model
     model = nodes["item:semantic_model"]
     assert model["code"].startswith("// definition/relationships.tmdl") and "measure 'Rows in orders'" in model["code"]
-    assert {"from": "bronze", "to": "item:semantic_model", "label": "reads the source tables", "built": True} in flow["edges"]
+    assert cards["semantic_model"]["answer"]["summary"]["reads"]["layer"] == "gold"
+    assert model["lines"] == [cards["semantic_model"]["answer"]["summary"]["reads"]["said"]]
+    assert cards["semantic_model"]["reads"] == "Reads: " + model["lines"][0]
+    into = {e["from"] for e in flow["edges"] if e["to"] == "item:semantic_model"}
+    assert into and into <= {f"gold:{v['name']}" for v in views} and "gold:gold.audit_log" not in into
+    assert all(e["label"] == "built on gold" for e in flow["edges"] if e["to"] == "item:semantic_model")
+    assert flow["columns"][-1]["title"] == "Built on gold"
     assert {"from": "item:semantic_model", "to": "item:report", "label": "on the model", "built": True} in flow["edges"]
 
 

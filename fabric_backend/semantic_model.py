@@ -334,6 +334,177 @@ def active_relationships(plan: Plan, rels: list[Relationship], validation: dict 
     return [e["rel"] for e in active], [(e["rel"], e["why"]) for e in inactive]
 
 
+# ------------------------------------------------------------------ DPM1: the model on gold, by data product -------
+# Gustav, 21 November 2026, on the shop sample's data flow: "ska vi inte använda dataprodukterna för den semantiska
+# modellen?" When a build has gold views, the model reads them: the fact views (one wide view per fact table) and the
+# dimension views (gold.spec(dimensions=True)), a star schema in gold. It is one model, not one per data product: the
+# interface between two data products is a relationship, and a relationship holds only inside one model. Each data
+# product (domains.data_products, ED2's one grouping) is a perspective of the model (TMDL `perspective` /
+# `perspectiveTable` / `perspectiveMeasure`, learn.microsoft.com analysis-services/tmdl/tmdl-overview, ms.date
+# 2023-12-27, read 22 November 2026), its tables carry the annotation Krusgraph_DataProduct and its measures the display
+# folder of its name. A table outside every data product stays out of the model.
+ADVANCED_ANALYTICS = "Advanced analytics"      # the display folder round AA1 fills with prediction tables
+
+
+def _tmdl_text(value: str) -> str:
+    """A TMDL text property: in double quotes (doubled inside) when it has leading or trailing space or a quote."""
+    v = str(value)
+    return '"' + v.replace('"', '""') + '"' if v != v.strip() or '"' in v else v
+
+
+def perspective_tmdl(group: dict, chosen, by_table: dict, calendar: str | None, on_gold: dict) -> str:
+    """One data product as a perspective: its tables, the tables its interfaces point at, and the calendar, each with
+    its columns and measures."""
+    names = list(group["tables"]) + [t for t in group.get("reaches", []) if t not in group["tables"]]
+    lines = [f"/// The data product {group['name']}: {', '.join(group['tables'])}"
+             + (f"; with {', '.join(group['reaches'])} through its interface(s)" if group.get("reaches") else "") + ".",
+             f"perspective {tmdl_name(group['name'])}", ""]
+    tables = {t.name: t for t in chosen}
+    for n in names + ([calendar] if calendar else []):
+        lines.append(f"\tperspectiveTable {tmdl_name(n)}")
+        cols = [c.name for c in tables[n].columns] if n in tables else ["Date", "Year", "Month", "Year Month"]
+        lines += [f"\t\tperspectiveColumn {tmdl_name(c)}" for c in cols]
+        lines += [f"\t\tperspectiveMeasure {tmdl_name(m['name'])}" for m in by_table.get(n, [])]
+        lines.append("")
+    return "\n".join(lines)
+
+
+def gold_model(plan: Plan, gspec: dict, validation: dict | None = None, products: dict | None = None) -> dict:
+    """The star schema over the gold views of `gspec` (gold.spec(..., dimensions=True)), shaped by the data products:
+    {"plan": the plan of the gold views, "kinds", "product_of", "products", "interfaces", ...} for draft(on_gold=...).
+    Relationships: from a fact view to a dimension view over a column the view carries (its own reference, or the
+    reference of a fact it joins, such as order_items' orders_customer_id), and between two dimension views as the plan
+    links them; never from one fact to another (the line view already carries the header's columns, and a header amount
+    is left out of it: gold.spec's header_amounts_left_out). Only onto a key the row check counted unique when the
+    check ran (`validation`); without it the keys are the plan's and the summary says they were not checked."""
+    from . import domains as _domains, gold as _gold
+    from .schema import Column, Schema, Table
+    products = products if products is not None else _domains.data_products(plan)
+    product_of = {t: d["name"] for d in products["domains"] for t in d["tables"]}
+    gschema = gspec["gold_schema"]
+    views = {v["fact"]: v for v in _gold.all_views(gspec) if v["fact"] in product_of}
+    kinds = {t: ("dimension" if v.get("kind") == "dimension" else "fact") for t, v in views.items()}
+    checked = {k["table"]: k for k in (validation or {}).get("keys", [])}
+    from . import graphs
+    role0 = {t: r["role"] for t, r in graphs.analyze(plan, None)["roles"].items()}
+
+    def key_ok(t: str) -> str:
+        """'' when t's key may be a one side, else why not."""
+        if validation is None:
+            return ""
+        k, key = checked.get(t), plan.keys.get(t, ([], ""))[0]
+        if not k or [c.lower() for c in k.get("columns", [])] != [c.lower() for c in key]:
+            return f"the key {'+'.join(key)} of {t} was not counted by the row check"
+        if not str(k.get("verdict", "")).startswith("unique"):
+            return f"the key {'+'.join(key)} of {t} is not unique in the rows ({k.get('verdict')})"
+        return ""
+    tables, outname = {}, {}
+    for t, v in views.items():
+        cols = []
+        for c in v["columns"]:
+            dt = next((x.data_type for x in plan.schema[c["table"]].columns if x.name == c["column"]), "string")
+            cols.append(Column(c["as"], dt))
+        tables[t] = Table(t, cols, schema=gschema)
+        outname[t] = {(c["table"], c["column"].lower()): c["as"] for c in v["columns"]}
+        outname[t].update({(k["table"], k["column"].lower()): k["same_as"] for k in v.get("keys_once", [])})
+    from . import combined_keys as _combined
+    comb = _combined.columns(plan)                               # n226: a composite key relates on its combined column
+
+    def one_key(t: str) -> list[str] | None:
+        key = plan.keys.get(t, ([], ""))[0]
+        if len(key) > 1:
+            k = _combined.key_column(plan, t, comb)
+            return [k] if k and (t, k.lower()) in outname[t] else None
+        return list(key) if key and all((t, c.lower()) in outname[t] for c in key) else None
+
+    def ref_column(r: Relationship) -> str | None:
+        """The one column of r's source that holds the reference: its own, or the combined column silver wrote."""
+        return r.source_cols[0] if len(r.source_cols) == 1 else _combined.source_column(plan, r, comb)
+    keys = {t: (one_key(t), plan.keys[t][1]) for t in views if t in plan.keys and one_key(t)}
+    rels, not_related, f2f = [], [], []
+    seen = set()
+
+    def add(source: str, column: str, target: str, r: Relationship):
+        if target not in keys:
+            return
+        why = key_ok(target)
+        if why:
+            not_related.append({"source": source, "column": column, "target": target, "why": why})
+            return
+        if (source, column.lower(), target) in seen:
+            return
+        seen.add((source, column.lower(), target))
+        rels.append(Relationship(source, [column], target, list(keys[target][0]), r.rule, note=r.note))
+    for t, v in views.items():
+        if kinds[t] != "fact":
+            continue
+        rel_of = {(r.source, tuple(c.lower() for c in r.source_cols), r.target): r for r in plan.relationships}
+        for j in v["joins"]:
+            r = rel_of.get((j["from"], tuple(c.lower() for c in j["source_cols"]), j["to"]))
+            if r is None or ref_column(r) is None:
+                continue
+            if role0[j["to"]] == "fact":
+                f2f.append({"source": t, "target": j["to"], "why": f"both are fact tables; {t} carries the columns of {j['to']} it "
+                            f"joins ({', '.join(c for (tb, _), c in outname[t].items() if tb == j['to'])}), and a header amount of "
+                            f"{j['to']} is left out of it"})
+                continue
+            if role0[j["from"]] != "fact" or j["to"] not in views:
+                continue                                          # a dimension's own link is related between the dimension views
+            col = outname[t].get((j["from"], ref_column(r).lower()))
+            if col:
+                add(t, col, j["to"], r)
+    for r in plan.relationships:                                  # dimension to dimension, as the plan links them
+        col = ref_column(r) if kinds.get(r.source) == "dimension" and kinds.get(r.target) == "dimension" else None
+        if col and (r.source, col.lower()) in outname[r.source]:
+            add(r.source, outname[r.source][(r.source, col.lower())], r.target, r)
+    gp = Plan(Schema(tables, schema=gschema), keys=keys, relationships=rels, pack=getattr(plan, "pack", None))
+    interfaces, iface_list = {}, []
+    for r in rels:
+        a, b = product_of[r.source], product_of[r.target]
+        if a != b:
+            interfaces[r.key] = f"{a} -> {b}"
+            iface_list.append({"source": r.source, "column": r.source_cols[0], "target": r.target, "from_product": a, "to_product": b})
+    groups = []
+    for d in products["domains"]:
+        mine = [t for t in d["tables"] if t in views]
+        reaches = sorted({i["target"] for i in iface_list if i["source"] in mine and i["target"] not in mine})
+        groups.append({"name": d["name"], "tables": mine, "reaches": reaches})
+    left_out = [{"table": u["table"], "why": "it is in no data product (" + u.get("reason", "") + "), so the model leaves it out; "
+                 "place it in a data product to have it in the model"} for u in products.get("unassigned", [])]
+    carried_in = {}                                               # a table of a data product with no gold view of its own
+    for v in views.values():
+        for t in v["tables"][1:]:
+            carried_in.setdefault(t, []).append(v["fact"])
+    not_in_gold = [{"table": t, "data_product": product_of[t],
+                    "why": (f"its role is {role0.get(t, 'other')}: gold has a view per fact table and per dimension table with a key, "
+                            + (f"and its columns are in the view(s) of {', '.join(sorted(set(carried_in[t])))}, which join it" if t in carried_in
+                               else "and no view joins it"))}
+                   for d in products["domains"] for t in d["tables"] if t not in views]
+    n_f = sum(1 for k in kinds.values() if k == "fact")
+    said = (f"Built on gold: reads the gold views in schema {gschema} ({n_f} fact view(s), {len(kinds) - n_f} dimension view(s), "
+            f"a star schema), grouped into {len(groups)} data product(s): " + ", ".join(g["name"] for g in groups) + ".")
+    return {"plan": gp, "schema": gschema, "kinds": kinds, "product_of": {t: product_of[t] for t in views},
+            "products": groups, "interfaces": interfaces, "said": said,
+            "data_products": [{"name": g["name"], "perspective": g["name"], "tables": g["tables"], "display_folder": g["name"]} for g in groups],
+            "interfaces_list": iface_list, "left_out": left_out, "fact_to_fact_left_out": f2f, "not_related": not_related,
+            "not_in_gold": not_in_gold,
+            "header_amounts_left_out": [{"view": x["view"], "table": x["table"], "column": x["column"]} for x in gspec.get("header_amounts_left_out", [])],
+            "keys_checked": validation is not None,
+            "advanced_analytics": {"display_folder": ADVANCED_ANALYTICS, "tables": [],
+                                   "note": "reserved for prediction tables (round AA1); TMDL has no empty display folder, so it appears "
+                                           "once something is placed in it"}}
+
+
+def draft_on_gold(plan: Plan, info: dict, gspec: dict, name: str = "semantic_model", validation: dict | None = None,
+                  date_range: tuple[str, str] | None = None, whole_quantities=frozenset(), products: dict | None = None) -> dict:
+    """DPM1: the model over the gold views of `gspec`, grouped by data product. `info` is the source's (or the
+    lakehouse the gold views are in); its schema becomes the gold schema."""
+    g = gold_model(plan, gspec, validation, products)
+    ginfo = {**info, "schema": g["schema"], "schemas_enabled": True}
+    return draft(g["plan"], ginfo, name, validation=validation, date_range=date_range, whole_quantities=whole_quantities,
+                 combined=False, on_gold=g)
+
+
 def envelope(parts: dict[str, str], name: str, description: str = "") -> dict:
     """The body for POST /workspaces/{id}/semanticModels and the `definition` for updateDefinition: every
     definition/*.tmdl part and definition.pbism as InlineBase64, plus the .platform part (type SemanticModel), the
@@ -357,7 +528,7 @@ def envelope(parts: dict[str, str], name: str, description: str = "") -> dict:
 
 def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str] | None = None, validation: dict | None = None,
           date_range: tuple[str, str] | None = None, whole_quantities: set[tuple[str, str]] = frozenset(),
-          combined: bool | None = None) -> dict:
+          combined: bool | None = None, on_gold: dict | None = None) -> dict:
     """info: item_name, item_kind, schema, sql_endpoint, sql_db, schemas_enabled (from server._source_inputs); returns
     {"parts": {path: content}, "summary": {...}}. `validation` (evidence.validate's answer) raises the certainty of the
     links it confirmed when the active set is chosen. `date_range` (first, last date of the related date columns, read
@@ -367,7 +538,10 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
     n226: when a relationship among the tables needs a composite key (combined_keys.py), the model reads the silver layer,
     where the silver step writes one combined key column per composite key and link, and relates on those columns; the
     summary's `reads` says so. `combined=False` keeps the source tables and leaves such relationships not expressible.
-    A plan without one is drafted exactly as before."""
+    A plan without one is drafted exactly as before.
+    DPM1: `on_gold` (gold_model's answer, with `plan` its gold plan) makes the model the star schema over the gold views:
+    each table's role is its view's kind, each data product a perspective with its measures in a display folder of its
+    name, the relationships between data products marked as interfaces, and the summary's `reads` says gold."""
     from . import combined_keys as _combined, graphs
     original = plan
     plan, carried = _combined.carry(original, tables) if combined is not False else (original, {})
@@ -375,6 +549,9 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
     if not layer:                                                # nothing combined, or no silver step for this source
         plan, carried = original, {}
     analysis = graphs.analyze(original, validation)
+    if on_gold:                                                  # DPM1: the view's kind is the role (star schema)
+        for t, kind in on_gold["kinds"].items():
+            analysis["roles"][t] = {"role": kind, "why": f"a gold {'fact' if kind == 'fact' else 'dimension'} view ({on_gold['schema']}.{t})"}
     role_of = {t: r["role"] for t, r in analysis["roles"].items()}
     wanted = {t.lower() for t in tables} if tables else None
     chosen = [t for t in plan.schema if not wanted or t.name.lower() in wanted]
@@ -451,6 +628,9 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
     model += [f"ref table {tmdl_name(t.name)}" for t in chosen]
     if calendar:
         model.append(f"ref table {tmdl_name(calendar)}")
+    if on_gold:                                                  # DPM1: one perspective per data product
+        model += [""] + [f"ref perspective {tmdl_name(g['name'])}" for g in on_gold["products"]]
+        model += ["", f"annotation Krusgraph_AdvancedAnalyticsFolder = {ADVANCED_ANALYTICS}"]
     parts["definition/model.tmdl"] = "\n".join(model) + "\n"
     parts["definition/expressions.tmdl"] = "\n".join([
         f"expression {EXPRESSION} =", "\t\tlet", f'\t\t    database = Sql.Database({_m_text(endpoint)}, {_m_text(database)})',
@@ -463,7 +643,10 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                  f"\tsourceLineageTag: [{schema}].[{prefix}{t.name}]", ""]
         for m in by_table.get(t.name, []):
             lines += [f"\t/// Suggested by Krusgraph: {m['why']}.", f"\tmeasure {tmdl_name(m['name'])} = {m['expression']}",
-                      f"\t\tformatString: {m['format']}", f"\t\tlineageTag: {_tag(name, 'measure', t.name, m['name'])}", ""]
+                      f"\t\tformatString: {m['format']}"]
+            if on_gold and t.name in on_gold["product_of"]:      # DPM1: the measure sits with its data product
+                lines.append(f"\t\tdisplayFolder: {_tmdl_text(on_gold['product_of'][t.name])}")
+            lines += [f"\t\tlineageTag: {_tag(name, 'measure', t.name, m['name'])}", ""]
         for c in t.columns:
             dt = data_type(c.data_type)
             is_key = len(key) == 1 and c.name == key[0] and t.name not in dup
@@ -494,9 +677,14 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
             lines.append(f"\t\t\tschemaName: {schema}")
         lines += [f"\t\t\texpressionSource: {EXPRESSION}", "", "\tannotation PBI_ResultType = Table", "",
                   f"\tannotation Krusgraph_Role = {role_of.get(t.name, 'other')}", ""]
+        if on_gold and t.name in on_gold["product_of"]:          # DPM1
+            lines += [f"\tannotation Krusgraph_DataProduct = {on_gold['product_of'][t.name]}", ""]
         parts[f"definition/tables/{t.name}.tmdl"] = "\n".join(lines)
     if calendar:
         parts[f"definition/tables/{calendar}.tmdl"] = calendar_tmdl(calendar, name, date_range)
+    if on_gold:
+        for g in on_gold["products"]:
+            parts[f"definition/perspectives/{g['name']}.tmdl"] = perspective_tmdl(g, chosen, by_table, calendar, on_gold)
 
     rel_lines: list[str] = []
     for r in active + [x for x, _ in inactive]:
@@ -506,6 +694,8 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
             rel_lines.append("\tisActive: false")
         rel_lines.append(f"\tfromColumn: {tmdl_name(r.source)}.{tmdl_name(r.source_cols[0])}")
         rel_lines.append(f"\ttoColumn: {tmdl_name(r.target)}.{tmdl_name(r.target_cols[0])}")
+        if on_gold and r.key in on_gold["interfaces"]:           # DPM1: between two data products, said on the relationship
+            rel_lines += ["", f"\tannotation Krusgraph_Interface = {on_gold['interfaces'][r.key]}"]
         rel_lines.append("")
     # The calendar joins the active relationships under the same rule: one active path between any two tables. A date
     # relationship whose fact is already connected to the calendar through active links (a second date column of the same
@@ -670,6 +860,25 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                                "not_related": [{"fact": f, "column": c, "why": "datetime with a time of day"} for f, c in timed],
                                "range": (f"{cal_first}-01-01 to {cal_last}-12-31 (the data's years, {date_range[0]} to {date_range[1]})" if cal_from_data
                                          else f"{CALENDAR_FIRST_YEAR}-01-01 to {CALENDAR_LAST_YEAR}-12-31 (placeholder; see README)")} if calendar else None)}
+    if on_gold:                                                    # DPM1
+        summary["reads"] = {"layer": "gold", "schema": on_gold["schema"], "said": on_gold["said"]}
+        summary.update({k: on_gold[k] for k in ("data_products", "interfaces_list", "left_out", "fact_to_fact_left_out", "not_in_gold",
+                                                "not_related", "header_amounts_left_out", "keys_checked", "advanced_analytics")})
+        summary["interfaces"] = summary.pop("interfaces_list")
+        for g in summary["data_products"]:
+            g["measures"] = [m["name"] for m in measures if on_gold["product_of"].get(m["table"]) == g["name"]]
+        readme += ["", "## Built on gold, grouped by data product (DPM1)", "", on_gold["said"], ""]
+        readme += [f"- Data product `{g['name']}`: perspective `{g['name']}`, tables {', '.join(f'`{t}`' for t in g['tables'])}; its measures "
+                   f"sit in the display folder `{g['name']}`." for g in summary["data_products"]]
+        readme += [f"- Interface `{i['source']}.{i['column']} -> {i['target']}` ({i['from_product']} -> {i['to_product']}): a relationship "
+                   "of the model, marked with the annotation `Krusgraph_Interface`." for i in summary["interfaces"]]
+        readme += [f"- `{x['table']}` is not in the model: {x['why']}." for x in on_gold["left_out"]]
+        readme += [f"- No relationship from `{x['source']}` to `{x['target']}`: {x['why']}." for x in on_gold["fact_to_fact_left_out"]]
+        readme += [f"- `{x['table']}` ({x['data_product']}) has no table in the model: {x['why']}." for x in on_gold["not_in_gold"]]
+        readme += [f"- `{x['source']}.{x['column']} -> {x['target']}` is not related: {x['why']}." for x in on_gold["not_related"]]
+        readme += [f"- The display folder `{ADVANCED_ANALYTICS}` is reserved for prediction tables; TMDL has no empty folder, so it appears "
+                   "once something is placed in it (the model's annotation `Krusgraph_AdvancedAnalyticsFolder` names it).", ""]
+        parts["README.generated.md"] = "\n".join(readme)
     if layer:                                                      # n226: only when columns are combined
         summary["reads"] = {"layer": "silver", "schema": schema, "tables": f"{prefix}<table>", "said": layer["said"]}
         summary["combined_key_columns"] = _combined.describe(carried)
