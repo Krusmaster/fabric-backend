@@ -90,6 +90,15 @@ def _checked(plan, table: str, key: list[str]) -> dict | None:
     return got
 
 
+def _check_counts(plan, table: str, key: list[str]) -> dict:
+    """DPM1: what the row check counted for this key (rows and distinct values), when it ran and passed: the data flow's
+    silver box says "key checked: N of N unique". Also for a declared or given key, which silver de-duplicates on anyway."""
+    got = _checked(plan, table, key) if key else None
+    if not got or got.get("how") != "rows" or got.get("rows") is None or got.get("distinct") is None:
+        return {}
+    return {"key_check_counts": {"rows": int(got["rows"]), "distinct": int(got["distinct"])}}
+
+
 def _checked_basis(got: dict) -> str:
     if got.get("how") == "rows":
         on = checked_on(got.get("checked_at"))
@@ -234,6 +243,7 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", order_by: dict |
                            **({"key_rule_text": _rule_text(key_rule)} if key and label(key_rule) != key_rule else {}),
                            "dedupe": dedupe, **({"key_basis": basis} if key else {}),
                            **({"key_checked": {"how": got.get("how"), "on": checked_on(got.get("checked_at"))}} if got else {}),
+                           **_check_counts(plan, t, list(key)),
                            "order_by": col, "order_why": why, "checks": checks,
                            **({"combined": [{"name": c.name, "columns": list(c.columns), "for": list(c.why)} for c in combined[t]]}
                               if combined.get(t) else {})})

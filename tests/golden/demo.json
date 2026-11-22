@@ -524,7 +524,7 @@
       },
       {
        "id": "built",
-       "title": "Built on the source"
+       "title": "Built on gold"
       }
      ],
      "edges": [
@@ -610,10 +610,99 @@
       },
       {
        "built": true,
-       "from": "bronze",
+       "from": "silver:addresses",
+       "to": "gold:gold.addresses"
+      },
+      {
+       "built": true,
+       "from": "silver:categories",
+       "to": "gold:gold.categories"
+      },
+      {
+       "built": true,
+       "from": "silver:customers",
+       "to": "gold:gold.customers"
+      },
+      {
+       "built": true,
+       "from": "silver:products",
+       "to": "gold:gold.products"
+      },
+      {
+       "built": true,
+       "from": "gold:gold.order_items",
+       "to": "item:semantic_model"
+      },
+      {
+       "built": true,
+       "from": "gold:gold.orders",
+       "to": "item:semantic_model"
+      },
+      {
+       "built": true,
+       "from": "gold:gold.addresses",
+       "to": "item:semantic_model"
+      },
+      {
+       "built": true,
+       "from": "gold:gold.categories",
+       "to": "item:semantic_model"
+      },
+      {
+       "built": true,
+       "from": "gold:gold.customers",
+       "to": "item:semantic_model"
+      },
+      {
+       "built": true,
+       "from": "gold:gold.products",
        "to": "item:semantic_model"
       }
      ],
+     "model": {
+      "data_products": [
+       {
+        "measures": [
+         "Rows in order_items",
+         "Total quantity",
+         "Rows in orders",
+         "Order amount"
+        ],
+        "name": "customers",
+        "tables": [
+         "addresses",
+         "customers",
+         "order_items",
+         "orders"
+        ]
+       },
+       {
+        "measures": [],
+        "name": "products",
+        "tables": [
+         "categories",
+         "products"
+        ]
+       }
+      ],
+      "interfaces": [
+       {
+        "column": "product_id",
+        "from_product": "customers",
+        "source": "order_items",
+        "target": "products",
+        "to_product": "products"
+       }
+      ],
+      "layer": "gold",
+      "left_out": [
+       {
+        "table": "audit_log",
+        "why": "it is in no data product (no key: a contract cannot promise its rows are unique; it points at customers, place it there by hand if it belongs), so the model leaves it out; place it in a data product to have it in the model"
+       }
+      ],
+      "reads": "Built on gold: reads the gold views in schema gold (2 fact view(s), 4 dimension view(s), a star schema), grouped into 2 data product(s): customers, products."
+     },
      "nodes": [
       {
        "built": true,
@@ -673,35 +762,35 @@
       },
       {
        "built": true,
-       "code": "# ---- categories -> silver.categories ----\n# Key id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)).\n# The key was guessed from names, not checked against the rows. Every row is kept: no duplicates were removed because the key was not checked, and no row goes to quarantine for its key. Rows that share it may be real rows (the same customer buying the same product twice). Give it as a key (keys=, or set it in the review) if they are true duplicates.\ndf = spark.read.table(source(\"categories\"))\nread_counts[\"categories\"] = df.count()\nnot_checked_keys[\"categories\"] = [\"id\"]\nsilver[\"categories\"] = write_silver(df, \"categories\")",
+       "code": "# ---- categories -> silver.categories ----\n# Key id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`); checked against the rows (Check against the rows: unique and never NULL)).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"categories\"))\nread_counts[\"categories\"] = df.count()\ndf = drop_null_keys(df, [\"id\"], \"categories\", \"K2\")\ndf = keep_latest(df, [\"id\"], None, \"categories\", \"K2\")\nsilver[\"categories\"] = write_silver(df, \"categories\")",
        "code_title": "Notebook cell for categories",
        "column": "silver",
        "id": "silver:categories",
        "label": "silver.categories",
        "lines": [
-        "every row kept: key id not checked"
+        "key checked: 3 of 3 unique"
        ]
       },
       {
        "built": true,
-       "code": "# ---- customers -> silver.customers ----\n# Key customer_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)).\n# The key was guessed from names, not checked against the rows. Every row is kept: no duplicates were removed because the key was not checked, and no row goes to quarantine for its key. Rows that share it may be real rows (the same customer buying the same product twice). Give it as a key (keys=, or set it in the review) if they are true duplicates.\ndf = spark.read.table(source(\"customers\"))\nread_counts[\"customers\"] = df.count()\nnot_checked_keys[\"customers\"] = [\"customer_id\"]\nsilver[\"customers\"] = write_silver(df, \"customers\")",
+       "code": "# ---- customers -> silver.customers ----\n# Key customer_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`); checked against the rows (Check against the rows: unique and never NULL)).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"customers\"))\nread_counts[\"customers\"] = df.count()\ndf = drop_null_keys(df, [\"customer_id\"], \"customers\", \"K2\")\ndf = keep_latest(df, [\"customer_id\"], None, \"customers\", \"K2\")\nsilver[\"customers\"] = write_silver(df, \"customers\")",
        "code_title": "Notebook cell for customers",
        "column": "silver",
        "id": "silver:customers",
        "label": "silver.customers",
        "lines": [
-        "every row kept: key customer_id not checked"
+        "key checked: 10 of 10 unique"
        ]
       },
       {
        "built": true,
-       "code": "# ---- addresses -> silver.addresses ----\n# Key address_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)).\n# The key was guessed from names, not checked against the rows. Every row is kept: no duplicates were removed because the key was not checked, and no row goes to quarantine for its key. Rows that share it may be real rows (the same customer buying the same product twice). Give it as a key (keys=, or set it in the review) if they are true duplicates.\ndf = spark.read.table(source(\"addresses\"))\nread_counts[\"addresses\"] = df.count()\nnot_checked_keys[\"addresses\"] = [\"address_id\"]\n# Reference addresses.customer_id = customers.customer_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver customers, so rows whose customers was quarantined follow it there.\ndf = check_reference(df, [\"customer_id\"], silver[\"customers\"], [\"customer_id\"], \"addresses\", \"R1\", \"customer_id has no row in customers (addresses.customer_id = customers.customer_id)\")\nsilver[\"addresses\"] = write_silver(df, \"addresses\")",
+       "code": "# ---- addresses -> silver.addresses ----\n# Key address_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`); checked against the rows (Check against the rows: unique and never NULL)).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"addresses\"))\nread_counts[\"addresses\"] = df.count()\ndf = drop_null_keys(df, [\"address_id\"], \"addresses\", \"K2\")\ndf = keep_latest(df, [\"address_id\"], None, \"addresses\", \"K2\")\n# Reference addresses.customer_id = customers.customer_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver customers, so rows whose customers was quarantined follow it there.\ndf = check_reference(df, [\"customer_id\"], silver[\"customers\"], [\"customer_id\"], \"addresses\", \"R1\", \"customer_id has no row in customers (addresses.customer_id = customers.customer_id)\")\nsilver[\"addresses\"] = write_silver(df, \"addresses\")",
        "code_title": "Notebook cell for addresses",
        "column": "silver",
        "id": "silver:addresses",
        "label": "silver.addresses",
        "lines": [
-        "every row kept: key address_id not checked",
+        "key checked: 17 of 17 unique",
         "customer_id → customers"
        ]
       },
@@ -719,25 +808,25 @@
       },
       {
        "built": true,
-       "code": "# ---- orders -> silver.orders ----\n# Key order_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)).\n# The key was guessed from names, not checked against the rows. Every row is kept: no duplicates were removed because the key was not checked, and no row goes to quarantine for its key. Rows that share it may be real rows (the same customer buying the same product twice). Give it as a key (keys=, or set it in the review) if they are true duplicates.\ndf = spark.read.table(source(\"orders\"))\nread_counts[\"orders\"] = df.count()\nnot_checked_keys[\"orders\"] = [\"order_id\"]\n# Reference orders.customer_id = customers.customer_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver customers, so rows whose customers was quarantined follow it there.\ndf = check_reference(df, [\"customer_id\"], silver[\"customers\"], [\"customer_id\"], \"orders\", \"R1\", \"customer_id has no row in customers (orders.customer_id = customers.customer_id)\")\nsilver[\"orders\"] = write_silver(df, \"orders\")",
+       "code": "# ---- orders -> silver.orders ----\n# Key order_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`); checked against the rows (Check against the rows: unique and never NULL)).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"orders\"))\nread_counts[\"orders\"] = df.count()\ndf = drop_null_keys(df, [\"order_id\"], \"orders\", \"K2\")\ndf = keep_latest(df, [\"order_id\"], None, \"orders\", \"K2\")\n# Reference orders.customer_id = customers.customer_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver customers, so rows whose customers was quarantined follow it there.\ndf = check_reference(df, [\"customer_id\"], silver[\"customers\"], [\"customer_id\"], \"orders\", \"R1\", \"customer_id has no row in customers (orders.customer_id = customers.customer_id)\")\nsilver[\"orders\"] = write_silver(df, \"orders\")",
        "code_title": "Notebook cell for orders",
        "column": "silver",
        "id": "silver:orders",
        "label": "silver.orders",
        "lines": [
-        "every row kept: key order_id not checked",
+        "key checked: 60 of 60 unique",
         "customer_id → customers"
        ]
       },
       {
        "built": true,
-       "code": "# ---- products -> silver.products ----\n# Key product_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)).\n# The key was guessed from names, not checked against the rows. Every row is kept: no duplicates were removed because the key was not checked, and no row goes to quarantine for its key. Rows that share it may be real rows (the same customer buying the same product twice). Give it as a key (keys=, or set it in the review) if they are true duplicates.\ndf = spark.read.table(source(\"products\"))\nread_counts[\"products\"] = df.count()\nnot_checked_keys[\"products\"] = [\"product_id\"]\n# Reference products.category_id = categories.id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver categories, so rows whose categories was quarantined follow it there.\ndf = check_reference(df, [\"category_id\"], silver[\"categories\"], [\"id\"], \"products\", \"R1\", \"category_id has no row in categories (products.category_id = categories.id)\")\nsilver[\"products\"] = write_silver(df, \"products\")",
+       "code": "# ---- products -> silver.products ----\n# Key product_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`); checked against the rows (Check against the rows: unique and never NULL)).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"products\"))\nread_counts[\"products\"] = df.count()\ndf = drop_null_keys(df, [\"product_id\"], \"products\", \"K2\")\ndf = keep_latest(df, [\"product_id\"], None, \"products\", \"K2\")\n# Reference products.category_id = categories.id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver categories, so rows whose categories was quarantined follow it there.\ndf = check_reference(df, [\"category_id\"], silver[\"categories\"], [\"id\"], \"products\", \"R1\", \"category_id has no row in categories (products.category_id = categories.id)\")\nsilver[\"products\"] = write_silver(df, \"products\")",
        "code_title": "Notebook cell for products",
        "column": "silver",
        "id": "silver:products",
        "label": "silver.products",
        "lines": [
-        "every row kept: key product_id not checked",
+        "key checked: 8 of 8 unique",
         "category_id → categories"
        ]
       },
@@ -749,7 +838,7 @@
        "id": "silver:order_items",
        "label": "silver.order_items",
        "lines": [
-        "one row per order_id + line_no",
+        "key checked: 134 of 134 unique",
         "order_id → orders",
         "product_id → products"
        ]
@@ -795,21 +884,63 @@
       },
       {
        "built": true,
-       "code": "// definition/relationships.tmdl\nrelationship 3ca0a090-0426-5f89-8b3c-dadc74de437d\n\tfromColumn: order_items.order_id\n\ttoColumn: orders.order_id\n\nrelationship 4f305a31-2098-5cf9-91c7-63ebf53ba32e\n\tfromColumn: order_items.product_id\n\ttoColumn: products.product_id\n\nrelationship 9ac8bca6-f373-534b-b226-cd3be3622c1f\n\tfromColumn: addresses.customer_id\n\ttoColumn: customers.customer_id\n\nrelationship 9bb61d42-0b53-5881-9c59-cb7e9ad697a1\n\tfromColumn: audit_log.customer_id\n\ttoColumn: customers.customer_id\n\nrelationship f5e57f0f-6eaf-54e7-8d9d-0e96a086fad7\n\tfromColumn: orders.customer_id\n\ttoColumn: customers.customer_id\n\nrelationship 53eeeba6-5062-5f8c-a45a-3e934679851e\n\tfromColumn: products.category_id\n\ttoColumn: categories.id\n\nrelationship f597a4b0-1ab9-56cc-be23-61bf841734c7\n\tfromColumn: orders.order_date\n\ttoColumn: Calendar.Date\n\n// definition/tables/audit_log.tmdl (measures)\n\tmeasure 'Rows in audit_log' = COUNTROWS('audit_log')\n\t\tformatString: #,0\n\t\tlineageTag: 857bc41d-43c2-590b-949e-09b9959f7949\n\n// definition/tables/order_items.tmdl (measures)\n\tmeasure 'Rows in order_items' = COUNTROWS('order_items')\n\t\tformatString: #,0\n\t\tlineageTag: 382be475-07ab-594e-9abe-08acb63e1024\n\tmeasure 'Total quantity' = SUM('order_items'[quantity])\n\t\tformatString: #,##0.00\n\t\tlineageTag: 5d96e799-ce7d-5524-8733-6657e91c2dfe\n\tmeasure 'Order amount' = SUMX('order_items', 'order_items'[quantity] * RELATED('products'[list_price]))\n\t\tformatString: #,##0.00\n\t\tlineageTag: 763d1940-160e-52aa-ab09-99966ae06c08\n\n// definition/tables/orders.tmdl (measures)\n\tmeasure 'Rows in orders' = COUNTROWS('orders')\n\t\tformatString: #,0\n\t\tlineageTag: edceda7b-7892-52d7-9f90-95ac44c3d6d0",
+       "code": "-- addresses is a dimension table (a leaf that only refers to others (a child entity without measures)); one row per addresses row, the dimension side of the star schema the semantic model reads.\nCREATE OR REPLACE MATERIALIZED LAKE VIEW `gold`.`addresses`\n(\n    -- the key of addresses is address_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)); a row without it identifies nothing\n    CONSTRAINT addresses_key_present CHECK (`address_id` IS NOT NULL) ON MISMATCH DROP\n)\nCOMMENT \"Krusgraph gold dimension view of addresses from silver, generated from the plan; rules in the constraint and WHERE comments\"\nTBLPROPERTIES (\"krusgraph.gold\"=\"00000000-0000-0000-0000-000000000001/shop\")\nAS\nSELECT\n    f.`address_id` AS `address_id`,\n    f.`customer_id` AS `customer_id`\nFROM `silver`.`addresses` AS f",
+       "code_title": "CREATE MATERIALIZED LAKE VIEW gold.addresses",
+       "column": "gold",
+       "id": "gold:gold.addresses",
+       "label": "gold.addresses",
+       "lines": [
+        "dimension: one row per addresses row"
+       ]
+      },
+      {
+       "built": true,
+       "code": "-- categories is a dimension table (1 reference(s) in, 0 out, few measures (0.0)); one row per categories row, the dimension side of the star schema the semantic model reads.\nCREATE OR REPLACE MATERIALIZED LAKE VIEW `gold`.`categories`\n(\n    -- the key of categories is id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)); a row without it identifies nothing\n    CONSTRAINT categories_key_present CHECK (`id` IS NOT NULL) ON MISMATCH DROP\n)\nCOMMENT \"Krusgraph gold dimension view of categories from silver, generated from the plan; rules in the constraint and WHERE comments\"\nTBLPROPERTIES (\"krusgraph.gold\"=\"00000000-0000-0000-0000-000000000001/shop\")\nAS\nSELECT\n    f.`id` AS `id`,\n    f.`name` AS `name`\nFROM `silver`.`categories` AS f",
+       "code_title": "CREATE MATERIALIZED LAKE VIEW gold.categories",
+       "column": "gold",
+       "id": "gold:gold.categories",
+       "label": "gold.categories",
+       "lines": [
+        "dimension: one row per categories row"
+       ]
+      },
+      {
+       "built": true,
+       "code": "-- customers is a dimension table (3 reference(s) in, 0 out, few measures (0.0)); one row per customers row, the dimension side of the star schema the semantic model reads.\nCREATE OR REPLACE MATERIALIZED LAKE VIEW `gold`.`customers`\n(\n    -- the key of customers is customer_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)); a row without it identifies nothing\n    CONSTRAINT customers_key_present CHECK (`customer_id` IS NOT NULL) ON MISMATCH DROP\n)\nCOMMENT \"Krusgraph gold dimension view of customers from silver, generated from the plan; rules in the constraint and WHERE comments\"\nTBLPROPERTIES (\"krusgraph.gold\"=\"00000000-0000-0000-0000-000000000001/shop\")\nAS\nSELECT\n    f.`customer_id` AS `customer_id`,\n    f.`country` AS `country`\nFROM `silver`.`customers` AS f",
+       "code_title": "CREATE MATERIALIZED LAKE VIEW gold.customers",
+       "column": "gold",
+       "id": "gold:gold.customers",
+       "label": "gold.customers",
+       "lines": [
+        "dimension: one row per customers row"
+       ]
+      },
+      {
+       "built": true,
+       "code": "-- products is a dimension table (1 reference(s) in, 1 out, few measures (0.0)); one row per products row, the dimension side of the star schema the semantic model reads.\nCREATE OR REPLACE MATERIALIZED LAKE VIEW `gold`.`products`\n(\n    -- the key of products is product_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)); a row without it identifies nothing\n    CONSTRAINT products_key_present CHECK (`product_id` IS NOT NULL) ON MISMATCH DROP\n)\nCOMMENT \"Krusgraph gold dimension view of products from silver, generated from the plan; rules in the constraint and WHERE comments\"\nTBLPROPERTIES (\"krusgraph.gold\"=\"00000000-0000-0000-0000-000000000001/shop\")\nAS\nSELECT\n    f.`product_id` AS `product_id`,\n    f.`name` AS `name`,\n    f.`category_id` AS `category_id`,\n    f.`list_price` AS `list_price`\nFROM `silver`.`products` AS f",
+       "code_title": "CREATE MATERIALIZED LAKE VIEW gold.products",
+       "column": "gold",
+       "id": "gold:gold.products",
+       "label": "gold.products",
+       "lines": [
+        "dimension: one row per products row"
+       ]
+      },
+      {
+       "built": true,
+       "code": "// definition/relationships.tmdl\nrelationship 4f305a31-2098-5cf9-91c7-63ebf53ba32e\n\tfromColumn: order_items.product_id\n\ttoColumn: products.product_id\n\n\tannotation Krusgraph_Interface = customers -> products\n\nrelationship 9ac8bca6-f373-534b-b226-cd3be3622c1f\n\tfromColumn: addresses.customer_id\n\ttoColumn: customers.customer_id\n\nrelationship f5e57f0f-6eaf-54e7-8d9d-0e96a086fad7\n\tfromColumn: orders.customer_id\n\ttoColumn: customers.customer_id\n\nrelationship 53eeeba6-5062-5f8c-a45a-3e934679851e\n\tfromColumn: products.category_id\n\ttoColumn: categories.id\n\nrelationship 5f760dbe-e12a-53a9-80aa-ca9bf32294d1\n\tfromColumn: order_items.orders_customer_id\n\ttoColumn: customers.customer_id\n\nrelationship f11d7b39-4c18-5878-97e9-21bf2bcc674e\n\tfromColumn: order_items.orders_order_date\n\ttoColumn: Calendar.Date\n\nrelationship f597a4b0-1ab9-56cc-be23-61bf841734c7\n\tisActive: false\n\tfromColumn: orders.order_date\n\ttoColumn: Calendar.Date\n\n// definition/tables/order_items.tmdl (measures)\n\tmeasure 'Rows in order_items' = COUNTROWS('order_items')\n\t\tformatString: #,0\n\t\tdisplayFolder: customers\n\t\tlineageTag: 382be475-07ab-594e-9abe-08acb63e1024\n\tmeasure 'Total quantity' = SUM('order_items'[quantity])\n\t\tformatString: #,##0.00\n\t\tdisplayFolder: customers\n\t\tlineageTag: 5d96e799-ce7d-5524-8733-6657e91c2dfe\n\tmeasure 'Order amount' = SUMX('order_items', 'order_items'[quantity] * RELATED('products'[list_price]))\n\t\tformatString: #,##0.00\n\t\tdisplayFolder: customers\n\t\tlineageTag: 763d1940-160e-52aa-ab09-99966ae06c08\n\n// definition/tables/orders.tmdl (measures)\n\tmeasure 'Rows in orders' = COUNTROWS('orders')\n\t\tformatString: #,0\n\t\tdisplayFolder: customers\n\t\tlineageTag: edceda7b-7892-52d7-9f90-95ac44c3d6d0",
        "code_title": "shop_model: relationships and measures",
        "column": "built",
        "id": "item:semantic_model",
        "kind_label": "Semantic model",
        "label": "shop_model",
        "lines": [
-        "reads the source tables in shop (bronze) directly, not the gold views built in this run"
+        "Built on gold: reads the gold views in schema gold (2 fact view(s), 4 dimension view(s), a star schema), grouped into 2 data product(s): customers, products."
        ]
       }
      ],
-     "notes": [
-      "Semantic model reads the source tables (bronze) directly, also with the gold views built in this run. Building them on the gold views is a later option; this version does not."
-     ],
-     "said": "Bronze to gold: 7 source table(s) become 7 silver table(s), and 3 gold view(s) join them. Dashed boxes are not part of this build. Click a box to see its code.",
+     "notes": [],
+     "said": "Bronze to gold: 7 source table(s) become 7 silver table(s), and 3 gold view(s) join them, beside 4 gold dimension view(s). Dashed boxes are not part of this build. Click a box to see its code.",
      "tool": "data_flow"
     },
     "ontology": {
@@ -1487,7 +1618,7 @@
       },
       {
        "id": "built",
-       "title": "Built on the source"
+       "title": "Built on gold"
       }
      ],
      "edges": [
@@ -1583,10 +1714,99 @@
       },
       {
        "built": true,
-       "from": "bronze",
+       "from": "silver:addresses",
+       "to": "gold:gold.addresses"
+      },
+      {
+       "built": true,
+       "from": "silver:categories",
+       "to": "gold:gold.categories"
+      },
+      {
+       "built": true,
+       "from": "silver:customers",
+       "to": "gold:gold.customers"
+      },
+      {
+       "built": true,
+       "from": "silver:products",
+       "to": "gold:gold.products"
+      },
+      {
+       "built": true,
+       "from": "gold:gold.order_items",
+       "to": "item:semantic_model"
+      },
+      {
+       "built": true,
+       "from": "gold:gold.orders",
+       "to": "item:semantic_model"
+      },
+      {
+       "built": true,
+       "from": "gold:gold.addresses",
+       "to": "item:semantic_model"
+      },
+      {
+       "built": true,
+       "from": "gold:gold.categories",
+       "to": "item:semantic_model"
+      },
+      {
+       "built": true,
+       "from": "gold:gold.customers",
+       "to": "item:semantic_model"
+      },
+      {
+       "built": true,
+       "from": "gold:gold.products",
        "to": "item:semantic_model"
       }
      ],
+     "model": {
+      "data_products": [
+       {
+        "measures": [
+         "Rows in order_items",
+         "Total quantity",
+         "Rows in orders",
+         "Order amount"
+        ],
+        "name": "customers",
+        "tables": [
+         "addresses",
+         "customers",
+         "order_items",
+         "orders"
+        ]
+       },
+       {
+        "measures": [],
+        "name": "products",
+        "tables": [
+         "categories",
+         "products"
+        ]
+       }
+      ],
+      "interfaces": [
+       {
+        "column": "product_id",
+        "from_product": "customers",
+        "source": "order_items",
+        "target": "products",
+        "to_product": "products"
+       }
+      ],
+      "layer": "gold",
+      "left_out": [
+       {
+        "table": "audit_log",
+        "why": "it is in no data product (no key: a contract cannot promise its rows are unique; it points at customers, place it there by hand if it belongs), so the model leaves it out; place it in a data product to have it in the model"
+       }
+      ],
+      "reads": "Built on gold: reads the gold views in schema gold (2 fact view(s), 4 dimension view(s), a star schema), grouped into 2 data product(s): customers, products."
+     },
      "nodes": [
       {
        "built": true,
@@ -1646,35 +1866,35 @@
       },
       {
        "built": true,
-       "code": "# ---- categories -> silver.categories ----\n# Key id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)).\n# The key was guessed from names, not checked against the rows. Every row is kept: no duplicates were removed because the key was not checked, and no row goes to quarantine for its key. Rows that share it may be real rows (the same customer buying the same product twice). Give it as a key (keys=, or set it in the review) if they are true duplicates.\ndf = spark.read.table(source(\"categories\"))\nread_counts[\"categories\"] = df.count()\nnot_checked_keys[\"categories\"] = [\"id\"]\nsilver[\"categories\"] = write_silver(df, \"categories\")",
+       "code": "# ---- categories -> silver.categories ----\n# Key id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`); checked against the rows (Check against the rows: unique and never NULL)).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"categories\"))\nread_counts[\"categories\"] = df.count()\ndf = drop_null_keys(df, [\"id\"], \"categories\", \"K2\")\ndf = keep_latest(df, [\"id\"], None, \"categories\", \"K2\")\nsilver[\"categories\"] = write_silver(df, \"categories\")",
        "code_title": "Notebook cell for categories",
        "column": "silver",
        "id": "silver:categories",
        "label": "silver.categories",
        "lines": [
-        "every row kept: key id not checked"
+        "key checked: 3 of 3 unique"
        ]
       },
       {
        "built": true,
-       "code": "# ---- customers -> silver.customers ----\n# Key customer_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)).\n# The key was guessed from names, not checked against the rows. Every row is kept: no duplicates were removed because the key was not checked, and no row goes to quarantine for its key. Rows that share it may be real rows (the same customer buying the same product twice). Give it as a key (keys=, or set it in the review) if they are true duplicates.\ndf = spark.read.table(source(\"customers\"))\nread_counts[\"customers\"] = df.count()\nnot_checked_keys[\"customers\"] = [\"customer_id\"]\nsilver[\"customers\"] = write_silver(df, \"customers\")",
+       "code": "# ---- customers -> silver.customers ----\n# Key customer_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`); checked against the rows (Check against the rows: unique and never NULL)).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"customers\"))\nread_counts[\"customers\"] = df.count()\ndf = drop_null_keys(df, [\"customer_id\"], \"customers\", \"K2\")\ndf = keep_latest(df, [\"customer_id\"], None, \"customers\", \"K2\")\nsilver[\"customers\"] = write_silver(df, \"customers\")",
        "code_title": "Notebook cell for customers",
        "column": "silver",
        "id": "silver:customers",
        "label": "silver.customers",
        "lines": [
-        "every row kept: key customer_id not checked"
+        "key checked: 10 of 10 unique"
        ]
       },
       {
        "built": true,
-       "code": "# ---- addresses -> silver.addresses ----\n# Key address_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)).\n# The key was guessed from names, not checked against the rows. Every row is kept: no duplicates were removed because the key was not checked, and no row goes to quarantine for its key. Rows that share it may be real rows (the same customer buying the same product twice). Give it as a key (keys=, or set it in the review) if they are true duplicates.\ndf = spark.read.table(source(\"addresses\"))\nread_counts[\"addresses\"] = df.count()\nnot_checked_keys[\"addresses\"] = [\"address_id\"]\n# Reference addresses.customer_id = customers.customer_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver customers, so rows whose customers was quarantined follow it there.\ndf = check_reference(df, [\"customer_id\"], silver[\"customers\"], [\"customer_id\"], \"addresses\", \"R1\", \"customer_id has no row in customers (addresses.customer_id = customers.customer_id)\")\nsilver[\"addresses\"] = write_silver(df, \"addresses\")",
+       "code": "# ---- addresses -> silver.addresses ----\n# Key address_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`); checked against the rows (Check against the rows: unique and never NULL)).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"addresses\"))\nread_counts[\"addresses\"] = df.count()\ndf = drop_null_keys(df, [\"address_id\"], \"addresses\", \"K2\")\ndf = keep_latest(df, [\"address_id\"], None, \"addresses\", \"K2\")\n# Reference addresses.customer_id = customers.customer_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver customers, so rows whose customers was quarantined follow it there.\ndf = check_reference(df, [\"customer_id\"], silver[\"customers\"], [\"customer_id\"], \"addresses\", \"R1\", \"customer_id has no row in customers (addresses.customer_id = customers.customer_id)\")\nsilver[\"addresses\"] = write_silver(df, \"addresses\")",
        "code_title": "Notebook cell for addresses",
        "column": "silver",
        "id": "silver:addresses",
        "label": "silver.addresses",
        "lines": [
-        "every row kept: key address_id not checked",
+        "key checked: 17 of 17 unique",
         "customer_id → customers"
        ]
       },
@@ -1692,26 +1912,26 @@
       },
       {
        "built": true,
-       "code": "# ---- orders -> silver.orders ----\n# Key order_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)).\n# The key was guessed from names, not checked against the rows. Every row is kept: no duplicates were removed because the key was not checked, and no row goes to quarantine for its key. Rows that share it may be real rows (the same customer buying the same product twice). Give it as a key (keys=, or set it in the review) if they are true duplicates.\ndf = spark.read.table(source(\"orders\"))\nread_counts[\"orders\"] = df.count()\nnot_checked_keys[\"orders\"] = [\"order_id\"]\n# Reference orders.ship_to_id = addresses.address_id (rule confirmed: given by the caller in `confirmed=[...]`, applied as-is, before inference).\n# Checked against the silver addresses, so rows whose addresses was quarantined follow it there.\ndf = check_reference(df, [\"ship_to_id\"], silver[\"addresses\"], [\"address_id\"], \"orders\", \"confirmed\", \"ship_to_id has no row in addresses (orders.ship_to_id = addresses.address_id)\")\n# Reference orders.customer_id = customers.customer_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver customers, so rows whose customers was quarantined follow it there.\ndf = check_reference(df, [\"customer_id\"], silver[\"customers\"], [\"customer_id\"], \"orders\", \"R1\", \"customer_id has no row in customers (orders.customer_id = customers.customer_id)\")\nsilver[\"orders\"] = write_silver(df, \"orders\")",
+       "code": "# ---- orders -> silver.orders ----\n# Key order_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`); checked against the rows (Check against the rows: unique and never NULL)).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"orders\"))\nread_counts[\"orders\"] = df.count()\ndf = drop_null_keys(df, [\"order_id\"], \"orders\", \"K2\")\ndf = keep_latest(df, [\"order_id\"], None, \"orders\", \"K2\")\n# Reference orders.ship_to_id = addresses.address_id (rule confirmed: given by the caller in `confirmed=[...]`, applied as-is, before inference).\n# Checked against the silver addresses, so rows whose addresses was quarantined follow it there.\ndf = check_reference(df, [\"ship_to_id\"], silver[\"addresses\"], [\"address_id\"], \"orders\", \"confirmed\", \"ship_to_id has no row in addresses (orders.ship_to_id = addresses.address_id)\")\n# Reference orders.customer_id = customers.customer_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver customers, so rows whose customers was quarantined follow it there.\ndf = check_reference(df, [\"customer_id\"], silver[\"customers\"], [\"customer_id\"], \"orders\", \"R1\", \"customer_id has no row in customers (orders.customer_id = customers.customer_id)\")\nsilver[\"orders\"] = write_silver(df, \"orders\")",
        "code_title": "Notebook cell for orders",
        "column": "silver",
        "id": "silver:orders",
        "label": "silver.orders",
        "lines": [
-        "every row kept: key order_id not checked",
+        "key checked: 60 of 60 unique",
         "ship_to_id → addresses",
         "customer_id → customers"
        ]
       },
       {
        "built": true,
-       "code": "# ---- products -> silver.products ----\n# Key product_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)).\n# The key was guessed from names, not checked against the rows. Every row is kept: no duplicates were removed because the key was not checked, and no row goes to quarantine for its key. Rows that share it may be real rows (the same customer buying the same product twice). Give it as a key (keys=, or set it in the review) if they are true duplicates.\ndf = spark.read.table(source(\"products\"))\nread_counts[\"products\"] = df.count()\nnot_checked_keys[\"products\"] = [\"product_id\"]\n# Reference products.category_id = categories.id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver categories, so rows whose categories was quarantined follow it there.\ndf = check_reference(df, [\"category_id\"], silver[\"categories\"], [\"id\"], \"products\", \"R1\", \"category_id has no row in categories (products.category_id = categories.id)\")\nsilver[\"products\"] = write_silver(df, \"products\")",
+       "code": "# ---- products -> silver.products ----\n# Key product_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`); checked against the rows (Check against the rows: unique and never NULL)).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"products\"))\nread_counts[\"products\"] = df.count()\ndf = drop_null_keys(df, [\"product_id\"], \"products\", \"K2\")\ndf = keep_latest(df, [\"product_id\"], None, \"products\", \"K2\")\n# Reference products.category_id = categories.id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver categories, so rows whose categories was quarantined follow it there.\ndf = check_reference(df, [\"category_id\"], silver[\"categories\"], [\"id\"], \"products\", \"R1\", \"category_id has no row in categories (products.category_id = categories.id)\")\nsilver[\"products\"] = write_silver(df, \"products\")",
        "code_title": "Notebook cell for products",
        "column": "silver",
        "id": "silver:products",
        "label": "silver.products",
        "lines": [
-        "every row kept: key product_id not checked",
+        "key checked: 8 of 8 unique",
         "category_id → categories"
        ]
       },
@@ -1723,7 +1943,7 @@
        "id": "silver:order_items",
        "label": "silver.order_items",
        "lines": [
-        "one row per order_id + line_no",
+        "key checked: 134 of 134 unique",
         "order_id → orders",
         "product_id → products"
        ]
@@ -1771,21 +1991,63 @@
       },
       {
        "built": true,
-       "code": "// definition/relationships.tmdl\nrelationship c4258291-c252-5bb7-b727-7ba6a79ae904\n\tfromColumn: orders.ship_to_id\n\ttoColumn: addresses.address_id\n\nrelationship 3ca0a090-0426-5f89-8b3c-dadc74de437d\n\tfromColumn: order_items.order_id\n\ttoColumn: orders.order_id\n\nrelationship 4f305a31-2098-5cf9-91c7-63ebf53ba32e\n\tfromColumn: order_items.product_id\n\ttoColumn: products.product_id\n\nrelationship f5e57f0f-6eaf-54e7-8d9d-0e96a086fad7\n\tfromColumn: orders.customer_id\n\ttoColumn: customers.customer_id\n\nrelationship 9bb61d42-0b53-5881-9c59-cb7e9ad697a1\n\tfromColumn: audit_log.customer_id\n\ttoColumn: customers.customer_id\n\nrelationship 53eeeba6-5062-5f8c-a45a-3e934679851e\n\tfromColumn: products.category_id\n\ttoColumn: categories.id\n\nrelationship 9ac8bca6-f373-534b-b226-cd3be3622c1f\n\tisActive: false\n\tfromColumn: addresses.customer_id\n\ttoColumn: customers.customer_id\n\nrelationship f597a4b0-1ab9-56cc-be23-61bf841734c7\n\tfromColumn: orders.order_date\n\ttoColumn: Calendar.Date\n\n// definition/tables/audit_log.tmdl (measures)\n\tmeasure 'Rows in audit_log' = COUNTROWS('audit_log')\n\t\tformatString: #,0\n\t\tlineageTag: 857bc41d-43c2-590b-949e-09b9959f7949\n\n// definition/tables/order_items.tmdl (measures)\n\tmeasure 'Rows in order_items' = COUNTROWS('order_items')\n\t\tformatString: #,0\n\t\tlineageTag: 382be475-07ab-594e-9abe-08acb63e1024\n\tmeasure 'Total quantity' = SUM('order_items'[quantity])\n\t\tformatString: #,##0.00\n\t\tlineageTag: 5d96e799-ce7d-5524-8733-6657e91c2dfe\n\tmeasure 'Order amount' = SUMX('order_items', 'order_items'[quantity] * RELATED('products'[list_price]))\n\t\tformatString: #,##0.00\n\t\tlineageTag: 763d1940-160e-52aa-ab09-99966ae06c08\n\n// definition/tables/orders.tmdl (measures)\n\tmeasure 'Rows in orders' = COUNTROWS('orders')\n\t\tformatString: #,0\n\t\tlineageTag: edceda7b-7892-52d7-9f90-95ac44c3d6d0",
+       "code": "-- addresses is a dimension table (1 reference(s) in, 1 out, few measures (0.0)); one row per addresses row, the dimension side of the star schema the semantic model reads.\nCREATE OR REPLACE MATERIALIZED LAKE VIEW `gold`.`addresses`\n(\n    -- the key of addresses is address_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)); a row without it identifies nothing\n    CONSTRAINT addresses_key_present CHECK (`address_id` IS NOT NULL) ON MISMATCH DROP\n)\nCOMMENT \"Krusgraph gold dimension view of addresses from silver, generated from the plan; rules in the constraint and WHERE comments\"\nTBLPROPERTIES (\"krusgraph.gold\"=\"00000000-0000-0000-0000-000000000001/shop\")\nAS\nSELECT\n    f.`address_id` AS `address_id`,\n    f.`customer_id` AS `customer_id`\nFROM `silver`.`addresses` AS f",
+       "code_title": "CREATE MATERIALIZED LAKE VIEW gold.addresses",
+       "column": "gold",
+       "id": "gold:gold.addresses",
+       "label": "gold.addresses",
+       "lines": [
+        "dimension: one row per addresses row"
+       ]
+      },
+      {
+       "built": true,
+       "code": "-- categories is a dimension table (1 reference(s) in, 0 out, few measures (0.0)); one row per categories row, the dimension side of the star schema the semantic model reads.\nCREATE OR REPLACE MATERIALIZED LAKE VIEW `gold`.`categories`\n(\n    -- the key of categories is id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)); a row without it identifies nothing\n    CONSTRAINT categories_key_present CHECK (`id` IS NOT NULL) ON MISMATCH DROP\n)\nCOMMENT \"Krusgraph gold dimension view of categories from silver, generated from the plan; rules in the constraint and WHERE comments\"\nTBLPROPERTIES (\"krusgraph.gold\"=\"00000000-0000-0000-0000-000000000001/shop\")\nAS\nSELECT\n    f.`id` AS `id`,\n    f.`name` AS `name`\nFROM `silver`.`categories` AS f",
+       "code_title": "CREATE MATERIALIZED LAKE VIEW gold.categories",
+       "column": "gold",
+       "id": "gold:gold.categories",
+       "label": "gold.categories",
+       "lines": [
+        "dimension: one row per categories row"
+       ]
+      },
+      {
+       "built": true,
+       "code": "-- customers is a dimension table (3 reference(s) in, 0 out, few measures (0.0)); one row per customers row, the dimension side of the star schema the semantic model reads.\nCREATE OR REPLACE MATERIALIZED LAKE VIEW `gold`.`customers`\n(\n    -- the key of customers is customer_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)); a row without it identifies nothing\n    CONSTRAINT customers_key_present CHECK (`customer_id` IS NOT NULL) ON MISMATCH DROP\n)\nCOMMENT \"Krusgraph gold dimension view of customers from silver, generated from the plan; rules in the constraint and WHERE comments\"\nTBLPROPERTIES (\"krusgraph.gold\"=\"00000000-0000-0000-0000-000000000001/shop\")\nAS\nSELECT\n    f.`customer_id` AS `customer_id`,\n    f.`country` AS `country`\nFROM `silver`.`customers` AS f",
+       "code_title": "CREATE MATERIALIZED LAKE VIEW gold.customers",
+       "column": "gold",
+       "id": "gold:gold.customers",
+       "label": "gold.customers",
+       "lines": [
+        "dimension: one row per customers row"
+       ]
+      },
+      {
+       "built": true,
+       "code": "-- products is a dimension table (1 reference(s) in, 1 out, few measures (0.0)); one row per products row, the dimension side of the star schema the semantic model reads.\nCREATE OR REPLACE MATERIALIZED LAKE VIEW `gold`.`products`\n(\n    -- the key of products is product_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)); a row without it identifies nothing\n    CONSTRAINT products_key_present CHECK (`product_id` IS NOT NULL) ON MISMATCH DROP\n)\nCOMMENT \"Krusgraph gold dimension view of products from silver, generated from the plan; rules in the constraint and WHERE comments\"\nTBLPROPERTIES (\"krusgraph.gold\"=\"00000000-0000-0000-0000-000000000001/shop\")\nAS\nSELECT\n    f.`product_id` AS `product_id`,\n    f.`name` AS `name`,\n    f.`category_id` AS `category_id`,\n    f.`list_price` AS `list_price`\nFROM `silver`.`products` AS f",
+       "code_title": "CREATE MATERIALIZED LAKE VIEW gold.products",
+       "column": "gold",
+       "id": "gold:gold.products",
+       "label": "gold.products",
+       "lines": [
+        "dimension: one row per products row"
+       ]
+      },
+      {
+       "built": true,
+       "code": "// definition/relationships.tmdl\nrelationship 4a2a3314-af63-5117-9f1e-87f780690602\n\tfromColumn: order_items.orders_ship_to_id\n\ttoColumn: addresses.address_id\n\nrelationship c4258291-c252-5bb7-b727-7ba6a79ae904\n\tfromColumn: orders.ship_to_id\n\ttoColumn: addresses.address_id\n\nrelationship 4f305a31-2098-5cf9-91c7-63ebf53ba32e\n\tfromColumn: order_items.product_id\n\ttoColumn: products.product_id\n\n\tannotation Krusgraph_Interface = customers -> products\n\nrelationship f5e57f0f-6eaf-54e7-8d9d-0e96a086fad7\n\tfromColumn: orders.customer_id\n\ttoColumn: customers.customer_id\n\nrelationship 53eeeba6-5062-5f8c-a45a-3e934679851e\n\tfromColumn: products.category_id\n\ttoColumn: categories.id\n\nrelationship 9ac8bca6-f373-534b-b226-cd3be3622c1f\n\tisActive: false\n\tfromColumn: addresses.customer_id\n\ttoColumn: customers.customer_id\n\nrelationship 5f760dbe-e12a-53a9-80aa-ca9bf32294d1\n\tisActive: false\n\tfromColumn: order_items.orders_customer_id\n\ttoColumn: customers.customer_id\n\nrelationship f11d7b39-4c18-5878-97e9-21bf2bcc674e\n\tfromColumn: order_items.orders_order_date\n\ttoColumn: Calendar.Date\n\nrelationship f597a4b0-1ab9-56cc-be23-61bf841734c7\n\tisActive: false\n\tfromColumn: orders.order_date\n\ttoColumn: Calendar.Date\n\n// definition/tables/order_items.tmdl (measures)\n\tmeasure 'Rows in order_items' = COUNTROWS('order_items')\n\t\tformatString: #,0\n\t\tdisplayFolder: customers\n\t\tlineageTag: 382be475-07ab-594e-9abe-08acb63e1024\n\tmeasure 'Total quantity' = SUM('order_items'[quantity])\n\t\tformatString: #,##0.00\n\t\tdisplayFolder: customers\n\t\tlineageTag: 5d96e799-ce7d-5524-8733-6657e91c2dfe\n\tmeasure 'Order amount' = SUMX('order_items', 'order_items'[quantity] * RELATED('products'[list_price]))\n\t\tformatString: #,##0.00\n\t\tdisplayFolder: customers\n\t\tlineageTag: 763d1940-160e-52aa-ab09-99966ae06c08\n\n// definition/tables/orders.tmdl (measures)\n\tmeasure 'Rows in orders' = COUNTROWS('orders')\n\t\tformatString: #,0\n\t\tdisplayFolder: customers\n\t\tlineageTag: edceda7b-7892-52d7-9f90-95ac44c3d6d0",
        "code_title": "shop_model: relationships and measures",
        "column": "built",
        "id": "item:semantic_model",
        "kind_label": "Semantic model",
        "label": "shop_model",
        "lines": [
-        "reads the source tables in shop (bronze) directly, not the gold views built in this run"
+        "Built on gold: reads the gold views in schema gold (2 fact view(s), 4 dimension view(s), a star schema), grouped into 2 data product(s): customers, products."
        ]
       }
      ],
-     "notes": [
-      "Semantic model reads the source tables (bronze) directly, also with the gold views built in this run. Building them on the gold views is a later option; this version does not."
-     ],
-     "said": "Bronze to gold: 7 source table(s) become 7 silver table(s), and 3 gold view(s) join them. Dashed boxes are not part of this build. Click a box to see its code.",
+     "notes": [],
+     "said": "Bronze to gold: 7 source table(s) become 7 silver table(s), and 3 gold view(s) join them, beside 4 gold dimension view(s). Dashed boxes are not part of this build. Click a box to see its code.",
      "tool": "data_flow"
     },
     "ontology": {

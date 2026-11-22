@@ -29,14 +29,17 @@ INFO = {"workspace_id": "00000000-0000-0000-0000-000000000000", "item_id": "0000
 
 def render() -> str:
     sys.path.insert(0, str(ROOT))
-    from fabric_backend import data_flow, seed, semantic_model
+    from fabric_backend import data_flow, gold, seed, semantic_model
     from fabric_backend.infer import plan
     p = plan(seed.schema("shop"))
-    model = semantic_model.draft(p, INFO, "shop_sales", None)["parts"]
+    gspec = gold.spec(p, INFO, "silver", "gold", dimensions=True)          # DPM1: the model reads the gold views
+    d = semantic_model.draft_on_gold(p, INFO, gspec, "shop_sales")
+    reads = d["summary"]["reads"]
+    on_gold = [f"gold.{t}" for t in d["summary"]["roles"] if t != (d["summary"].get("date_table") or {}).get("name")]
     chosen = {"silver_notebook": "shop_silver", "gold_views": "shop_gold", "pipeline": "shop_flow", "semantic_model": "shop_sales"}
-    items = [{"output": "semantic_model", "label": "Semantic model", "name": "shop_sales", "reads": "reads the source tables in shop (bronze) directly, not the gold views built in this run",
-              "code": data_flow.tmdl_excerpt(model), "language": "tmdl", "code_title": "shop_sales: relationships and measures"}]
-    f = data_flow.flow(p, INFO, chosen, pipeline_names=("shop_silver", "shop_gold", "shop_flow_check"), items=items)
+    items = [{"output": "semantic_model", "label": "Semantic model", "name": "shop_sales", "reads": reads["said"], "on_gold": on_gold,
+              "code": data_flow.tmdl_excerpt(d["parts"]), "language": "tmdl", "code_title": "shop_sales: relationships and measures"}]
+    f = data_flow.flow(p, INFO, chosen, pipeline_names=("shop_silver", "shop_gold", "shop_flow_check"), items=items, dimensions=True)
     return json.dumps(f, indent=1, ensure_ascii=False) + "\n"
 
 

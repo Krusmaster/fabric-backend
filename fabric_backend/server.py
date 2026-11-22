@@ -152,6 +152,10 @@ _PLAN_SCOPE = contextvars.ContextVar("krusgraph_plan_scope", default=None)
 # n185: the Model editor's create_pipeline call: no wait for the run (the editor reads it on its own, so no other card
 # waits) and the schedule ids outputs.json records as Krusgraph's. None for an MCP call: wait up to two minutes.
 PIPELINE_JOBS = contextvars.ContextVar("krusgraph_pipeline_jobs", default=None)
+# DPM1: set by the Krusgraph Model's build when it has gold views and a semantic model ({silver_schema, gold_schema,
+# target_lakehouse, gold_lakehouse}): the gold notebook adds the dimension views, and the model reads the gold views,
+# grouped by data product (semantic_model.draft_on_gold). Not a tool argument: the tools' signatures stay as they are.
+MODEL_ON_GOLD = contextvars.ContextVar("krusgraph_model_on_gold", default=None)
 
 
 @contextlib.contextmanager
@@ -2472,7 +2476,17 @@ def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.M
     if refusal:
         return refusal
     info = at
-    draft = _semantic_model.draft(p, info, name, tables, date_range=read["date_range"], whole_quantities=read["whole"])
+    og = MODEL_ON_GOLD.get()
+    if og and not tables:                                        # DPM1: the build has gold views: the model reads them
+        _, ginfo, gspec, refusal = _gold(workspace, source, schema, og.get("silver_schema") or "silver", og.get("gold_schema") or "gold",
+                                         keys, confirmed, None, False, ctx, og.get("target_lakehouse", ""), og.get("gold_lakehouse", ""))
+        if refusal:
+            return refusal
+        info = {**ginfo, "schema": gspec["gold_schema"]}
+        draft = _semantic_model.draft_on_gold(p, ginfo, gspec, name, checked_validation(p), date_range=read["date_range"],
+                                              whole_quantities=read["whole"])
+    else:
+        draft = _semantic_model.draft(p, info, name, tables, date_range=read["date_range"], whole_quantities=read["whole"])
     _model_layers(draft, lay)
     body = _semantic_model.envelope(draft["parts"], name, description=_marked(f"Created by Krusgraph from {source} ({schema})", p, schema))
     replaces = _model_replacement(_out_ws(info["workspace_id"]), name, draft["parts"], _headers(ctx))   # n221: where it is built
@@ -2486,6 +2500,10 @@ def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.M
         if not there:
             out["first"] = (f"Run the pipeline once first: the model reads the silver tables in {info['reads_at']}, "
                             "which the pipeline writes.")
+    if (draft["summary"].get("reads") or {}).get("layer") == "gold":   # DPM1
+        out["layers_to"] = f"model \u2192 {info['item_name']} ({info['schema']})"
+        out["first"] = (f"Run the gold views once first (the pipeline, or the gold notebook): the model reads the gold views in "
+                        f"{info['item_name']} ({info['schema']}), which they create.")
     out |= {"summary": draft["summary"], "read_from_rows": read["said"], "dry_run": dry_run,
            "rest": {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{_out_ws(info['workspace_id'])}/semanticModels",
                     "update": f"{FABRIC}/v1/workspaces/{_out_ws(info['workspace_id'])}/semanticModels/{{id}}/updateDefinition",
@@ -3274,8 +3292,19 @@ def _gold(workspace, source, schema, silver_schema, gold_schema, keys, confirmed
     refusal = _schemas_only(info)
     if refusal:
         return None, None, None, refusal
-    spec = _gold_mod.spec(p, info, silver_schema, gold_schema, tables, show_personal_data)
+    spec = _gold_mod.spec(p, info, silver_schema, gold_schema, tables, show_personal_data,
+                          dimensions=MODEL_ON_GOLD.get() is not None)          # DPM1: the star schema the model reads
     return p, info, spec, None
+
+
+def checked_validation(p) -> dict | None:
+    """DPM1: the build's row check (Plan.checked_keys with how=rows) as validate_plan's `keys`, for the model on gold's
+    rule that it relates only onto a key the rows showed unique. None when no key was checked against the rows."""
+    rows = {t: k for t, k in (getattr(p, "checked_keys", None) or {}).items() if k.get("how") == "rows"}
+    if not rows:
+        return None
+    return {"keys": [{"table": t, "columns": list(k["columns"]), "verdict": "unique (Check against the rows)",
+                      "rows": k.get("rows"), "distinct": k.get("distinct"), "nulls": 0} for t, k in rows.items()]}
 
 
 def _gold_answer(p, info, spec, name: str, tool: str = "gold_views_draft") -> dict:
