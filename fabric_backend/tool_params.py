@@ -57,6 +57,9 @@ Writable = Annotated[bool, _d('true includes create, update and delete mutations
 SilverSchema = Annotated[str, _d('Lakehouse schema with the silver tables create_silver_notebook writes. Default '
                                  '"silver".')]
 GoldSchema = Annotated[str, _d('Lakehouse schema for the gold views. Default "gold". Example: "gold".')]
+# SM6 (G2): one lakehouse per layer in one workspace; empty keeps today's behaviour (a lakehouse source writes into itself)
+TargetLakehouse = Annotated[str, _d('Lakehouse of this workspace for the silver tables. Default "": the source lakehouse.')]
+GoldLakehouse = Annotated[str, _d('Lakehouse of this workspace for the gold views. Default "": where silver goes.')]
 # WB2 (#54): where an output that reads silver or gold reads them; empty means "not given" (layer_schemas.resolve)
 ReadSilverSchema = Annotated[str, _d('Schema of the silver tables read. Default "": the pipeline\'s, else "silver".')]
 ReadGoldSchema = Annotated[str, _d('Schema of the gold views read. Default "": the pipeline\'s, else "gold".')]

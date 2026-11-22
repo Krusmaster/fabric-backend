@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 2026-11-21, round BL25. SYNTHETIC: a small Dataverse Web API $metadata document (OData CSDL 4.0) written by hand
+     for Krusgraph's tests, in the shape Microsoft Learn describes ("Dataverse Web API service documents", "Web API
+     EntityTypes", "Web API navigation properties"; opened 21 November 2026). Not exported from any environment.
+     Covers: plain lookups (salesorderdetail.salesorderid), a self lookup (account.parentaccountid), two polymorphic
+     lookups (contact.parentcustomerid, salesorder.customerid), a many-to-many (opportunity <-> competitor through the
+     intersect table opportunitycompetitors), an inherited key (phonecall from activitypointer), a column the demo
+     lake lacks (account.revenue), tables the demo lake lacks (competitor, opportunitycompetitors, phonecall), and
+     elements the reader does not use (EntityContainer, ComplexType, EnumType, Action, Function). -->
+<edmx:Edmx Version="4.0" xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx">
+  <edmx:DataServices>
+    <Schema Namespace="Microsoft.Dynamics.CRM" Alias="mscrm" xmlns="http://docs.oasis-open.org/odata/ns/edm">
+      <EntityType Name="crmbaseentity" Abstract="true" />
+      <EntityType Name="transactioncurrency" BaseType="mscrm.crmbaseentity">
+        <Key><PropertyRef Name="transactioncurrencyid" /></Key>
+        <Property Name="transactioncurrencyid" Type="Edm.Guid" />
+        <Property Name="isocurrencycode" Type="Edm.String" />
+        <Property Name="exchangerate" Type="Edm.Decimal" Scale="Variable" />
+        <NavigationProperty Name="transactioncurrency_account" Type="Collection(mscrm.account)" Partner="transactioncurrencyid" />
+      </EntityType>
+      <EntityType Name="account" BaseType="mscrm.crmbaseentity">
+        <Key><PropertyRef Name="accountid" /></Key>
+        <Property Name="accountid" Type="Edm.Guid" />
+        <Property Name="name" Type="Edm.String" />
+        <Property Name="revenue" Type="Edm.Decimal" Scale="Variable" />
+        <Property Name="_parentaccountid_value" Type="Edm.Guid" />
+        <Property Name="_primarycontactid_value" Type="Edm.Guid" />
+        <Property Name="_transactioncurrencyid_value" Type="Edm.Guid" />
+        <NavigationProperty Name="parentaccountid" Type="mscrm.account" Nullable="false" Partner="account_parent_account">
+          <ReferentialConstraint Property="_parentaccountid_value" ReferencedProperty="accountid" />
+        </NavigationProperty>
+        <NavigationProperty Name="primarycontactid" Type="mscrm.contact" Nullable="false" Partner="account_primary_contact">
+          <ReferentialConstraint Property="_primarycontactid_value" ReferencedProperty="contactid" />
+        </NavigationProperty>
+        <NavigationProperty Name="transactioncurrencyid" Type="mscrm.transactioncurrency" Nullable="false" Partner="transactioncurrency_account">
+          <ReferentialConstraint Property="_transactioncurrencyid_value" ReferencedProperty="transactioncurrencyid" />
+        </NavigationProperty>
+        <NavigationProperty Name="account_parent_account" Type="Collection(mscrm.account)" Partner="parentaccountid" />
+        <NavigationProperty Name="contact_customer_accounts" Type="Collection(mscrm.contact)" Partner="parentcustomerid_account" />
+        <NavigationProperty Name="order_customer_accounts" Type="Collection(mscrm.salesorder)" Partner="customerid_account" />
+        <NavigationProperty Name="opportunity_parent_account" Type="Collection(mscrm.opportunity)" Partner="parentaccountid" />
+      </EntityType>
+      <EntityType Name="contact" BaseType="mscrm.crmbaseentity">
+        <Key><PropertyRef Name="contactid" /></Key>
+        <Property Name="contactid" Type="Edm.Guid" />
+        <Property Name="fullname" Type="Edm.String" />
+        <Property Name="emailaddress1" Type="Edm.String" />
+        <Property Name="_parentcustomerid_value" Type="Edm.Guid" />
+        <NavigationProperty Name="parentcustomerid_account" Type="mscrm.account" Nullable="false" Partner="contact_customer_accounts">
+          <ReferentialConstraint Property="_parentcustomerid_value" ReferencedProperty="accountid" />
+        </NavigationProperty>
+        <NavigationProperty Name="parentcustomerid_contact" Type="mscrm.contact" Nullable="false" Partner="contact_customer_contacts">
+          <ReferentialConstraint Property="_parentcustomerid_value" ReferencedProperty="contactid" />
+        </NavigationProperty>
+        <NavigationProperty Name="account_primary_contact" Type="Collection(mscrm.account)" Partner="primarycontactid" />
+        <NavigationProperty Name="contact_customer_contacts" Type="Collection(mscrm.contact)" Partner="parentcustomerid_contact" />
+        <NavigationProperty Name="order_customer_contacts" Type="Collection(mscrm.salesorder)" Partner="customerid_contact" />
+      </EntityType>
+      <EntityType Name="product" BaseType="mscrm.crmbaseentity">
+        <Key><PropertyRef Name="productid" /></Key>
+        <Property Name="productid" Type="Edm.Guid" />
+        <Property Name="name" Type="Edm.String" />
+        <NavigationProperty Name="product_order_details" Type="Collection(mscrm.salesorderdetail)" Partner="productid" />
+      </EntityType>
+      <EntityType Name="opportunity" BaseType="mscrm.crmbaseentity">
+        <Key><PropertyRef Name="opportunityid" /></Key>
+        <Property Name="opportunityid" Type="Edm.Guid" />
+        <Property Name="name" Type="Edm.String" />
+        <Property Name="estimatedvalue" Type="Edm.Decimal" Scale="Variable" />
+        <Property Name="_parentaccountid_value" Type="Edm.Guid" />
+        <NavigationProperty Name="parentaccountid" Type="mscrm.account" Nullable="false" Partner="opportunity_parent_account">
+          <ReferentialConstraint Property="_parentaccountid_value" ReferencedProperty="accountid" />
+        </NavigationProperty>
+        <NavigationProperty Name="opportunitycompetitors_association" Type="Collection(mscrm.competitor)" Partner="opportunitycompetitors_association" />
+        <NavigationProperty Name="opportunity_sales_orders" Type="Collection(mscrm.salesorder)" Partner="opportunityid" />
+      </EntityType>
+      <EntityType Name="competitor" BaseType="mscrm.crmbaseentity">
+        <Key><PropertyRef Name="competitorid" /></Key>
+        <Property Name="competitorid" Type="Edm.Guid" />
+        <Property Name="name" Type="Edm.String" />
+        <NavigationProperty Name="opportunitycompetitors_association" Type="Collection(mscrm.opportunity)" Partner="opportunitycompetitors_association" />
+      </EntityType>
+      <EntityType Name="opportunitycompetitors" BaseType="mscrm.crmbaseentity">
+        <Key><PropertyRef Name="opportunitycompetitorid" /></Key>
+        <Property Name="opportunitycompetitorid" Type="Edm.Guid" />
+        <Property Name="opportunityid" Type="Edm.Guid" />
+        <Property Name="competitorid" Type="Edm.Guid" />
+      </EntityType>
+      <EntityType Name="salesorder" BaseType="mscrm.crmbaseentity">
+        <Key><PropertyRef Name="salesorderid" /></Key>
+        <Property Name="salesorderid" Type="Edm.Guid" />
+        <Property Name="name" Type="Edm.String" />
+        <Property Name="totalamount" Type="Edm.Decimal" Scale="Variable" />
+        <Property Name="_customerid_value" Type="Edm.Guid" />
+        <Property Name="_opportunityid_value" Type="Edm.Guid" />
+        <Property Name="_transactioncurrencyid_value" Type="Edm.Guid" />
+        <NavigationProperty Name="customerid_account" Type="mscrm.account" Nullable="false" Partner="order_customer_accounts">
+          <ReferentialConstraint Property="_customerid_value" ReferencedProperty="accountid" />
+        </NavigationProperty>
+        <NavigationProperty Name="customerid_contact" Type="mscrm.contact" Nullable="false" Partner="order_customer_contacts">
+          <ReferentialConstraint Property="_customerid_value" ReferencedProperty="contactid" />
+        </NavigationProperty>
+        <NavigationProperty Name="opportunityid" Type="mscrm.opportunity" Nullable="false" Partner="opportunity_sales_orders">
+          <ReferentialConstraint Property="_opportunityid_value" ReferencedProperty="opportunityid" />
+        </NavigationProperty>
+        <NavigationProperty Name="transactioncurrencyid" Type="mscrm.transactioncurrency" Nullable="false">
+          <ReferentialConstraint Property="_transactioncurrencyid_value" ReferencedProperty="transactioncurrencyid" />
+        </NavigationProperty>
+        <NavigationProperty Name="order_details" Type="Collection(mscrm.salesorderdetail)" Partner="salesorderid" />
+      </EntityType>
+      <EntityType Name="salesorderdetail" BaseType="mscrm.crmbaseentity">
+        <Key><PropertyRef Name="salesorderdetailid" /></Key>
+        <Property Name="salesorderdetailid" Type="Edm.Guid" />
+        <Property Name="quantity" Type="Edm.Decimal" Scale="Variable" />
+        <Property Name="extendedamount" Type="Edm.Decimal" Scale="Variable" />
+        <Property Name="_salesorderid_value" Type="Edm.Guid" />
+        <Property Name="_productid_value" Type="Edm.Guid" />
+        <NavigationProperty Name="salesorderid" Type="mscrm.salesorder" Nullable="false" Partner="order_details">
+          <ReferentialConstraint Property="_salesorderid_value" ReferencedProperty="salesorderid" />
+        </NavigationProperty>
+        <NavigationProperty Name="productid" Type="mscrm.product" Nullable="false" Partner="product_order_details">
+          <ReferentialConstraint Property="_productid_value" ReferencedProperty="productid" />
+        </NavigationProperty>
+      </EntityType>
+      <EntityType Name="activitypointer" BaseType="mscrm.crmbaseentity">
+        <Key><PropertyRef Name="activityid" /></Key>
+        <Property Name="activityid" Type="Edm.Guid" />
+        <Property Name="subject" Type="Edm.String" />
+      </EntityType>
+      <EntityType Name="phonecall" BaseType="mscrm.activitypointer">
+        <Property Name="phonenumber" Type="Edm.String" />
+      </EntityType>
+      <ComplexType Name="WhoAmIResponse">
+        <Property Name="UserId" Type="Edm.Guid" Nullable="false" />
+      </ComplexType>
+      <EnumType Name="AccessRights">
+        <Member Name="None" Value="0" />
+      </EnumType>
+      <Function Name="WhoAmI">
+        <ReturnType Type="mscrm.WhoAmIResponse" Nullable="false" />
+      </Function>
+      <Action Name="WinOpportunity">
+        <Parameter Name="Status" Type="Edm.Int32" Nullable="false" />
+      </Action>
+      <EntityContainer Name="System">
+        <EntitySet Name="accounts" EntityType="Microsoft.Dynamics.CRM.account" />
+        <EntitySet Name="contacts" EntityType="Microsoft.Dynamics.CRM.contact" />
+      </EntityContainer>
+    </Schema>
+  </edmx:DataServices>
+</edmx:Edmx>

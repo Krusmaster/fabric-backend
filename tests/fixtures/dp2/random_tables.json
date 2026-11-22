@@ -1,0 +1,103 @@
+{
+ "name": "random_tables",
+ "synthetic": "Written by hand for round DP2: tables whose names carry no business meaning, and two reference lists whose names do.",
+ "tables": {
+  "tmp_load_01": {
+   "columns": [
+    "col1",
+    "col2",
+    "val"
+   ],
+   "rows": [
+    [
+     1,
+     "a",
+     2.5
+    ],
+    [
+     2,
+     "b",
+     3.5
+    ]
+   ]
+  },
+  "foo": {
+   "columns": [
+    "a",
+    "b"
+   ],
+   "rows": [
+    [
+     1,
+     2
+    ],
+    [
+     1,
+     3
+    ]
+   ]
+  },
+  "settings": {
+   "columns": [
+    "setting_key",
+    "setting_value"
+   ],
+   "rows": [
+    [
+     "x",
+     "1"
+    ]
+   ]
+  },
+  "audit_log": {
+   "columns": [
+    "id",
+    "ts",
+    "msg"
+   ],
+   "rows": [
+    [
+     1,
+     "2026-01-01",
+     "x"
+    ]
+   ]
+  },
+  "x_rel": {
+   "columns": [
+    "a_id",
+    "b_id"
+   ],
+   "rows": [
+    [
+     1,
+     1
+    ]
+   ]
+  },
+  "PaymentMethods": {
+   "columns": [
+    "PaymentMethodID",
+    "Name"
+   ],
+   "rows": [
+    [
+     1,
+     "card"
+    ]
+   ]
+  },
+  "OrderTypes": {
+   "columns": [
+    "OrderTypeID",
+    "Name"
+   ],
+   "rows": [
+    [
+     1,
+     "std"
+    ]
+   ]
+  }
+ }
+}

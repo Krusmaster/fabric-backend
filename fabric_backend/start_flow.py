@@ -105,6 +105,90 @@ ARROW = "\u2192"
 CHOICES_MAX = 60
 CHOOSE = {"workspace": "Choose a workspace first.", "source": "Choose a source first.", "schema": "Choose a schema first."}
 SKIPPED_ON_SAMPLE = ("data",)
+# SM5 (G1 in docs/SMOOTH/MULTI-LAKEHOUSE.md): with several sources, step 1 suggests one by name rules, never by reading
+# rows. A name's words are its parts split at anything that is not a letter or a digit ("bronze_lh" -> bronze, lh).
+#   L1 layer: exactly one source is named as the raw layer (bronze, raw, landing, staging): it is the source, and the
+#      ones named silver or gold are left as they are (they are where a build may write, SM6).
+#   L2 product: no raw layer, exactly one source is named as a data product (product): it holds the sources as
+#      schemas (layout (c), COMBINE-SOURCES.md section 1).
+# Otherwise nothing is suggested and Next waits, as before. A suggestion is taken like a single option (0 extra taps)
+# and is one tap from Change.
+LAYERS = {"bronze": ("bronze", "raw", "landing", "staging"), "silver": ("silver", "curated", "cleansed"),
+          "gold": ("gold", "serving", "mart")}
+PRODUCT_WORDS = ("product",)
+
+
+def _words(name: str) -> set[str]:
+    import re
+    return {w for w in re.split(r"[^0-9a-z]+", str(name).lower()) if w}
+
+
+def layer_of(name: str) -> str | None:
+    """'bronze', 'silver' or 'gold' when the name says so by one of LAYERS' words, else None."""
+    w = _words(name)
+    hit = [k for k, words in LAYERS.items() if w & set(words)]
+    return hit[0] if len(hit) == 1 else None
+
+
+def layer_targets(source: str | None, names: list[str]) -> dict | None:
+    """SM6 (G2): {"silver": lakehouse, "gold": lakehouse} where a build from `source` writes, by name rule L1: the source
+    is named as the raw layer and exactly one other source is named silver; gold goes to the one named gold, else beside
+    silver. None otherwise: the build writes into the source, as before."""
+    if not source or layer_of(source) != "bronze":
+        return None
+    others = [str(n) for n in names if str(n) != source]
+    silver = [n for n in others if layer_of(n) == "silver"]
+    gold = [n for n in others if layer_of(n) == "gold"]
+    if len(silver) != 1:
+        return None
+    return {"silver": silver[0], "gold": gold[0] if len(gold) == 1 else silver[0]}
+
+
+def targets_line(t: dict) -> str:
+    """SM6: the one line the dry run says: "silver → silver_lh, gold → gold_lh"."""
+    return f"silver {ARROW} {t['silver']}, gold {ARROW} {t['gold']}"
+
+
+# SM6: the arguments a build tool takes for the layer lakehouses (tool_params TargetLakehouse, GoldLakehouse)
+TARGET_ARGS = {"create_pipeline": ("target_lakehouse", "gold_lakehouse"), "create_semantic_model": ("target_lakehouse",),
+               "create_ontology": ("target_lakehouse",)}
+
+
+def _build_args(c: dict, tool: str) -> dict:
+    """_plan_args, plus SM6's layer lakehouses for the tools that take them."""
+    out = _plan_args(c)
+    t = c.get("targets")
+    if isinstance(t, dict):
+        for k in TARGET_ARGS.get(tool, ()):
+            out[k] = t["silver"] if k == "target_lakehouse" else t["gold"]
+    return out
+
+
+def suggest_source(items: list[dict]) -> dict | None:
+    """SM5: {name, rule, why, say, others: {name: what happens to it}} for the source the name rules point at, or None.
+    `items` are the source step's options ({name, hint})."""
+    names = [str(x.get("name") or "").strip() for x in items if isinstance(x, dict) and str(x.get("name") or "").strip()]
+    if len(names) < 2:
+        return None
+    raw = [n for n in names if layer_of(n) == "bronze"]
+    if len(raw) == 1:
+        pick = raw[0]
+        layered = [n for n in names if n != pick and layer_of(n) in ("silver", "gold")]
+        others = {n: f"{layer_of(n)} layer: not read" for n in layered}
+        rest = ", ".join(layered[:2]) if layered else ""
+        targets = layer_targets(pick, names)
+        say = (f"I picked {pick}: its name says raw data." + (f" S{targets_line(targets)[1:]}." if targets else
+                                                              f" {rest} stay untouched." if rest else ""))
+        return {"name": pick, "rule": "L1", "why": "the name says raw data (bronze)", "say": say, "others": others,
+                **({"targets": targets} if targets else {})}
+    product = [n for n in names if _words(n) & set(PRODUCT_WORDS) and layer_of(n) is None]
+    if len(product) == 1:
+        pick = product[0]
+        return {"name": pick, "rule": "L2", "why": "the name says data product: the sources as schemas",
+                "say": f"I picked {pick}: its name says data product.", "others": {}}
+    return None
+
+
 # SM2: after Create, one closing step: open it in Fabric, add a source, schedule it
 FABRIC_URL = "https://app.fabric.microsoft.com/"
 HONEST = ("Steps 1-4 only read: they list, count and draft, and the dry runs create nothing. Only step 5 writes, and only "
@@ -212,8 +296,12 @@ def only_choice(stage: str, options: dict | None) -> str | None:
         return None
     usable = [x for x in options["items"] if isinstance(x, dict) and str(x.get("name") or "").strip()
               and not str(x.get("hint") or "").startswith("no capacity")
-              and (stage != "schema" or int(x.get("tables") or 0) > 0)]
-    return str(usable[0]["name"]) if len(usable) == 1 else None
+              and (stage != "schema" or int(x.get("tables") or 0) > 0)
+              and (stage != "schema" or "+" not in str(x.get("name")))]          # SM5: "all together" is never taken alone
+    if len(usable) == 1:
+        return str(usable[0]["name"])
+    hit = suggest_source(usable) if stage == "source" else None             # SM5: the name rules' suggestion
+    return hit["name"] if hit else None
 
 
 def _path(now: str, sample: bool = False) -> list[dict]:
@@ -276,22 +364,33 @@ def _choices(now: str, c: dict, options: dict | None) -> tuple[list[dict], dict]
             out.append(_choice(name, str(x.get("hint") or ""), {"workspace": c["workspace"], "source": name}))
         else:
             n = int(x.get("tables") or 0)
-            hint = f"{n} table" + ("" if n == 1 else "s")
+            hint = f"{n} table" + ("" if n == 1 else "s") + (", one plan" if "+" in name else "")
             out.append(_choice(name, hint, {"workspace": c["workspace"], "source": c["source"], "schema": name,
                                             "step": "check"},                 # SM2: the last choice goes on
                                disabled="" if n else "no tables"))
     meta = {"count": len(items), "shown": len(shown), "search": len(items) > 8}
-    usable = [a for a in out if not a.get("disabled") and not str(a.get("hint", "")).startswith("no capacity")]
+    usable = [a for a in out if not a.get("disabled") and not str(a.get("hint", "")).startswith("no capacity")
+              and not (now == "schema" and "+" in a["label"])]
     if len(usable) == 1:                                   # WB15 (A): one usable option is chosen for you
         usable[0]["selected"] = True
         meta["preselected"] = usable[0]["label"]
+    elif now == "source" and (hit := suggest_source([{"name": a["label"]} for a in usable])):
+        for a in out:                                      # SM5: the name rules' suggestion, chosen like one option
+            if a["label"] == hit["name"]:
+                a["selected"] = True
+                a["hint"] = (a.get("hint") + "; " if a.get("hint") else "") + "suggested"
+            elif a["label"] in hit["others"]:
+                a["hint"] = (a.get("hint") + "; " if a.get("hint") else "") + hit["others"][a["label"]]
+        meta["preselected"] = hit["name"]
+        meta["suggested"] = {k: hit[k] for k in ("rule", "why")}
     return out, meta
 
 
 def guide(workspace: str | None = None, source: str | None = None, schema: str | None = None, step: str | None = None,
           keys: dict | None = None, confirmed: list | None = None, decisions: list | None = None,
           create: list | None = None, confirm: bool = False, sample: bool = False, options: dict | None = None,
-          review: dict | None = None, picked: list | None = None) -> dict:
+          review: dict | None = None, picked: list | None = None, suggested: dict | None = None,
+          targets: dict | None = None, combine: dict | None = None) -> dict:
     """The stepper's answer (see the module docstring). Pure: no Fabric, no SQL. `options` (WB12, #76) is what the
     start tool read for a choosing stage: {step, items: [{name, hint?, tables?}]} or {step, error}. `review` (WB13, #66)
     is review_plan's file with the checks counted, built by the start tool for Check and Decide, or {error}. `picked`
@@ -299,6 +398,8 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
     c = {"workspace": (workspace or "").strip() or None, "source": (source or "").strip() or None,
          "schema": (schema or "").strip() or None, "keys": keys or None, "confirmed": confirmed or None,
          "decisions": decisions or None, "sample": bool(sample)}
+    if isinstance(targets, dict) and targets.get("silver") and targets.get("gold") and not c["sample"]:
+        c["targets"] = {"silver": str(targets["silver"]), "gold": str(targets["gold"])}       # SM6: one lakehouse per layer
     if c["sample"]:
         return _sample(step, c, run=bool(confirm))
     now = current(step, c)
@@ -307,7 +408,7 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
     n = KEYS.index(key) + 1
     out = {"flow": PROMPT_TITLE, "step": {"n": n, "of": len(STEPS), "key": key, "title": title, "does": does,
                                           "short": SHORT[key]},
-           "stage": now, "who": WHO[key], "path": _path(key), "chosen": {k: v for k, v in c.items() if v and k != "sample"}}
+           "stage": now, "who": WHO[key], "path": _path(key), "chosen": {k: v for k, v in c.items() if v and k not in ("sample", "targets")}}
     out["done_line"] = _finished(out["path"])
     actions: list[dict] = []
     nxt = _next_key(now) if now not in CHOOSE else None
@@ -333,7 +434,9 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
     elif now == "source":
         out["say"] = f"Which lakehouse or warehouse in {c['workspace']} holds your tables?"
         if picks:
-            if meta.get("preselected"):
+            if meta.get("suggested"):                  # SM5: several sources, one named as the source
+                out["say"] = f"I suggest {meta['preselected']}: {meta['suggested']['why']}."
+            elif meta.get("preselected"):
                 out["say"] = f"{c['workspace']} has one source, {meta['preselected']}. I picked it for you."
             actions += picks
         elif isinstance(options, dict) and options.get("step") == "source" and options.get("items") == []:
@@ -360,12 +463,16 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
         out["say"] = ("Your data, picked for you. Change it if it is wrong." if auto else "Your data. Change it if it is wrong.")
         if auto:
             out["picked"] = auto
+        if isinstance(suggested, dict) and suggested.get("name") == c["source"]:    # SM5: why this source, in one line
+            out["suggested"] = {k: suggested[k] for k in ("rule", "why", "others") if k in suggested}
+            out["say"] = str(suggested.get("say") or out["say"])
         actions.append({**_call("Change", TOOL, {"step": "workspace"}), "kind": "call", "secondary": True,
                         "ask": "Change the workspace, source or schema."})
         actions.append({**sample_button, "more": True})
     elif now == "check":
         out.update(_check(c, review))
         actions += out.pop("actions")
+        _combine_check(out, combine, c)
     elif now == "decide":
         out["say"] = "Some links need you. The count supports it, and you decide."
         out["then"] = ("review_plan records the decisions (item ids are in its file); an accepted link goes into confirmed "
@@ -398,6 +505,7 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
                            "plan.confirmed for the next steps. Deciding writes nothing to Fabric. Next leaves an open "
                            "decision open.")
             out["open_decisions"] = len(waiting)
+            _combine_decide(out, actions, combine, c)
             if sent:                                     # the file to keep, once something is decided: under Details
                 actions.append({**_call("Keep my decisions as a review file", "review_plan", args), "secondary": True,
                                 "more": True})
@@ -408,13 +516,21 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
     elif now == "dry_run":
         names = build_names(c["source"], c["schema"])
         out["say"] = "One tap dry-runs everything. Nothing is created."
+        if c.get("targets"):                               # SM6: where the build writes, in one line
+            out["layers_to"] = targets_line(c["targets"])
+            out["say"] = f"One tap dry-runs everything: {out['layers_to']}."
+        if isinstance(combine, dict) and combine.get("accepted"):      # SM7: the match the person accepted
+            out["combined"] = combine["accepted"]["line"]
+            out["say"] = f"One tap dry-runs everything over both sources: {combine['accepted']['customers']} customers in one dim_customer."
+        elif isinstance(combine, dict) and combine.get("proposed"):
+            out["combined"] = "No match accepted: each source is built apart. Accept the match on Decide to combine them."
         out["would_build"] = [{"tool": t, "name": names[t], "what": w} for t, _, w in BUILDS]
         out["data_flow"] = list(FLOW)
         runs = []
         for t, _, w in BUILDS:
             if t == "create_report":
                 continue
-            args = {**_plan_args(c), "name": names[t]}
+            args = {**_build_args(c, t), "name": names[t]}
             label = {"create_pipeline": "Dry run: silver and gold", "create_semantic_model": "Dry run: semantic model",
                      "create_data_agent": "Dry run: data agent"}.get(t, f"Dry run: {w}")
             a = _call(label, t, args, kind="dry_run")
@@ -518,11 +634,42 @@ def _check(c: dict, review: dict | None) -> dict:
     if amounts.get("checked"):
         lines.append(f"{bad} header {'amount' if bad == 1 else 'amounts'} would count twice." if bad else
                      "No total counts twice.")
+    found = {"tool": "review_plan", "summary": _review_summary(review)}
+    lines += products_line(review.get("data_products"), found)
     return {"say": f"{keys} tables, {rels} links, {need}.", "lines": lines,
             "counts": {"tables": keys, "links": rels, "checks": len(counted), "hold": held, "open_decisions": waiting,
                        "doubled_totals": bad},
-            "found": {"tool": "review_plan", "summary": _review_summary(review)},
+            "found": found,
             "actions": more}
+
+
+def sample_products() -> dict | None:
+    """DP2: the catalog data products on the synthetic shop, counted on its rows (demo.py's SQLite), as on your data.
+    Worked out once per process; None when it cannot be (the step stands without it)."""
+    if "products" not in _SAMPLE:
+        try:
+            from . import data_product_match as dpm, demo, seed
+            from .infer import plan
+            p = plan(seed.schema("shop"), keys=demo.DEMO_KEYS)
+            _SAMPLE["products"] = dpm.brief(dpm.suggest(p, demo.demo_validation(), demo._demo_db()), max_tables=25)
+        except Exception:                                                # noqa: BLE001
+            _SAMPLE["products"] = None
+    return _SAMPLE["products"]
+
+
+_SAMPLE: dict = {}
+
+
+def products_line(products: dict | None, found: dict) -> list[str]:
+    """DP2: the check step's one line about catalog data products (data_product_match.brief's `line`), and its detail
+    for Details in found["data_products"]: each process's coverage, then each table with its product, role, confidence
+    and evidence. Shared words for any card that shows a check: [] when there is nothing to say."""
+    if not isinstance(products, dict) or not products.get("line"):
+        return []
+    found["data_products"] = ([p["line"] for p in products.get("processes") or []]
+                              + [f"{t['table']}: {t['product'].replace('_', ' ')} ({t['role']}), {t['confidence']}. "
+                                 + "; ".join(t.get("evidence") or []) + "." for t in products.get("tables") or []])
+    return [products["line"]]
 
 
 def _closing(c: dict) -> dict:
@@ -567,7 +714,7 @@ def _create(c: dict, create: list | None, confirm: bool) -> dict:
             actions.append(_call(f"Dry run: {names[t]} on {names['create_semantic_model']}, once the model exists",
                                  t, args, kind="dry_run"))
             continue
-        args = {**_plan_args(c), "name": names[t], "dry_run": False}
+        args = {**_build_args(c, t), "name": names[t], "dry_run": False}
         actions.append(_call(f"Create {names[t]}", t, args, kind="create"))
     return {"confirmed_by_user": [names[t] for t in ordered],
             "say": "Confirmed. Each button creates one item in Fabric, on a second tap. Nothing is deleted.",
@@ -579,6 +726,10 @@ def _create(c: dict, create: list | None, confirm: bool) -> dict:
 
 def _decided_line(d: dict, sample: bool = True) -> str:
     item = str(d.get("item") or "")
+    if item.startswith(MATCH):                            # SM7: a match of two sources' customers
+        how = {"accepted": "accepted: the next steps combine the sources on it",
+               "rejected": "rejected: the sources stay apart"}.get(str(d.get("review")), "kept open: the sources stay apart")
+        return f"Match {item[len(MATCH):].replace('>', f' {ARROW} ')}: {how}."
     m = item[4:] if item.startswith("rel:") else item
     m = m.replace(">", f" {ARROW} ")
     how = {"accepted": "accepted", "rejected": "rejected", "skipped": "skipped for now"}.get(str(d.get("review")), str(d.get("review")))
@@ -588,6 +739,67 @@ def _decided_line(d: dict, sample: bool = True) -> str:
         # WB15 (G): a rejected link is now left out of every dry run and build on the path (flow_state.BUILD_TOOLS)
         use = ": kept open; decide it before you build"
     return f"{m}: {how}{use}."
+
+
+# SM7 (COMBINE-SOURCES.md): a plan over several schemas whose party tables the match rules pair. Check says the counts
+# in one line, Decide asks for the match with Accept and Reject (one tap; the flow state keeps it as a decision, like a
+# link), and the dry run says what it combines. Nothing is joined on a match that is not accepted.
+MATCH = "match:"
+
+
+def _combine_check(out: dict, combine: dict | None, c: dict) -> None:
+    """Check: the proposed match's counts as the first line, and the open decision counted in "N needs you"."""
+    if not isinstance(combine, dict):
+        return
+    if combine.get("error"):
+        out.setdefault("lines", []).insert(0, "The two sources' customers could not be counted, so nothing is combined.")
+        out["combine_error"] = str(combine["error"])[:200]
+        return
+    prop = combine.get("proposed")
+    if not prop:
+        out.setdefault("lines", []).insert(0, "No rule pairs the two sources' customers, so each is built apart.")
+        return
+    out.setdefault("lines", []).insert(0, prop["line"])
+    out["match"] = {k: prop[k] for k in ("id", "rule", "line", "counts", "customers")}
+    taken = {str(d.get("item")): str(d.get("review")) for d in c.get("decisions") or [] if isinstance(d, dict)}
+    if prop["id"] not in taken and isinstance(out.get("counts"), dict):
+        n = int(out["counts"].get("open_decisions") or 0) + 1
+        out["counts"]["open_decisions"] = n
+        head = str(out.get("say") or "").rsplit(", ", 1)[0]
+        out["say"] = f"{head}, {n} {'needs' if n == 1 else 'need'} you."
+
+
+def _combine_decide(out: dict, actions: list, combine: dict | None, c: dict) -> None:
+    """Decide: the match as a decision with its counted evidence, Accept and Reject (each one tap), first on the card."""
+    if not isinstance(combine, dict) or not combine.get("proposed"):
+        return
+    prop = combine["proposed"]
+    item = prop["id"]
+    taken = {str(d.get("item")): str(d.get("review")) for d in c.get("decisions") or [] if isinstance(d, dict)}
+    state = taken.get(item, "open")
+    acts = []
+    for review, label in (("accepted", "Accept the match"), ("rejected", "Keep them apart")):
+        args = _with_decision(c, item, review, None)
+        acts.append({"kind": "decide", "decision": review, "label": label, "who": "thinker", "tool": TOOL,
+                     "arguments": args, "item": item, "say": f"{label} ({item[len(MATCH):]}) (start with {_shown(args)}).",
+                     "ask": f"{label}: {prop['line']}"})
+    x = {"item": item, "question": f"Are these the same customers? {prop['line']}", "evidence": list(prop["evidence"]),
+         "state": state, "actions": acts, "rule": prop["rule"], "count": prop["line"]}
+    found = out.setdefault("found", {"tool": "start", "summary": "", "decisions": []})
+    found.setdefault("decisions", []).insert(0, {k: v for k, v in x.items() if k != "actions"})
+    if state == "open":
+        actions[:0] = acts
+    else:
+        other = [a for a in acts if a["decision"] != state]
+        actions[:0] = [{**a, "label": "Change to " + ("Keep them apart" if a["decision"] == "rejected" else "Accept the match")}
+                       for a in other]
+    waiting = int(out.get("open_decisions") or 0) + (state == "open")
+    out["open_decisions"] = waiting
+    if state == "open":
+        out["say"] = "The match needs you: are these the same customers?" if waiting == 1 else f"{waiting} decisions need you."
+    elif not waiting:
+        out["say"] = ("Match accepted. Next: the dry run over both sources." if state == "accepted"
+                      else "Kept apart. Next: the dry run, each source on its own.")
 
 
 def _with_decision(c: dict, item: str, review: str, link: dict | None) -> dict:
@@ -812,6 +1024,7 @@ def _sample(step: str | None, c: dict | None = None, run: bool = False) -> dict:
         lines = [f"{len(p['tables'])} tables, {len(p['relationships'])} links, {need}.",
                  f"{proof['links_holding']} of {proof['links']} links hold.",
                  (f"{len(f)} {'amount' if len(f) == 1 else 'amounts'} would count twice." if f else "No total counts twice.")]
+        lines += products_line(sample_products(), found)                 # DP2: the same line as on your own data
     elif now == "decide":
         first = decisions[0] if decisions else None
         found = {"tool": "review_plan", "decisions": [{k: v for k, v in x.items() if k != "actions"} for x in decisions],

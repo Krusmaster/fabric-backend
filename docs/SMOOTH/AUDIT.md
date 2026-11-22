@@ -351,7 +351,112 @@ The rest of Gustav's third editor test (points 5 to 8). Deterministic rules; not
 
 Tests: `tests/test_ed3_catalog_handover.py` and `workload/Workload/app/items/ModelItem/ed3Product.test.tsx`.
 
-## 13. After ED3, part 1: open it, run it, see it (21 November 2026)
+## 13. After SM5: several lakehouses, on a synthetic fixture (21 November 2026)
+
+PLAN.md row 4. Everything below ran locally on `tests/fixtures/multi_lakehouse.py`: one fake workspace, `mlh_demo`,
+with six lakehouses as SQLite files (`bronze_lh`, `silver_lh`, `gold_lh`, `sap_lh`, `crm_lh`, `sales_product_lh`),
+synthetic rows only (the default SAP demo tables and the Salesforce demo, plus two CRM columns made up for the
+fixture). Nothing reached Fabric; any POST, PATCH, PUT or DELETE fails the test. Tests:
+`tests/test_sm5_multi_lakehouse.py`.
+
+| Measure | Before (main, 21 Nov) | After SM5 |
+|---|---|---|
+| (a) Start on a workspace with `bronze_lh`, `silver_lh`, `gold_lh` | step 1 waits: "Choose a source first." | first card "mlh_demo › bronze_lh › sap ✓", **0 extra taps** |
+| (a) taps to the first card, compared with the one-lakehouse demo | | the same card, 0 taps both |
+| (b) Start on `sap_lh`, `crm_lh`, `sales_product_lh` | step 1 waits | `sales_product_lh` suggested (rule L2); its two schemas are the person's choice |
+| (c) one plan over `sap` + `crm` in one lakehouse | not possible (one schema per plan) | **38 tables** keyed `schema.table`, SAP pack in `sap`, Salesforce pack in `crm`, 77 links, none guessed across |
+| (c) a confirmed link `crm.Account.SAP_Customer_No__c` → `sap.KNA1.KUNNR` | a foreign key into another schema was dropped | counted in **one query on one connection**: 4 rows with a value, 3 found |
+| One-lakehouse demo, lazy path, Start → all three dry runs | 4 taps, 2.8 s (SM2) | **4 taps, 2.8 s** at 390 px (`measure-sm5-2026-11-21.json`), every step ≤ 25 words, none scrolls |
+
+What changed:
+- **Name rules for the source (G1).** `start_flow.suggest_source`: L1, exactly one source named as the raw layer
+  (`bronze`, `raw`, `landing`, `staging` as a word of its name) is the source, and the ones named silver or gold are
+  said to stay untouched; L2, otherwise exactly one source named `product` holds the sources as schemas. Otherwise
+  nothing is suggested and Next waits, as before. A suggestion is taken like a single option, so the first card can
+  skip step 1, and Change shows it ticked with the reason under its name.
+- **A plan over several schemas of one item (G4, plan and check).** `fabric_backend/multi_schema.py`:
+  `schema="sap+crm"` (or `"sap,crm"`) reads each schema and keys every table `schema.table`; each schema gets its own
+  knowledge pack; `Dialect.table` quotes `sap.KNA1` of a combined plan as `[sap].[KNA1]`, so every counting query runs
+  on the one connection. Start's schema step offers the schemas together ("38 tables, one plan"), never chosen for you.
+- Not done here: silver, gold, the model, ontology and agent over a combined plan, and writing to `silver_lh` and
+  `gold_lh` (SM6); matching across sources and conformed gold (SM7). The fixture's `EXPECTED` already lists what they
+  must say.
+
+## 14. After SM6: write to the right lakehouse (21 November 2026)
+
+PLAN.md row 5, gaps G2 and G3 of MULTI-LAKEHOUSE.md. Everything below ran locally on SM5's fixture
+`tests/fixtures/multi_lakehouse.py`, layout (a): `bronze_lh` (the SAP demo's 17 tables in `sap`), `silver_lh` and
+`gold_lh` (empty). Synthetic rows only. Nothing reached Fabric; any POST, PATCH, PUT or DELETE fails the test. Tests:
+`tests/test_sm6_write_targets.py`.
+
+| Measure | Before (main, 21 Nov) | After SM6 |
+|---|---|---|
+| (a) where the pipeline writes | silver and gold in `bronze_lh`, under new schemas | **silver → `silver_lh`, gold → `gold_lh`**, said in one line on the first card and the dry run |
+| (a) how the silver notebook reads the source | | `bronze_lh` through its OneLake path (`abfss://…/<bronze_lh id>/Tables`), never changed; the notebook is attached to `silver_lh` |
+| (a) how gold and the check read silver | | `silver_lh`.`silver`.`<table>`, the three-part Spark name; both notebooks attached to `gold_lh` |
+| (a) the model, the ontology, the agent | the source (`bronze_lh`) | model and ontology: the silver tables in `silver_lh`; agent: `gold_lh` (layer gold) or `silver_lh` (layer silver) |
+| (a) Start → all three dry runs, the suggestion taken | (step 1 waited before SM5) | **4 taps, 0.6 s** locally, server side, no browser (3 runs: 0.63, 0.61, 0.55 s), 0 writes |
+| One-lakehouse demo, lazy path, Start → all three dry runs (tools/smooth_measure.py, 390 px, the same machine) | main: 4 taps, 2.92 s | **4 taps, 3.00 s** (`measure-sm6-2026-11-21.json`); no step scrolls. SM5 measured 2.8 s on another machine; the one-lakehouse path does not reach SM6's code (its source is not named as the raw layer) |
+
+What changed:
+- **Two parameters (G2).** `target_lakehouse` (the silver tables) and `gold_lakehouse` (the gold views and the
+  pipeline's check; empty: beside silver) on `create_pipeline`, `create_silver_notebook` and `create_gold_views` (not on
+  the read-only drafts, so the read-only listing stays under its cap). A lakehouse of the source's workspace, chosen by name; one that is not
+  there is refused with what to do, and nothing is written. Empty, or the source itself, changes nothing.
+- **What reads it (G3).** `target_lakehouse` on `create_semantic_model` and `create_ontology`: they read the silver
+  tables where the build wrote them, and the model's dry run says first when they are not there yet ("Run the
+  pipeline once first"). `create_data_agent` reads `gold_lakehouse` for layer gold and `target_lakehouse` for silver.
+- **Start (name rule L1).** When the source is named as the raw layer and exactly one other lakehouse is named silver,
+  the dry run and Create pass the targets; gold goes to the one named gold, else beside silver. The first card and the
+  dry run say "silver → silver_lh, gold → gold_lh". Start's default data agent still reads the source tables.
+
+Decision for Gustav: PLAN.md said the model's expression points at `gold_lh`. It points at `silver_lh`, because gold is
+one wide view per fact table and the model's star (dimensions, facts and their relationships) is the silver tables. A
+model over `gold_lh` needs the star in gold first (for example one materialized lake view per silver table, or a schema
+shortcut), which is a new gold shape.
+
+Not verified: none of this has run in Fabric. Spark SQL reads `lakehouse.schema.table` across schema-enabled
+lakehouses of one workspace (*Lakehouse schemas*, Microsoft Learn); a materialized lake view over another lakehouse's
+tables has not been created in a Fabric workspace by Krusgraph. SM8's demo workspace is where that is checked.
+
+## 15. After SM7: combine SAP + CRM in one data product (21 November 2026)
+
+PLAN.md row 6, COMBINE-SOURCES.md. Everything below ran locally on the synthetic fixture
+`tests/fixtures/multi_lakehouse.py`, layout (b): `sap_lh`, `crm_lh` and `sales_product_lh`, whose `sap` and `crm` schemas
+are the sources (simulated schema shortcuts). Synthetic rows only. Nothing reached Fabric; any POST, PATCH, PUT or DELETE
+fails the test. Tests: `tests/test_sm7_combine.py`.
+
+| Measure | Before (main, 21 Nov) | After SM7 |
+|---|---|---|
+| (b) customers matched across SAP and CRM | none: a link across schemas only when typed in `confirmed` | **M0 `crm.Account.SAP_Customer_No__c` → `sap.KNA1.KUNNR`**, counted: 4 of 5 accounts hold a value, 3 match as written, 4 after normalising; 3 of 4 SAP customers found (1 is in another client), 1 SAP customer matched by 2 accounts |
+| (b) what the Check card says | "38 tables, 77 links, nothing needs you." | "38 tables, 77 links, 1 needs you." and, in 24 words, "SAP has 4 customers, the CRM 5 accounts. 4 accounts match on SAP_Customer_No__c after normalising. 1 only in SAP, 1 only in the CRM." |
+| (b) the decision | | Decide: Accept the match / Keep them apart, with the counted evidence; kept in the flow state (the latest tap wins); nothing combined before Accept |
+| (b) the model dry run | each source's tables, apart | **one `dim_customer` (5 customers), 3 SAP facts + 7 CRM facts re-keyed to `customer_key`, 10 relationships fact → dim_customer, 0 fact → fact**, Direct Lake on `sales_product_lh` (`gold`), with the gold SQL |
+| (b) Start → combined dry run (`tools/smooth_measure.py --combine`, server side, no browser) | not possible | **5 taps, 1.81 / 1.68 / 1.86 s** (3 runs, `measure-sm7-2026-11-21.json`), 0 errors, 0 writes |
+| One-lakehouse demo (browser, `tools/smooth_measure.py`) | 4 taps | unchanged: the combine step runs only on a plan over several schemas |
+
+What changed:
+- **`fabric_backend/combine.py`.** The party tables come from DP1's catalog (`customer`, `crm_account`, role master,
+  with their business keys). Rules M0 (a column that names the other source and an identifier), M1 (the same official
+  identifier: VAT id, organisation number, DUNS, GLN, by fixed normalising steps) and M2 (a key-shaped column, counted;
+  0.9 only with ≥ 95 % found and ≥ 50 distinct values). M4 (names) is never used. Two counting statements per
+  candidate, at most 4 candidates, on the one connection; counts only.
+- **Start.** Check shows the match line and counts the open decision; Decide asks for it first; the dry run says what it
+  combines ("SAP + CRM → 1 dim_customer (5 customers); 3 SAP facts and 7 CRM facts share it, no link between facts.").
+- **`create_semantic_model`** over a plan of several schemas with an accepted match drafts the conformed model and
+  returns the gold SQL (`xref_customer`, `dim_customer`, one view per fact). Its Create answers `not_yet` until the
+  pipeline builds that gold (issue #152).
+- **DP2's coverage on a plan over several schemas** now reads each schema's own pack (`data_product_match._pack_entries`):
+  before, the SAP tables of `crm+sap` were looked up in the Salesforce mapping, and Check said "customer missing".
+
+Decisions for Gustav: the master is the side the match points at (not "the most keys"), so no source row ever gets two
+customer keys; the SAP side is matched within its client with the most rows when the CRM field holds no client. Both
+are said on the card's evidence and in COMBINE-SOURCES.md.
+
+Not verified: none of this has run in Fabric. The gold SQL was run on SQLite in a test after fixed translations
+(`test_the_gold_sql_runs_and_conforms_the_fixture`), not on Spark. SM8's demo workspace is where that is checked.
+
+## 16. After ED3, part 1: open it, run it, see it (21 November 2026)
 
 Gustav's third editor test (about 13:00 to 14:10 UTC, the same shop sample) after ED2's Create. What he saw, and what
 the Model item does now. Deterministic rules; nothing here uses AI.

@@ -222,8 +222,10 @@ def test_finish_gives_the_product_and_the_flow_from_the_created_ids_and_calls_no
     assert {i["id"] for i in out["product"]["items"]} == {c["id"] for c in created}
     assert out["flow"]["nodes"] and out["refused"] == 0
     model = next(n for n in out["flow"]["nodes"] if n["id"] == "item:semantic_model")
-    assert model["lines"] == ["reads the source tables in shop (bronze) directly, not the gold views built in this run"]
-    assert any("later option" in n for n in out["flow"]["notes"])
+    # DPM1: the build has gold views, so the model reads them, also when finish draws the flow without calling a tool
+    assert model["lines"][0].startswith("Built on gold: reads the gold views in schema gold")
+    assert not any("later option" in n for n in out["flow"]["notes"])
+    assert {e["from"] for e in out["flow"]["edges"] if e["to"] == "item:semantic_model"} >= {"gold:gold.orders", "gold:gold.customers"}
 
 
 def test_finish_needs_dry_run_false(make):

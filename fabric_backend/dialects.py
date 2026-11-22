@@ -38,6 +38,8 @@ class Dialect:
         return self.open_quote + str(name).replace(self.close_quote, self.close_quote * 2) + self.close_quote
 
     def table(self, schema: str, table: str) -> str:
+        if "+" in str(schema) and "." in str(table):        # SM5: a plan over several schemas keys tables schema.table
+            schema, table = str(table).split(".", 1)
         parts = ([self.catalog] if self.catalog else []) + [schema, table]
         return ".".join(self.quote(p) for p in parts)
 

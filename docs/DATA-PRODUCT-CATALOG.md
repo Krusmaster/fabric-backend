@@ -254,6 +254,51 @@ a requirement maps to the catalog's questions, the questions to products, the pr
 **What the next round would not do:** create anything in Fabric, propose a product as checked without counts, or
 guess a conformed key across systems without the inclusion check of docs/MULTI-SOURCE.md.
 
+## DP2 (21 November 2026): the matcher and the coverage answer, built
+
+Round DP2 built the proposal above in `fabric_backend/data_product_match.py`. No AI and no language model: fixed word
+lists and rules decide, so the same schema and the same counts give the same answer, byte for byte.
+
+**How a table gets a product.** Packs first: a table a pack recognises takes its product and role from `mapping.yaml`
+(rule DP2-P1). Every other table is read by its name: the words, also inside German and Swedish compounds
+(`Auftragspositionen` = auftrag + positionen, `Leverantörsfakturor` = leverantör + fakturor), go through a word list
+in English, German and Swedish (customer/kunde/kund, order/auftrag/order, invoice/rechnung/faktura,
+amount/betrag/belopp ...) (DP2-N1). A name ending in a list word (type, method, category, status, group, art ...) is a
+reference list, not the product: `PaymentMethods` and `Zahlungsarten` get none. Then the key: a column read as
+"<concept> number" (`KundenNr`, `OrderID`, `FakturaNr`) is the business key (DP2-K1), with a line number (`PosNr`,
+`LineNo`, `Radnr`) for a line. A line belongs to the header of the same product that its document number points at,
+by the plan's relationship or the same column (DP2-L1, DP2-L2). Amount columns (DP2-A1) and the plan's relationships
+pointing at a master (DP2-M1) add to it. Last the rows: validate_plan's counts, or, in the same call, the same
+counting statements (`evidence.key_sql`, `evidence.relationship_sql`, at most 20): the candidate key unique (DP2-C1)
+and the line's link to its header without orphans (DP2-C2).
+
+**Confidence.** `high`: the names (or a pack) and the key agree and the rows confirm it. `medium`: they agree, the rows
+were not counted. `low`: one signal only, or the rows disagree; a hint, never counted as present. Every suggestion
+lists its evidence: the rule and, for a count, the numbers. A table with no signal gets nothing.
+
+**The coverage answer.** The products are grouped into processes (order to cash, procure to pay, record to report,
+lead to cash, customer service, subscription, inventory). Per process: how many products are present (every required
+role at medium or high), which are partial (a role missing) or missing, the catalog's questions it can answer and
+those it cannot, with why. On the SAP demo (17 tables, rows counted):
+
+> Order to cash: 5 of 7 products present; receivables and payables and payment missing, so a question like “Which
+> customers have unpaid invoices past their due date?” cannot be answered.
+
+**Where it shows.** One `data_products` field in the answers of `plan_backend` (names and keys only) and
+`validate_plan` (with its counts), and on the start card's Check step one line, "Data products: …", with each process
+and each table's product, confidence and evidence under Details (on your own data and on the shop sample).
+`requirements_draft` on a schema no pack knows (rule RQ-X0) now names the catalog product a requirement's measure
+needs: a missing product, or a missing role of it, comes first in `missing`; a present one is named with its tables.
+
+**Tested on** the SAP, Salesforce and Dynamics 365 demos with their rows, an invented ERP with German names
+(`tests/fixtures/dp2/unknown_erp_de.json`, rows counted), the WideWorldImporters and Swedish benchmark schemas (names
+only) and a negative case of tables whose names mean nothing (no medium or high suggestion). The answers are golden
+files (`tests/golden/dp2_*.json`); `tests/test_dp2_product_match.py`. Nothing has been run on a customer system.
+
+**Not done.** The word list is small and hand-written; a schema in another language or with codes for names (SAP's
+own) relies on the packs. Products across two systems (the conformed key above) are not matched. The review file of
+`review_plan` does not carry the products.
+
 ## Checking and changing it
 
 - `python -m pytest tests/test_dp1_data_product_catalog.py -q` runs the checks.

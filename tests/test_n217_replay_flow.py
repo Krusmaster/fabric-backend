@@ -51,13 +51,17 @@ def _engine(confirmed=None) -> dict:
     sys.path.insert(0, str(ROOT / "workload" / "scripts"))
     import build_flow_fixture
     info = build_flow_fixture.INFO                                     # the editor's fixture describes the same lakehouse
+    from dataclasses import replace
+    from fabric_backend import gold
     p = plan(seed.schema("shop"), keys=demo.DEMO_KEYS, confirmed=confirmed)
-    parts = semantic_model.draft(p, info, "shop_model")["parts"]
-    items = [{"output": "semantic_model", "label": "Semantic model", "name": "shop_model",
-              "reads": "reads the source tables in shop (bronze) directly, not the gold views built in this run",
-              "code": data_flow.tmdl_excerpt(parts), "language": "tmdl", "code_title": "shop_model: relationships and measures"}]
+    p = replace(p, checked_keys=demo.demo_checked_keys(p))           # DPM1: the demo's row check, as the editor passes it
+    gspec = gold.spec(p, info, "silver", "gold", dimensions=True)    # DPM1: the model reads the gold views
+    d = semantic_model.draft_on_gold(p, info, gspec, "shop_model", validation=demo.demo_validation())
+    items = [{"output": "semantic_model", "label": "Semantic model", "name": "shop_model", "reads": d["summary"]["reads"]["said"],
+              "on_gold": [f"gold.{t}" for t in d["summary"]["roles"] if t != (d["summary"].get("date_table") or {}).get("name")],
+              "code": data_flow.tmdl_excerpt(d["parts"]), "language": "tmdl", "code_title": "shop_model: relationships and measures"}]
     return data_flow.flow(p, info, {"silver_notebook": "silver_shop", "gold_views": "gold_shop", "semantic_model": "shop_model"},
-                          items=items)
+                          items=items, dimensions=True)
 
 
 def _confirmed():
@@ -94,7 +98,8 @@ def test_the_stages_of_the_chat_s_build():
     f = demo.demo_drafts()["as_is"]["flow"]
     cols = {c: [n for n in f["nodes"] if n["column"] == c] for c in ("bronze", "silver", "gold", "built")}
     assert len(cols["bronze"]) == 7 and len(cols["silver"]) == 7 and all(n["built"] for n in f["nodes"])
-    assert [n["label"] for n in cols["gold"]] == ["gold.audit_log", "gold.order_items", "gold.orders"]
+    assert [n["label"] for n in cols["gold"]] == ["gold.audit_log", "gold.order_items", "gold.orders",    # DPM1: and the dimensions
+                                                  "gold.addresses", "gold.categories", "gold.customers", "gold.products"]
     assert [(n["kind_label"], n["label"]) for n in cols["built"]] == [("Semantic model", "shop_model")]
     assert all(n["code"] for n in cols["silver"] + cols["gold"] + cols["built"]) and not any(n["code"] for n in cols["bronze"])
     assert not any(n["column"] == "pipeline" for n in f["nodes"])     # no pipeline in this build

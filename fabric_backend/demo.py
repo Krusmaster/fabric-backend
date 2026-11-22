@@ -166,18 +166,40 @@ FLOW_INFO = {"workspace_id": "00000000-0000-0000-0000-000000000000", "item_id": 
 FLOW_CHOSEN = {"silver_notebook": "silver_shop", "gold_views": "gold_shop", "semantic_model": "shop_model"}
 
 
+def demo_checked_keys(p) -> dict:
+    """DPM1: the demo's row check (demo_validation's counts, as the editor's Check against the rows passes them to the
+    build: workload_api.checked_keys) for each key of `p` it counted unique."""
+    out = {}
+    for k in demo_validation()["keys"]:
+        key = p.keys.get(k["table"], ([], ""))[0]
+        if key and [c.lower() for c in k["columns"]] == [c.lower() for c in key] and str(k["verdict"]).startswith("unique"):
+            out[k["table"]] = {"columns": list(key), "how": "rows", "checked_at": "", "rows": k["rows"], "distinct": k["distinct"]}
+    return out
+
+
 def _flow(p) -> dict:
-    from . import data_flow, semantic_model
+    """n224, DPM1: the build of the silver notebook, the gold views (facts and dimensions) and the semantic model, after
+    the row check: the silver boxes say what it counted, and the model reads the gold views, grouped by the data
+    products the chat draws (domains.data_products)."""
+    from dataclasses import replace
+    from . import data_flow, gold, semantic_model
+    p = replace(p, checked_keys=demo_checked_keys(p))
     name = FLOW_CHOSEN["semantic_model"]
-    parts = semantic_model.draft(p, FLOW_INFO, name)["parts"]
-    items = [{"output": "semantic_model", "label": "Semantic model", "name": name,
-              "reads": "reads the source tables in shop (bronze) directly, not the gold views built in this run",
-              "code": data_flow.tmdl_excerpt(parts), "language": "tmdl", "code_title": f"{name}: relationships and measures"}]
-    f = data_flow.flow(p, FLOW_INFO, FLOW_CHOSEN, items=items)
+    gspec = gold.spec(p, FLOW_INFO, "silver", "gold", dimensions=True)
+    d = semantic_model.draft_on_gold(p, FLOW_INFO, gspec, name, validation=demo_validation())
+    reads = d["summary"]["reads"]
+    items = [{"output": "semantic_model", "label": "Semantic model", "name": name, "reads": reads["said"],
+              "on_gold": [f"gold.{t}" for t in d["summary"]["roles"] if t != (d["summary"].get("date_table") or {}).get("name")],
+              "code": data_flow.tmdl_excerpt(d["parts"]), "language": "tmdl", "code_title": f"{name}: relationships and measures"}]
+    f = data_flow.flow(p, FLOW_INFO, FLOW_CHOSEN, items=items, dimensions=True)
     keep = ("id", "column", "label", "kind_label", "lines", "built", "code", "code_title")
+    s = d["summary"]
     return {"tool": "data_flow", "columns": f["columns"], "said": f["said"], "notes": f["notes"],
             "nodes": [{k: n[k] for k in keep if k in n} for n in f["nodes"]],
-            "edges": [{"from": e["from"], "to": e["to"], "built": e["built"]} for e in f["edges"]]}
+            "edges": [{"from": e["from"], "to": e["to"], "built": e["built"]} for e in f["edges"]],
+            "model": {"reads": reads["said"], "layer": reads["layer"],
+                      "data_products": [{"name": g["name"], "tables": g["tables"], "measures": g["measures"]} for g in s["data_products"]],
+                      "interfaces": s["interfaces"], "left_out": s["left_out"]}}
 
 
 def _drafts(p) -> dict:
@@ -274,9 +296,10 @@ def demo_plan() -> dict:
 def demo_validation() -> dict:
     """What `validate_plan` answers for the demo: the same `evidence.validate` checks, run over `seed.rows()` loaded into
     an in-memory SQLite database (the only translation: COUNT_BIG → COUNT). Computed, not hand-written."""
-    from . import evidence
+    from . import budget, evidence
     s = schema("shop")
-    out = evidence.validate(plan(s, keys=DEMO_KEYS), _demo_db())
+    with budget.call(bounded=False):     # SM7: cached, so the same answer whoever calls first (a tool's budget stays out)
+        out = evidence.validate(plan(s, keys=DEMO_KEYS), _demo_db())
     out["suggested_keys"] = evidence.suggest_composite_keys(plan(s))        # what plan_backend suggests before any override
     out["computed"] = ("on the synthetic demo data (fabric_backend.seed.rows) in an in-memory SQLite database, with the same "
                        "checks validate_plan runs on a Fabric source")

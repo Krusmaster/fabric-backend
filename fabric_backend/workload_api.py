@@ -2374,6 +2374,24 @@ def _call(kind: str, o: dict, chosen: dict, req: dict, keys, confirmed, dry_run:
     common = {"workspace": req["workspace"], "source": req["source"], "schema": req["schema"], "keys": keys,
               "confirmed": confirmed, "dry_run": dry_run}
     layers = layer_args(kind, chosen, req)                         # WB2 (#54)
+    on_gold = S.MODEL_ON_GOLD.set(model_on_gold(chosen, req))      # DPM1: the model reads the gold views this build writes
+    try:
+        return _call_tool(S, kind, o, chosen, req, keys, confirmed, dry_run, built, common, layers)
+    finally:
+        S.MODEL_ON_GOLD.reset(on_gold)
+
+
+def model_on_gold(chosen: dict, req: dict) -> dict | None:
+    """DPM1: the gold layer a semantic model of this build reads: when the build has the semantic model and gold views
+    (the gold views output, or the pipeline, which runs them), its silver and gold schemas; else None (the model reads
+    the source tables, bronze)."""
+    from . import layer_schemas as _ls
+    if "semantic_model" not in chosen or not ({"gold_views", "pipeline"} & set(chosen)):
+        return None
+    return {"silver_schema": req.get("silver_schema") or _ls.DEFAULT_SILVER, "gold_schema": req.get("gold_schema") or _ls.DEFAULT_GOLD}
+
+
+def _call_tool(S, kind: str, o: dict, chosen: dict, req: dict, keys, confirmed, dry_run: bool, built: dict, common: dict, layers: dict) -> dict:
     if kind == "silver_notebook":
         text = S.create_silver_notebook(name=o["name"], **layers, **common)
     elif kind == "gold_views":
@@ -2429,9 +2447,12 @@ def model_reads(answer: dict, req: dict) -> str:
     summary.reads: the silver tables when composite keys are combined, else the source's tables)."""
     summary = answer.get("summary") if isinstance(answer.get("summary"), dict) else (answer.get("draft") or {}).get("summary") or {}
     reads = summary.get("reads") if isinstance(summary, dict) else None
+    if isinstance(reads, dict) and reads.get("layer") == "gold":       # DPM1: said in one line, the dry run and the result
+        return f"Reads: {reads.get('said')}"
     if isinstance(reads, dict) and reads.get("layer") == "silver":
         return f"Reads: the silver tables in schema {reads.get('schema')} (Direct Lake)."
-    return f"Reads: the source tables of {req.get('source_name') or 'the source'}, schema {req.get('schema')} (bronze, Direct Lake)."
+    return (f"Reads: the source tables of {req.get('source_name') or 'the source'}, schema {req.get('schema')} (bronze, Direct Lake): "
+            "no gold views in this build.")
 
 
 def product_owner(req: dict) -> str | None:
@@ -2479,7 +2500,14 @@ def _flow(req: dict, p, chosen: dict, cards: list[dict], keys, confirmed) -> dic
     info, refusal = S._write_info(info, "The data flow")           # n201: a read-only source flows into the target lakehouse
     if refusal:
         return None
-    items = []
+    items, og, gold_at = [], None, model_on_gold(chosen, req)
+    if gold_at and info.get("schemas_enabled"):                    # DPM1: what the model on gold reads, from the engine itself
+        from . import gold as _gold, semantic_model as _sm
+        try:
+            og = _sm.gold_model(p, _gold.spec(p, info, gold_at["silver_schema"], gold_at["gold_schema"], dimensions=True),
+                                S.checked_validation(p))
+        except Exception:                                          # noqa: BLE001 — a schema the gold views refuse: drawn as before
+            og = None
     for c in cards:
         if c["output"] not in data_flow.ON_SOURCE + ("report",) or c.get("refusal"):
             continue
@@ -2487,6 +2515,8 @@ def _flow(req: dict, p, chosen: dict, cards: list[dict], keys, confirmed) -> dic
         if "gold_views" in chosen:                                 # n179: said plainly when gold views are built in the same run
             reads += ", not the gold views built in this run"
         it = {"output": c["output"], "label": c["label"], "name": c["name"], "reads": reads}
+        if c["output"] == "semantic_model" and og:                 # DPM1: built on gold, a line from each gold view it reads
+            it.update(reads=og["said"], on_gold=[f"{og['schema']}.{t}".lower() for t in og["kinds"]])
         if c["output"] == "semantic_model" and isinstance((c.get("answer") or {}).get("parts"), dict):
             it.update(code=data_flow.tmdl_excerpt(c["answer"]["parts"]), language="tmdl", code_title=f"{c['name']}: relationships and measures")
         if c["output"] == "report":
@@ -2500,7 +2530,8 @@ def _flow(req: dict, p, chosen: dict, cards: list[dict], keys, confirmed) -> dic
     if "pipeline" in chosen:
         names = (chosen.get("silver_notebook") or f"silver_{req['schema']}", chosen.get("gold_views") or f"gold_{req['schema']}",
                  f"{chosen['pipeline']}_check")
-    out = data_flow.flow(p, info, chosen, pipeline_names=names, items=items)
+    out = data_flow.flow(p, info, chosen, pipeline_names=names, items=items, gold_schema=(gold_at or {}).get("gold_schema", "gold"),
+                         silver_schema=(gold_at or {}).get("silver_schema", "silver"), dimensions=gold_at is not None)
     if info.get("target") and isinstance(out, dict):              # n201: said on the flow, where the dry run shows it
         out["target"] = info["target"]
         if isinstance(out.get("notes"), list):
@@ -2617,7 +2648,10 @@ def checked_keys(rv: dict) -> dict:
             continue
         c = it.get("check") or {}
         if c.get("status") == "passed":
-            out[it["table"]] = {"columns": list(it["columns"]), "how": "rows", "checked_at": c.get("checked_at") or ""}
+            res = c.get("result") or {}
+            out[it["table"]] = {"columns": list(it["columns"]), "how": "rows", "checked_at": c.get("checked_at") or "",
+                                **({"rows": int(res["rows"]), "distinct": int(res["distinct"])}       # DPM1: "key checked: N of N unique"
+                                   if res.get("rows") is not None and res.get("distinct") is not None else {})}
         elif it.get("review") == "accepted":
             out[it["table"]] = {"columns": list(it["columns"]), "how": "accepted", "checked_at": ""}
     return out
