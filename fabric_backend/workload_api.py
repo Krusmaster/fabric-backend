@@ -1063,6 +1063,11 @@ def run_catalog(req: dict) -> dict:
 
 STARTER_MAX_CELLS = 12
 STARTER_MAX_CHARS = 60_000
+# AA1: the three stages of Advanced analytics (advanced_stages.py): the output recorded on the created item, and the
+# item's description in Fabric. The cells come from the editor, filled from advanced_stages' templates.
+STARTER_STAGES = {"features": ("ds_features", "Krusgraph starter: a feature table from the keys and links proven on {lh}"),
+                  "model": ("ds_model", "Krusgraph Advanced analytics, stage 2: a model on the feature table from {lh}"),
+                  "predictions": ("ds_predictions", "Krusgraph Advanced analytics, stage 3: predictions in gold from {lh}")}
 
 
 def starter_request(body) -> dict:
@@ -1080,7 +1085,10 @@ def starter_request(body) -> dict:
     confirm = body.get("confirm")
     if confirm is not None and (not isinstance(confirm, str) or len(confirm) > 40):
         raise BadRequest("'confirm' is the dry run's confirm value")
-    return {**req, "name": name, "cells": cells, "dry_run": dry, "confirm": confirm}
+    stage = body.get("stage", "features")                  # AA1: the stage of Advanced analytics this notebook is
+    if stage not in STARTER_STAGES:
+        raise BadRequest(f"'stage' is one of {', '.join(STARTER_STAGES)}")
+    return {**req, "name": name, "cells": cells, "dry_run": dry, "confirm": confirm, "stage": stage}
 
 
 def starter_confirm(workspace: str, name: str, cells: list[str]) -> str:
@@ -1114,7 +1122,7 @@ def run_starter(req: dict) -> dict:
                 "hint": "Nothing was created. Run the dry run again."}
     source = _notebook.fabric_source([("code", c) for c in req["cells"]], _notebook.notebook_metadata(ws, lh_id, lh_name))
     got = create_item_with_definition("notebooks", "Notebook",
-                                      _notebook.envelope(req["name"], source, f"Krusgraph starter: a feature table from the keys and links proven on {lh_name}"),
+                                      _notebook.envelope(req["name"], source, STARTER_STAGES[req.get("stage", "features")][1].format(lh=lh_name)),
                                       ws, token_provider=lambda: S.auth.fabric(None), update_existing=False)
     log("starter", dry_run=False, status=got.get("status"))
     if got.get("status") == "Timeout":
@@ -1123,7 +1131,7 @@ def run_starter(req: dict) -> dict:
     if got.get("status") != "Succeeded" or not got.get("id"):
         return {"error": f"Fabric did not create the notebook {req['name']} (HTTP {got.get('http', '?')}).", "kind": "fabric",
                 "hint": "Creating a notebook needs the Contributor role on the workspace. Nothing else was changed."}
-    created = {"type": "Notebook", "id": got["id"], "name": req["name"], "workspace": ws, "output": "ds_features"}
+    created = {"type": "Notebook", "id": got["id"], "name": req["name"], "workspace": ws, "output": STARTER_STAGES[req.get("stage", "features")][0]}
     return {**out, "would": "created", "created": created,
             "words": f"Created the notebook {req['name']}, attached to {lh_name}. {STARTER_NOT_RUN}",
             "note": "Created as you; nothing was run."}

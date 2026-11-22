@@ -369,7 +369,8 @@ def perspective_tmdl(group: dict, chosen, by_table: dict, calendar: str | None, 
     return "\n".join(lines)
 
 
-def gold_model(plan: Plan, gspec: dict, validation: dict | None = None, products: dict | None = None) -> dict:
+def gold_model(plan: Plan, gspec: dict, validation: dict | None = None, products: dict | None = None,
+               predictions: list[dict] | None = None) -> dict:
     """The star schema over the gold views of `gspec` (gold.spec(..., dimensions=True)), shaped by the data products:
     {"plan": the plan of the gold views, "kinds", "product_of", "products", "interfaces", ...} for draft(on_gold=...).
     Relationships: from a fact view to a dimension view over a column the view carries (its own reference, or the
@@ -457,9 +458,12 @@ def gold_model(plan: Plan, gspec: dict, validation: dict | None = None, products
         col = ref_column(r) if kinds.get(r.source) == "dimension" and kinds.get(r.target) == "dimension" else None
         if col and (r.source, col.lower()) in outname[r.source]:
             add(r.source, outname[r.source][(r.source, col.lower())], r.target, r)
+    advanced = _prediction_tables(predictions, tables, kinds, keys, rels, gschema)    # AA1
     gp = Plan(Schema(tables, schema=gschema), keys=keys, relationships=rels, pack=getattr(plan, "pack", None))
     interfaces, iface_list = {}, []
     for r in rels:
+        if r.source not in product_of or r.target not in product_of:   # AA1: a prediction table is in no data product
+            continue
         a, b = product_of[r.source], product_of[r.target]
         if a != b:
             interfaces[r.key] = f"{a} -> {b}"
@@ -490,16 +494,61 @@ def gold_model(plan: Plan, gspec: dict, validation: dict | None = None, products
             "not_in_gold": not_in_gold,
             "header_amounts_left_out": [{"view": x["view"], "table": x["table"], "column": x["column"]} for x in gspec.get("header_amounts_left_out", [])],
             "keys_checked": validation is not None,
-            "advanced_analytics": {"display_folder": ADVANCED_ANALYTICS, "tables": [],
-                                   "note": "reserved for prediction tables (round AA1); TMDL has no empty display folder, so it appears "
-                                           "once something is placed in it"}}
+            "advanced_analytics": advanced}
+
+
+def _prediction_tables(predictions, tables, kinds, keys, rels, gschema) -> dict:
+    """AA1: the gold tables the predictions notebooks wrote (advanced_stages.py), added to the model only when they exist
+    (`predictions`: [{"table", "columns": [{"name", "type"}]}] as create_semantic_model read them from the gold schema).
+    A segment table relates on its customer column to the dimension view whose one-column key has that name (the key
+    the row check proved); a forecast table relates on week_start to the calendar, as every date column of a fact does.
+    Each gets one measure in the display folder Advanced analytics. Nothing is added for a table that is not there."""
+    from . import advanced_stages as _aa
+    from .schema import Column, Table
+    if not predictions:                                           # DPM1's answer, as it was
+        return {"display_folder": ADVANCED_ANALYTICS, "tables": [],
+                "note": "reserved for prediction tables (round AA1); TMDL has no empty display folder, so it appears "
+                        "once something is placed in it"}
+    out = {"display_folder": ADVANCED_ANALYTICS, "tables": [], "not_added": [], "measures": {}}
+    for p in predictions:
+        name, cols = p["table"], [c["name"] for c in p.get("columns", [])]
+        kind = _aa.prediction_kind(cols)
+        if not kind:
+            continue
+        if name in tables:
+            out["not_added"].append({"table": name, "why": f"the model already has a table named {name}"})
+            continue
+        related = None
+        if kind == "segments":
+            dims = {keys[t][0][0].lower(): t for t, k in kinds.items() if k == "dimension" and t in keys and len(keys[t][0]) == 1}
+            col = next((c for c in cols if c.lower() in dims), None)
+            if not col:
+                out["not_added"].append({"table": name, "why": "none of its columns is the one-column key of a dimension view "
+                                                              "in the model, so it could not relate on a proven key"})
+                continue
+            target = dims[col.lower()]
+            rels.append(Relationship(name, [col], target, list(keys[target][0]), "aa1-prediction",
+                                     note="a prediction table, related on the key the row check proved"))
+            related = f"{name}.{col} -> {target}.{keys[target][0][0]}"
+        tables[name] = Table(name, [Column(c["name"], c.get("type") or "string") for c in p["columns"]], schema=gschema)
+        kinds[name] = "fact"
+        mname, expr, fmt = _aa.MEASURES[kind]
+        out["measures"][name] = {"name": mname, "expression": expr.format(table=_dax_table(name)), "format": fmt,
+                                 "why": f"one measure for the {kind} written by the Advanced analytics predictions notebook"}
+        out["tables"].append({"table": name, "kind": kind, "related": related or (f"{name}.week_start -> the calendar" if kind == "forecast" else None),
+                              "measure": mname})
+    if out["tables"]:
+        out["said"] = ("Adds " + ", ".join(f"{t['table']} ({t['kind']}, measure {t['measure']})" for t in out["tables"])
+                       + f" in the display folder {ADVANCED_ANALYTICS}.")
+    return out
 
 
 def draft_on_gold(plan: Plan, info: dict, gspec: dict, name: str = "semantic_model", validation: dict | None = None,
-                  date_range: tuple[str, str] | None = None, whole_quantities=frozenset(), products: dict | None = None) -> dict:
+                  date_range: tuple[str, str] | None = None, whole_quantities=frozenset(), products: dict | None = None,
+                  predictions: list[dict] | None = None) -> dict:
     """DPM1: the model over the gold views of `gspec`, grouped by data product. `info` is the source's (or the
     lakehouse the gold views are in); its schema becomes the gold schema."""
-    g = gold_model(plan, gspec, validation, products)
+    g = gold_model(plan, gspec, validation, products, predictions)
     ginfo = {**info, "schema": g["schema"], "schemas_enabled": True}
     return draft(g["plan"], ginfo, name, validation=validation, date_range=date_range, whole_quantities=whole_quantities,
                  combined=False, on_gold=g)
@@ -610,6 +659,9 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
     measures = [m for m in measures if (m["table"], m.get("column")) not in flat]   # a flat header amount: no plain sum
     more, flat = _levels.suggest(plan, chosen, measures, header_level, consumed, ref_cols, taken, validation, summarize_by, data_type, role_of)
     measures += more
+    adv = (on_gold or {}).get("advanced_analytics", {}).get("measures") or {}
+    if adv:                                                       # AA1: one measure per prediction table, nothing suggested
+        measures = [m for m in measures if m["table"] not in adv] + [{"table": t, **m} for t, m in adv.items()]
     by_table: dict[str, list[dict]] = {}
     for m in measures:
         by_table.setdefault(m["table"], []).append(m)
@@ -646,6 +698,8 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                       f"\t\tformatString: {m['format']}"]
             if on_gold and t.name in on_gold["product_of"]:      # DPM1: the measure sits with its data product
                 lines.append(f"\t\tdisplayFolder: {_tmdl_text(on_gold['product_of'][t.name])}")
+            elif t.name in adv:                                  # AA1
+                lines.append(f"\t\tdisplayFolder: {_tmdl_text(ADVANCED_ANALYTICS)}")
             lines += [f"\t\tlineageTag: {_tag(name, 'measure', t.name, m['name'])}", ""]
         for c in t.columns:
             dt = data_type(c.data_type)
@@ -679,6 +733,8 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                   f"\tannotation Krusgraph_Role = {role_of.get(t.name, 'other')}", ""]
         if on_gold and t.name in on_gold["product_of"]:          # DPM1
             lines += [f"\tannotation Krusgraph_DataProduct = {on_gold['product_of'][t.name]}", ""]
+        elif t.name in adv:                                      # AA1
+            lines += [f"\tannotation Krusgraph_AdvancedAnalytics = {ADVANCED_ANALYTICS}", ""]
         parts[f"definition/tables/{t.name}.tmdl"] = "\n".join(lines)
     if calendar:
         parts[f"definition/tables/{calendar}.tmdl"] = calendar_tmdl(calendar, name, date_range)
@@ -876,8 +932,14 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
         readme += [f"- No relationship from `{x['source']}` to `{x['target']}`: {x['why']}." for x in on_gold["fact_to_fact_left_out"]]
         readme += [f"- `{x['table']}` ({x['data_product']}) has no table in the model: {x['why']}." for x in on_gold["not_in_gold"]]
         readme += [f"- `{x['source']}.{x['column']} -> {x['target']}` is not related: {x['why']}." for x in on_gold["not_related"]]
-        readme += [f"- The display folder `{ADVANCED_ANALYTICS}` is reserved for prediction tables; TMDL has no empty folder, so it appears "
-                   "once something is placed in it (the model's annotation `Krusgraph_AdvancedAnalyticsFolder` names it).", ""]
+        aa = on_gold["advanced_analytics"]
+        if aa["tables"]:                                           # AA1
+            readme += [f"- `{x['table']}` ({x['kind']}): a prediction table in gold, measure `{x['measure']}` in the display folder "
+                       f"`{ADVANCED_ANALYTICS}`" + (f", related {x['related']}" if x["related"] else "") + "." for x in aa["tables"]]
+        else:
+            readme += [f"- The display folder `{ADVANCED_ANALYTICS}` is reserved for prediction tables; TMDL has no empty folder, so it appears "
+                       "once something is placed in it (the model's annotation `Krusgraph_AdvancedAnalyticsFolder` names it)."]
+        readme += [f"- `{x['table']}` is not added: {x['why']}." for x in aa.get("not_added", [])] + [""]
         parts["README.generated.md"] = "\n".join(readme)
     if layer:                                                      # n226: only when columns are combined
         summary["reads"] = {"layer": "silver", "schema": schema, "tables": f"{prefix}<table>", "said": layer["said"]}

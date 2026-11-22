@@ -1520,8 +1520,10 @@ export function ModelItemEditor(props: PageProps) {
   // WB10 (#64): the Data Science starter's Dry run and Create; what Create made joins outputs.json like any output
   const starterSource = useMemo<StarterSource>(
     () => ({
-      run: ({ name, cells, dryRun, confirm }) =>
-        engine.starter<StarterAnswer>(workloadClient, { ...sourceRequest(defRef.current), name, cells, dry_run: dryRun, confirm: confirm ?? null }),
+      run: ({ name, cells, dryRun, confirm, stage }) =>
+        engine.starter<StarterAnswer>(workloadClient, { ...sourceRequest(defRef.current), name, cells, dry_run: dryRun, confirm: confirm ?? null,
+          ...(stage && stage !== "features" ? { stage } : {}) }),   // AA1: a model or predictions notebook is recorded as that stage
+      open: (item) => void openItem({ id: item.id, workspaceId: item.workspace ?? defRef.current.source?.workspaceId, type: item.type, displayName: item.name } as never),
       onCreated: (item) => {
         void update((d) => ({ ...d, outputs: { ...d.outputs, created: [...d.outputs.created.filter((c) => c.id !== item.id), item] } }));
         callNotificationOpen(workloadClient, "Notebook created", `${item.name} is in your workspace. Krusgraph did not run it.`);

@@ -738,3 +738,10 @@
 .krusgraph-output p {
   margin: 2px 0;
 }
+
+/* AA1: Advanced analytics under the Data Science card: each analysis with its three stages, one column on a phone */
+.kg-adv { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--colorNeutralStroke2); }
+.kg-adv-list, .kg-adv-stages { margin: 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.kg-adv-analysis { display: flex; flex-direction: column; gap: 4px; }
+.kg-adv-stage { display: flex; flex-direction: column; gap: 4px; padding-left: 12px; border-left: 2px solid var(--colorNeutralStroke1); min-width: 0; }
+.kg-adv-stage .kg-next-actions { flex-wrap: wrap; }

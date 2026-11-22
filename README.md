@@ -151,6 +151,8 @@ on public load scripts (`tests/fixtures/qlik/SOURCES.md`), not on a customer's Q
 The same three are in the local stdio server, where the script stays on your machine ([docs/LOCAL.md](docs/LOCAL.md)).
 Qlik is a trademark of QlikTech International AB; Krusgraph is not affiliated with it.
 
+In the Fabric workload's Model item, the Data Science card takes the proven feature table on to a model and to predictions in gold, in three stages that you run in Fabric (round AA1, [docs/ADVANCED-ANALYTICS.md](docs/ADVANCED-ANALYTICS.md)).
+
 Two tools are the analysis pack for SAP order-to-cash data (round AP2, [docs/ANALYSIS-PLAN.md](docs/ANALYSIS-PLAN.md)).
 They complement Fabric Data Science: Krusgraph says which analysis the data supports and writes the first notebook with
 the SAP joins right; the modelling and tracking run on Fabric's own features, started by you:
