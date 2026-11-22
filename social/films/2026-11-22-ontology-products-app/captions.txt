@@ -1,0 +1,26 @@
+DRAFT, 2026-11-22, round FV3. Not approved. Do not post before Gustav says yes.
+
+INSTAGRAM REELS / TIKTOK / LINKEDIN (9:16)
+
+So many tables in Fabric. What do they mean for your business?
+
+Start Krusgraph, take a few taps and get an ontology (customer → order → invoice), data products in the OneLake catalog, and a Fabric app ready to publish, all built on keys and links counted on your rows.
+
+Ontology and Fabric apps are previews in Microsoft Fabric. Shown on synthetic demo data. Krusgraph is independent and not affiliated with Microsoft.
+
+#MicrosoftFabric #Ontology #DataProducts #DataEngineering #Krusgraph
+
+krusgraph.com
+
+
+SVENSK BILDTEXT
+
+Så många tabeller i Fabric. Vad betyder de för er verksamhet?
+
+Starta Krusgraph, några tryck och du får en ontologi (kund → order → faktura), dataprodukter i OneLake-katalogen och en Fabric-app redo att publicera, byggda på nycklar och länkar som räknats på dina rader.
+
+Ontologi och Fabric-appar är förhandsversioner i Microsoft Fabric. Visat på syntetisk demodata. Krusgraph är oberoende och inte knutet till Microsoft.
+
+#MicrosoftFabric #Ontology #DataProducts #DataEngineering #Krusgraph
+
+krusgraph.com
