@@ -3394,6 +3394,8 @@ def routes(cfg, validator=None, obo=None) -> list:
         return JSONResponse(body, status_code=status, headers={**SECURITY_HEADERS, **cors_headers(origin), **(extra or {})})
 
     def licence(req: dict, tid: str) -> dict | None:
+        """KRUSGRAPH_ENTITLEMENTS without the trial: a Create (dry_run=false) on /build and, since WB7, on the routes in
+        billing.CREATE_ROUTES is the create_backend feature; every dry run and read stays free."""
         from . import entitlements
         if not entitlements.enabled():
             return None
@@ -3509,9 +3511,9 @@ def routes(cfg, validator=None, obo=None) -> list:
             Route(f"{PREFIX}/file", endpoint(file_request, run_file, "file"), methods=["POST", "OPTIONS"]),   # WB10
             Route(f"{PREFIX}/file/{{token}}", serve_file, methods=["GET"]),   # WB10: the link opened in a new tab
             Route(f"{PREFIX}/verify", endpoint(verify_request, run_verify, "verify"), methods=["POST", "OPTIONS"]),   # n229
-            Route(f"{PREFIX}/catalog", endpoint(catalog_request, run_catalog, "catalog"), methods=["POST", "OPTIONS"]),   # CA1
-            Route(f"{PREFIX}/starter", endpoint(starter_request, run_starter, "starter"), methods=["POST", "OPTIONS"]),   # WB10
-            Route(f"{PREFIX}/sap-demo", endpoint(sap_demo_request, run_sap_demo, "sap-demo"), methods=["POST", "OPTIONS"]),   # WB5
+            Route(f"{PREFIX}/catalog", endpoint(catalog_request, run_catalog, "catalog", gate=licence), methods=["POST", "OPTIONS"]),   # CA1
+            Route(f"{PREFIX}/starter", endpoint(starter_request, run_starter, "starter", gate=licence), methods=["POST", "OPTIONS"]),   # WB10
+            Route(f"{PREFIX}/sap-demo", endpoint(sap_demo_request, run_sap_demo, "sap-demo", gate=licence), methods=["POST", "OPTIONS"]),   # WB5
             Route(f"{PREFIX}/run", endpoint(run_item_request, run_item, "run"), methods=["POST", "OPTIONS"]),   # ED3: Run now
             Route(f"{PREFIX}/analysis", endpoint(analysis_request, run_analysis, "analysis"), methods=["POST", "OPTIONS"]),   # WB4
             Route(f"{PREFIX}/access", endpoint(access_request, None, "access"), methods=["POST", "OPTIONS"])]

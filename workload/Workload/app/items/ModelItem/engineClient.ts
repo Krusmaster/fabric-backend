@@ -25,6 +25,8 @@ export interface EngineError {
   error: string;
   kind: string;
   hint?: string;
+  /** kind upgrade (entitlements.py, billing.py): the Marketplace offer */
+  upgrade_url?: string;
 }
 
 export interface ReviewAnswer {

@@ -136,14 +136,27 @@ export function Busy(props: { label?: string; wait?: Wait; mascotsOn?: boolean; 
   );
 }
 
+/** WB7: a Create refused for the licence (kind upgrade) gets the offer as a link, not only as text in the hint: no dead
+ * end. Only an https address is linked; the dry run stays one click away. */
+export function upgradeLink(error?: EngineError): string | undefined {
+  const url = error?.kind === "upgrade" ? error.upgrade_url : undefined;
+  return url && url.startsWith("https://") ? url : undefined;
+}
+
 export function ErrorBar({ error }: { error?: EngineError }) {
   if (!error) return null;
+  const offer = upgradeLink(error);
   return (
-    <MessageBar intent="error">
+    <MessageBar intent={offer ? "warning" : "error"}>
       <MessageBarBody>
         {error.error}
         {error.hint ? ` ${error.hint}` : ""}
       </MessageBarBody>
+      {offer && (
+        <MessageBarActions>
+          <Link href={offer} target="_blank" rel="noopener noreferrer">Subscribe in Microsoft Marketplace</Link>
+        </MessageBarActions>
+      )}
     </MessageBar>
   );
 }
