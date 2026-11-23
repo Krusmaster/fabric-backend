@@ -253,16 +253,19 @@ def test_bi_article_active_and_inactive_are_the_drafts(measured):
     s, p, md = measured["draft"]["summary"], measured["plan"], TEXT[BI_SLUG]
     among = [r for r in p.relationships if r.source in MODEL_TABLES and r.target in MODEL_TABLES]
     assert len(among) == 14 and "the plan has 14 relationships" in md
-    assert (s["relationships_active"], s["relationships_inactive"], s["relationships_not_expressible"]) == (7, 7, 0)
-    assert "The draft keeps 7 active and makes 7 inactive" in md
-    assert "it would close a cycle with VBAP - VBRP - MARA" in [x["why"] for x in s["inactive"] if x["source"] == "VBAP"][0]
+    # BL51: with validate_plan's counts the active set follows them (one filter path between two tables)
+    assert (s["relationships_active"], s["relationships_inactive"], s["relationships_not_expressible"]) == (9, 5, 0)
+    assert "the draft keeps 9 active and makes 5 inactive" in md
+    assert "a filter on KNA1 would reach VBRP two ways" in [x["why"] for x in s["inactive"] if x["source"] == "VBRP"][0]
     to_kna1 = sorted(f"{r.source}.{r.source_cols[1]}" for r in among if r.target == "KNA1")
     assert to_kna1 == ["LIKP.KUNAG", "LIKP.KUNNR", "VBAK.KUNNR", "VBRK.KUNAG", "VBRK.KUNRG"] and "KNA1 is reached by five links" in md
     inactive_kna1 = {x["source"] + "." + x["columns"][0].split("_")[1] for x in s["inactive"] if x["target"] == "KNA1"}
-    assert len(inactive_kna1) == 4 and "VBAK.KUNNR" in inactive_kna1          # the draft did not pick the order's sold-to
+    assert inactive_kna1 == {"LIKP.KUNNR", "VBRK.KUNRG"}                      # one per document stays active
+    assert "The draft keeps VBAK.KUNNR, LIKP.KUNAG and VBRK.KUNAG active" in md
     assert "Decisions to check" in measured["draft"]["parts"]["README.generated.md"]
     cal = s["date_table"]
-    assert cal["marked_as_date_table"] and [x["fact"] for x in cal["related"] if x["active"]] == ["VBAK"]
+    assert cal["marked_as_date_table"] and [x["fact"] for x in cal["related"] if x["active"]] == ["VBAK", "LIKP", "VBRK"]
+    assert "VBAK.ERDAT, LIKP.ERDAT and VBRK.ERDAT are active" in md
     assert len(cal["related"]) == 6 and all(x["column"] == "ERDAT" for x in cal["related"])
 
 

@@ -327,11 +327,55 @@ def not_unique_why(table: str, k: dict) -> str:
 
 def active_relationships(plan: Plan, rels: list[Relationship], validation: dict | None = None) -> tuple[list[Relationship], list[tuple[Relationship, str]]]:
     """Which relationships can be active at once: the maximum spanning forest by certainty from graphs.py (a tabular
-    model allows one active path between two tables). The rest are inactive with the reason."""
+    model allows one active path between two tables). The rest are inactive with the reason. BL51: when `validation`
+    counted at least one of these links, the counted rules of graphs.counted_forest choose instead."""
+    active, inactive, _ = active_set(plan, rels, validation)
+    return active, inactive
+
+
+COUNTED_SAID = ("The active set follows validate_plan's counts (BL51) and keeps one path between any two tables: a link counted "
+                "with no match is never active; columns that point at several tables are ambiguous, and when the counts do not "
+                "choose one a person does (`confirmed`); then declared or confirmed links rank first, then links counted with "
+                "matches, then links not counted; within that a pack's link ranks above a guess by name (R1, R2, then R3/R4), "
+                "an item's link to its header and a link to a dimension above a link between two other tables, and more matching "
+                "rows above fewer.")
+
+
+def active_set(plan: Plan, rels: list[Relationship], validation: dict | None = None, basis_plan: Plan | None = None,
+               counted: bool = True):
+    """(active, inactive with the reason, evidence): `evidence` is None when nothing was counted (the forest by
+    certainty, exactly as before), else BL51's account of every relationship, in the order of `rels`: source, columns,
+    target, rule, active, the counted state and numbers (rows with a value, orphans, matched; counts only, never a row
+    value) and why. `basis_plan`: the plan validate_plan ran on, when `plan` is the silver layer's carried copy.
+    `counted=False` keeps the forest by certainty even with counts (a model on other tables than the counted ones)."""
     from . import graphs
     es = [e for e in graphs.edges(plan, validation) if e["rel"] in rels]
-    active, inactive = graphs.spanning_forest(plan, es)
-    return [e["rel"] for e in active], [(e["rel"], e["why"]) for e in inactive]
+    counted = graphs.counted_active_set(plan, es, validation, basis_plan) if counted else None
+    if counted is None:
+        active, inactive = graphs.spanning_forest(plan, es)
+        return [e["rel"] for e in active], [(e["rel"], e["why"]) for e in inactive], None
+    active, inactive = counted
+    # The files list the relationships in the forest's order where the counts agree with it, so a model whose active
+    # set the counts leave as it was is written byte for byte as before; the rest follow in the counted order.
+    old_active, old_inactive = graphs.spanning_forest(plan, es)
+    place = {id(e["rel"]): i for i, e in enumerate(old_active + old_inactive)}
+    active = sorted(active, key=lambda e: place[id(e["rel"])] if any(x["rel"] is e["rel"] for x in old_active) else len(place))
+    inactive = sorted(inactive, key=lambda e: place[id(e["rel"])] if any(x["rel"] is e["rel"] for x in old_inactive) else len(place))
+    seen ={id(e["rel"]): (True, e) for e in active} | {id(e["rel"]): (False, e) for e in inactive}
+    orig = ({id(a): b for a, b in zip(plan.relationships, basis_plan.relationships)}
+            if basis_plan is not None and basis_plan is not plan and len(basis_plan.relationships) == len(plan.relationships) else {})
+    evidence = []
+    for r in rels:
+        if id(r) not in seen:
+            continue
+        on, e = seen[id(r)]
+        c = e.get("counted") or {}
+        counted_on = orig.get(id(r), r)
+        evidence.append({"source": r.source, "columns": list(r.source_cols), "target": r.target, "rule": r.rule, "active": on,
+                         **({"counted_columns": list(counted_on.source_cols)} if counted_on.source_cols != r.source_cols else {}),
+                         "state": c.get("state", "not_counted"), "rows_with_value": c.get("rows_with_value"),
+                         "orphans": c.get("orphans"), "matched": c.get("matched"), "why": e["why"]})
+    return [e["rel"] for e in active], [(e["rel"], e["why"]) for e in inactive], evidence
 
 
 # ------------------------------------------------------------------ DPM1: the model on gold, by data product -------
@@ -579,8 +623,9 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
           date_range: tuple[str, str] | None = None, whole_quantities: set[tuple[str, str]] = frozenset(),
           combined: bool | None = None, on_gold: dict | None = None, roles: list[str] | None = None) -> dict:
     """info: item_name, item_kind, schema, sql_endpoint, sql_db, schemas_enabled (from server._source_inputs); returns
-    {"parts": {path: content}, "summary": {...}}. `validation` (evidence.validate's answer) raises the certainty of the
-    links it confirmed when the active set is chosen. `date_range` (first, last date of the related date columns, read
+    {"parts": {path: content}, "summary": {...}}. `validation` (evidence.validate's answer): when it counted any of the
+    model's links, the counts choose the active set (BL51, graphs.counted_active_set) and the summary's
+    `active_by_counts` says why per relationship; otherwise it only raises the certainty of the links it confirmed. `date_range` (first, last date of the related date columns, read
     by create_semantic_model) sets the calendar's range; without it the range is a placeholder (n151).
     `whole_quantities`: (table, column) of quantity columns of a decimal type whose rows hold whole numbers only (counted
     by create_semantic_model, `quantity_columns` and `whole_sql`); their sum is formatted as a whole number (n151).
@@ -626,7 +671,9 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
               and len(r.source_cols) == 1 and len(r.target_cols) == 1 and len(plan.keys.get(r.target, ([], ""))[0]) == 1]
     composite = [r for r in plan.relationships if r.source in names and r.target in names and r not in single]
     why_not = lambda r: not_unique_why(r.target, dup[r.target]) if r.target in dup else not_expressible_why(original, r)
-    active, inactive = active_relationships(plan, single, validation)
+    # BL51: the counts decide the active set on the tables they were taken on. A model on the gold views (DPM1) relates
+    # other tables (one wide view per fact, joined in gold), so there the forest decides as before.
+    active, inactive, counted = active_set(plan, single, validation, original, counted=not on_gold)
     ref_cols = {(r.source, r.source_cols[0].lower()) for r in single}
 
     measures = suggested_measures(plan, chosen, role_of, ref_cols, set(whole_quantities))
@@ -768,13 +815,26 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
         return x
     for r in active:
         parent[find(r.source)] = find(r.target)
+    filters = None
+    if counted is not None:                                      # BL51: the calendar under the same filter-path rule as the rest
+        filters = graphs.FilterPaths()
+        for r in active:
+            filters.add(r.source, r.target)
     date_rels = []
     for fact, col in dates if calendar else []:
-        joined = find(fact) == find("\x00calendar")
-        if not joined:
-            parent[find(fact)] = find("\x00calendar")
+        if filters is not None:
+            clash = "" if any(d["fact"] == fact and d["active"] for d in date_rels) else filters.clash(fact, "\x00calendar")
+            joined = bool(clash) or any(d["fact"] == fact and d["active"] for d in date_rels)
+            if not joined:
+                filters.add(fact, "\x00calendar")
+        else:
+            clash = ""
+            joined = find(fact) == find("\x00calendar")
+            if not joined:
+                parent[find(fact)] = find("\x00calendar")
         why = "" if not joined else (
             f"{fact} already relates to {calendar} through another date column" if any(d["fact"] == fact and d["active"] for d in date_rels) else
+            clash.replace("\x00calendar", calendar) + " (one active path between two tables)" if clash else
             f"{fact} already reaches {calendar} through active relationships (one active path between two tables)")
         date_rels.append({"fact": fact, "column": col, "active": not joined, **({"why": why} if why else {})})
         rel_lines.append(f"relationship {_tag(name, 'relationship', fact, col, calendar)}")
@@ -796,8 +856,9 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
               "For Direct Lake on OneLake replace the expression with `AzureStorage.DataLake(\"https://onelake.dfs.fabric.microsoft.com/"
               "<workspace id>/<item id>\", [HierarchicalNavigation=true])` as in Microsoft's fabric-samples model.", "",
               f"Tables: {len(chosen)}. Relationships: {len(active)} active, {len(inactive)} inactive, {len(composite)} not expressible. "
-              "The active set keeps one path between any two tables and prefers the higher-confidence rule (declared/confirmed, "
-              "then R1, R2, R4, R3); a relationship made inactive lost to one of a higher or equal rule.", "",
+              + ("The active set keeps one path between any two tables and prefers the higher-confidence rule (declared/confirmed, "
+                 "then R1, R2, R4, R3); a relationship made inactive lost to one of a higher or equal rule." if counted is None else
+                 COUNTED_SAID), "",
               "## Table roles (from the plan's graph, see analyze_schema)", "", "| Table | Role | Why |", "| --- | --- | --- |"]
     readme += [f"| `{t.name}` | {analysis['roles'][t.name]['role']} | {analysis['roles'][t.name]['why']} |" for t in chosen]
     readme += ["", "Fact tables are the many side of the model; dimensions are what they point at. A fact table's numeric columns "
@@ -809,6 +870,15 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
             readme.append(f"| `{r.source}.{r.source_cols[0]}` | `{r.target}.{r.target_cols[0]}` | {plan.label(r.rule)} | yes |")
         for r, why in inactive:
             readme.append(f"| `{r.source}.{r.source_cols[0]}` | `{r.target}.{r.target_cols[0]}` | {plan.label(r.rule)} | no: {why} |")
+    if counted:                                                  # BL51: what the counts decided, per relationship
+        readme += ["", "### What the counts decided", "",
+                   "validate_plan counted these links against the rows; the active set follows the counts (counts only, no row "
+                   "values).", "", "| From | To | Counted | Active | Why |", "| --- | --- | --- | --- | --- |"]
+        for x in counted:
+            n = (f"{x['matched']} of {x['rows_with_value']} rows match" if x["state"] in ("holds", "fails")
+                 else "no rows to check" if x["state"] == "no_rows" else "not counted")
+            readme.append(f"| `{x['source']}.{'+'.join(x['columns'])}` | `{x['target']}` | {x['state']}: {n} | "
+                          f"{'yes' if x['active'] else 'no'} | {x['why']} |")
     if not rel_lines:
         readme += [f"None in the model, so there is no `definition/relationships.tmdl`: a TMDL document must hold an object, and Power BI "
                    "Desktop (2.151, 30 October 2026) refuses one that holds only a comment (`InvalidLineType`, document `./relationships`, "
@@ -906,6 +976,7 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                "relationships_not_expressible": len(composite), "keyless": keyless, "composite_keys": multi_key,
                "storage_mode": "directLake (SQL analytics endpoint)", "compatibility_level": COMPATIBILITY_LEVEL,
                "inactive": [{"source": r.source, "columns": r.source_cols, "target": r.target, "rule": r.rule, "why": why} for r, why in inactive],
+               **({"active_by_counts": {"rule": COUNTED_SAID, "relationships": counted}} if counted is not None else {}),
                "not_expressible": [{"source": r.source, "columns": r.source_cols, "target": r.target, "target_columns": r.target_cols,
                                     "rule": r.rule, "why": why_not(r), **({"key_not_unique": True} if r.target in dup else {})}
                                    for r in composite],
