@@ -1839,9 +1839,9 @@ def semantic_model_draft(workspace: _p.Workspace, source: _p.Source, name: _p.Mo
 @safe
 def semantic_view_draft(workspace: _p.Workspace, source: _p.Source, name: _p.ViewDraftName = "semantic_view", schema: _p.Schema = "dbo",
                         tables: _p.TablesShown = None, validate: _p.ViewValidate = True,
-                        show_personal_data: _p.ShowPersonalData = False, ctx: Context = None) -> str:
-    """Drafts the plan as semantic view YAML for a lakehouse, writing nothing. Returns JSON with the file and the links
-    that do not fit. Errors: {error, kind, hint}."""
+                        show_personal_data: _p.ShowPersonalData = False, silver: _p.ViewSilver = False, ctx: Context = None) -> str:
+    """Drafts lakehouse semantic view YAML; writes nothing. Returns JSON: the file, links that do not fit.
+    Errors: {error, kind, hint}."""
     from . import semantic_view as _semantic_view
     problem = _semantic_view.view_name_problem(name)
     if problem:
@@ -1857,9 +1857,20 @@ def semantic_view_draft(workspace: _p.Workspace, source: _p.Source, name: _p.Vie
             getattr(execute, "close", lambda: None)()
     keep = _compact.match_tables(p.schema, tables)
     tables = sorted(keep, key=str.lower) if keep is not None else None
-    out = _semantic_view.draft(p, info, name, tables, validation=checked, show_personal_data=show_personal_data)
+    lay = None
+    if silver:                                     # BL65: the silver layer's combined key columns, found as the model draft finds them
+        lay = _layers(info, "", "", "", ctx, need=_combines(p, tables), which=("silver",))
+        info = {**info, "silver_schema": lay["silver"]}
+    out = _semantic_view.draft(p, info, name, tables, validation=checked, show_personal_data=show_personal_data, combined=silver)
     out["note"] = (_tool_status.answer_note("semantic_view_draft") + " Upload the file to the view folder in the lakehouse and "
                    "publish the view there; writing and publishing from Krusgraph are left for a later round.")
+    if lay is not None and out.get("before_publish"):
+        _model_layers(out, lay)
+        if _silver_there(workspace, source, out["summary"], ctx) is False:
+            out["silver_not_built"] = (f"The schema {out['summary']['reads']['schema']} is not in the source yet, so the silver tables are "
+                                       "not built: run silver_notebook_draft to see the notebook and create_silver_notebook (or "
+                                       "create_pipeline) to create it, run it in Fabric, then publish the view.")
+        out["note"] += " " + out["before_publish"]
     text = json.dumps(out, indent=2)
     return text if len(text) <= MAX_RESULT_CHARS else _bounded(out, MAX_RESULT_CHARS, "Pass tables=[\"pattern*\"] to get a few tables at a time.")
 

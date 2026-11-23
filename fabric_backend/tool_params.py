@@ -264,5 +264,6 @@ RequirementsValidate = Annotated[bool, _d('Count the joins used. Default true.')
 RequirementsSample = Annotated[bool, _d('true: synthetic SAP demo, offline.')]
 AgentRequirements = Annotated[str | None, _d('Requirements list; answerable ones become example queries.')]
 # BL64: semantic_view_draft, the plan as Fabric semantic view YAML
-ViewDraftName = Annotated[str, _d('View and folder name. Default "semantic_view".')]
-ViewValidate = Annotated[bool, _d('Count keys and links. Default true.')]
+ViewDraftName = Annotated[str, _d('View and folder name.')]
+ViewValidate = Annotated[bool, _d('Count keys and links.')]
+ViewSilver = Annotated[bool, _d('true: silver\'s combined keys.')]
