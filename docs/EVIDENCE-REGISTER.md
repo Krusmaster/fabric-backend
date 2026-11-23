@@ -11,9 +11,9 @@ recorded (for class U, the day the test was read for the register; for class S, 
 class. A sentence that is not in this table has no recorded proof and should not be repeated. To add a
 claim, add a row to `REGISTER` in `tools/evidence_register.py` and run the tool.
 
-28 claims. Classes:
+33 claims. Classes:
 
-- **U** (22): unit test: the repository's own tests show it, on fakes and synthetic data.
+- **U** (27): unit test: the repository's own tests show it, on fakes and synthetic data.
 - **S** (6): synthetic run: a recorded run against a live Fabric workspace or a real client, on synthetic data only.
 - **C** (0): customer: a run on a customer's or pilot's own data.
 
@@ -44,6 +44,11 @@ claim, add a row to `REGISTER` in `tools/evidence_register.py` and run the tool.
 | E21 | Every tool error is scrubbed of token-shaped strings and secret-like header pairs. | `docs/TRUST.md`: “every tool error is scrubbed of token-shaped strings” | `tests/test_security.py::test_error_layer_scrubs_tokens_and_secrets_from_messages` | - | 2026-11-21 | U |
 | E22 | Every GitHub Action is pinned by commit, with its version in a comment. | `CONTRIBUTING.md`: “is pinned by commit with its version in a” | `tests/test_b2_supply_chain.py::test_every_action_is_pinned_by_commit_with_its_version_in_a_comment` | - | 2026-11-21 | U |
 | E23 | Personal columns are masked in sample rows by rule, and shown only on request. | `docs/LIVE-TEST.md`: “`name` shows `***` with a `personal_data` notice” | `tests/test_privacy.py::test_sample_rows_masks_with_the_rule_and_shows_on_request` | “5 \| `sample_rows`” | 2026-10-27 | S |
+| E29 | Every workload request has one correlation id, on every log line of that request and in every error. | `docs/TRUST.md`: “Every workload request has one correlation id” | `tests/test_wb8_correlation.py::test_the_editors_id_is_on_every_line_and_in_the_answer` | - | 2026-11-23 | U |
+| E30 | A CSN file chosen in the workload editor is checked again by the engine and never written to a log. | `docs/TRUST.md`: “A CSN file chosen in the workload editor is read in the browser” | `tests/test_wb5_sap_item.py::test_an_uploaded_csn_is_used_and_said_to_come_from_the_editor` | - | 2026-11-23 | U |
+| E31 | Load SAP demo data creates one notebook after a dry run and never runs it. | `docs/TRUST.md`: “*Load SAP demo data* is a dry run first” | `tests/test_wb5_sap_item.py::test_load_sap_demo_data_is_a_dry_run_first_then_one_notebook_never_run` | - | 2026-11-23 | U |
+| E32 | The pilot self-check only reads, and says the tenant setting is unknown instead of guessing. | `docs/TRUST.md`: “The pilot self-check (*Is everything ready?*) only reads” | `tests/test_wb9_selfcheck.py::test_a_ready_workspace_says_ready_and_the_tenant_setting_is_unknown` | - | 2026-11-23 | U |
+| E33 | With the licence check off nothing is gated; on, only Create is, and dry runs stay open. | `docs/TRUST.md`: “The Marketplace licence check is off unless switched on” | `tests/test_wb7_marketplace_gate.py::test_flags_off_change_nothing` | - | 2026-11-23 | U |
 | E24 | validate_plan, live on the demo workspace: 6 of 6 keys unique, 7 of 7 relationships without orphans. | `docs/LIVE-TEST.md`: “✓ 6 of 6 keys unique, 7 of 7 relationships without orphans” | `tests/test_evidence.py::test_synthetic_shop_keys_are_unique_and_relationships_hold` | “6 \| `validate_plan`” | 2026-11-02 | S |
 | E25 | create_backend updated the existing API shop_api in place, live; creating a new API has not run live. | `docs/MISSING-EVIDENCE.md`: “then `create_backend` updating `shop_api` in place” | `tests/test_create_backend_dry_run.py` | “7 \| `create_backend`” | 2026-10-27 | S |
 | E26 | create_semantic_model created shop_model_live in the demo workspace (synthetic data). | `docs/MISSING-EVIDENCE.md`: “`create_semantic_model` created `shop_model_live` on 29 October 2026” | `tests/test_creating_tools.py::test_create_semantic_model_posts_then_updates_in_place` | “18 \| `create_semantic_model`” | 2026-10-29 | S |

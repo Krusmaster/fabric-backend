@@ -166,6 +166,29 @@ To keep all of them in Log Analytics (n39):
    (≤ 31) there is no retention charge. Set a daily cap if you want a hard ceiling:
    `az monitor log-analytics workspace update -g $RG -n $LAW --quota 0.5` (GB per day).
 
+   **Confirm it live (WB8, requirement 2.4: logs, with the request's id, kept at least 30 days).** In Cloud Shell:
+
+   ```bash
+   az monitor log-analytics workspace show -g $RG -n $LAW --query retentionInDays -o tsv          # 30 or more
+   az containerapp env show -n $ENV -g $RG --query properties.appLogsConfiguration.destination -o tsv   # log-analytics
+   curl -s https://$DOMAIN/it | grep -o "deleted after [0-9]* days"                                 # the same number
+   ```
+
+   **Find one request by its reference.** Every line the workload engine writes for a request carries `cid`, the id
+   the editor sent in `x-krusgraph-correlation-id` (or a new one), and every error answer carries it as
+   `correlation_id`; the editor shows it as *Reference for support*. Fabric's own `ActivityId` and `RequestId`, when
+   Fabric sends them, are logged beside it (`event: fabric_ids`). In the workspace, Logs:
+
+   ```kusto
+   ContainerAppConsoleLogs_CL
+   | where TimeGenerated > ago(30d) and Log_s has "<the reference>"
+   | project TimeGenerated, Log_s
+   | order by ["TimeGenerated"] asc
+   ```
+
+   The table and column names are those of Container Apps' Log Analytics destination; if the workspace shows the
+   newer `ContainerAppConsoleLogs` table instead, use it with its `Log` column.
+
 3. Optional, to count organisations: a salt the server keeps as a container-app secret.
 
    ```bash

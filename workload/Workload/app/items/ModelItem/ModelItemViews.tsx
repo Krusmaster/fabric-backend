@@ -152,6 +152,7 @@ export function ErrorBar({ error }: { error?: EngineError }) {
       <MessageBarBody>
         {error.error}
         {error.hint ? ` ${error.hint}` : ""}
+        {error.correlation_id ? <span className="kg-reference"> Reference for support: <code>{error.correlation_id}</code></span> : null}
       </MessageBarBody>
       {offer && (
         <MessageBarActions>

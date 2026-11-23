@@ -544,6 +544,7 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
                                                                     f"{_shown(r['arguments'])}" for r in runs) + ".",
                            "ask": "Dry run the silver and gold pipeline, the semantic model and the data agent."})
         actions.insert(0, everything)
+        out["needs"] = _settings_line([r["tool"] for r in runs])               # BL40: tenant settings, never blocks
         out["then"] = ("Next, once the user has read the dry runs: start with step=\"create\" and create set to the names "
                        "the user wants, e.g. " + json.dumps(sorted(names.values())[:2]) + "; nothing is created before "
                        "the user confirms them.")
@@ -672,10 +673,33 @@ def products_line(products: dict | None, found: dict) -> list[str]:
     return [products["line"]]
 
 
+def _settings_line(tools: list[str]) -> str:
+    """BL40: tenant_settings.dry_run_line for the outputs these tools build; 'could not check' if that fails."""
+    from . import tenant_settings as ts
+    try:
+        return ts.dry_run_line([o for t in tools for o in ts.TOOL_OUTPUTS.get(t, [])])
+    except Exception:  # noqa: BLE001 — a line about settings never blocks the dry run
+        return "Tenant settings: could not check them."
+
+
+def _schedule_preview(names: dict) -> dict:
+    """BL40 (B-26): what Schedule would send (schedules.draft), shown and not sent: the pipeline daily at 02:00 UTC from
+    tomorrow, the model's refresh as its last step. The ids are placeholders until the items exist."""
+    from . import schedules
+    built = {"created": [{"type": "DataPipeline", "name": names["create_pipeline"]},
+                         {"type": "SemanticModel", "name": names["create_semantic_model"]}]}
+    d = schedules.draft(built)
+    return {"dry_run": True, "sent": [], "time_zone": d["timezone"], "at": d["time"], "start": d["start"],
+            "schedules": [{k: x for k, x in sch.items() if k in ("what", "name", "every", "at", "after", "method", "url", "body")}
+                          for sch in d["schedules"]]}
+
+
 def _closing(c: dict) -> dict:
-    """SM2: step 5 after Create. Open it in Fabric, add another source, or schedule the pipeline."""
+    """SM2: step 5 after Create. Open it in Fabric, add another source, or schedule the pipeline. BL40: Schedule shows
+    the schedule's draft (schedules.draft) and creates nothing."""
     names = build_names(c["source"], c["schema"])
     pipe = names["create_pipeline"]
+    preview = _schedule_preview(names)
     return {"say": "Done. What next?",
             "actions": [{"kind": "link", "label": "Open in Fabric", "who": "builder", "tool": TOOL, "arguments": {},
                          "url": FABRIC_URL, "primary": True, "say": f"Open Fabric ({FABRIC_URL}).",
@@ -683,7 +707,8 @@ def _closing(c: dict) -> dict:
                         {**_call("Add a source", TOOL, {"workspace": c["workspace"], "step": "source"}),
                          "ask": f"Add another source in {c['workspace']}."},
                         {"kind": "chat", "label": "Schedule it", "who": "builder", "tool": TOOL, "arguments": {},
-                         "say": f"Schedule {pipe} to run every day.", "ask": f"Schedule {pipe} to run every day."}]}
+                         "say": f"Schedule {pipe} daily at {preview['at']} {preview['time_zone']}; the model refreshes as its last step. Nothing is created yet.",
+                         "ask": f"Schedule {pipe} to run every day.", "schedule": preview}]}
 
 
 def _create(c: dict, create: list | None, confirm: bool) -> dict:

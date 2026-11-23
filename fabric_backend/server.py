@@ -1186,6 +1186,28 @@ def _connected(workspace: str, source: str, schema: str, ctx, csn_path: str | No
     return s, execute
 
 
+_EVIDENCE_COUNTS = re.compile(r"^\d+ of \d+ keys unique, \d+ of \d+ relationships hold without orphans")
+
+
+def _one_count_summary(plan, out: dict, keep) -> str:
+    """BL39 (C-31): validate_plan's summary says counts.summary's numbers, the same the review, the receipt and the cards
+    say: a link to a table whose key is not unique fails, and what this call did not count is "not counted", never
+    left out of the total. What follows the counts in evidence.validate's line (checked n of m, the time budget,
+    resume_from) is kept after it."""
+    from . import counts as _counts
+    sentence = _counts.summary(plan, out, tables=sorted(keep) if keep is not None else None)["sentence"]
+    old = str(out.get("summary") or "")
+    m = _EVIDENCE_COUNTS.match(old)
+    if not m:
+        return sentence
+    rest = old[m.end():].strip().lstrip(";").strip()
+    if rest.startswith("(") and rest.endswith(")"):
+        rest = rest[1:-1]
+    elif rest.startswith("(") and ")" in rest:
+        rest = rest[1:].replace(")", "", 1)
+    return sentence + (f" {rest[0].upper()}{rest[1:]}." if rest else "")
+
+
 @mcp.tool(title="Check a schema's keys and links against the rows", annotations=RO, meta=_mcp_apps.tool_meta())
 @safe
 def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", keys: _p.Keys = None,
@@ -1231,6 +1253,7 @@ def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema 
     if flagged or label:
         out["personal_data"] = {"columns": flagged, "sensitivity_label": label,
                                 "note": "validate_plan returns counts and verdicts only, never a value, so nothing here is masked."}
+    out["summary"] = _one_count_summary(p, out, keep)                  # BL39: the numbers are counts.summary's
     full_checks = out
     if detail == "summary":
         out = _evidence.summarize(out, p)
