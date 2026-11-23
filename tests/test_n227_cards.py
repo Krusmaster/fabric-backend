@@ -249,11 +249,11 @@ def test_open_in_fabric_is_the_items_own_address_for_every_kind(tool, path):
     assert ("fallback" in link) == (tool in build.LINK_UNVERIFIED)       # an address not confirmed on Learn names the list too
     if "fallback" in link:
         assert link["fallback"] == f"https://app.fabric.microsoft.com/groups/{gs.WS}/list"
-    assert set(build.ITEM_PATHS) == set(build.BUILD_TOOLS)
+    assert set(build.ITEM_PATHS) >= set(build.BUILD_TOOLS)              # W2: and the data agent, pipeline and notebooks
 
 
 def test_a_kind_without_a_path_opens_the_list():
-    assert build.open_url(gs.WS, "create_pipeline", "x") == build.list_url(gs.WS)
+    assert build.open_url(gs.WS, "create_views", "x") == build.list_url(gs.WS)      # W2: the pipeline has its address now
 
 
 # ------------------------------------------------------------------ 9: a create that answers in time -------------------

@@ -84,8 +84,19 @@ FABRIC_APP = "https://app.fabric.microsoft.com"
 #   GraphQL; `graphql` is the segment the portal's own address bar is expected to show, by the pattern above. Until the
 #   founder has opened one from a card, the link carries `fallback` (the workspace's item list), and the card offers it
 #   beside the item link.
-ITEM_PATHS = {"create_report": "reports/{id}", "create_semantic_model": "datasets/{id}/details",
-              "create_ontology": "ontologies/{id}", "create_backend": "graphql/{id}"}
+# - W2: the portal addresses Gustav copied from his workspace's item list on 23 November 2026 (a data agent opened
+#   /dataagents/ before and Fabric answered with its 404 page): data agent aiskills/{id}, notebook synapsenotebooks/{id},
+#   semantic model datasets/{id}/details, pipeline pipelines/{id}, lakehouse lakehouses/{id}, SQL analytics endpoint
+#   sqlanalyticsendpoints/{id}. TYPE_PATHS keeps them by Fabric item type; the workload editor's NavigationController.ts has
+#   the same table (tests/test_w2_links_refresh.py compares the two).
+TYPE_PATHS = {"DataAgent": "aiskills/{id}", "Notebook": "synapsenotebooks/{id}", "SemanticModel": "datasets/{id}/details",
+              "DataPipeline": "pipelines/{id}", "Lakehouse": "lakehouses/{id}", "SQLEndpoint": "sqlanalyticsendpoints/{id}",
+              "Report": "reports/{id}", "Ontology": "ontologies/{id}", "GraphQLApi": "graphql/{id}"}
+VERIFIED_TYPES = ("DataAgent", "Notebook", "SemanticModel", "DataPipeline", "Lakehouse", "SQLEndpoint")
+ITEM_PATHS = {"create_report": TYPE_PATHS["Report"], "create_semantic_model": TYPE_PATHS["SemanticModel"],
+              "create_ontology": TYPE_PATHS["Ontology"], "create_backend": TYPE_PATHS["GraphQLApi"],
+              "create_data_agent": TYPE_PATHS["DataAgent"], "create_pipeline": TYPE_PATHS["DataPipeline"],
+              "create_silver_notebook": TYPE_PATHS["Notebook"], "create_gold_views": TYPE_PATHS["Notebook"]}
 LINK_UNVERIFIED = ("create_backend",)
 KIND_WORDS = {"create_semantic_model": "semantic model", "create_ontology": "ontology", "create_backend": "API for GraphQL",
               "create_report": "report"}
@@ -139,6 +150,15 @@ def open_url(workspace_id: str, tool: str, item_id: str) -> str:
     """The item itself in the Fabric portal, for every kind a card creates (ITEM_PATHS, n227: before, an API for
     GraphQL and an ontology opened the workspace's item list). A kind without a known path opens the list."""
     path = ITEM_PATHS.get(tool)
+    if not path or not item_id:
+        return list_url(workspace_id)
+    return f"{FABRIC_APP}/groups/{workspace_id}/{path.format(id=item_id)}"
+
+
+def item_url(workspace_id: str, item_type: str, item_id: str) -> str:
+    """W2: an item's page in the Fabric portal by its Fabric item type (TYPE_PATHS); the workspace's list when the type
+    has no known address or there is no id."""
+    path = TYPE_PATHS.get(item_type)
     if not path or not item_id:
         return list_url(workspace_id)
     return f"{FABRIC_APP}/groups/{workspace_id}/{path.format(id=item_id)}"

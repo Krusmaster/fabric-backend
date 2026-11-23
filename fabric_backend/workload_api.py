@@ -367,7 +367,7 @@ def build_request(body) -> dict:
     if not isinstance(body.get("review"), dict):
         raise BadRequest("'review' (the item's review.json) is required: the build uses its decisions")
     flags = {}
-    for f in ("skip_built", "finish", "refresh_only"):                            # n179: Create one output per request, then the summary
+    for f in ("skip_built", "finish", "refresh_only", "select_tables"):           # n179: Create one output per request, then the summary
         v = body.get(f, False)
         if not isinstance(v, bool):
             raise BadRequest(f"'{f}' must be true or false (default false)")
@@ -381,6 +381,8 @@ def build_request(body) -> dict:
         flags["only"] = list(only)
     if flags["refresh_only"] and (dry_run or flags.get("only") != ["semantic_model"]):
         raise BadRequest("'refresh_only' refreshes the semantic model this Model built: only [semantic_model], dry_run false")
+    if flags["select_tables"] and (dry_run or flags.get("only") != ["data_agent"]):   # W2: the agent card's Select tables now
+        raise BadRequest("'select_tables' selects the data agent's tables again: only [data_agent], dry_run false")
     update = body.get("update")                                   # n180: Update of an output built from another plan
     if update is not None:
         if not isinstance(update, list) or any(k not in {c["kind"] for c in chosen} for k in update):
@@ -2578,7 +2580,7 @@ def _created_ids(kind: str, a: dict, chosen: dict, workspace: str, o: dict, req:
         for t, n in _names(o, chosen, req["schema"]):
             r = res.get(n) or {}
             if r.get("status") == "Succeeded" and r.get("id"):
-                out.append({"type": t, "id": r["id"], "name": n, "workspace": workspace, "output": kind})
+                out.append({"type": t, "id": r["id"], "name": n, "workspace": workspace, "output": notebook_output(t, n, chosen, kind)})
         return out
     if kind == "data_agent":
         rid = res.get("id") or res.get("agent_id")
@@ -2586,6 +2588,20 @@ def _created_ids(kind: str, a: dict, chosen: dict, workspace: str, o: dict, req:
     if res.get("status") == "Succeeded" and res.get("id"):
         return [{"type": typ, "id": res["id"], "name": o["name"], "workspace": workspace, "output": kind}]
     return []
+
+
+def notebook_output(typ: str, name: str, chosen: dict, kind: str = "pipeline") -> str:
+    """W2 (Gustav's Create of 23 November 2026: the Data product page said "Built Gold views demo_lh_gold - this item has no
+    id saved for it" while Update called it up to date): the pipeline step writes the silver and gold notebooks again,
+    under the names of the silver notebook and gold views outputs, and its answer recorded them as output "pipeline".
+    outputs.json keeps one entry per id, so the gold views output lost its id. A notebook that is an output of its own in
+    this build keeps that output's name; the check notebook (and a notebook no output of its own chose) stays the
+    pipeline's."""
+    if typ == "Notebook":
+        for own in ("silver_notebook", "gold_views"):
+            if chosen.get(own) and str(chosen[own]).lower() == str(name).lower():
+                return own
+    return kind
 
 
 def _report_on_draft(model_answer: dict, model_name: str, name: str) -> dict:
@@ -2637,8 +2653,12 @@ def _call_tool(S, kind: str, o: dict, chosen: dict, req: dict, keys, confirmed, 
     elif kind == "pipeline":
         jobs = o.get("jobs") or {}
         allowed = jobs_permission(token_scopes(), None)["granted"] is not False     # n185: without the scope, neither runs
+        mark = req.get("plan_mark")
         token = S.PIPELINE_JOBS.set({"wait": 0, "schedule_ids": list(req.get("schedule_ids") or []),
-                                     "plan": req.get("plan_mark")})       # n200: the health rows name this review's plan
+                                     "plan": mark,                        # n200: the health rows name this review's plan
+                                     # W2: the plan marker goes on before Run once starts ("modified after this run")
+                                     **({"before_run": lambda ws, items: mark_items(ws, S._headers(None), items, mark)}
+                                        if mark and not dry_run else {})})
         try:
             text = S.create_pipeline(name=o["name"], silver_name=chosen.get("silver_notebook", ""), gold_name=chosen.get("gold_views", ""),
                                      run_once=bool(jobs.get("run_once")) and allowed,
@@ -2651,7 +2671,13 @@ def _call_tool(S, kind: str, o: dict, chosen: dict, req: dict, keys, confirmed, 
     elif kind == "ontology":
         text = S.create_ontology(name=o["name"], **layers, **common)
     elif kind == "data_agent":                                     # n185: one layer; publishing is decided after (agent_card)
-        text = S.create_data_agent(name=o["name"], publish=False, layer=(o.get("agent") or {}).get("layer", "silver"), **layers, **common)
+        from . import data_agent as _da
+        waits = _da.AFTER_RUN_WAITS if agent_waits(req, dry_run) else ()
+        token = _da.TABLE_WAITS.set(waits)                         # W2: tables selected once the endpoint lists them
+        try:
+            text = S.create_data_agent(name=o["name"], publish=False, layer=(o.get("agent") or {}).get("layer", "silver"), **layers, **common)
+        finally:
+            _da.TABLE_WAITS.reset(token)
     elif kind == "rayfin_app":                                     # n181: preflight first, then the package (rayfin_app.py)
         from . import rayfin_app
         from .deploy import write_and_wait, find_item
@@ -2679,6 +2705,13 @@ def _call_tool(S, kind: str, o: dict, chosen: dict, req: dict, keys, confirmed, 
     else:
         raise BadRequest(kind)
     return json.loads(text)
+
+
+def agent_waits(req: dict, dry_run: bool) -> bool:
+    """W2: the agent's tables are waited for (data_agent.TABLE_WAITS) when this request comes after the pipeline's run
+    succeeded (the editor's after_run) or is the card's Select tables now; never in a dry run, never at Create itself
+    (the run has not written the tables yet)."""
+    return not dry_run and ((req.get("after_run") or {}).get("status") == "Succeeded" or bool(req.get("select_tables")))
 
 
 ROLES_HOW = ("Proposed, not added: tick a role to add it to the model (the build's semantic_model output takes it as roles, "
@@ -3214,7 +3247,8 @@ def _build_many(req, S, rv, keys, confirmed, dry_run, scopes, app_id, chosen, ou
                         c["plan"] = mark                           # n180: outputs.json keeps what it was built from
                         ours.add(c["id"])
                     card.pop("confirm_update", None)
-                    if card["created"]:
+                    marked = kind == "pipeline" and "marked_before_run" in (answer.get("result") or {})
+                    if card["created"] and not marked:            # W2: the pipeline's items were marked before its run
                         mark_items(workspace, headers, card["created"], mark)
                     card["portal_steps"] = _portal_steps(kind, answer, chosen, built, chosen_jobs(req))
                     if kind == "data_agent" and card.get("agent"):    # n185: the state outputs.json keeps; Copilot's portal step

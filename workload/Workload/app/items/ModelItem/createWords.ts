@@ -10,6 +10,7 @@
  *   shows the same finish with the date of the last Create.
  */
 import { scheduleWords } from "./jobsWords";
+import { tablesNotSelected } from "./afterRun";
 import { CreatedItem } from "./ModelItemDefinition";
 import { BuildCard, OutputKind } from "./engineClient";
 import { kindInfo } from "./buildWords";
@@ -184,6 +185,11 @@ export interface FinishedOutput {
   refresh?: string;
   /** n185: the pipeline run Create started (Running, Succeeded, Failed), so Next drops "run the pipeline" once it ran */
   run?: string;
+  /** W2: Create started a run of the pipeline (it has a run id), whatever its status reads: Next never says that nothing
+   * has run once this is true */
+  run_started?: boolean;
+  /** W2: the data agent's tables not selected yet (0 when all are), so Next can say to select them */
+  tables_left?: number;
   /** n185: the pipeline's schedule, in words ("daily at 06:00 Europe/Stockholm"), when Create set one */
   schedule?: string;
   /** n185: the data agent was published in Fabric */
@@ -207,6 +213,8 @@ function entry(c: BuildCard): FinishedOutput {
     ...(reason ? { reason } : {}),
     ...(c.refresh?.status ? { refresh: c.refresh.status } : {}),
     ...(c.jobs?.run?.status ? { run: c.jobs.run.status } : {}),
+    ...(c.jobs?.run?.run_id ? { run_started: true } : {}),
+    ...(c.output === "data_agent" && c.agent?.selection ? { tables_left: tablesNotSelected(c) } : {}),
     ...(c.jobs?.schedule_result?.status === "Succeeded" && c.jobs.schedule ? { schedule: scheduleWords(c.jobs.schedule) } : {}),
     ...(c.agent?.published ? { published: true } : {}),
   };

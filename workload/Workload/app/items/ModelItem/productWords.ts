@@ -125,6 +125,9 @@ export function rowsOf(outputs: OutputsDefinition, status?: StatusAnswer, plan?:
     const have = new Set(rows.map((r) => r.output).filter(Boolean));
     for (const o of last.outputs) {
       if ((o.state !== "created" && o.state !== "todo") || have.has(o.output)) continue;
+      // W2: an item saved under another output with this output's name (an outputs.json written before W2 kept the gold
+      // notebook as the pipeline's) has its id saved: no "no id saved" row for it
+      if (rows.some((r) => r.id && o.name && r.name.toLowerCase() === o.name.toLowerCase())) continue;
       rows.push({ key: `unsaved:${o.output}`, type: "", typeLabel: o.label, name: o.name, output: o.output, state: "built",
         why: NO_ID_SAVED, openable: false });
     }

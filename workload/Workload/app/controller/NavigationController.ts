@@ -114,7 +114,20 @@ interface FabricItemMapping {
   frontendTypePath: string;
   
   apiType: string;
+
+  /** Krusgraph (W2): what follows the item id in the portal's address ("/details" for a semantic model) */
+  suffix?: string;
 }
+
+/**
+ * Krusgraph (W2): the portal addresses Gustav copied from his workspace's item list on 23 November 2026, the source of the
+ * entries below marked "verified 23 Nov 2026" (a data agent opened /dataagents/<id>, Fabric's 404 page, before):
+ *   Data agent /groups/{ws}/aiskills/{id}; Notebook /groups/{ws}/synapsenotebooks/{id}; Semantic model
+ *   /groups/{ws}/datasets/{id}/details; Pipeline /groups/{ws}/pipelines/{id}; Lakehouse /groups/{ws}/lakehouses/{id};
+ *   SQL analytics endpoint /groups/{ws}/sqlanalyticsendpoints/{id}; Krusgraph Model item /groups/{ws}/Org.Krusgraph.Model/{id}.
+ * The engine keeps the same table (fabric_backend/mcp_apps_build.py TYPE_PATHS).
+ */
+export const VERIFIED_PATHS_SOURCE = "Gustav's workspace list, 23 Nov 2026";
 
 /**
  * Dictionary mapping Fabric item types to their frontend paths and icons
@@ -142,7 +155,7 @@ const FabricItemMappings: Record<string, FabricItemMapping> = {
     apiType: "Datamart"
   },
   "DataPipeline": {
-    frontendTypePath: "pipelines",
+    frontendTypePath: "pipelines",          // Krusgraph (W2): verified 23 Nov 2026
     apiType: "DataPipeline"
   },
   "DigitalTwinBuilder": {
@@ -182,7 +195,7 @@ const FabricItemMappings: Record<string, FabricItemMapping> = {
     apiType: "KQLQueryset"
   },
   "Lakehouse": {
-    frontendTypePath: "lakehouses",
+    frontendTypePath: "lakehouses",         // Krusgraph (W2): verified 23 Nov 2026
     apiType: "Lakehouse"
   },
   "MirroredAzureDatabricksCatalog": {
@@ -209,8 +222,13 @@ const FabricItemMappings: Record<string, FabricItemMapping> = {
     frontendTypePath: "",
     apiType: "MountedDataFactory"
   },
+  // Krusgraph (W2): verified 23 Nov 2026 (VERIFIED_PATHS_SOURCE); without this entry the fallback made "/dataagents/"
+  "DataAgent": {
+    frontendTypePath: "aiskills",
+    apiType: "DataAgent"
+  },
   "Notebook": {
-    frontendTypePath: "synapsenotebooks",
+    frontendTypePath: "synapsenotebooks",   // Krusgraph (W2): verified 23 Nov 2026
     apiType: "Notebook"
   },
   // Krusgraph (n225): the Fabric IQ ontology (preview). Learn, "Use Ontology MCP Server" (ms.date 2026-04-14, read on
@@ -232,9 +250,11 @@ const FabricItemMappings: Record<string, FabricItemMapping> = {
     frontendTypePath: "reports",
     apiType: "Report"
   },
+  // Krusgraph (W2): verified 23 Nov 2026 (VERIFIED_PATHS_SOURCE): /datasets/<id>/details; "semanticmodels" was the kit's
   "SemanticModel": {
-    frontendTypePath: "semanticmodels",
-    apiType: "SemanticModel"
+    frontendTypePath: "datasets",
+    apiType: "SemanticModel",
+    suffix: "/details"
   },
   "SparkJobDefinition": {
     frontendTypePath: "sparkjobdefinitions",
@@ -244,8 +264,9 @@ const FabricItemMappings: Record<string, FabricItemMapping> = {
     frontendTypePath: "sqldatabases",
     apiType: "SQLDatabase"
   },
+  // Krusgraph (W2): verified 23 Nov 2026 (VERIFIED_PATHS_SOURCE); "lakewarehouses" was the kit's
   "SQLEndpoint": {
-    frontendTypePath: "lakewarehouses",
+    frontendTypePath: "sqlanalyticsendpoints",
     apiType: "SQLEndpoint"
   },
   "VariableLibrary": {
@@ -274,7 +295,14 @@ export function getFrontendPath(itemType: string, workspaceId: string, itemId: s
   const mapping = FabricItemMappings[itemType];
   let frontendPath = mapping?.frontendTypePath;
   if(!frontendPath) {
-    frontendPath = itemType.toLowerCase() + "s";
+    // Krusgraph (W2): a workload's own item type (Org.Krusgraph.Model) is its own path segment, as it is
+    // (verified 23 Nov 2026: /groups/{ws}/Org.Krusgraph.Model/{id}); other unknown types keep the kit's guess
+    frontendPath = itemType.includes(".") ? itemType : itemType.toLowerCase() + "s";
   }
-  return `/groups/${workspaceId}/${frontendPath}/${itemId}`
+  return `/groups/${workspaceId}/${frontendPath}/${itemId}${mapping?.suffix ?? ""}`
+}
+
+/** Krusgraph (W2): whether the item type has an entry of its own in the mapping (not the fallback's guess). */
+export function hasExplicitPath(itemType: string): boolean {
+  return !!FabricItemMappings[itemType]?.frontendTypePath || itemType.includes(".");
 }

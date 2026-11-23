@@ -2996,6 +2996,9 @@ def create_data_agent(workspace: _p.Workspace, source: _p.Source, name: _p.Agent
         result = _data_agent.apply(spec, _out_ws(info["workspace_id"]), headers, publish=publish)   # n221: the build's workspace
     except _data_agent.RestError as e:
         result = {"status": "Failed", "http": e.status, "body": e.body, "step": e.what}
+    if result.get("status") == "Succeeded" and result.get("id"):    # W2: the agent's own page (aiskills), not a 404
+        from .mcp_apps_build import item_url as _item_url
+        result["url"] = _item_url(_out_ws(info["workspace_id"]), "DataAgent", result["id"])
     return _finish_create(out, result, "Item.ReadWrite.All (or DataAgent.ReadWrite.All)", f"creating the data agent {name!r}")
 
 
@@ -3671,7 +3674,12 @@ def _pipeline_build(p, info: dict, schema: str, silver_schema: str, gold_schema:
         raise PlanInputError("silver_name, gold_name and <name>_check must be three different notebook names")
     gi = gold_info or info                                     # SM6: the gold views and the check in the gold lakehouse
     silver_spec = _silver_mod.spec(p, info, silver_schema, None, tables, show_personal_data)
-    gold_spec = _gold_mod.spec(p, gi, silver_schema, gold_schema, None, show_personal_data, within=tables)
+    # W2 (Gustav's Create of 23 November 2026: gold held only the three fact views, the model read six gold views and its
+    # refresh failed): in a build whose semantic model reads gold (MODEL_ON_GOLD), the pipeline's gold notebook is the same
+    # notebook create_gold_views writes, dimension views included. Before, this spec had no dimensions, so the pipeline step
+    # (after the gold views step, same notebook name) replaced the notebook with the fact views only.
+    gold_spec = _gold_mod.spec(p, gi, silver_schema, gold_schema, None, show_personal_data, within=tables,
+                               dimensions=MODEL_ON_GOLD.get() is not None)
     # n200: the plan the outputs are built from (the item's review, handed over by the Create; else the plan's own id),
     # for the health rows and the drift step, which becomes the silver notebook's first cell in the pipeline
     from . import health as _health
@@ -3867,9 +3875,20 @@ def create_pipeline(workspace: _p.Workspace, source: _p.Source, name: _p.Pipelin
     if pl.get("status") != "Succeeded":
         return _step_failed(out, name, pl, PIPELINE_SCOPE, f"creating the pipeline {name!r}")
     out["result"]["status"] = "Succeeded"
+    jobs_ctx = PIPELINE_JOBS.get() or {}
+    before_run = jobs_ctx.get("before_run")
+    if callable(before_run) and pl.get("id"):
+        # W2 (Gustav's Create of 23 November 2026: Fabric's monitoring hub said "Pipeline was modified after this run"): the
+        # Model editor writes its plan marker into each item's description. It did so after this tool returned, that is
+        # after Run once had started, so the run's pipeline was changed under it. Now the marker is written here, once the
+        # pipeline and its notebooks exist and before the schedule and the run, so nothing changes the pipeline after.
+        made = [{"type": "Notebook", "id": i, "name": n} for n, i in ids.items()] + [{"type": "DataPipeline", "id": pl["id"], "name": name}]
+        try:
+            out["result"]["marked_before_run"] = int(before_run(ws, made) or 0)
+        except Exception:                                          # noqa: BLE001 — best effort, as the marker always was
+            out["result"]["marked_before_run"] = 0
     if (run_once or spec) and pl.get("id"):                        # n185: only when asked, after the pipeline exists
         from .deploy import send
-        jobs_ctx = PIPELINE_JOBS.get() or {}
         headers = {"Authorization": f"Bearer {token()}", "Content-Type": "application/json"}
 
         def http(method, url, **kw):
