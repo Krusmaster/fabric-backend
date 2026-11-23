@@ -67,6 +67,28 @@ def test_a_hidden_tool_still_answers_when_called_by_name(monkeypatch):
     assert "Sales" in text and "Unknown tool" not in text
 
 
+@pytest.mark.parametrize("name", sorted(HIDDEN))
+def test_every_hidden_tool_is_unlisted_and_still_answers_by_name(monkeypatch, name):
+    """E3 (23 November 2026): each tool outside the default listing is absent from tools/list and still registered under
+    its own name, so an old prompt or a card's button that calls it gets the tool's own answer (called without arguments:
+    its argument check, or for list_workspaces its error answer outside a request), never the SDK's "Unknown tool"."""
+    monkeypatch.delenv(tool_listing.ADVANCED, raising=False)
+    assert name not in _names(monkeypatch, False)
+    try:
+        text = json.dumps(asyncio.run(server.mcp.call_tool(name, {})), default=str)
+    except Exception as e:  # noqa: BLE001 - a missing argument raises the tool's own validation error
+        text = str(e)
+    assert "unknown tool" not in text.lower() and text.strip(), text[:300]
+    assert name in {t.name for t in asyncio.run(server._list_every_tool())}
+
+
+def test_a_name_that_is_not_a_tool_is_unknown(monkeypatch):
+    """The control for the test above: the same call for a name no tool has is the SDK's "Unknown tool"."""
+    monkeypatch.delenv(tool_listing.ADVANCED, raising=False)
+    with pytest.raises(Exception, match="(?i)unknown tool"):
+        asyncio.run(server.mcp.call_tool("no_such_tool_e3", {}))
+
+
 def test_the_instructions_say_what_is_listed_as_facts():
     text = server.mcp.instructions
     assert "KRUSGRAPH_ADVANCED_TOOLS=1" in text and "answer when called by name" in text

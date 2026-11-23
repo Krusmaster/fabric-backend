@@ -91,7 +91,7 @@ def test_the_default_listing_s_read_only_cap_went_down():
     """SM4: the read tools a client lists by default (9 of 16) fit in far less than the full listing's 83 000."""
     default = _listing("server", {"KRUSGRAPH_ADVANCED_TOOLS": "0"})
     assert len(default["tools"]) <= 16
-    assert default["ro_size"] <= 25_000                                      # SM4: 21 448 characters on 21 Nov 2026
+    assert default["ro_size"] <= 23_500                                      # SM4: 21 448 characters on 21 Nov 2026; E3: 21 494 on 23 Nov 2026, cap lowered from 25 000 to about 2 000 above it
 
 
 def test_read_only_removes_exactly_the_creating_tools(hosted):
