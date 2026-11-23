@@ -88,4 +88,6 @@ def test_read_only_listing_stays_small():
     # and confirmed left out): 81 500 before, about 82 900 after
     # 84 600 since BL64: semantic_view_draft (two-sentence description, seven parameters of one short phrase each, keys
     # and confirmed left out): about 82 950 before, about 84 560 after
+    # BL65: semantic_view_draft's silver (one short phrase), paid for by cutting its description and two parameter texts
+    # (84 596 after; the cap is not raised)
     assert size <= 84_600, f"read-only tools/list is {size} characters"

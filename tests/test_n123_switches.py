@@ -84,7 +84,7 @@ def test_with_both_off_the_hosted_listing_is_unchanged(hosted):
     golden = json.loads((GOLDEN / "hosted_listing.json").read_text(encoding="utf-8"))["tools"]
     assert hosted["off"]["tools"] == golden and hosted["zero"]["tools"] == golden
     assert {t["name"] for t in golden} >= {"create_backend", "sample_rows"}  # the tool count is test_tool_count_texts.py's
-    assert hosted["off"]["ro_size"] <= 84_600                                # the read-only listing cap (n26; n229: verify_build; CSN2: csn_path; Q2: the Qlik tools; AP2: analysis_plan and analysis_notebook_draft, about 4 800 characters; WB2: silver_schema on three read tools, about 450; RQ1: requirements_draft, about 1 400; BL64: semantic_view_draft, about 1 600)
+    assert hosted["off"]["ro_size"] <= 84_600                                # the read-only listing cap (n26; n229: verify_build; CSN2: csn_path; Q2: the Qlik tools; AP2: analysis_plan and analysis_notebook_draft, about 4 800 characters; WB2: silver_schema on three read tools, about 450; RQ1: requirements_draft, about 1 400; BL64: semantic_view_draft, about 1 600; BL65: its silver argument, paid for by shorter texts, 84 596)
 
 
 def test_the_default_listing_s_read_only_cap_went_down():

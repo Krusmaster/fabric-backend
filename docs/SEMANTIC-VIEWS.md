@@ -1,6 +1,6 @@
 # Semantic views: the plan as YAML for Fabric
 
-Round BL64, 23 November 2026. Status: a draft. Nothing is written to Fabric or OneLake, and the output has not been
+Round BL64, 23 November 2026; the silver layer added in round BL65 the same day. Status: a draft. Nothing is written to Fabric or OneLake, and the output has not been
 published in a Fabric workspace yet.
 
 Microsoft Fabric has semantic views (preview), part of Fabric IQ. In a lakehouse, YAML files under
@@ -31,7 +31,11 @@ The answer also lists:
 
 - `needs_key_column`: relationships that need more than one column on a side, or point at a table keyed on several
   columns (SAP's MANDT+VBELN). They do not fit a semantic view, which relates one column per side. A combined key
-  column in silver or gold (one column holding the key's parts, on both tables) makes them fit.
+  column in silver or gold (one column holding the key's parts, on both tables) makes them fit. Each entry names the
+  silver columns that would fix it (`silver_columns`, for example `VBAP.MANDT_VBELN_key` to `VBAK.MANDT_VBELN_key`)
+  and says how (`fix`); `silver` points to `silver_notebook_draft` and `create_silver_notebook`, which build them. An
+  entry no combined column can fix (one column pointing at part of a composite key) says so, with `silver_columns`
+  empty.
 - `not_unique`: relationships whose `to` side `validate_plan` counted as not unique, with the counts.
 - `personal_data`: columns named like personal data. A semantic view reads every column of a dataset's table and cannot
   leave one out, so these columns are in the generated model. Krusgraph's relationships, metrics and descriptions do
@@ -39,13 +43,45 @@ The answer also lists:
   (`gold_views_draft` leaves them out) or restrict them with OneLake security.
 - `gate`, when the source is not a lakehouse.
 
+## On the silver layer (`silver=true`)
+
+SAP keys every order-to-cash table on MANDT plus a document number, so on the source tables the view of the synthetic
+`sap_sd` sample has no relationship and 19 entries under `needs_key_column`. The silver step (round n226,
+`fabric_backend/combined_keys.py`) writes one combined key column per composite key and per composite link into each
+silver table: the parts as text, joined by the character U+001F, and empty (NULL) when a part is NULL. The semantic model
+draft already reads silver when a link needs one. With `silver=true` (library: `semantic_view.draft(..., combined=True)`)
+the view does the same, with the same calls:
+
+- Each dataset's `source` is the silver table, named as the silver notebook draft names it: `<silver schema>.<table>`,
+  or `<schema>.<silver schema>_<table>` on a lakehouse without schemas. The dataset's `name` stays the table's name,
+  so the metrics are unchanged. The hosted tool finds the silver schema as `semantic_model_draft` does: the source's
+  Krusgraph pipeline, else `silver`.
+- A composite link becomes one relationship from its combined column to the target's combined key column, for example
+  `VBAP.MANDT_VBELN_key` to `VBAK.MANDT_VBELN_key`. Its comment names the columns it combines and the counts of the
+  source link.
+- The `to` side must hold unique values. A relationship is written only when `validate_plan` counted the target's
+  composite key as unique in all rows, which also means no part is NULL, so the combined column is unique and never
+  NULL. A key counted as not unique is listed under `not_unique`; a key not counted is listed under
+  `to_side_not_checked`.
+- The relationships are the semantic model draft's active set on silver, the same call as before.
+
+On `sap_sd`, with counts, the view has 12 relationships (among them VBAP to VBAK, LIPS to LIKP, VBRP to VBRK, VBAK
+to KNA1 and VBRK to T001). The 7 inactive ones are listed under `not_in_view_inactive`, each with the silver columns it
+would use.
+
+**The silver notebook must have run in Fabric before the view is published.** The view refers to silver tables and to
+combined key columns that only the silver step writes. The answer says so under `before_publish`, and the file says so
+in its first comments. When the silver schema is not in the source yet, the hosted tool adds `silver_not_built`, which
+names `silver_notebook_draft` and `create_silver_notebook`.
+
+When no relationship needs a composite key (the shop samples), or the source is not a lakehouse, `silver=true` changes
+nothing in the file, and `summary.reads` says why. Without `silver` the file is the same as BL64's, byte for byte.
+
 ## What is left for a later round
 
 - Writing the file to the lakehouse's `Context/Semantic Views/` folder (a create tool with `dry_run=false`).
 - Publishing the view. The List and Publish APIs are in beta and do not accept a third-party token, which is what the
   hosted connector holds.
-- Reading the silver layer's combined key columns, so the `needs_key_column` relationships can be written, as the
-  semantic model draft does when a silver step exists.
 
 Today a person uploads the file (Upload files on the view folder in the lakehouse) and publishes the view there.
 
@@ -79,3 +115,12 @@ Unit tests on the synthetic samples shop, sap_demo, sap_sd and shop_faults, with
 supports, relationships have one column per side onto a counted unique key, composite keys are listed and never
 written, with counts the relationships equal the semantic model draft's active set, no row value appears, and no HTTP
 call is made. Not run against Fabric: the file has not been uploaded to a lakehouse or published.
+
+The silver layer (BL65), in `tests/test_bl65_semantic_view_silver.py` on the same four samples: without `silver` the
+file equals BL64's for every sample, with and without counts (`tests/golden/semantic_view_bl64.json`, written by
+BL64's code); `sap_sd` with silver relates order to cash on the combined columns, its datasets and columns are the
+ones `silver.spec` names, a composite key counted as not unique or not counted is listed and not written, the
+relationships equal the semantic model draft's active set on silver, every `needs_key_column` entry names the column
+silver relates on, the shop samples are unchanged, and the personal-data rule, the lakehouse gate, no row value and
+no HTTP call hold. The hosted tool's silver path is tested with Fabric replaced by stand-ins. The silver notebook and
+the view have not been run together in a Fabric workspace.
