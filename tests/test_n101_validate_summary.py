@@ -180,8 +180,8 @@ def test_the_hosted_tool_answers_measure_the_same_on_the_shop():
     # n226: evidence, coverage and time_budget on both; without them the sizes are those of before
     bare = {e["args"].get("detail", "summary"): len(_text({k: v for k, v in e["answer"].items() if k not in ("evidence", "coverage", "time_budget", "data_products")}))
             for e in calls if e["args"]["source"] == "demo_lh"}
-    assert bare == {"full": 8175, "summary": 3197}
-    assert sizes == {"full": 9479, "summary": 4501}
+    assert bare == {"full": 8188, "summary": 3210}       # BL39: the one count's sentence, 13 characters longer (8175, 3197 before)
+    assert sizes == {"full": 9492, "summary": 4514}       # (9479, 4501 before)
 
 
 def test_sap_verify_refuses_a_summary_and_asks_for_the_full_answer(tmp_path, capsys):
