@@ -205,6 +205,12 @@ is read with its three columns and no role is mistaken for a table.
 
 ## Next step
 
-Not wired into anything today (the smooth chain holds `server.py` and the model files until it is done). Next step,
-after the chain: offer these drafts in the model dry run (`semantic_model.draft`) and the review, so a role is
-accepted like a key or a link before anything is written; then open one in Power BI Desktop on the SAP demo.
+**Done in round BL43 (23 November 2026):** the model draft takes the roles on request. `semantic_model.draft(...,
+roles=["BUKRS"])` adds the role drafted here and the `security_user_map` table (with `ref table` in `model.tmdl`), and
+the summary's `security_roles` lists the roles added, those not added and why (a role whose tables are not all in the
+model is left out), and the "fill this in" note. Without `roles` the model is exactly as before
+(`tests/test_bl43_model_roles.py`).
+
+Next: offer the candidates in the model dry run of the hosted tools and the workload item (`server.py`,
+`workload_api.py`), so a role is accepted like a key or a link before anything is written; then open one in Power BI
+Desktop on the SAP demo.
