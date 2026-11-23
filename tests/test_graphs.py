@@ -182,7 +182,12 @@ def test_safest_path_differs_from_shortest_and_is_explained():
     v = {"relationships": [{"source": "a", "columns": ["x1", "x2"], "target": "x", "verdict": "holds"},
                            {"source": "b", "columns": ["x1", "x2"], "target": "x", "verdict": "holds"}]}
     verified = paths.join_path(p, "a", "b", validation=v)
-    assert verified["safest"]["hops"] == 2 and verified["paths"][0]["cost"] == 2.2222 and verified["safest"]["why"] == "the shortest path is also the safest"
+    assert verified["paths"][0]["cost"] == 2.2222
+    # BL63: with counts the safest path follows the semantic model's counted active set. The declared chain (R0) ranks
+    # above the counted R3 links (BL51 rule 3a), and x would reach a (or b) two ways, so one R3 link is inactive there
+    assert verified["active_by_counts"] is True and verified["safest"]["tables"] == ["a", "c", "d", "b"]
+    assert sorted(s["active"] for s in verified["paths"][0]["steps"]) == [False, True]
+    assert "a shorter path uses a relationship the counts left inactive" in verified["safest"]["why"]
 
 
 # ------------------------------------------------------------------ link prediction --------------
