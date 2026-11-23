@@ -102,7 +102,7 @@ import {
   readDraft, recover, recoveredWords, resolve, revisionOf, stamp, writeDraft,
 } from "./autosave";
 import { SaveIndicator } from "./SaveIndicator";
-import { selectTablesExtra } from "./afterRun";
+import { selectOnReopen, selectTablesExtra, selectTriesOf } from "./afterRun";
 import { CreatedItem, ItemCache, RemovedItem, ReviewFile } from "./ModelItemDefinition";
 import { CsnUpload } from "./csnUpload";
 import { SapDemoAnswer } from "./SapViews";
@@ -171,7 +171,6 @@ export function ModelItemEditor(props: PageProps) {
   const [preview, setPreview] = useState<engine.ManyAnswer>();
   const [result, setResult] = useState<engine.ManyAnswer>();
   const [updating, setUpdating] = useState(false);
-  const [selectTries, setSelectTries] = useState(0);   // W2: Select tables now, bounded (afterRun.MAX_SELECT_TRIES)
   /** n197: a Create (or its follow-up) is going on: Create is not offered twice */
   const [creating, setCreating] = useState(false);
   const [suggested, setSuggested] = useState<engine.SuggestedProducts | null | undefined>(undefined);   // n222
@@ -1056,7 +1055,8 @@ export function ModelItemEditor(props: PageProps) {
     const outputs = readRun(d.outputs.create_run)?.outputs ?? toRequests(choices, d.outputs.created);
     const o = outputs.find((x) => x.kind === "data_agent");
     if (!o) return;
-    setSelectTries((n) => n + 1);
+    await update((x) => ({ ...x, outputs: { ...x.outputs,                     // counted first: a lost answer still counts
+      agent_tables: { tries: selectTriesOf(x.outputs.agent_tables) + 1, at: new Date().toISOString() } } }));
     setUpdating(true);
     replaceCard({ ...pendingCard(o, "running", card) });
     try {
@@ -1145,6 +1145,10 @@ export function ModelItemEditor(props: PageProps) {
       cardsRef.current = cards;
       const thisRun = run ? cards.flatMap((c) => c.created ?? []) : loaded.outputs.created;
       setResult({ ...f, outputs: cards, product: f.product ? { ...f.product, items: markEarlier(f.product.items as engine.CreatedRef[], thisRun) } as engine.DataProduct : undefined });
+      // W2: the run succeeded while the item was closed (or the endpoint had not listed the tables yet): the agent's
+      // tables are selected again now, counted with the clicks so that reopening never loops
+      const agent = cards.find((c) => c.output === "data_agent");
+      if (selectOnReopen(agent, selectTriesOf(loaded.outputs.agent_tables), currentRun())) void selectTables(agent!);
     } catch (e) {
       setNotice(isBusy(e) ? BUSY_LINE : `The last Create's cards could not be read again (${e instanceof engine.EngineCallError ? e.answer.error : String(e)}); what was built is listed below.`);
     }
@@ -1511,7 +1515,7 @@ export function ModelItemEditor(props: PageProps) {
             onNewName={newNameForCard}
             onRetry={retryCard}
             onSelectTables={(c) => void selectTables(c)}
-            selectTries={selectTries}
+            selectTries={selectTriesOf(def.outputs.agent_tables)}
             onRefreshModel={(c) => void refreshModel(c)}
             run={currentRun()}
             onCreateRest={() => void createRest()}

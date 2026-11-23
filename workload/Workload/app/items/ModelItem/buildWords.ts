@@ -163,9 +163,6 @@ export function nameAction(kind: OutputKind, name: string, created: CreatedItem[
 }
 
 /** outputs.json's created list with what a build created: an item of the same id is replaced, a new one added. */
-/** The outputs that are a notebook of their own, which the pipeline writes again under the same name. */
-const OWN_NOTEBOOK = new Set(["silver_notebook", "gold_views"]);
-
 export function mergeCreated(prev: CreatedItem[], add: CreatedRef[]): CreatedItem[] {
   const out = [...prev];
   for (const a of add) {
@@ -176,9 +173,6 @@ export function mergeCreated(prev: CreatedItem[], add: CreatedRef[]): CreatedIte
       ...(a.published !== undefined ? { published: a.published } : {}),   // n185: a data agent published in Fabric
     };
     const i = out.findIndex((c) => c.id === a.id);
-    // W2 (23 November 2026): the pipeline step answers with the silver and gold notebooks too; a notebook already saved
-    // under its own output (silver_notebook, gold_views) keeps that output, so the gold views never lose their id
-    if (i >= 0 && OWN_NOTEBOOK.has(out[i].output ?? "") && item.output === "pipeline") item.output = out[i].output;
     if (i >= 0) out[i] = item;
     else out.push(item);
   }

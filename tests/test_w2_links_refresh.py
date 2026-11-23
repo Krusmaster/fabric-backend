@@ -11,7 +11,7 @@ pipeline's run once, which succeeded in 5m41s). What he found, and what these te
    the gold notebook again without them (server._pipeline_build had no `dimensions`).
 4. "Pipeline was modified after this run": the plan marker was written into the pipeline's description after Run once had
    started it. Now before.
-5. "this item has no id saved for it" on the gold notebook: the pipeline step recorded the notebook as its own output.
+5. and 7. (the gold notebook's "no id saved" and the duplicate rows) are fixed by round W1 in the Data product page.
 
 Synthetic shop schema and in-memory fakes only; nothing calls Fabric."""
 from __future__ import annotations
@@ -241,22 +241,6 @@ def test_without_a_model_on_gold_the_pipeline_s_gold_notebook_is_as_before():
     assert _gold_views_in(nb) == {v["name"].split(".", 1)[1] for v in gold.spec(p, INFO, "silver", "gold")["views"]}
 
 
-# ------------------------------------------------------------------ 5. the notebooks keep their own output -------------
-
-def test_the_pipeline_s_notebooks_keep_the_output_that_made_them():
-    chosen = {"silver_notebook": "demo_lh_silver", "gold_views": "demo_lh_gold", "pipeline": "demo_lh_pipeline"}
-    assert workload_api.notebook_output("Notebook", "demo_lh_gold", chosen) == "gold_views"
-    assert workload_api.notebook_output("Notebook", "DEMO_LH_SILVER", chosen) == "silver_notebook"
-    assert workload_api.notebook_output("Notebook", "demo_lh_pipeline_check", chosen) == "pipeline"
-    assert workload_api.notebook_output("DataPipeline", "demo_lh_pipeline", chosen) == "pipeline"
-    assert workload_api.notebook_output("Notebook", "gold_shop", {"pipeline": "p"}) == "pipeline"   # no gold output of its own
-    res = {n: {"status": "Succeeded", "id": f"id-{n}"} for n in ("demo_lh_pipeline", "demo_lh_silver", "demo_lh_gold", "demo_lh_pipeline_check")}
-    made = workload_api._created_ids("pipeline", {"result": res}, chosen, WS, {"kind": "pipeline", "name": "demo_lh_pipeline"},
-                                     {"schema": "shop"})
-    assert {c["name"]: c["output"] for c in made} == {"demo_lh_pipeline": "pipeline", "demo_lh_silver": "silver_notebook",
-                                                       "demo_lh_gold": "gold_views", "demo_lh_pipeline_check": "pipeline"}
-
-
 # ------------------------------------------------------------------ 4. nothing changes the pipeline after its run ----
 from test_workload_build import make  # noqa: E402,F401  (the editor's fixture)
 from test_workload_api import keys  # noqa: E402,F401
@@ -273,8 +257,6 @@ def test_the_plan_marker_is_written_before_run_once_starts_and_nothing_after(mak
     item_patches = [i for i, c in enumerate(fake.calls) if c[0] == "PATCH" and re.search(r"/items/[^/]+$", c[1])]
     assert item_patches, "the plan marker was written"
     assert max(item_patches) < started, "an item's description was changed after the run started"
-    outputs = {c["name"]: c["output"] for c in card["created"]}
-    assert outputs["shop_gold"] == "gold_views" and outputs["shop_silver"] == "silver_notebook" and outputs["shop_flow"] == "pipeline"
 
 
 # ------------------------------------------------------------------ 6. health: the time and what failed ---------------

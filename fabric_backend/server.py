@@ -3663,7 +3663,7 @@ PIPELINE_SPEC = ("microsoft/fabric-rest-api-specs a96c37a: notebook/swagger.json
 
 
 def gold_description(info: dict, schema: str, gold_schema: str) -> str:
-    """W2 (Gustav, 23 November 2026: the gold notebook said "Gold views for sandviktest_lh.shop", the build lakehouse with the
+    """W2 (Gustav, 23 November 2026: the gold notebook named the build lakehouse with the
     source's schema): where the views go and what they are built from, in one line."""
     src = info.get("read_from") or {}
     source = f"{src.get('item_name') or info['item_name']}.{src.get('schema') or schema}"

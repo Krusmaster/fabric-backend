@@ -2580,7 +2580,7 @@ def _created_ids(kind: str, a: dict, chosen: dict, workspace: str, o: dict, req:
         for t, n in _names(o, chosen, req["schema"]):
             r = res.get(n) or {}
             if r.get("status") == "Succeeded" and r.get("id"):
-                out.append({"type": t, "id": r["id"], "name": n, "workspace": workspace, "output": notebook_output(t, n, chosen, kind)})
+                out.append({"type": t, "id": r["id"], "name": n, "workspace": workspace, "output": kind})
         return out
     if kind == "data_agent":
         rid = res.get("id") or res.get("agent_id")
@@ -2588,20 +2588,6 @@ def _created_ids(kind: str, a: dict, chosen: dict, workspace: str, o: dict, req:
     if res.get("status") == "Succeeded" and res.get("id"):
         return [{"type": typ, "id": res["id"], "name": o["name"], "workspace": workspace, "output": kind}]
     return []
-
-
-def notebook_output(typ: str, name: str, chosen: dict, kind: str = "pipeline") -> str:
-    """W2 (Gustav's Create of 23 November 2026: the Data product page said "Built Gold views demo_lh_gold - this item has no
-    id saved for it" while Update called it up to date): the pipeline step writes the silver and gold notebooks again,
-    under the names of the silver notebook and gold views outputs, and its answer recorded them as output "pipeline".
-    outputs.json keeps one entry per id, so the gold views output lost its id. A notebook that is an output of its own in
-    this build keeps that output's name; the check notebook (and a notebook no output of its own chose) stays the
-    pipeline's."""
-    if typ == "Notebook":
-        for own in ("silver_notebook", "gold_views"):
-            if chosen.get(own) and str(chosen[own]).lower() == str(name).lower():
-                return own
-    return kind
 
 
 def _report_on_draft(model_answer: dict, model_name: str, name: str) -> dict:

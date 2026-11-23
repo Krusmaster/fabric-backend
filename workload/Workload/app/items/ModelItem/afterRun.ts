@@ -68,3 +68,15 @@ export function refreshOffer(card: BuildCard | undefined, run?: PipelineRun): Of
 export function selectTablesExtra(run?: PipelineRun): { select_tables: true; after_run?: { status: string } } {
   return { select_tables: true, ...(run?.status ? { after_run: { status: run.status } } : {}) };
 }
+
+/** W2: reopening the item after a run that succeeded, with the agent's tables not all selected: Select tables now is sent
+ * by itself, counted with the clicks (outputs.json agent_tables.tries), so reopening never loops. */
+export function selectOnReopen(card: BuildCard | undefined, tries: number, run?: PipelineRun): boolean {
+  return run?.status === "Succeeded" && selectTablesOffer(card, tries, run).offer;
+}
+
+/** outputs.json's count of Select tables now (clicks and reopenings), read safely. */
+export function selectTriesOf(x: unknown): number {
+  const n = (x as { tries?: unknown } | undefined)?.tries;
+  return typeof n === "number" && Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+}

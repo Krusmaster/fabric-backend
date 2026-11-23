@@ -125,9 +125,6 @@ export function rowsOf(outputs: OutputsDefinition, status?: StatusAnswer, plan?:
     const have = new Set(rows.map((r) => r.output).filter(Boolean));
     for (const o of last.outputs) {
       if ((o.state !== "created" && o.state !== "todo") || have.has(o.output)) continue;
-      // W2: an item saved under another output with this output's name (an outputs.json written before W2 kept the gold
-      // notebook as the pipeline's) has its id saved: no "no id saved" row for it
-      if (rows.some((r) => r.id && o.name && r.name.toLowerCase() === o.name.toLowerCase())) continue;
       rows.push({ key: `unsaved:${o.output}`, type: "", typeLabel: o.label, name: o.name, output: o.output, state: "built",
         why: NO_ID_SAVED, openable: false });
     }
@@ -154,16 +151,9 @@ export function otherPlanRows(outputs: OutputsDefinition, status: StatusAnswer |
   });
 }
 
-/** W2 (Gustav, 23 November 2026: a check at 21:06 CET read "checked 19:06 UTC"): a time without a zone is UTC, as the
- * health table and outputs.json write it; the browser would otherwise read it as its own local time. */
-export function asUtc(iso: string): string {
-  const t = iso.trim().replace(" ", "T");
-  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(t) && !/(Z|[+-]\d{2}:?\d{2})$/i.test(t) ? t + "Z" : t;
-}
-
 export function dayOf(iso: string | undefined): string {
   if (!iso) return "an unknown day";
-  const d = new Date(asUtc(iso));
+  const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? iso : d.toISOString().slice(0, 16).replace("T", " ") + " UTC";
 }
 
@@ -229,7 +219,7 @@ export function healthFor(h: HealthAnswer | undefined | null, plan: string | und
   if (plan && h.plan_id && h.plan_id !== plan) {
     return `Health: not checked since this Create. The latest health result is for another plan (${h.plan_id}), ${run}, ${when}: ${found}.`;
   }
-  const t = (x: string | undefined | null) => (x ? new Date(asUtc(x)).getTime() : NaN);
+  const t = (x: string | undefined | null) => (x ? new Date(x).getTime() : NaN);
   if (createdAt && h.checked_at && t(h.checked_at) < t(createdAt)) {
     return `Health: not checked since this Create (${dayOf(createdAt)}). The latest result is from ${run}, ${when}: ${found}.`;
   }

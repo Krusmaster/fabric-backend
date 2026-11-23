@@ -211,6 +211,8 @@ export interface OutputsDefinition {
   products?: { id: string; name: string }[];
   /** n225: the plan of the latest Create and when it ran (productWords.withPlan); optional */
   plan?: { plan_id: string; at: string };
+  /** W2: how often the data agent's tables were selected again after the run (afterRun.MAX_SELECT_TRIES bounds it) */
+  agent_tables?: { tries: number; at: string };
 }
 
 /** n184: as createWords.LastCreate; read through createWords.readLastCreate, which checks its shape. */

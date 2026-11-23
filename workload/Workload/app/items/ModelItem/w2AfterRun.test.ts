@@ -4,12 +4,10 @@ import { describe, expect, it } from "vitest";
 import { getFrontendPath, hasExplicitPath, VERIFIED_PATHS_SOURCE } from "../../controller/NavigationController";
 import { FABRIC_PORTAL, fabricItemUrl } from "./openInFabric";
 import { itemsOf } from "./createRun";
-import { ORDER, mergeCreated } from "./buildWords";
-import { rowsOf } from "./productWords";
+import { ORDER } from "./buildWords";
 import { lastCreateOf } from "./createWords";
-import { MAX_SELECT_TRIES, refreshOffer, selectTablesExtra, selectTablesOffer, tablesNotSelected } from "./afterRun";
+import { MAX_SELECT_TRIES, refreshOffer, selectOnReopen, selectTablesExtra, selectTablesOffer, selectTriesOf, tablesNotSelected } from "./afterRun";
 import type { BuildCard, OutputKind, OutputRequest } from "./engineClient";
-import type { OutputsDefinition } from "./ModelItemDefinition";
 
 const WS = "11111111-1111-1111-1111-111111111111";
 const ID = "22222222-2222-2222-2222-222222222222";
@@ -136,40 +134,20 @@ describe("Refresh now: only when the refresh failed or did not run, never while 
   });
 });
 
-// ------------------------------------------------------------------ issue 5: the gold notebook keeps its id ------------
-
-describe("the gold notebook's id is kept under its own output", () => {
-  const gold = { type: "Notebook", id: "nb-gold", name: "demo_lh_gold", workspace: WS };
-  it("the pipeline's answer with the same notebook does not take it from the gold views output", () => {
-    const after = mergeCreated([{ ...gold, output: "gold_views" }], [{ ...gold, output: "pipeline" }]);
-    expect(after).toHaveLength(1);
-    expect(after[0].output).toBe("gold_views");
+describe("reopening after a run that succeeded selects the agent's tables again, bounded", () => {
+  const seven = ["addresses", "audit_log", "categories", "customers", "order_items", "orders", "products"];
+  it("0 selected, run succeeded, tries left: sent by itself", () => {
+    expect(selectOnReopen(agentCard(0, seven), 0, { status: "Succeeded" })).toBe(true);
   });
-  it("an outputs.json written before W2 (the notebook under the pipeline) shows no 'no id saved' row", () => {
-    const outputs = {
-      version: 1, outputs: [], created: [{ ...gold, output: "pipeline" }],
-      last_create: { at: "2026-11-23T12:00:00Z", item: "demo_model", outputs: [{ output: "gold_views", label: "Gold views", name: "demo_lh_gold", state: "created" }] },
-    } as unknown as OutputsDefinition;
-    const rows = rowsOf(outputs, undefined, undefined);
-    expect(rows.some((r) => r.key.startsWith("unsaved:"))).toBe(false);
-    const withPlan = rowsOf({ ...outputs, created: [{ ...gold, output: "pipeline", plan: { plan_id: "plan-1" } }] } as never, undefined, "plan-1");
-    expect(withPlan.some((r) => r.key.startsWith("unsaved:"))).toBe(false);
+  it("never after MAX_SELECT_TRIES, never before the run succeeded, never when all are selected", () => {
+    expect(selectOnReopen(agentCard(0, seven), MAX_SELECT_TRIES, { status: "Succeeded" })).toBe(false);
+    expect(selectOnReopen(agentCard(0, seven), 0, { status: "Running" })).toBe(false);
+    expect(selectOnReopen(agentCard(0, seven), 0)).toBe(false);
+    expect(selectOnReopen(agentCard(7, []), 0, { status: "Succeeded" })).toBe(false);
   });
-});
-
-// ------------------------------------------------------------------ issue 6: health times are UTC -----------------------
-import { asUtc, dayOf, healthFor } from "./productWords";
-
-describe("health: a time without a zone is UTC, so a check after this Create is not called older", () => {
-  it("the SQL endpoint's datetime2 (no zone) is read as UTC", () => {
-    expect(asUtc("2026-11-23T20:06:01")).toBe("2026-11-23T20:06:01Z");
-    expect(asUtc("2026-11-23 20:06:01")).toBe("2026-11-23T20:06:01Z");
-    expect(asUtc("2026-11-23T20:06:01Z")).toBe("2026-11-23T20:06:01Z");
-    expect(asUtc("2026-11-23T21:06:01+01:00")).toBe("2026-11-23T21:06:01+01:00");
-    expect(dayOf("2026-11-23T20:06:01")).toBe("2026-11-23 20:06 UTC");
-  });
-  it("Gustav's run: checked 20:06 UTC after a Create at 20:03 UTC is this Create's result", () => {
-    const h = { word: "amber", words: "7 warning(s) in the latest run", checked_at: "2026-11-23T20:06:00", run_id: "94a8a34e", plan_id: "plan-1" };
-    expect(healthFor(h, "plan-1", "2026-11-23T20:03:00Z")).toBe("Health: amber. 7 warning(s) in the latest run (run 94a8a34e, checked 2026-11-23 20:06 UTC).");
+  it("the stored count is read safely", () => {
+    expect(selectTriesOf({ tries: 2, at: "x" })).toBe(2);
+    expect(selectTriesOf(undefined)).toBe(0);
+    expect(selectTriesOf({ tries: "3" })).toBe(0);
   });
 });
