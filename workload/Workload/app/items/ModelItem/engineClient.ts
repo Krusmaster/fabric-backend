@@ -463,6 +463,10 @@ export interface BuildPlace {
 
 export interface ManyAnswer {
   dry_run: boolean;
+  /** BL54 in the editor (W1): the dry run's line on workspace roles (proposed, nothing written; workspace_access.dry_run_line) */
+  access?: string;
+  /** BL54 in the editor (W1): the dry run's line on the data contract, when the build has a data product */
+  contract?: string;
   /** n201: the lakehouse a read-only source's silver, gold and check are written to, and how it was chosen. n221: also
    * the lakehouse of the build's workspace when the source is in another one (how: made or create, workspace_id) */
   target?: { lakehouse: string; id: string; how: "chosen" | "default" | "made" | "create"; words: string; workspace_id?: string };

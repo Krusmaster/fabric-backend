@@ -71,7 +71,7 @@ import {
   MAX_WAIT_MS, POLL_MS, agentAfterRun, jobsBlocked, pipelineItem, recordRun, recordSchedule, runFinished, scheduleIds, stillRunning,
 } from "./jobsWords";
 import { AppChoices } from "./engineClient";
-import { PICKER_TYPES, ReadOnlySource, SapOffer, restType, targetProblem } from "./sourceWords";
+import { PICKER_TYPES, ReadOnlySource, SapOffer, editorError, everySchemaEmpty, restType, targetProblem } from "./sourceWords";
 import { BuildIn, buildWorkspace, crossWorkspace, keptTarget, lakehouseProblem, productWorkspace, targetRequest } from "./buildPlace";
 import { autoAdopt } from "./ed3Product";
 import { DataProductPage, preloadParts } from "./lazyParts";   // n223: the Data product page loads when first shown
@@ -1411,13 +1411,15 @@ export function ModelItemEditor(props: PageProps) {
     <NextStepsPanel review={def.review} created={def.outputs.created} source={def.source} onBuild={buildNext} onAnalytics={goAnalytics} now={new Date()} />
   );
 
+  // W1: the review's schema_not_found in editor words (every schema empty: one plain sentence with the docs link)
+  const shownError = editorError(error, schemaList.list);
   const wrap = (node: React.ReactNode) => (
     <div className="kg-wrap">
       <FlowSteps steps={steps} onGo={goStep} />
       <SaveIndicator state={autosaveState} at={saveStatus.state === "saved" ? saveStatus.at : undefined}
         tries={saveStatus.state === "failed" ? saveStatus.tries : undefined} note={note}
         onSaveAgain={() => void persist({ ...defRef.current })} onDismissNote={() => setNote(undefined)} />
-      <ErrorBar error={error} />
+      <ErrorBar error={shownError} />
       {trialLine ? <div style={{ fontSize: 12, opacity: 0.75, margin: "4px 0" }} role="status">{trialLine}</div> : null}
       {quiet && !wait ? <Busy wait={quiet} mascotsOn={mascotsOn} skeleton={false} /> : null}
       {wait ? <Busy wait={wait} mascotsOn={mascotsOn} onCancel={cancelWait} /> : node}
@@ -1436,6 +1438,7 @@ export function ModelItemEditor(props: PageProps) {
           onChooseLakehouse={chooseLakehouse}
           onChooseTarget={chooseTarget}
           onReview={() => plan(def, {}, true)}
+          emptyShown={!!error && error.kind === "schema_not_found" && everySchemaEmpty(schemaList.list)}
           onSelfCheck={itemMeta?.workspaceId ? () => engine.selfcheck<SelfCheckAnswer>(workloadClient, { workspace: itemMeta.workspaceId }) : undefined}
           mascotsOn={mascotsOn}
         />

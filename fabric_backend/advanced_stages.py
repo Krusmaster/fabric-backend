@@ -106,7 +106,7 @@ def values(grain: dict, source: dict, customer: dict | None) -> dict:
     stem = ident(parent)
     return {
         "source": f"{source.get('name') or 'the lakehouse'}" + (f" / {source['schema']}" if source.get("schema") else ""),
-        "parent": parent, "child": child,
+        "parent": parent, "parent_one": one_row_of(parent), "child": child,   # W1: "one row per order"
         "feature_table": ident(f"{parent}_features"),
         "order_key": list(grain["parentColumns"]),
         "ids": ids,
@@ -125,13 +125,38 @@ def values(grain: dict, source: dict, customer: dict | None) -> dict:
     }
 
 
+_ONE_IRREGULAR = {"people": "person", "children": "child", "men": "man", "women": "woman", "indices": "index", "data": "data",
+                  "staff": "staff"}
+
+
+def one_row_of(table: str) -> str:
+    """W1: a table's name as one of its rows, for a sentence: orders -> order, order_items -> order item, categories ->
+    category, addresses -> address. A name that does not end in a lower-case plural (VBRK, sap_vbak) stays as it is.
+    The editor has the same rule (advancedStages.ts oneRowOf); advancedStages.fixture.json holds both to the same words."""
+    name = str(table or "")
+    m = re.match(r"^(.*?)([a-z]+)$", name)
+    if not m or name != name.lower():
+        return name
+    head, w = m.group(1), m.group(2)
+    if w in _ONE_IRREGULAR:
+        w = _ONE_IRREGULAR[w]
+    elif w.endswith("ies") and len(w) > 4:
+        w = w[:-3] + "y"
+    elif w.endswith(("sses", "xes", "ches", "shes")):
+        w = w[:-2]
+    elif w.endswith("s") and not w.endswith(("ss", "us", "is")):
+        w = w[:-1]
+    return name if w == m.group(2) else (head + w).replace("_", " ")
+
+
 def recommend(v: dict) -> list[dict]:
     """The analyses the rules recommend on this frame, each with why and whether there are rows enough for a model.
     Drivers needs no model and is always offered; segments needs a proven link to a customer table."""
     few = v["orders"] < MIN_ORDERS
     too_few = TOO_FEW.format(n=v["orders"], min=MIN_ORDERS) if few else ""
     out = [{"analysis": "forecast", "title": TITLES["forecast"],
-            "why": f"One row per {v['parent']} with its date: the number of {v['parent']} per week is a series to forecast.",
+            # W1 (Gustav, 23 November 2026): "One row per orders" read wrong; the table name as a noun is singular here
+            "why": f"One row per {one_row_of(v['parent'])} with its date: the number of {v['parent']} per week is a series to forecast.",
             "model": not few, "too_few": too_few, "gold_table": f"{v['gold_schema']}.{v['forecast_table']}",
             "model_name": v["forecast_model"]}]
     if v["customer"]:
@@ -141,7 +166,7 @@ def recommend(v: dict) -> list[dict]:
                     "model": not few, "too_few": too_few, "gold_table": f"{v['gold_schema']}.{v['segments_table']}",
                     "model_name": v["segments_model"]})
     out.append({"analysis": "drivers", "title": TITLES["drivers"],
-                "why": f"Which customers and which values of {v['parent']}'s text columns carry most orders and most value: "
+                "why": f"Which customers and which values of the text columns of {v['parent']} carry most orders and most value: "
                        "descriptive, no model.",
                 "model": False, "too_few": "", "gold_table": f"{v['gold_schema']}.{v['drivers_table']}", "model_name": None})
     return out
@@ -153,13 +178,13 @@ def recommend(v: dict) -> list[dict]:
 HEADER = '''# Krusgraph, [[stage_title]]: [[title]] on [[feature_table]] ([[source]]).
 # Written by rules from the keys and links Krusgraph proved on the rows, no AI. Krusgraph does not run this notebook,
 # trains no model and reads none of your rows or metrics: you run it in Fabric, and the numbers are your own run's.
-# The three stages: 1. feature table (one row per [[parent]]) -> 2. model (logged to the ML experiment, registered as an
+# The three stages: 1. feature table (one row per [[parent_one]]) -> 2. model (logged to the ML experiment, registered as an
 # ML model) -> 3. predictions in gold (scored with the registered model, version and run id on every row).
 # Fabric features used (Microsoft Learn): autologging [[learn_autolog]] ; PREDICT [[learn_predict]]'''
 
 PARAMS = '''# Parameters: change them here, not below.
 P = {
-    "feature_table": {{feature_table}},      # stage 1's table: one row per [[parent]]
+    "feature_table": {{feature_table}},      # stage 1's table: one row per [[parent_one]]
     "order_key": {{order_key}},              # its proven key
     "ids": {{ids}},                          # keys and links: never summed, never a feature
     "child_prefix": {{child_prefix}},        # the feature columns summed from [[child]] start with this
@@ -412,7 +437,7 @@ def top10(df, ids, customer, value_col, date_col=None):
                          "share_of_value": (float(r["value"]) / total if value_col and total else None)})
     return pd.DataFrame(rows, columns=["dimension", "rank", "dimension_value", "orders", "share_of_orders", "value", "share_of_value"])'''
 
-READ = '''# Read stage 1's feature table and check its grain before anything else: one row per [[parent]].
+READ = '''# Read stage 1's feature table and check its grain before anything else: one row per [[parent_one]].
 pdf = spark.read.table(P["feature_table"]).toPandas()
 n_orders = check_grain(pdf, P["order_key"])
 DATE = P["date"] or pick_date(pdf, P["ids"])

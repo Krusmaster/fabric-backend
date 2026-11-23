@@ -152,7 +152,9 @@ describe("the Next list and Keep it up to date", () => {
 
   it("drops 'run the pipeline' when the run succeeded, and follows a running one", () => {
     expect(nextSteps(finish()).join(" ")).toContain("Run the pipeline demo_lh_pipeline once");
-    expect(nextSteps(finish("Running"))[0]).toBe("Follow the run of demo_lh_pipeline in Fabric (the link on its card); Krusgraph started it.");
+    // W1: a started run is followed, and what comes after it says "when the run has succeeded"
+    expect(nextSteps(finish("Running"))[0]).toBe("Follow the run of demo_lh_pipeline in Fabric (the link on its card); Krusgraph started it. " +
+      "When it has succeeded, the silver and gold tables are filled and the steps below read them.");
     const done = withRunEnd(finish("Running"), "Succeeded", true)!;
     expect(nextSteps(done).join(" ")).not.toContain("Run the pipeline");
     expect(nextSteps(done).join(" ")).toContain("it is published, so people with access to the workspace can use it");

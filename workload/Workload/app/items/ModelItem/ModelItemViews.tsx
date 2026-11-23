@@ -10,7 +10,7 @@
 import { RunNow } from "./RunNowView";
 import { CsnChooser, SapDemo, SapDemoAnswer, SapFields } from "./SapViews";
 import { CsnUpload } from "./csnUpload";
-import { ReadOnlySource, SapOffer, isReadOnly, restType, sapMark, schemaProblem, sourceButton, sourceNotes, targetButton, targetLine } from "./sourceWords";
+import { EMPTY_LAKEHOUSE, ReadOnlySource, SapOffer, docsLink, everySchemaEmpty, isReadOnly, restType, sapMark, schemaOptions, schemaProblem, sourceButton, sourceNotes, targetButton, targetLine } from "./sourceWords";
 import React, { useState } from "react";
 import {
   Badge,
@@ -79,7 +79,7 @@ import { progressLabel } from "./createRun";
 import { AgentChoices, AgentPanel, JobsPanel, PipelineChoices } from "./JobsViews";
 import { RolesPanel } from "./RolesView";
 import { AfterRunActions } from "./AfterRunActions";
-import { agentOf, jobsOf, scheduleProblems } from "./jobsWords";
+import { agentOf, jobsOf, portalSteps, scheduleProblems } from "./jobsWords";
 import { ICON_SIZE, KIND_TYPE, NOTICES, altBeside, itemIcon } from "./fabricIcons";
 import { TypeIcon, TypeName } from "./itemIcons";
 import { ONTO_EMPTY, DEFAULT_BUILD, FIRST_LINE, PIPELINE_PARTS } from "./stepWords";
@@ -146,6 +146,20 @@ export function upgradeLink(error?: EngineError): string | undefined {
   return url && url.startsWith("https://") ? url : undefined;
 }
 
+/** W1: a hint's docs address ("Step by step: https://…/docs#first-time-errors") as a link; the text reads the same. */
+export function HintText({ hint }: { hint: string }) {
+  const url = docsLink(hint);
+  if (!url) return <>{hint}</>;
+  const at = hint.indexOf(url);
+  return (
+    <>
+      {hint.slice(0, at)}
+      <Link href={url} target="_blank" rel="noopener noreferrer">{url}</Link>
+      {hint.slice(at + url.length)}
+    </>
+  );
+}
+
 export function ErrorBar({ error }: { error?: EngineError }) {
   if (!error) return null;
   const offer = upgradeLink(error);
@@ -153,7 +167,7 @@ export function ErrorBar({ error }: { error?: EngineError }) {
     <MessageBar intent={offer ? "warning" : "error"}>
       <MessageBarBody>
         {error.error}
-        {error.hint ? ` ${error.hint}` : ""}
+        {error.hint ? <> <HintText hint={error.hint} /></> : ""}
         {error.correlation_id ? <span className="kg-reference"> Reference for support: <code>{error.correlation_id}</code></span> : null}
       </MessageBarBody>
       {offer && (
@@ -176,6 +190,8 @@ export function SchemaChoice(props: {
   mascotsOn?: boolean;
   /** W13: the source's name, for the no-access sentence */
   sourceName?: string;
+  /** W1: the error bar above already says the lakehouse is empty */
+  emptyShown?: boolean;
 }) {
   const { loading, list, error } = props.schemas;
   // n223: a list kept in the item shows at once while it is read again; without one, the wait is Onto's line
@@ -195,13 +211,23 @@ export function SchemaChoice(props: {
       </Field>
     );
   }
-  if (!list.schemas.length) return <Caption1>{list.note}</Caption1>;
+  // W1: system schemas (_rsc, sys, ...) are left out; source schemas first, Krusgraph's own marked and after them
+  const options = schemaOptions(list);
+  if (everySchemaEmpty(list)) {
+    // W1: one plain sentence instead of a list of greyed schemas (and, on Find keys, an error naming only dbo); the
+    // editor's error bar says the same with the docs link once the review was tried, so it is not shown twice
+    return props.emptyShown ? null : (
+      <MessageBar intent="warning" data-w1="empty-lakehouse">
+        <MessageBarBody>{EMPTY_LAKEHOUSE}</MessageBarBody>
+      </MessageBar>
+    );
+  }
+  if (!options.length) return <Caption1>{list.note}</Caption1>;
   return (
     <Field label="Schema" hint={list.preselect ? "The only schema with tables is selected." : "Choose the schema to plan."}>
       <RadioGroup value={props.schema} onChange={(_, d) => props.onSchemaChange(d.value)} aria-label="Schema">
-        {list.schemas.map((x) => (
-          <Radio key={x.schema} value={x.schema} disabled={x.tables === 0}
-            label={`${x.schema} (${x.tables === 0 ? "no tables" : x.tables === 1 ? "1 table" : `${x.tables} tables`})`} />
+        {options.map((x) => (
+          <Radio key={x.schema} value={x.schema} disabled={x.tables === 0} data-own={x.own} label={x.label} />
         ))}
       </RadioGroup>
     </Field>
@@ -235,6 +261,8 @@ export function EmptyView(props: {
   onReview: () => void;
   /** WB9: the pilot's self-check, when the item's workspace is known */
   onSelfCheck?: () => Promise<SelfCheckAnswer>;
+  /** W1: the error bar already shows the empty-lakehouse sentence */
+  emptyShown?: boolean;
 }) {
   const { source } = props;
   const readOnly = !!source && isReadOnly(source.itemType);
@@ -261,7 +289,7 @@ export function EmptyView(props: {
             {sourceButton(source)}
           </Button>
           {source && <SchemaChoice schema={props.schema} schemas={props.schemas} onSchemaChange={props.onSchemaChange} mascotsOn={props.mascotsOn}
-            sourceName={source.displayName} />}
+            sourceName={source.displayName} emptyShown={props.emptyShown} />}
           {source && props.schemas.loading && props.schemas.list && (
             <Caption1 role="status">The schemas kept in this item are shown; reading them again…</Caption1>
           )}
@@ -1136,11 +1164,11 @@ export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["i
           ))}
         </div>
       )}
-      {c.output !== "rayfin_app" && (c.portal_steps ?? []).filter(Boolean).length > 0 && (
+      {c.output !== "rayfin_app" && portalSteps(c).length > 0 && (
         <>
           <Caption1>{stepsTitle(c.output)}</Caption1>
           <ul className="krusgraph-list">
-            {(c.portal_steps ?? []).filter(Boolean).map((s) => (
+            {portalSteps(c).map((s) => (
               <li key={s}>
                 <Body1>{s}</Body1>
               </li>
@@ -1337,6 +1365,9 @@ export function PreviewView(props: {
           <Body1>{builder}</Body1>
         </>
       )}
+      {/* BL54 in the editor (W1): two short lines under the Builder's, as start_flow's dry run has them */}
+      {a.access && <Caption1 as="p" block data-bl54="access">{a.access}</Caption1>}
+      {a.contract && <Caption1 as="p" block data-bl54="contract">{a.contract}</Caption1>}
       {props.stale && <Caption1 data-ed2="stale">{props.stale}</Caption1>}
       {a.lakehouse && <Body1 data-ed2="lakehouse">{a.lakehouse.words}</Body1>}
       <Body1>{a.note}</Body1>

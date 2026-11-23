@@ -123,8 +123,12 @@ export function rowsOf(outputs: OutputsDefinition, status?: StatusAnswer, plan?:
   }
   if (last && plan !== undefined) {
     const have = new Set(rows.map((r) => r.output).filter(Boolean));
+    // W1 (Gustav's Data product step, 23 November 2026): the pipeline writes the silver and gold notebooks itself and
+    // records them with output "pipeline", so "Gold views demo_lh_gold" was listed as "no id saved" while its id was
+    // saved (and Update showed it up to date, and Look for leftovers found none). An item saved under that name counts.
+    const named = new Set(rows.filter((r) => r.id).map((r) => r.name.toLowerCase()));
     for (const o of last.outputs) {
-      if ((o.state !== "created" && o.state !== "todo") || have.has(o.output)) continue;
+      if ((o.state !== "created" && o.state !== "todo") || have.has(o.output) || named.has(o.name.toLowerCase())) continue;
       rows.push({ key: `unsaved:${o.output}`, type: "", typeLabel: o.label, name: o.name, output: o.output, state: "built",
         why: NO_ID_SAVED, openable: false });
     }
