@@ -173,6 +173,57 @@ Not yet switched (the chain's files today, for a round after it): `validate_plan
 `mcp_apps_words`, `mcp_apps_pictures`, `mcp_apps.py`), the start card's proof tiles (`mcp_apps_start.py`,
 `start_flow.py`), `fix_plan.py`'s finding count (B14), and the Model editor's review view (`workload_api.py`).
 
+## The counts decide which relationships are active (round BL51, 23 November 2026; unit tests only, not run in Fabric)
+
+F1 (`docs/FINDINGS-13NOV.md` B7, `docs/FINDINGS-13NOV-ADDENDUM.md` XA2 and XB1): in the semantic model draft of the
+SAP-shaped sample `sap_sd`, the order header was cut off from its items and its customer (`VBAP -> VBAK` and
+`VBAK -> KNA1` inactive), and `ZSD_ORDER_EXT -> LIKP`, a guess by R3 that `validate_plan` counts as 301 of 301 rows
+pointing at nothing, was active. The active set was a spanning forest ranked by the rule's certainty only: a pack's
+link had the same 0.5 as R3, and a forest leaves one link of every cycle out, even where Power BI would not.
+
+When `validate_plan`'s answer (`evidence.validate`) is passed and has counted at least one of the model's links, the
+active set follows the counts (`graphs.counted_active_set`, called by `semantic_model.active_set`; the state of each
+link is BL3's, from `counts.summary`):
+
+| Rule | What it does |
+| --- | --- |
+| 1 | A link counted with no match (every row with a value points at nothing) is never active. |
+| 2 | Columns that point at several tables are ambiguous. The links the count refuted drop out; one left with matches is the one; two or more with matches: none is active and a person chooses with `confirmed`. A declared or confirmed link of the group is the one. |
+| 3a | Evidence: declared or confirmed, then counted with matches (holds, or some rows point at nothing), then not counted or no rows to check. |
+| 3b | Origin: declared or confirmed, then a pack or published metadata (SAP pack, CSN), then R1, R2, then R3, R4 and the rest. |
+| 3c | Shape: an item's link to its header (the link's columns are part of its own key), then a link to a dimension, then a link between two other tables. |
+| 3d | The share of rows with a value that match. |
+| 3e | The forest's own tie-breaks: references leaving the source, then names. |
+
+Links are taken in that order, and each is active unless it would let a filter reach a table by a second route (or come
+back to where it started). That is Power BI's rule for single-direction relationships, which the draft writes: at most
+one active filter path between two tables. Two facts sharing two dimensions (orders and invoices, both on customer and
+material) are not ambiguous, and both stay active; a forest would cut one. Each inactive link says which two routes it
+would open. The calendar's date relationships follow the same rule in this mode, so orders, deliveries and invoices
+each relate to it by their own date and the line tables reach it through their header.
+
+What it gives on the synthetic samples (`tests/test_bl51_active_relationships.py`):
+
+| Sample | Without counts | With counts |
+| --- | --- | --- |
+| `sap_sd` (plan) | 10 active; `VBAP -> VBAK`, `VBAK -> KNA1` inactive; `ZSD_ORDER_EXT -> LIKP` active | 12 active; header, items, customer and material connected; the two R3 links with 0 of 301 matches never active; date on `VBAK`, `LIKP`, `VBRK` |
+| `shop_faults` | `newsletter_signups -> customers` active (0 of 8 rows match) | inactive: "counted with no match: 8 of 8 rows with a value point at nothing in customers" |
+| `shop` | all 6 active | the same 6, and the same relationships file byte for byte |
+
+The summary of `semantic_model_draft` and `create_semantic_model` then carries `active_by_counts`: the rule in one
+paragraph and, per relationship, whether it is active, the counted state, rows with a value, orphans, matched (counts
+only, never a row value) and why; the README has the same table under "What the counts decided". On the silver layer
+(n226) the counts are read on the source plan's columns and the entry names them (`counted_columns`).
+
+Unchanged: without counts, or with an answer that counted none of the model's links, the forest by certainty decides
+exactly as before, byte for byte. The model on gold views (DPM1) keeps the forest too: its tables are the gold views,
+not the counted ones. Where the counts agree with the forest, the relationships are written in the same order.
+
+Not yet: `analyze_schema` and `join_path` still rank by certainty (with `verified` from the count, as before), so with
+counts the model's active set and `analyze_schema`'s can differ; `plan_backend` does not list R3's several targets under
+`ambiguous` (XB1 in the plan itself); a threshold for a link where most rows point at nothing is not set (one match is enough
+to be "counted with matches"; the share only breaks ties after evidence, origin and shape).
+
 ## Large schemas: time and answer size
 
 Measured on 26 October 2026 on synthetic schemas with 300 and 1 000 tables (`tests/test_compact_outputs.py::synth`:
