@@ -1670,7 +1670,7 @@
     "read_only_hint": false,
     "title": "Create or update a Power BI semantic model (dry run by default)"
    },
-   "description": "Creates a Fabric semantic model item from semantic_model_draft's TMDL (Direct Lake), or updates the item of that\nname in place. Requires workspace, source and name; SemanticModel.ReadWrite.All or Item.ReadWrite.All and\nContributor on the workspace. Returns JSON with the parts and the REST call; with dry_run=false also the result,\nor kind consent. Changes Fabric only with dry_run=false: an update replaces the model's definition, so tables,\nrelationships and measures added outside the plan leave it; no item is deleted. refresh=true refreshes the model\nonce after a create, and only refreshes a model that exists. Errors: {error, kind, hint}.",
+   "description": "Creates a Fabric semantic model item from semantic_model_draft's TMDL (Direct Lake), or updates the item of that\nname in place. Requires workspace, source and name; SemanticModel.ReadWrite.All or Item.ReadWrite.All and\nContributor on the workspace. Returns JSON with the parts and the REST call; with dry_run=false also the result,\nor kind consent. Changes Fabric only with dry_run=false: an update replaces the model's definition, so tables,\nrelationships and measures added outside the plan leave it; no item is deleted. refresh=true refreshes the model\nonce after a create, and only refreshes a model that exists. The dry run lists row-level security roles the names\nsuggest (role_candidates); one is added only when passed in roles. Errors: {error, kind, hint}.",
    "input_schema": {
     "properties": {
      "check": {
@@ -1737,6 +1737,22 @@
       "description": "true: refresh the model once (dry_run=false). Default false.",
       "title": "Refresh",
       "type": "boolean"
+     },
+     "roles": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "Row-level security roles to add, by the column each filters on, from the dry run's role_candidates. Default none: the roles are only listed, nothing is added. Example: [\"BUKRS\"].",
+      "title": "Roles"
      },
      "schema": {
       "default": "dbo",
