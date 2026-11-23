@@ -4015,6 +4015,36 @@ def _health_target(req: dict, headers: dict) -> dict | None:
             "products": [{"name": req["product_name"], "plan_id": plan}]}
 
 
+# W2 (Gustav, 23 November 2026: "red, 7 failed in the latest run" after a run that succeeded). A check that fails the
+# run (keys, orphans, the gold views' rows and sums, a missing table) raises in the check notebook, so after a run that
+# succeeded the failures can only be checks that do not stop it: freshness, a source table not written for more than
+# FRESHNESS_FAIL_INTERVALS schedule intervals (one day each without a schedule). Gustav's demo source was written days
+# before, so each of its seven tables failed freshness. The pipeline now writes that as a warning when it has no schedule
+# (health.health_spec "scheduled"), and the words say which checks failed and on what.
+CHECK_WORDS = {"freshness": "the source table was last written longer ago than the schedule allows",
+               "key": "a key is not unique or has NULLs", "orphans": "references without their row",
+               "join_rows": "a gold view does not keep its fact table's rows", "join_sums": "a gold view changes a sum",
+               "row_count": "a table or view is missing", "drift": "the source no longer matches the plan",
+               "proven": "a proven rule broke", "quarantine": "rows were set aside"}
+
+
+def failed_checks(findings: list[dict], most: int = 3) -> str:
+    """The failed findings by check, in one line: "freshness 7 (shop.addresses, shop.audit_log, shop.categories and 4
+    more: the source table was last written longer ago than the schedule allows)". "" when no finding names its check."""
+    by: dict[str, list[str]] = {}
+    for f in findings:
+        if f.get("status") == "fail" and f.get("check"):
+            by.setdefault(str(f["check"]), []).append(str(f.get("object") or ""))
+    parts = []
+    for check, objs in by.items():
+        named = [o for o in objs if o]
+        shown = ", ".join(named[:most]) + (f" and {len(named) - most} more" if len(named) > most else "")
+        why = CHECK_WORDS.get(check, "")
+        inside = "; ".join(x for x in (shown, why) if x)
+        parts.append(f"{check} {len(objs)}" + (f" ({inside})" if inside else ""))
+    return "; ".join(parts)
+
+
 def _with_word(out: dict) -> dict:
     """n200: the one product's word at the top, as the Data product page reads it (word, words, checked_at)."""
     p = (out.get("products") or [{}])[0]
@@ -4023,6 +4053,9 @@ def _with_word(out: dict) -> dict:
     words = ("every check passed in the latest run" if p.get("health") == "green" else
              ", ".join(x for x in (f"{fails} failed" if fails else "", f"{warns} warning(s)" if warns else "") if x) + " in the latest run"
              if p.get("findings") else "the pipeline has not written a health row for this plan yet")
+    detail = failed_checks(p.get("findings") or [])
+    if detail:
+        words += f": {detail}"                                      # W2: which checks failed, never just a number
     # n225: the run and the plan the word comes from, so the page never shows an older run's result as current
     return {**out, "word": p.get("health"), "status": p.get("health"), "words": words, "checked_at": p.get("checked_at"),
             "run_id": p.get("run_id"), "plan_id": p.get("plan_id")}

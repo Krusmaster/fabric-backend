@@ -156,3 +156,20 @@ describe("the gold notebook's id is kept under its own output", () => {
     expect(withPlan.some((r) => r.key.startsWith("unsaved:"))).toBe(false);
   });
 });
+
+// ------------------------------------------------------------------ issue 6: health times are UTC -----------------------
+import { asUtc, dayOf, healthFor } from "./productWords";
+
+describe("health: a time without a zone is UTC, so a check after this Create is not called older", () => {
+  it("the SQL endpoint's datetime2 (no zone) is read as UTC", () => {
+    expect(asUtc("2026-11-23T20:06:01")).toBe("2026-11-23T20:06:01Z");
+    expect(asUtc("2026-11-23 20:06:01")).toBe("2026-11-23T20:06:01Z");
+    expect(asUtc("2026-11-23T20:06:01Z")).toBe("2026-11-23T20:06:01Z");
+    expect(asUtc("2026-11-23T21:06:01+01:00")).toBe("2026-11-23T21:06:01+01:00");
+    expect(dayOf("2026-11-23T20:06:01")).toBe("2026-11-23 20:06 UTC");
+  });
+  it("Gustav's run: checked 20:06 UTC after a Create at 20:03 UTC is this Create's result", () => {
+    const h = { word: "amber", words: "7 warning(s) in the latest run", checked_at: "2026-11-23T20:06:00", run_id: "94a8a34e", plan_id: "plan-1" };
+    expect(healthFor(h, "plan-1", "2026-11-23T20:03:00Z")).toBe("Health: amber. 7 warning(s) in the latest run (run 94a8a34e, checked 2026-11-23 20:06 UTC).");
+  });
+});

@@ -266,7 +266,8 @@ def freshness(ctx, sources, settings, history, previous):
             rows.append(health_row(ctx, "freshness", s["object"], "no history", "warn", None))
             continue
         minutes = max(int((ctx["checked_at"] - last).total_seconds() // 60), 0)
-        status = ("fail" if minutes > settings["fail_intervals"] * every else
+        fail_at = settings.get("fail_intervals")                   # W2: None without a schedule: a warning at most
+        status = ("fail" if fail_at is not None and minutes > fail_at * every else
                   "warn" if minutes > settings["warn_intervals"] * every else "pass")
         rows.append(health_row(ctx, "freshness", s["object"], "minutes since last write", status, minutes,
                                previous.get(("freshness", s["object"], "minutes since last write"))))
@@ -736,10 +737,20 @@ _ORDER = {"fail": 0, "warn": 1, "pass": 2}
 
 
 def _iso(v) -> str | None:
+    """checked_at as ISO 8601 in UTC with its Z. W2 (Gustav, 23 November 2026: a check at 21:06 CET read "checked 19:06
+    UTC"): the check notebook writes UTC (datetime.now(timezone.utc)) and the SQL analytics endpoint returns the column as
+    a datetime2 without a zone; without the Z the browser read it as its own local time and shifted it once more."""
     if v is None:
         return None
-    text = v.isoformat() if hasattr(v, "isoformat") else str(v)
-    return text.replace("+00:00", "Z")
+    if hasattr(v, "isoformat"):
+        if getattr(v, "tzinfo", None) is not None:
+            from datetime import timezone as _tz
+            v = v.astimezone(_tz.utc).replace(tzinfo=None)
+        text = v.isoformat()
+    else:
+        text = str(v).strip().replace(" ", "T", 1)
+    text = text.replace("+00:00", "Z")
+    return text if re.search(r"(Z|[+-]\d{2}:\d{2})$", text) else text + "Z"
 
 
 def summarize(rows: list[dict], products: list[dict]) -> list[dict]:

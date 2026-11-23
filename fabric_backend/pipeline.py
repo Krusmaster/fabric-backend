@@ -141,7 +141,8 @@ def check_spec(plan, silver_spec: dict, gold_spec: dict, plan_mark: dict | None 
     from .health import health_spec
     return {"silver_schema": silver_spec["silver_schema"], "gold_schema": gold_spec["gold_schema"], "keys": keys,
             "relationships": rels, "views": views,
-            "health": health_spec(silver_spec, plan_mark or plan_mark_of(plan), schedule)}
+            "health": health_spec(silver_spec, plan_mark or plan_mark_of(plan), schedule),
+            "scheduled": bool(schedule)}                         # W2: without a schedule a stale source warns, never fails
 
 
 # ------------------------------------------------------------------ the check itself --------------------------------
@@ -335,6 +336,9 @@ def check_cells(spec: dict, label: str) -> list[tuple[str, str]]:
     params = (f"SILVER_SCHEMA = {_py_literal(spec['silver_schema'])}   # where the silver notebook wrote the silver tables\n"
               f"GOLD_SCHEMA = {_py_literal(spec['gold_schema'])}       # where the gold notebook created the views\n"
               + _health.HEALTH_PARAMS_TEXT
+              # W2: without a schedule nothing says how fresh a source should be: a source not written lately is a warning
+              + ("" if spec.get("scheduled", True) else
+                 "FRESHNESS_FAIL_INTERVALS = None  # no schedule: a source not written lately warns, never fails\n")
               + f"SCHEDULE_MINUTES = {int(spec['health']['interval_minutes'])}         # minutes between scheduled runs (one day without a schedule)\n"
               + _health.ALERT_PARAMS_TEXT)
     data = {k: spec[k] for k in ("keys", "relationships", "views", "health")}
