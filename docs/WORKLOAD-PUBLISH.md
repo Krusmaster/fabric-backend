@@ -72,9 +72,10 @@ Write the ticket number and Microsoft's answer here when it comes.
 | --- | --- |
 | 20 Nov 2026 | Ticket **2611201420002110** opened. Microsoft's Power BI / Fabric support (Data Platform, Fabric BI) handles it. |
 | 23 Nov 2026 | Support restated the issue (validation fails before the "Confirm workload Name" dialog) and asked for: (1) the full **Show details** text of the upload error, preferably a screenshot; (2) whether this is internal or cross-tenant publishing; (3) confirmation of the prerequisites in Learn's [Publishing overview](https://learn.microsoft.com/en-us/fabric/extensibility-toolkit/publishing-overview); (4) two or three slots for a remote session to reproduce the upload and collect traces. Support's hours are 13:00-22:00 IST (08:30-17:30 CET). |
-| 23 Nov 2026 | Founder's answer drafted: cross-tenant publishing (selected pilot tenants first, then a Marketplace offer), the failing step is the first upload in the publishing tenant; the prerequisites as in this step and step 2. Still open for the founder: the screenshot, the publisher-verification status of the Entra app (step 2), and the time slots. |
+| 23 Nov 2026 | Founder's answer sent: cross-tenant publishing (selected pilot tenants first, then a Marketplace offer); the failing step is the first upload in the publishing tenant; the prerequisites as in this step and step 2; time slots. The screenshot and the publisher-verification status of the Entra app (step 2) went as placeholders and still have to be sent. |
+| 23 Nov 2026, 11:00 CET | Remote session (Teams) with support. Support reproduced the failing upload and collected logs and screenshots. Support reviews them internally with its team and writes when it has an update or needs more. No change on our side was asked for. |
 
-Next: after the remote session, write what support found and what changed, here.
+Next: send support the error's **Show details** screenshot and the publisher-verification status, if not done; then wait for support's update and write here what it found and what changed.
 
 ## Step 2. Publisher verification of the Entra app (founder only)
 
