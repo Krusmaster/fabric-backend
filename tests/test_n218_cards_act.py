@@ -104,7 +104,7 @@ def test_the_check_card_lists_every_key_and_link_with_counts_and_no_row_values(f
     assert amount["state"] == "failed" and amount["counts"] == "repeated on every line: do not sum over the lines"
     links = [x for x in c["rows"] if x["kind"] == "link"]
     assert all(x["counts"].startswith("0 of ") and x["counts"].endswith(" point at nothing") for x in links)
-    assert not any("sql" in x for x in c["rows"] if x["kind"] in ("key", "link"))   # SQL only for a failure
+    assert all(x.get("sql") for x in c["rows"] if x["state"] != "not_checked")     # BL41: every counted number has its query
     shown = json.dumps(c)
     assert not [v for v in _row_values() if v in shown]
     assert "checks" not in json.loads(r.content[-1].text)
@@ -208,7 +208,7 @@ def test_the_check_card_shows_states_and_the_sql_on_request(tmp_path, fabric):
     r, d = _sc("validate_plan", **args)
     out = _browse(tmp_path, mcp_apps.card_html(), {"args": args, "result": _result(r), "caps": {"serverTools": {}},
                                                    "clicks": [{"css": "details.ck-details > summary"},   # CO1: under Details
-                                                              {"text": "Show the SQL that counts it"}], "scheme": "dark"})
+                                                              {"text": "Show the SQL"}], "scheme": "dark"})          # BL41: every row
     n = d["checks"]["counts"]
     assert out["pills"] == [[x["id"], x["state"].replace("_", " ")] for x in d["checks"]["rows"]]
     assert ["key:order_items", "failed"] in out["pills"]

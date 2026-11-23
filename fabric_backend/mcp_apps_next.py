@@ -390,7 +390,25 @@ def check_rows(plan, full: dict) -> dict:
     out = {"rows": rows[:CHECK_MAX], "counts": counts}
     if len(rows) > CHECK_MAX:
         out["left_out"] = f"The card lists {CHECK_MAX} of {len(rows)} checks; the answer has them all."
+    _with_receipt(plan, full, out)
     return out
+
+
+def _with_receipt(plan, full: dict, out: dict) -> None:
+    """BL41: every counted number on the card gets its own read-only query (receipt.build, behind "Show the SQL" with a
+    "Select" button). The card cannot save a file or read the clipboard (n119's rules), so the line beside the queries
+    says where the notebook comes from. A row that was not counted keeps no query."""
+    from . import receipt_card
+    try:
+        rc = receipt_card.for_card(plan, full)
+    except Exception:  # noqa: BLE001 — the card still shows its counts; the receipt is extra
+        return
+    for row in out["rows"]:
+        q = rc["sql"].get(row["id"])
+        if q and row["state"] != "not_checked":
+            row["sql"] = q
+    out["sql_for_all"] = True
+    out["sql_beside"] = rc["beside"]
 
 
 # ------------------------------------------------------------------ the cards' script ---------------------------------
@@ -596,8 +614,14 @@ __OPEN_JS__
       if ((st === "failed" || c.sql_for_all === true) && typeof x.sql === "string" && x.sql) {
         var b = el("button", c.sql_for_all === true ? "Show the SQL" : "Show the SQL that counts it"); b.type = "button"; b.setAttribute("aria-expanded", "false");
         var pre = el("pre", x.sql, "ck-sql"); pre.hidden = true;
-        b.addEventListener("click", function () { pre.hidden = !pre.hidden; b.setAttribute("aria-expanded", String(!pre.hidden)); });
-        counts.appendChild(el("br")); counts.appendChild(b); counts.appendChild(pre);
+        // BL41: "Select" marks the whole query for the person's own copy (the card reads no clipboard: n119)
+        var cp = el("button", "Select", "ck-copy"); cp.type = "button"; cp.hidden = true; cp.setAttribute("aria-label", "Select the SQL to copy");
+        cp.addEventListener("click", function () {
+          try { var r = document.createRange(); r.selectNodeContents(pre); var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r); cp.textContent = "Selected: copy it"; }
+          catch (e) { cp.textContent = "Select the text to copy"; }
+        });
+        b.addEventListener("click", function () { pre.hidden = !pre.hidden; cp.hidden = pre.hidden; b.setAttribute("aria-expanded", String(!pre.hidden)); });
+        counts.appendChild(el("br")); counts.appendChild(b); counts.appendChild(cp); counts.appendChild(pre);
       }
       tr.appendChild(what); tr.appendChild(state); tr.appendChild(counts); tb.appendChild(tr);
     });
@@ -613,6 +637,8 @@ __OPEN_JS__
       all.addEventListener("toggle", function () { if (all.open && !allBox.childNodes.length) allBox.appendChild(table(rows)); });
       wrap.appendChild(all);
     } else wrap.appendChild(table(rows));
+    // BL41: one line beside the queries (what they are, and where the notebook comes from)
+    if (c.sql_for_all === true && readable(c.sql_beside)) wrap.appendChild(el("p", c.sql_beside, "muted ck-beside"));
     if (readable(c.left_out)) wrap.appendChild(el("p", c.left_out, "muted"));
     if (isObj(data.coach)) {                                    // CO1: the rows, with their rule names, under Details
       var det = el("details", null, "ck-all ck-details");
