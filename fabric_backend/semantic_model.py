@@ -577,7 +577,7 @@ def envelope(parts: dict[str, str], name: str, description: str = "") -> dict:
 
 def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str] | None = None, validation: dict | None = None,
           date_range: tuple[str, str] | None = None, whole_quantities: set[tuple[str, str]] = frozenset(),
-          combined: bool | None = None, on_gold: dict | None = None) -> dict:
+          combined: bool | None = None, on_gold: dict | None = None, roles: list[str] | None = None) -> dict:
     """info: item_name, item_kind, schema, sql_endpoint, sql_db, schemas_enabled (from server._source_inputs); returns
     {"parts": {path: content}, "summary": {...}}. `validation` (evidence.validate's answer) raises the certainty of the
     links it confirmed when the active set is chosen. `date_range` (first, last date of the related date columns, read
@@ -590,7 +590,10 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
     A plan without one is drafted exactly as before.
     DPM1: `on_gold` (gold_model's answer, with `plan` its gold plan) makes the model the star schema over the gold views:
     each table's role is its view's kind, each data product a perspective with its measures in a display folder of its
-    name, the relationships between data products marked as interfaces, and the summary's `reads` says gold."""
+    name, the relationships between data products marked as interfaces, and the summary's `reads` says gold.
+    BL43: `roles` (off by default): columns security_roles.candidates proposed, such as ["BUKRS"]. Each adds BL17's row-
+    level role and the security_user_map table with its "fill this in" note; a role whose tables are not all in the model
+    is not added and the summary says why. Without `roles` the output is exactly as before."""
     from . import combined_keys as _combined, graphs
     original = plan
     plan, carried = _combined.carry(original, tables) if combined is not False else (original, {})
@@ -949,4 +952,36 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
     if dup.keys() & names:                                         # n150: only when the rows showed one
         summary["keys_not_unique"] = [{"table": t, "columns": list(k["columns"]), "rows": k["rows"], "distinct": k["distinct"],
                                        "nulls": k["nulls"]} for t, k in dup.items() if t in names]
+    if roles:                                                      # BL43: opt-in row-level security from BL17's drafts
+        _add_roles(original, validation, roles, parts, summary)
     return {"parts": parts, "summary": summary}
+
+
+def _add_roles(plan: Plan, validation: dict | None, columns: list[str], parts: dict[str, str], summary: dict) -> None:
+    """BL43: BL17's role drafts for `columns`, added to a finished definition when every table a role filters is in it."""
+    from . import security_roles as sr
+    in_model = {path.rsplit("/", 1)[-1][:-len(".tmdl")] for path in parts if path.startswith("definition/tables/")}
+    added, not_added = [], []
+    for column in columns:
+        try:
+            d = sr.draft(plan, column, validation)
+        except (KeyError, ValueError) as e:
+            not_added.append({"column": column, "why": f"no role is proposed on {column} ({e})"})
+            continue
+        tables = [t for t, _c in d["reach"]["direct"]]
+        missing = [t for t in tables if tmdl_name(t).strip("'") not in in_model and t not in in_model]
+        if missing:
+            not_added.append({"column": column, "why": f"its tables {', '.join(missing)} are not in this model"})
+            continue
+        parts.update(d["parts"])
+        added.append({"name": d["name"], "column": d["column"], "tables": tables,
+                      "not_reached": [t for t, *_ in d["reach"].get("not_reached", [])]})
+    if added:
+        model = parts["definition/model.tmdl"].rstrip("\n").split("\n")
+        ref = f"ref table {tmdl_name(sr.MAP_TABLE)}"
+        if ref not in model:
+            last = max(i for i, line in enumerate(model) if line.startswith("ref table "))
+            model.insert(last + 1, ref)
+        parts["definition/model.tmdl"] = "\n".join(model) + "\n"
+    summary["security_roles"] = {"added": added, "not_added": not_added, "map_table": sr.MAP_TABLE, "fill_in": sr.FILL_IN,
+                        "written": False}
