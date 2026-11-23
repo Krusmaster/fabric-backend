@@ -4884,7 +4884,7 @@
      },
      "step": {
       "default": "",
-      "description": "Step to show: data, check, decide, dry_run, create or done (the answer's after names it).",
+      "description": "Step to show: data, check, decide, dry_run, create or done (the answer's after names it). \"latest\" is the card's own read-only check.",
       "title": "Step",
       "type": "string"
      },
