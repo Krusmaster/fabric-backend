@@ -174,3 +174,24 @@ export function exampleWords(ex: AgentCard["examples"]): { lines: string[]; inva
     notChecked: notChecked.map((x) => `${x.question}: not checked yet${x.reason ? ` (${x.reason})` : ""}`),
   };
 }
+
+/** W1 (Gustav's Create of 23 November 2026): "selected 0 of 7 tables in silver (silver)": the agent was made while the
+ * pipeline's run was still writing silver, so none of its tables could be selected. After a run that succeeded the
+ * editor sends the agent again (ModelItemEditor followRun, step 3, `after_run`), which selects them; that happens only
+ * while the item is open (or when it is opened again and follows the run). The card says so plainly. */
+export function noTablesYet(card: { dry_run?: boolean; agent?: { selection?: { selected: number | null; schema?: string } } }): string | undefined {
+  const sel = card.agent?.selection;
+  if (card.dry_run || !sel || sel.selected !== 0) return undefined;
+  const where = sel.schema ? ` in ${sel.schema}` : "";
+  return `The agent has no tables selected yet: the tables${where} were not there when it was made. Krusgraph selects them ` +
+    "when the pipeline's run has succeeded, while this item is open; otherwise open this item again after the run, or " +
+    `select the tables${where} in the agent in Fabric.`;
+}
+
+/** W1: the pipeline card's "Still to do" without "Run the pipeline once" when Create started a run (it has a run id). */
+export function portalSteps(card: { output: string; portal_steps?: string[]; jobs?: { run?: { run_id?: string; status?: string } } }): string[] {
+  const steps = (card.portal_steps ?? []).filter(Boolean);
+  const run = card.jobs?.run;
+  if (card.output !== "pipeline" || !run?.run_id || run.status === "NotStarted" || run.status === "Failed") return steps;
+  return steps.filter((s) => !/^Run the pipeline once\b/.test(s));
+}

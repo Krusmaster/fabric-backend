@@ -178,8 +178,10 @@ def flow(p, info: dict, chosen: dict, *, silver_schema: str = "silver", gold_sch
         elif it.get("on_gold"):                                   # DPM1: a line from each gold view the item reads
             edges += [{"from": f"gold:{g}", "to": nid, "label": "built on gold", "built": True} for g in it["on_gold"]]
         else:
-            edges.append({"from": "bronze", "to": nid, "label": "reads the source tables", "built": True})
-    on_source = [it for it in items or [] if not it.get("on_model") and not it.get("on_gold")]
+            edges.append({"from": "bronze", "to": nid, "label": "until silver is filled" if it.get("layer_first") else "reads the source tables",
+                          "built": True})
+    # W1: an item that reads a layer first (the data agent on silver or gold) is not said to read the source directly
+    on_source = [it for it in items or [] if not it.get("on_model") and not it.get("on_gold") and not it.get("layer_first")]
     if on_source and gold_spec and chosen.get("gold_views"):         # n179: the founder's live preview, 9 November 2026
         notes.append(f"{_listed([it['label'] for it in on_source])} {'reads' if len(on_source) == 1 else 'read'} the source tables "
                      "(bronze) directly, also with the gold views built in this run. Building them on the gold views is a later "

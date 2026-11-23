@@ -252,11 +252,14 @@ export function builtKinds(created: NextInput["created"]): Set<string> {
   const out = new Set<string>();
   for (const c of created) {
     if (c.output) out.add(c.output);
-    else if (c.type === "Notebook") {
+    if (c.type === "Notebook" && c.output !== "silver_notebook" && c.output !== "gold_views") {
+      // W1 (Gustav's Create of 23 November 2026): the pipeline writes its silver and gold notebooks itself and records
+      // them with output "pipeline" (workload_api._names: "<name>_silver" from the editor, "silver_<schema>" by default),
+      // so the Data Factory card said they were still to build. They are told by their names, as WB10 does.
       const n = (c.name ?? "").toLowerCase();
-      if (n.endsWith("_silver")) out.add("silver_notebook");
-      else if (n.endsWith("_gold")) out.add("gold_views");
-    } else for (const [k, t] of Object.entries(BUILT_TYPE)) if (t === c.type && t !== "Notebook") out.add(k);
+      if (n.endsWith("_silver") || n.startsWith("silver_")) out.add("silver_notebook");
+      else if (n.endsWith("_gold") || n.startsWith("gold_")) out.add("gold_views");
+    } else if (!c.output) for (const [k, t] of Object.entries(BUILT_TYPE)) if (t === c.type && t !== "Notebook") out.add(k);
   }
   return out;
 }

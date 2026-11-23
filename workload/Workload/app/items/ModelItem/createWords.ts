@@ -291,13 +291,19 @@ export function nextSteps(lc: LastCreate): string[] {
   const pipe = made("pipeline");
   const silver = made("silver_notebook");
   const gold = made("gold_views");
-  if (pipe && pipe.run === "Running") out.push(`Follow the run of ${pipe.name} in Fabric (the link on its card); Krusgraph started it.`);
-  else if (pipe && pipe.run === "Failed") out.push(`The run of ${pipe.name} failed: see its card for the step and why, fix it, and run it again in Fabric.`);
+  // W1 (Gustav's Create of 23 November 2026): a run Create started whose state was not read yet (Unknown) is followed,
+  // not "nothing has run yet"; a run that did not start says so
+  if (pipe && (pipe.run === "Running" || pipe.run === "Unknown")) {
+    out.push(`Follow the run of ${pipe.name} in Fabric (the link on its card); Krusgraph started it. When it has succeeded, ` +
+      "the silver and gold tables are filled and the steps below read them.");
+  } else if (pipe && pipe.run === "Failed") out.push(`The run of ${pipe.name} failed: see its card for the step and why, fix it, and run it again in Fabric.`);
+  else if (pipe && pipe.run === "NotStarted") out.push(`The run of ${pipe.name} did not start: see its card for why, then run it once in Fabric (Run).`);
   else if (pipe && pipe.run !== "Succeeded") out.push(`Run the pipeline ${pipe.name} once to fill the silver and gold tables; nothing has run yet.`);
   else if (silver) out.push(`Run the notebook ${silver.name}${gold ? `, then ${gold.name},` : ""} to fill the silver${gold ? " and gold" : ""} tables; nothing has run yet.`);
   else if (gold) out.push(`Run the notebook ${gold.name} once the silver tables are filled.`);
   const model = made("semantic_model");
-  if (model && REFRESH_PENDING.includes(model.refresh ?? "")) out.push(`Refresh the semantic model ${model.name} once in Fabric.`);
+  const runGoing = !!pipe && (pipe.run === "Running" || pipe.run === "Unknown");
+  if (model && REFRESH_PENDING.includes(model.refresh ?? "")) out.push(`Refresh the semantic model ${model.name} once in Fabric${runGoing ? " when the run has succeeded" : ""}.`);
   const report = made("report");
   if (report) out.push(`Open the report ${report.name}: its page reads the semantic model${pipe || silver ? " (after the run, with the new rows)" : ""}.`);
   const api = made("graphql");
@@ -305,7 +311,8 @@ export function nextSteps(lc: LastCreate): string[] {
   const onto = made("ontology");
   if (onto) out.push(`Review the ontology ${onto.name} in Fabric.`);
   const agent = made("data_agent");
-  if (agent && agent.published) out.push(`Ask the data agent ${agent.name} a few questions: it is published, so people with access to the workspace can use it.`);
+  if (agent && runGoing) out.push(`When the run has succeeded, check the data agent ${agent.name}: its tables and example queries are checked then (keep this item open, or open it again after the run).`);
+  else if (agent && agent.published) out.push(`Ask the data agent ${agent.name} a few questions: it is published, so people with access to the workspace can use it.`);
   else if (agent) out.push(`Ask the data agent ${agent.name} a few questions, and publish it in Fabric when its answers are right (it is an unpublished draft).`);
   const app = made("rayfin_app");
   if (app) out.push(`Publish the App ${app.name}: download the package on its card and run its commands in a terminal with Node (e.g. Azure Cloud Shell).`);

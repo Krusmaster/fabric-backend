@@ -126,8 +126,8 @@ export function ThreeStages(props: { plan: NonNullable<NextStep["advanced"]>; fe
   const ws = (props.created ?? []).find((c) => c.workspace)?.workspace;
   return (
     <section className="kg-adv" aria-labelledby="kg-adv-title">
-      <Subtitle2 as="h3" id="kg-adv-title">From the feature table to predictions in gold</Subtitle2>
-      <Caption1>
+      <Subtitle2 as="h3" block id="kg-adv-title">From the feature table to predictions in gold</Subtitle2>
+      <Caption1 as="p" block className="kg-wrap-text">
         Each analysis in three stages, written by rules from the proven keys and links; no AI. Stage 2 logs one baseline model
         to the ML experiment {plan.experiment} and registers it; stage 3 scores with it into gold, where the next semantic
         model dry run adds the table. Nothing leaves Fabric.
@@ -136,8 +136,8 @@ export function ThreeStages(props: { plan: NonNullable<NextStep["advanced"]>; fe
       <ol className="kg-adv-list">
         {plan.analyses.map((a) => (
           <li key={a.analysis} className="kg-adv-analysis" data-stages={a.analysis}>
-            <Subtitle2 as="h4">{a.title}</Subtitle2>
-            <Body1>{a.why}</Body1>
+            <Subtitle2 as="h4" block>{a.title}</Subtitle2>
+            <Body1 as="p" block className="kg-wrap-text">{a.why}</Body1>
             <ol className="kg-adv-stages" aria-label={`${a.title}: the stages`}>
               {a.stages.map((s, i) => (
                 <StageRow key={s.stage} n={i + 1} s={s} analysis={a} made={stageMade(s, props.created)} featureCells={props.featureCells}
@@ -495,8 +495,8 @@ export function AdvancedAnalytics(props: { review: NextInput["review"]; source: 
   return (
     <section className="kg-advanced" id="kg-advanced-analytics" aria-labelledby="kg-advanced-title">
       {/* tabIndex -1: Go to Advanced analytics moves the focus here (not in the Tab order) */}
-      <Subtitle2 as="h2" id="kg-advanced-title" tabIndex={-1}>Advanced analytics</Subtitle2>
-      <Caption1>
+      <Subtitle2 as="h2" block id="kg-advanced-title" tabIndex={-1}>Advanced analytics</Subtitle2>
+      <Caption1 as="p" block className="kg-wrap-text">
         Notebooks Krusgraph writes by rules on this data product's proven keys and links, created in this item's workspace
         on the data product's lakehouse. No AI, and Krusgraph trains no model: the notebooks are yours to run.
       </Caption1>
