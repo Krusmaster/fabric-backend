@@ -333,24 +333,21 @@ def active_relationships(plan: Plan, rels: list[Relationship], validation: dict 
     return active, inactive
 
 
-COUNTED_SAID = ("The active set follows validate_plan's counts (BL51) and keeps one path between any two tables: a link counted "
-                "with no match is never active; columns that point at several tables are ambiguous, and when the counts do not "
-                "choose one a person does (`confirmed`); then declared or confirmed links rank first, then links counted with "
-                "matches, then links not counted; within that a pack's link ranks above a guess by name (R1, R2, then R3/R4), "
-                "an item's link to its header and a link to a dimension above a link between two other tables, and more matching "
-                "rows above fewer.")
+from .graphs import COUNTED_RULE as COUNTED_SAID      # noqa: E402  (BL63: one text for the model and analyze_schema)
 
 
 def active_set(plan: Plan, rels: list[Relationship], validation: dict | None = None, basis_plan: Plan | None = None,
-               counted: bool = True):
+               counted: bool = True, basis: dict | None = None):
     """(active, inactive with the reason, evidence): `evidence` is None when nothing was counted (the forest by
     certainty, exactly as before), else BL51's account of every relationship, in the order of `rels`: source, columns,
     target, rule, active, the counted state and numbers (rows with a value, orphans, matched; counts only, never a row
-    value) and why. `basis_plan`: the plan validate_plan ran on, when `plan` is the silver layer's carried copy.
-    `counted=False` keeps the forest by certainty even with counts (a model on other tables than the counted ones)."""
+    value) and why, and `warning` for a declared or confirmed link counted with no match (BL63). `basis_plan`: the plan
+    validate_plan ran on, when `plan` is the silver layer's carried copy or the gold views' plan; `basis`: id(relationship
+    of `plan`) -> the relationship of `basis_plan` it was made from (the gold views, BL63). `counted=False` keeps the
+    forest by certainty even with counts."""
     from . import graphs
     es = [e for e in graphs.edges(plan, validation) if e["rel"] in rels]
-    counted = graphs.counted_active_set(plan, es, validation, basis_plan) if counted else None
+    counted = graphs.counted_active_set(plan, es, validation, basis_plan, basis) if counted else None
     if counted is None:
         active, inactive = graphs.spanning_forest(plan, es)
         return [e["rel"] for e in active], [(e["rel"], e["why"]) for e in inactive], None
@@ -362,8 +359,9 @@ def active_set(plan: Plan, rels: list[Relationship], validation: dict | None = N
     active = sorted(active, key=lambda e: place[id(e["rel"])] if any(x["rel"] is e["rel"] for x in old_active) else len(place))
     inactive = sorted(inactive, key=lambda e: place[id(e["rel"])] if any(x["rel"] is e["rel"] for x in old_inactive) else len(place))
     seen ={id(e["rel"]): (True, e) for e in active} | {id(e["rel"]): (False, e) for e in inactive}
-    orig = ({id(a): b for a, b in zip(plan.relationships, basis_plan.relationships)}
-            if basis_plan is not None and basis_plan is not plan and len(basis_plan.relationships) == len(plan.relationships) else {})
+    orig = dict(basis) if basis else (
+        {id(a): b for a, b in zip(plan.relationships, basis_plan.relationships)}
+        if basis_plan is not None and basis_plan is not plan and len(basis_plan.relationships) == len(plan.relationships) else {})
     evidence = []
     for r in rels:
         if id(r) not in seen:
@@ -373,8 +371,11 @@ def active_set(plan: Plan, rels: list[Relationship], validation: dict | None = N
         counted_on = orig.get(id(r), r)
         evidence.append({"source": r.source, "columns": list(r.source_cols), "target": r.target, "rule": r.rule, "active": on,
                          **({"counted_columns": list(counted_on.source_cols)} if counted_on.source_cols != r.source_cols else {}),
+                         **({"counted_link": f"{counted_on.source}.{'+'.join(counted_on.source_cols)} -> {counted_on.target}"}
+                            if (counted_on.source, counted_on.target) != (r.source, r.target) else {}),
                          "state": c.get("state", "not_counted"), "rows_with_value": c.get("rows_with_value"),
-                         "orphans": c.get("orphans"), "matched": c.get("matched"), "why": e["why"]})
+                         "orphans": c.get("orphans"), "matched": c.get("matched"), "why": e["why"],
+                         **({"warning": e["warning"]} if e.get("warning") else {})})
     return [e["rel"] for e in active], [(e["rel"], e["why"]) for e in inactive], evidence
 
 
@@ -468,6 +469,7 @@ def gold_model(plan: Plan, gspec: dict, validation: dict | None = None, products
     keys = {t: (one_key(t), plan.keys[t][1]) for t in views if t in plan.keys and one_key(t)}
     rels, not_related, f2f = [], [], []
     seen = set()
+    made_from: dict[int, Relationship] = {}
 
     def add(source: str, column: str, target: str, r: Relationship):
         if target not in keys:
@@ -480,6 +482,7 @@ def gold_model(plan: Plan, gspec: dict, validation: dict | None = None, products
             return
         seen.add((source, column.lower(), target))
         rels.append(Relationship(source, [column], target, list(keys[target][0]), r.rule, note=r.note))
+        made_from[id(rels[-1])] = r                               # BL63: the counts of r are this link's counts
     for t, v in views.items():
         if kinds[t] != "fact":
             continue
@@ -538,7 +541,7 @@ def gold_model(plan: Plan, gspec: dict, validation: dict | None = None, products
             "not_in_gold": not_in_gold,
             "header_amounts_left_out": [{"view": x["view"], "table": x["table"], "column": x["column"]} for x in gspec.get("header_amounts_left_out", [])],
             "keys_checked": validation is not None,
-            "advanced_analytics": advanced}
+            "advanced_analytics": advanced, "source_plan": plan, "made_from": made_from}
 
 
 def _prediction_tables(predictions, tables, kinds, keys, rels, gschema) -> dict:
@@ -671,9 +674,17 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
               and len(r.source_cols) == 1 and len(r.target_cols) == 1 and len(plan.keys.get(r.target, ([], ""))[0]) == 1]
     composite = [r for r in plan.relationships if r.source in names and r.target in names and r not in single]
     why_not = lambda r: not_unique_why(r.target, dup[r.target]) if r.target in dup else not_expressible_why(original, r)
-    # BL51: the counts decide the active set on the tables they were taken on. A model on the gold views (DPM1) relates
-    # other tables (one wide view per fact, joined in gold), so there the forest decides as before.
-    active, inactive, counted = active_set(plan, single, validation, original, counted=not on_gold)
+    # BL51: the counts decide the active set on the tables they were taken on. BL63: a model on the gold views (DPM1)
+    # follows the same counts, each gold relationship counted as the source link it was made from (gold_model's
+    # made_from: a fact view's reference is the reference of the table it carries it from).
+    if on_gold and "made_from" in on_gold:
+        active, inactive, counted = active_set(plan, single, validation, on_gold["source_plan"], basis=on_gold["made_from"])
+    else:
+        active, inactive, counted = active_set(plan, single, validation, original, counted=not on_gold)
+    # BL63: a declared or confirmed link between the model's tables that the counts found no match for, warned about
+    # whether or not it could be a relationship of the model (a key the rows show is not unique, or several columns).
+    warned = [w for w in graphs.confirmed_without_match(on_gold["source_plan"] if on_gold and "source_plan" in on_gold else original,
+                                                        validation) if w["source"] in names and w["target"] in names]
     ref_cols = {(r.source, r.source_cols[0].lower()) for r in single}
 
     measures = suggested_measures(plan, chosen, role_of, ref_cols, set(whole_quantities))
@@ -879,6 +890,10 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                  else "no rows to check" if x["state"] == "no_rows" else "not counted")
             readme.append(f"| `{x['source']}.{'+'.join(x['columns'])}` | `{x['target']}` | {x['state']}: {n} | "
                           f"{'yes' if x['active'] else 'no'} | {x['why']} |")
+    if warned:                                                   # BL63: a confirmed link with no match, said loudly
+        readme += (["", "### What the counts decided"] if not counted else []) + [
+            "", f"**Warning: {len(warned)} declared or confirmed relationship(s) counted with no match, not made active.**", ""]
+        readme += [f"- {x['warning']}." for x in warned]
     if not rel_lines:
         readme += [f"None in the model, so there is no `definition/relationships.tmdl`: a TMDL document must hold an object, and Power BI "
                    "Desktop (2.151, 30 October 2026) refuses one that holds only a comment (`InvalidLineType`, document `./relationships`, "
@@ -976,7 +991,9 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                "relationships_not_expressible": len(composite), "keyless": keyless, "composite_keys": multi_key,
                "storage_mode": "directLake (SQL analytics endpoint)", "compatibility_level": COMPATIBILITY_LEVEL,
                "inactive": [{"source": r.source, "columns": r.source_cols, "target": r.target, "rule": r.rule, "why": why} for r, why in inactive],
-               **({"active_by_counts": {"rule": COUNTED_SAID, "relationships": counted}} if counted is not None else {}),
+               **({"active_by_counts": {"rule": COUNTED_SAID, "relationships": counted,
+                                        **({"confirmed_without_match": warned} if warned else {})}}
+                  if counted is not None else {"active_by_counts": {"confirmed_without_match": warned}} if warned else {}),
                "not_expressible": [{"source": r.source, "columns": r.source_cols, "target": r.target, "target_columns": r.target_cols,
                                     "rule": r.rule, "why": why_not(r), **({"key_not_unique": True} if r.target in dup else {})}
                                    for r in composite],

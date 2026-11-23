@@ -261,7 +261,11 @@ def spanning_forest(plan: Plan, es: list[dict]) -> tuple[list[dict], list[dict]]
 # by R3 that validate_plan counts as 301 of 301 rows pointing at nothing. When validate_plan's answer has counted at
 # least one of the links, the active set is chosen by the counts instead, by these rules, in this order:
 #
-#   1. A link counted with no match at all (every row with a value points at nothing) is never active.
+#   1. A link counted with no match at all (every row with a value points at nothing) is never active. That holds for a
+#      declared or confirmed link too (BL63, Gustav's decision on BL51's first question): it stays inactive and carries
+#      a warning (`confirmed_without_match`) in the model's summary, its README and validate_plan's answer, so a
+#      person looks at the columns or the confirmation again. There is no threshold: one matching row is "counted with
+#      matches" (BL63, the second question); the share only breaks ties (3d).
 #   2. Columns that point at more than one table (the same source columns, several targets) are ambiguous. Links of
 #      such a group that the count refuted (rule 1) drop out; when exactly one is left that was counted with matches,
 #      it is the one; when two or more were counted with matches, none of them is active and a person chooses
@@ -277,6 +281,14 @@ def spanning_forest(plan: Plan, es: list[dict]) -> tuple[list[dict], list[dict]]
 #      e. the forest's own tie-breaks (references leaving the source, then names).
 #
 # Without counts nothing here runs, and the forest above decides exactly as before. Counts only, never a row value.
+
+COUNTED_RULE = ("The active set follows validate_plan's counts (BL51) and keeps one path between any two tables: a link counted "
+                "with no match is never active, even when it is declared or confirmed (then it carries a warning); columns "
+                "that point at several tables are ambiguous, and when the counts do not choose one a person does (`confirmed`); "
+                "then declared or confirmed links rank first, then links counted with matches (one matching row is enough; "
+                "there is no threshold), then links not counted; within that a pack's link ranks above a guess by name (R1, "
+                "R2, then R3/R4), an item's link to its header and a link to a dimension above a link between two other tables, "
+                "and more matching rows above fewer.")
 
 COUNTED_ORIGIN = {"R0": 4, "confirmed": 4, "decided": 4, "SAP pack": 3, "CSN metadata": 3, "R1": 2, "R2": 1}
 DECLARED = ("R0", "confirmed", "decided")
@@ -328,6 +340,32 @@ class FilterPaths:
     def add(self, source: str, target: str) -> None:
         self.down.setdefault(target, []).append(source)
         self.up.setdefault(source, []).append(target)
+
+
+DECLARED_WORDS = {"R0": "declared by the source", "confirmed": "confirmed (`confirmed`)", "decided": "decided (`decide`)"}
+
+
+def no_match_warning(source: str, columns: list[str], target: str, rule: str, rows: int, orphans: int) -> str:
+    """BL63: the words for a declared or confirmed link the counts found no match for (counts only, never a value)."""
+    return (f"{source}.{'+'.join(columns)} -> {target} is {DECLARED_WORDS.get(rule, rule)}, but validate_plan counted no match: "
+            f"{orphans} of {rows} rows with a value point at nothing in {target}. It is not made active; check the columns "
+            "and the confirmation (a wrong column, a different code format, or a target that holds other documents)")
+
+
+def confirmed_without_match(plan: Plan, validation: dict | None) -> list[dict]:
+    """BL63: the declared or confirmed links (R0, `confirmed`, `decided`) validate_plan counted with no match at all,
+    each with its counts and a warning in words; [] when there are none or nothing was counted. Counts only."""
+    if not validation or not validation.get("relationships"):
+        return []
+    out = []
+    counts_of = link_counts(plan, validation)
+    for r in plan.relationships:
+        c = counts_of.get(r.key)
+        if r.rule in DECLARED and c and c["state"] == "fails" and c["rows_with_value"] and c["matched"] == 0:
+            out.append({"source": r.source, "columns": list(r.source_cols), "target": r.target, "rule": r.rule,
+                        "rows_with_value": c["rows_with_value"], "orphans": c["orphans"], "active": False,
+                        "warning": no_match_warning(r.source, r.source_cols, r.target, r.rule, c["rows_with_value"], c["orphans"])})
+    return out
 
 
 def link_counts(plan: Plan, validation: dict | None) -> dict[tuple, dict]:
@@ -414,8 +452,14 @@ def counted_forest(plan: Plan, es: list[dict], counted: dict[int, dict], basis: 
     for e in es:
         if no_match(e):
             c = count(e)
-            inactive.append({**e, "counted": c, "why": (f"counted with no match: {c['orphans']} of {c['rows_with_value']} rows with a value "
-                                                        f"point at nothing in {e['target']}, so it is never active (BL51 rule 1)")})
+            why = (f"counted with no match: {c['orphans']} of {c['rows_with_value']} rows with a value "
+                   f"point at nothing in {e['target']}, so it is never active (BL51 rule 1)")
+            if declared(e):                              # BL63: not even when declared or confirmed, and said loudly
+                r = basis.get(id(e["rel"]), e["rel"])
+                warning = no_match_warning(r.source, r.source_cols, r.target, e["rule"], c["rows_with_value"], c["orphans"])
+                inactive.append({**e, "counted": c, "warning": warning, "why": f"{why}; warning: {warning}"})
+                continue
+            inactive.append({**e, "counted": c, "why": why})
         else:
             left.append(e)
     groups: dict[tuple, list[dict]] = {}
@@ -487,16 +531,20 @@ def counted_roles(plan: Plan, validation: dict | None = None) -> dict[str, str]:
     return {t: r["role"] for t, r in roles(plan, es, betweenness(nodes, und)).items()}
 
 
-def counted_active_set(plan: Plan, es: list[dict], validation: dict | None, basis_plan: Plan | None = None) -> tuple[list[dict], list[dict]] | None:
+def counted_active_set(plan: Plan, es: list[dict], validation: dict | None, basis_plan: Plan | None = None,
+                       basis: dict[int, Relationship] | None = None) -> tuple[list[dict], list[dict]] | None:
     """BL51's entry point: (active, inactive) by the counted rules when validate_plan's answer counted at least one of
     the edges' links; None otherwise (the caller keeps spanning_forest, exactly as before). `basis_plan`: the plan the
-    validation was run on, when `plan` is the silver layer's carried copy (same relationships in the same order)."""
+    validation was run on, when `plan` is the silver layer's carried copy (same relationships in the same order) or
+    the gold views' plan (BL63). `basis`: id(relationship of `plan`) -> the relationship of `basis_plan` it was made
+    from, for a plan whose relationships are not a copy in the same order (the gold views, DPM1); a relationship
+    without one is not counted."""
     if not validation or not validation.get("relationships"):
         return None
     source = basis_plan or plan
     counts_of = link_counts(source, validation)
-    basis: dict[int, Relationship] = {}
-    if basis_plan is not None and basis_plan is not plan and len(basis_plan.relationships) == len(plan.relationships):
+    basis = dict(basis or {})
+    if not basis and basis_plan is not None and basis_plan is not plan and len(basis_plan.relationships) == len(plan.relationships):
         for carried, orig in zip(plan.relationships, basis_plan.relationships):
             basis[id(carried)] = orig
     counted = {}
@@ -561,15 +609,26 @@ def analyze(plan: Plan, validation: dict | None = None) -> dict:
     role = roles(plan, es, bc)
     degree = {v: {"in": len(inn[v]), "out": len(out[v])} for v in nodes}
     central = sorted(nodes, key=lambda v: (-pr[v], -bc[v], -(degree[v]["in"] + degree[v]["out"]), v))[:10]
-    active, inactive = spanning_forest(plan, es)
+    # BL63: with validate_plan's counts the active set is the semantic model's (BL51's counted rules), so
+    # analyze_schema and the model no longer differ; without counts the forest by certainty decides, as before.
+    by_counts = counted_active_set(plan, es, validation)
+    active, inactive = by_counts if by_counts is not None else spanning_forest(plan, es)
     amb = ambiguity(plan, es, active, inactive)
 
     def edge_view(e: dict) -> dict:
         return {k: v for k, v in e.items() if k != "rel"}
+    counted_extra = {}
+    if by_counts is not None:
+        counted_extra["active_by_counts"] = {"rule": COUNTED_RULE, "relationships": len(active) + len(inactive)}
+        if (warned := confirmed_without_match(plan, validation)):
+            counted_extra["confirmed_without_match"] = warned
     return {
         "summary": (f"{len(nodes)} tables, {len(es)} relationships; roles: "
                     + ", ".join(f"{sum(1 for r in role.values() if r['role'] == k)} {k}" for k in ("fact", "dimension", "bridge", "isolated", "other") if any(r["role"] == k for r in role.values()))
-                    + f"; {len(active)} relationships can be active at once, {len(inactive)} would be inactive; {len(amb['cycles'])} cycle(s)"),
+                    + f"; {len(active)} relationships can be active at once, {len(inactive)} would be inactive"
+                    + (" (chosen by validate_plan's counts, as in the semantic model)" if by_counts is not None else "")
+                    + f"; {len(amb['cycles'])} cycle(s)"),
+        **counted_extra,
         "weights": {k: v for k, v in WEIGHTS.items()},
         "roles": {v: role[v] for v in nodes},
         "centrality": {"top": [{"table": v, "pagerank": pr[v], "betweenness": bc[v], **degree[v], "role": role[v]["role"]} for v in central],
@@ -583,9 +642,12 @@ def analyze(plan: Plan, validation: dict | None = None) -> dict:
 
 # ------------------------------------------------------------------ weighted paths ---------------
 
-def safest_path(plan: Plan, start: str, end: str, validation: dict | None = None) -> list[dict] | None:
-    """Dijkstra on cost = 1/certainty over the undirected graph; the steps with rule and certainty, or None."""
+def safest_path(plan: Plan, start: str, end: str, validation: dict | None = None, only: set[int] | None = None) -> list[dict] | None:
+    """Dijkstra on cost = 1/certainty over the undirected graph; the steps with rule and certainty, or None. `only`
+    (BL63): id()s of the relationships the path may use (the counted active set), or None for all."""
     es = edges(plan, validation)
+    if only is not None:
+        es = [e for e in es if id(e["rel"]) in only]
     _, _, und = _adjacency(plan, es)
     dist = {start: 0.0}
     prev: dict[str, tuple[str, dict] | None] = {start: None}

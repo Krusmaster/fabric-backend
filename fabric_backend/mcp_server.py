@@ -435,6 +435,8 @@ def validate_plan(schema: str = "dbo", keys: dict[str, list[str]] | None = None,
         if prof is not None:
             out["column_profile"] = prof
         out = _validated_decisions(out, p, full)
+        if (warned := _graphs.confirmed_without_match(p, full)):      # BL63: a confirmed link with no match, said loudly
+            out["confirmed_without_match"] = warned
         return json.dumps(out, indent=2, default=str)
 
 

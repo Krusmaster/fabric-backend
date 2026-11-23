@@ -146,22 +146,49 @@ def join_path(plan: Plan, start: str, end: str, limit: int = 5, top: int = 100, 
     start, end = names[start.lower()], names[end.lower()]
     if start == end:
         return {"start": start, "end": end, "paths": [], "note": "start and end are the same table"}
-    from .graphs import _verified, safest_path
+    from .graphs import _verified, counted_active_set, edges, safest_path
     verified = _verified(validation)
+    # BL63: with validate_plan's counts, the safest path follows the semantic model's active set (BL51's counted rules)
+    # where one connects the two tables, and every step says whether its relationship is active there. Without counts,
+    # or with an answer that counted none of the links, the answer is exactly as before.
+    by_counts = counted_active_set(plan, edges(plan, validation), validation) if validation else None
+    active_ids = {id(e["rel"]) for e in by_counts[0]} if by_counts is not None else None
+    why_off = {id(e["rel"]): e["why"] for e in by_counts[1]} if by_counts is not None else {}
+
+    def mark(steps: list[dict], chain: list) -> list[dict]:
+        if active_ids is None:
+            return steps
+        for st, (r, _fwd) in zip(steps, chain):
+            st["active"] = id(r) in active_ids
+            if id(r) in why_off:
+                st["inactive_why"] = why_off[id(r)]
+        return steps
     paths = shortest_paths(plan, start, end, limit)
     out: dict = {"start": start, "end": end, "paths": []}
     for p in paths:
-        steps = _steps(plan, start, p, verified)
+        steps = mark(_steps(plan, start, p, verified), p)
         out["paths"].append({"tables": [start] + [s["to"] for s in steps], "hops": len(steps), "steps": steps,
                              "cost": round(sum(s["cost"] for s in steps), 4), "sql": sql_for(plan, start, p, top, dialect)})
-    safest = safest_path(plan, start, end, validation)
+    safest = safest_path(plan, start, end, validation, only=active_ids) if active_ids is not None else None
+    on_active = safest is not None
+    if safest is None:
+        safest = safest_path(plan, start, end, validation)
     if safest:
         chain = [(s["rel"], s["forward"]) for s in safest]
-        steps = _steps(plan, start, chain, verified)
+        steps = mark(_steps(plan, start, chain, verified), chain)
         out["safest"] = {"tables": [start] + [s["to"] for s in steps], "hops": len(steps), "steps": steps,
                          "cost": round(sum(s["cost"] for s in steps), 4), "sql": sql_for(plan, start, chain, top, dialect)}
         shortest_cost = min(p["cost"] for p in out["paths"])
-        if out["safest"]["cost"] < shortest_cost - 1e-9:
+        if active_ids is not None:
+            out["active_by_counts"] = on_active
+            out["safest"]["why"] = (
+                ("it goes over the relationships the semantic model keeps active by validate_plan's counts (BL51)"
+                 + ("; it is also a shortest path" if out["safest"]["hops"] <= min(p["hops"] for p in out["paths"]) else
+                    "; a shorter path uses a relationship the counts left inactive (see each step's inactive_why)"))
+                if on_active else
+                "no path over the relationships the counts keep active connects the two tables, so this one uses an inactive "
+                "relationship (see each step's active and inactive_why); in the semantic model it needs USERELATIONSHIP")
+        elif out["safest"]["cost"] < shortest_cost - 1e-9:
             weakest = min((s for p in out["paths"] for s in p["steps"]), key=lambda s: s["certainty"])
             out["safest"]["why"] = (f"the shortest path uses a {weakest['rule']} link ({weakest['from']} -> {weakest['to']}, certainty "
                                     f"{weakest['certainty']}); the safest takes {out['safest']['hops']} hop(s) over links of certainty "
