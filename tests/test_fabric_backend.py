@@ -356,7 +356,8 @@ def test_remote_server_tools_are_annotated_and_auth_reads_headers():
                                     "verify_build", "publish_catalog",      # n229, CA1
                                     "qlik_plan", "qlik_measures_draft", "qlik_reconcile_draft",     # Q2
                                     "analysis_plan", "analysis_notebook_draft",                       # AP2
-                                    "requirements_draft"}                                               # RQ1
+                                    "requirements_draft",                                               # RQ1
+                                    "semantic_view_draft"}                                              # BL64
     for t in ts:
         assert t.title and t.annotations is not None and t.annotations.read_only_hint is not None   # directory requirement
         assert t.annotations.title == t.title, t.name                                               # the directory reads annotations.title

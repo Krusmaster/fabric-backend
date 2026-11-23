@@ -17,7 +17,7 @@
   "validate_plan",
   "verify_build"
  ],
- "instructions": "Krusgraph reads tables in Microsoft Fabric (lakehouse, warehouse, SQL database, mirrored database), infers their keys and relationships by fixed rules, checks them against the rows, and builds Fabric items from that plan: an API for GraphQL, a Power BI semantic model and report, a Fabric IQ ontology, T-SQL views, silver and gold notebooks with a pipeline, and a Fabric data agent. It runs with the signed-in user's own Microsoft sign-in and permissions. Start Krusgraph (the start tool, also the prompt of that name) is a guided path for a first or vague message ('start', 'start Krusgraph', 'help', 'what can you do', 'check my data', 'help me with my SAP data in Fabric'): workspace, source, schema, map, check, decisions, doubled totals, dry run, and creating only after the user confirms the names; each start answer holds one step, its choices and a Coach block with the step in plain words and the possible next step. A user without Fabric data can see the path on the synthetic shop sample (start with sample=true). The usual order of the tools: list_workspaces, list_sources (start reads the same names itself), plan_backend (proposes keys and relationships; nothing is deployed), validate_plan (counts keys and references against the rows; create_backend does not run it), then a creating tool. sample_rows shows a few rows when a column's meaning is unclear; describe_backend gives the exact field names for query_graphql. Every inferred key or relationship carries the rule that produced it (K0-K5, R0-R5, or \"SAP pack\" for SAP tables such as VBAK/VBAP: the SAP pack is Krusgraph's list of known SAP keys and links; sap_pack_draft shows what it recognises and what is missing); ambiguous columns are reported, never guessed. Drafts from the same plan create nothing: semantic_model_draft (TMDL, Direct Lake), ontology_draft, join_path (how two tables connect, with the SQL), data_dictionary (hand-over documentation), dbt_schema, gold_views_draft, silver_notebook_draft, drift_monitor_draft, export_item_definitions (Fabric's Git format), analyze_schema (table roles, subject areas), suggest_relationships (candidate links counted against the data), plan_drift (what a re-run of create_backend on an existing API would change), lineage (what builds on a source's tables) and review_plan (the plan, the decisions and the checks as a file for the user's own repository). The creating tools (create_backend, create_semantic_model, create_report, create_ontology, create_views, create_data_agent, create_silver_notebook, create_gold_views, create_pipeline, create_drift_monitor, publish_catalog) answer with a dry run of what they would create, and change Fabric only with dry_run=false; none deletes an item. A create that answered started (kind timeout) was sent once; the same tool with check set reads how it went. After a create that succeeded, the answer's next_steps list what the data product still lacks, in order, and already_built what exists. verify_build reads back what was built and compares it with the dry run, by rules, not by AI. A dry run with a gate states why the build would be of little use and which step comes first. Creating a semantic model, ontology, data agent, notebook or pipeline needs a permission the operator may not have granted; without it the tool answers kind consent naming the scope, and the dry run still works. app_starter and app_readiness cover an app on a created API. Columns that look like personal data by name are masked in sample_rows and left out of drafted queries and gold views unless show_personal_data=true. Krusgraph is independent and works next to Microsoft's own Fabric MCP servers; it is the part that works out how the tables relate and builds from that plan. A call that cannot be completed answers with error (plain words), kind (a stable code such as not_found, no_access, capacity, sign_in, consent, schema_not_found, timeout, rate_limited with retry_after) and hint (what fixes it). Words: \"check shop\", \"run a check\" or \"check the keys\" mean validate_plan on that schema (plan_backend makes the plan when there is none yet); app_readiness is for an API for GraphQL or what an app needs. A word that could be a schema, a source or an API is ambiguous until the user says which. Shared parameters: workspace (list_workspaces), source (list_sources) and api take a name or an id; confirmed lists relationships the user confirmed and is not an approval flag (an entry has source, source_cols, target, target_cols and optional field_name and reverse_name); tables narrows what is shown or included while the plan is still made from the whole schema. Tool results: a client that draws cards shows a result's lines and its possible next steps as buttons; a client without cards gets the next steps as a numbered list, which the user can answer with a number. An answer holds no reason, source or name beyond what it states (for example where a key comes from, or what another vendor calls a link). Test status: on 27 October 2026 every tool but start, publish_catalog, verify_build, domain_draft, sap_pack_draft, create_report, create_ontology, create_silver_notebook, create_drift_monitor, create_gold_views, create_pipeline, qlik_plan, qlik_measures_draft, qlik_reconcile_draft, analysis_plan, analysis_notebook_draft and requirements_draft ran from Claude against a Fabric workspace with synthetic data, read-only or as a draft, and create_semantic_model, create_views and create_data_agent as dry runs (compare_semantic_model only as far as the model lookup; create_backend only as an update in place of shop_api with confirmed); no new item was created that day. Since then create_silver_notebook, create_gold_views, create_drift_monitor, create_ontology, create_semantic_model, create_report and create_pipeline have created items live against the same workspace (status per tool: /docs#test-status). Two operator settings, both off by default: KRUSGRAPH_READ_ONLY=1 leaves out the tools that create or change something in Fabric, and KRUSGRAPH_NO_ROW_VALUES=1 leaves out sample_rows and removes row values from the other answers, keeping names and counts. By default tools/list holds 16 tools: start, plan_backend, validate_plan, review_plan, requirements_draft, create_pipeline, create_semantic_model, create_data_agent, create_report, create_backend, create_ontology, publish_catalog, verify_build, lineage, describe_backend, query_graphql. The other tools named here are registered and answer when called by name; the operator setting KRUSGRAPH_ADVANCED_TOOLS=1 lists them all. The drafts show what their creating tool's dry run shows.",
+ "instructions": "Krusgraph reads tables in Microsoft Fabric (lakehouse, warehouse, SQL database, mirrored database), infers their keys and relationships by fixed rules, checks them against the rows, and builds Fabric items from that plan: an API for GraphQL, a Power BI semantic model and report, a Fabric IQ ontology, T-SQL views, silver and gold notebooks with a pipeline, and a Fabric data agent. It runs with the signed-in user's own Microsoft sign-in and permissions. Start Krusgraph (the start tool, also the prompt of that name) is a guided path for a first or vague message ('start', 'start Krusgraph', 'help', 'what can you do', 'check my data', 'help me with my SAP data in Fabric'): workspace, source, schema, map, check, decisions, doubled totals, dry run, and creating only after the user confirms the names; each start answer holds one step, its choices and a Coach block with the step in plain words and the possible next step. A user without Fabric data can see the path on the synthetic shop sample (start with sample=true). The usual order of the tools: list_workspaces, list_sources (start reads the same names itself), plan_backend (proposes keys and relationships; nothing is deployed), validate_plan (counts keys and references against the rows; create_backend does not run it), then a creating tool. sample_rows shows a few rows when a column's meaning is unclear; describe_backend gives the exact field names for query_graphql. Every inferred key or relationship carries the rule that produced it (K0-K5, R0-R5, or \"SAP pack\" for SAP tables such as VBAK/VBAP: the SAP pack is Krusgraph's list of known SAP keys and links; sap_pack_draft shows what it recognises and what is missing); ambiguous columns are reported, never guessed. Drafts from the same plan create nothing: semantic_model_draft (TMDL, Direct Lake), semantic_view_draft (YAML for a lakehouse's semantic view, preview), ontology_draft, join_path (how two tables connect, with the SQL), data_dictionary (hand-over documentation), dbt_schema, gold_views_draft, silver_notebook_draft, drift_monitor_draft, export_item_definitions (Fabric's Git format), analyze_schema (table roles, subject areas), suggest_relationships (candidate links counted against the data), plan_drift (what a re-run of create_backend on an existing API would change), lineage (what builds on a source's tables) and review_plan (the plan, the decisions and the checks as a file for the user's own repository). The creating tools (create_backend, create_semantic_model, create_report, create_ontology, create_views, create_data_agent, create_silver_notebook, create_gold_views, create_pipeline, create_drift_monitor, publish_catalog) answer with a dry run of what they would create, and change Fabric only with dry_run=false; none deletes an item. A create that answered started (kind timeout) was sent once; the same tool with check set reads how it went. After a create that succeeded, the answer's next_steps list what the data product still lacks, in order, and already_built what exists. verify_build reads back what was built and compares it with the dry run, by rules, not by AI. A dry run with a gate states why the build would be of little use and which step comes first. Creating a semantic model, ontology, data agent, notebook or pipeline needs a permission the operator may not have granted; without it the tool answers kind consent naming the scope, and the dry run still works. app_starter and app_readiness cover an app on a created API. Columns that look like personal data by name are masked in sample_rows and left out of drafted queries and gold views unless show_personal_data=true. Krusgraph is independent and works next to Microsoft's own Fabric MCP servers; it is the part that works out how the tables relate and builds from that plan. A call that cannot be completed answers with error (plain words), kind (a stable code such as not_found, no_access, capacity, sign_in, consent, schema_not_found, timeout, rate_limited with retry_after) and hint (what fixes it). Words: \"check shop\", \"run a check\" or \"check the keys\" mean validate_plan on that schema (plan_backend makes the plan when there is none yet); app_readiness is for an API for GraphQL or what an app needs. A word that could be a schema, a source or an API is ambiguous until the user says which. Shared parameters: workspace (list_workspaces), source (list_sources) and api take a name or an id; confirmed lists relationships the user confirmed and is not an approval flag (an entry has source, source_cols, target, target_cols and optional field_name and reverse_name); tables narrows what is shown or included while the plan is still made from the whole schema. Tool results: a client that draws cards shows a result's lines and its possible next steps as buttons; a client without cards gets the next steps as a numbered list, which the user can answer with a number. An answer holds no reason, source or name beyond what it states (for example where a key comes from, or what another vendor calls a link). Test status: on 27 October 2026 every tool but start, publish_catalog, verify_build, domain_draft, sap_pack_draft, create_report, create_ontology, create_silver_notebook, create_drift_monitor, create_gold_views, create_pipeline, qlik_plan, qlik_measures_draft, qlik_reconcile_draft, analysis_plan, analysis_notebook_draft, requirements_draft and semantic_view_draft ran from Claude against a Fabric workspace with synthetic data, read-only or as a draft, and create_semantic_model, create_views and create_data_agent as dry runs (compare_semantic_model only as far as the model lookup; create_backend only as an update in place of shop_api with confirmed); no new item was created that day. Since then create_silver_notebook, create_gold_views, create_drift_monitor, create_ontology, create_semantic_model, create_report and create_pipeline have created items live against the same workspace (status per tool: /docs#test-status). Two operator settings, both off by default: KRUSGRAPH_READ_ONLY=1 leaves out the tools that create or change something in Fabric, and KRUSGRAPH_NO_ROW_VALUES=1 leaves out sample_rows and removes row values from the other answers, keeping names and counts. By default tools/list holds 16 tools: start, plan_backend, validate_plan, review_plan, requirements_draft, create_pipeline, create_semantic_model, create_data_agent, create_report, create_backend, create_ontology, publish_catalog, verify_build, lineage, describe_backend, query_graphql. The other tools named here are registered and answer when called by name; the operator setting KRUSGRAPH_ADVANCED_TOOLS=1 lists them all. The drafts show what their creating tool's dry run shows.",
  "tools": [
   {
    "annotations": {
@@ -4672,6 +4672,126 @@
     "type": "object"
    },
    "title": "Draft a Power BI semantic model (TMDL, nothing created)"
+  },
+  {
+   "annotations": {
+    "destructive_hint": false,
+    "open_world_hint": true,
+    "read_only_hint": true,
+    "title": "Draft a Fabric semantic view (YAML, nothing written) (experimental)"
+   },
+   "description": "Drafts the plan as a Fabric semantic view (preview): one YAML file for the lakehouse folder Context/Semantic\nViews/<name>/ with datasets, the semantic model draft's active relationships (one column per side, the one side\ncounted unique) and row-count metrics in DAX. Composite-key links are listed under needs_key_column. Requires\nworkspace and source. Writes nothing to OneLake and publishes nothing. Errors: {error, kind, hint}.",
+   "input_schema": {
+    "properties": {
+     "confirmed": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "Relationships the user confirmed, added to the plan. Default none. Example: [{\"source\": \"orders\", \"source_cols\": [\"ship_to_id\"], \"target\": \"addresses\", \"target_cols\": [\"address_id\"]}].",
+      "title": "Confirmed"
+     },
+     "keys": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "Primary keys replacing the inferred ones. Default: inferred. Example: {\"order_items\": [\"order_id\", \"line_no\"]}.",
+      "title": "Keys"
+     },
+     "name": {
+      "default": "semantic_view",
+      "description": "Name of the semantic view: its folder under Context/Semantic Views and the generated model's name. Default \"semantic_view\". Example: \"shop_view\".",
+      "title": "Name",
+      "type": "string"
+     },
+     "schema": {
+      "default": "dbo",
+      "description": "Schema in the source. Default \"dbo\".",
+      "title": "Schema",
+      "type": "string"
+     },
+     "show_personal_data": {
+      "default": false,
+      "description": "true includes columns named like personal data; false (default) masks or omits them.",
+      "title": "Show Personal Data",
+      "type": "boolean"
+     },
+     "source": {
+      "description": "Lakehouse, warehouse or SQL database, name or id.",
+      "title": "Source",
+      "type": "string"
+     },
+     "tables": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "Table names or globs to show. Default all. Example: [\"sales_*\"].",
+      "title": "Tables"
+     },
+     "validate": {
+      "default": true,
+      "description": "true (default) counts keys and links with validate_plan; a relationship is in the view only when its one side was counted unique. false reads metadata only.",
+      "title": "Validate",
+      "type": "boolean"
+     },
+     "workspace": {
+      "description": "Fabric workspace, name or id.",
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "source"
+    ],
+    "title": "semantic_view_draftArguments",
+    "type": "object"
+   },
+   "name": "semantic_view_draft",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "semantic_view_draftOutput",
+    "type": "object"
+   },
+   "title": "Draft a Fabric semantic view (YAML, nothing written) (experimental)"
   },
   {
    "annotations": {

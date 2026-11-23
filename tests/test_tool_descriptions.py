@@ -86,4 +86,6 @@ def test_read_only_listing_stays_small():
     # characters; one short sentence each, and the pipeline= parameter left to the creating tools)
     # 83 000 since RQ1: requirements_draft (description cut to two sentences, parameters to one short sentence each, keys
     # and confirmed left out): 81 500 before, about 82 900 after
-    assert size <= 83_000, f"read-only tools/list is {size} characters"
+    # 84 600 since BL64: semantic_view_draft (two-sentence description, seven parameters of one short phrase each, keys
+    # and confirmed left out): about 82 950 before, about 84 560 after
+    assert size <= 84_600, f"read-only tools/list is {size} characters"

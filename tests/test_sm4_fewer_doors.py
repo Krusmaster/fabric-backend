@@ -29,10 +29,10 @@ def _names(monkeypatch, advanced: bool) -> list[str]:
     return [t.name for t in asyncio.run(server.mcp.list_tools())]
 
 
-def test_the_default_listing_has_at_most_16_tools_and_the_switch_lists_all_48(monkeypatch):
+def test_the_default_listing_has_at_most_16_tools_and_the_switch_lists_all_49(monkeypatch):
     default, every = _names(monkeypatch, False), _names(monkeypatch, True)
     assert len(default) <= 16 and set(default) == set(tool_listing.DEFAULT)
-    assert len(every) == 48 and set(default) < set(every)
+    assert len(every) == 49 and set(default) < set(every)
     assert set(every) - set(default) == HIDDEN
 
 
