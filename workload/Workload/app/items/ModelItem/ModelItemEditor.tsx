@@ -59,6 +59,7 @@ import {
 } from "./createRun";
 import { PREPARING, Ticked, chosenProducts, ticked } from "./productSuggestions";
 import { SuggestedProductsPanel } from "./SuggestedProductsView";
+import type { SelfCheckAnswer } from "./SelfCheck";
 import { Busy, EmptyView, ErrorBar, OutputsView, PreviewView, ResultView, ReviewView } from "./ModelItemViews";
 import { MapData } from "./cardMap";
 import { Choice, acceptAll, totalsOf } from "./modelWords";
@@ -1356,6 +1357,7 @@ export function ModelItemEditor(props: PageProps) {
           onChooseLakehouse={chooseLakehouse}
           onChooseTarget={chooseTarget}
           onReview={() => plan(def, {}, true)}
+          onSelfCheck={itemMeta?.workspaceId ? () => engine.selfcheck<SelfCheckAnswer>(workloadClient, { workspace: itemMeta.workspaceId }) : undefined}
           mascotsOn={mascotsOn}
         />
       ),
