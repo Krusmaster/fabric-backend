@@ -437,6 +437,8 @@ def validate_plan(schema: str = "dbo", keys: dict[str, list[str]] | None = None,
         out = _validated_decisions(out, p, full)
         if (warned := _graphs.confirmed_without_match(p, full)):      # BL63: a confirmed link with no match, said loudly
             out["confirmed_without_match"] = warned
+        if (decided := _graphs.r3_targets(p, full)):            # E5 (XB1): several R3 targets, the counts decide
+            out["r3_targets"] = {"rule": _graphs.R3_TARGETS_RULE, "groups": decided}
         return json.dumps(out, indent=2, default=str)
 
 

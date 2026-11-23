@@ -244,6 +244,54 @@ def _in_scope(r, keep) -> bool:
     return keep is None or r.source in keep or r.target in keep
 
 
+def r3_groups(plan: Plan) -> dict[int, tuple]:
+    """E5 (XB1): index into plan.relationships -> (source, columns) for every link of a group of R3 targets: the same
+    source columns pointing at two or more tables, at least one of them by R3. {} when the plan has none."""
+    by: dict[tuple, list[int]] = {}
+    for i, r in enumerate(plan.relationships):
+        by.setdefault((r.source, tuple(c.lower() for c in r.source_cols)), []).append(i)
+    rels = plan.relationships
+    return {i: g for g, idx in by.items() if len({rels[i].target for i in idx}) > 1 and any(rels[i].rule == "R3" for i in idx)
+            for i in idx}
+
+
+def _grouped(links: list, group_of: dict[int, tuple]) -> list:
+    """The sorted links with each R3 group's links moved up to its first link (their own order kept)."""
+    if not group_of:
+        return links
+    out, done = [], set()
+    for kind, i, r in links:
+        g = group_of.get(i) if kind == "rel" else None
+        if g is None:
+            out.append((kind, i, r))
+        elif g not in done:
+            done.add(g)
+            out += [x for x in links if x[0] == "rel" and group_of.get(x[1]) == g]
+    return out
+
+
+def _group_end(plan: Plan, queue: list, end: int) -> int:
+    """E5: where a selection of the queue that would stop at `end` stops instead, so that it does not cut a group of R3
+    targets in two (check_order puts a group's keys and then its links next to each other): the counts decide only
+    between links counted in the same answer. `end` when it cuts no group."""
+    group_of = r3_groups(plan)
+    if not group_of:
+        return end
+    rels = plan.relationships
+    spans: dict[tuple, list[int]] = {}
+    for n, (kind, x) in enumerate(queue):
+        if kind == "rel" and x in group_of:
+            spans.setdefault(group_of[x], []).append(n)
+    for g, at in spans.items():
+        first, last = at[0], at[-1] + 1
+        targets = {rels[x].target for x, gg in group_of.items() if gg == g}
+        while first > 0 and queue[first - 1][0] == "key" and queue[first - 1][1] in targets:
+            first -= 1
+        if first < end < last:
+            return last
+    return end
+
+
 def check_order(plan: Plan, tables=None) -> list[tuple[str, object]]:
     """n226: the order validate counts in, and what `resume_from` counts from: [("key", table) | ("rel", i) | ("ext", j)],
     i and j indexes into plan.relationships and plan.extended. Links come by importance, each right after the key of
@@ -261,10 +309,23 @@ def check_order(plan: Plan, tables=None) -> list[tuple[str, object]]:
     links = [("rel", i, r) for i, r in enumerate(rels) if _in_scope(r, keep)] + \
             [("ext", j, r) for j, r in enumerate(ext) if _in_scope(r, keep)]
     links.sort(key=lambda x: (-degree.get(x[2].target, 0), -degree.get(x[2].source, 0), x[0] == "ext", x[1]))
+    # E5 (XB1): the links of one group of R3 targets (the same source columns, several tables) are counted together, at
+    # the place of the group's first link, so the counts can decide between them (graphs.r3_targets); their targets'
+    # keys come first. A plan without such a group keeps the order above exactly.
+    group_of = r3_groups(plan)
+    links, placed = _grouped(links, group_of), set()
     key_tables = [t for t in plan.keys if keep is None or t in keep]
     queue: list[tuple[str, object]] = []
     seen: set[str] = set()
-    for kind, i, r in links:
+    for n, (kind, i, r) in enumerate(links):
+        g = group_of.get(i) if kind == "rel" else None
+        if g is not None and g not in placed:
+            placed.add(g)
+            for _k, _j, x in links[n:]:
+                if _k == "rel" and group_of.get(_j) == g and x.target in plan.keys and x.target not in seen \
+                        and (keep is None or x.target in keep):
+                    queue.append(("key", x.target))
+                    seen.add(x.target)
         if r.target in plan.keys and r.target not in seen and (keep is None or r.target in keep):
             queue.append(("key", r.target))
             seen.add(r.target)
@@ -316,7 +377,7 @@ def validate(plan: Plan, execute, max_items: int = 60, on_step=None, tables=None
     dialect = dialect_of(execute)
     queue = check_order(plan, tables)
     start = max(0, int(resume_from or 0))
-    selected = queue[start:start + max(max_items, 0)]
+    selected = queue[start:_group_end(plan, queue, start + max(max_items, 0)) if max_items > 0 else start]
     beyond = max(0, len(queue) - start - len(selected))
     rels_all = list(plan.relationships)
     ext_all = list(getattr(plan, "extended", []))
