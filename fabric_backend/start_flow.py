@@ -546,6 +546,8 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
                            "ask": "Dry run the silver and gold pipeline, the semantic model and the data agent."})
         actions.insert(0, everything)
         out["needs"] = _settings_line([r["tool"] for r in runs])               # BL40: tenant settings, never blocks
+        out["access"] = _access_line()                     # BL54: roles proposed, labels read; nothing written
+        out["contract"] = _contract_line()                 # BL54: the data contract comes along, as a draft
         out["then"] = ("Next, once the user has read the dry runs: start with step=\"create\" and create set to the names "
                        "the user wants, e.g. " + json.dumps(sorted(names.values())[:2]) + "; nothing is created before "
                        "the user confirms them.")
@@ -681,6 +683,23 @@ def _settings_line(tools: list[str]) -> str:
         return ts.dry_run_line([o for t in tools for o in ts.TOOL_OUTPUTS.get(t, [])])
     except Exception:  # noqa: BLE001 — a line about settings never blocks the dry run
         return "Tenant settings: could not check them."
+
+
+def _access_line() -> str:
+    """BL54 (B-25): workspace_access.dry_run_line for everything step 5 may create (BUILDS); never blocks the dry run.
+    Roles are proposed and labels read, never assigned or set."""
+    from . import tenant_settings as ts, workspace_access as wa
+    try:
+        return wa.dry_run_line([o for t, _, _ in BUILDS for o in ts.TOOL_OUTPUTS.get(t, [])])
+    except Exception:  # noqa: BLE001 — a line about roles never blocks the dry run
+        return "Workspace roles and labels: could not propose them. Nothing is written."
+
+
+def _contract_line() -> str:
+    """BL54 (P-29): the dry run's line on the data contract that comes with the data product (data_contract.draft, BL38)."""
+    from .data_contract import API_VERSION
+    return (f"Data contract: an ODCS {API_VERSION} draft from the counted checks (data_contract.draft) comes with the data "
+            "product. Nothing is written to Fabric.")
 
 
 def _schedule_preview(names: dict) -> dict:
@@ -1117,6 +1136,8 @@ def _sample(step: str | None, c: dict | None = None, run: bool = False) -> dict:
     out["say"] = SAMPLE_SAY.get(now, "")
     if now == "check":                                   # SM2: the first line is the sentence; the others under it
         out["say"], out["lines"] = lines[0], lines[1:]
+    if now == "dry_run":                                 # BL54: the same two lines as on your own data
+        out["access"], out["contract"] = _access_line(), _contract_line()
     if now == "dry_run" and run:
         out["say"] = "Dry run done on the shop. Nothing was created."
     if now == "decide" and decisions:
