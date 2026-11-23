@@ -20,8 +20,8 @@ ms.date 2023-05-18; "Web API navigation properties", ms.date 2026-01-07; all ope
 
 What it does with them. The metadata is a declaration, not evidence: a landing may drop rows, a lookup may point at a
 purged record (the dynamics_demo's "Demo call 2"). So every key and link carries `provenance` "declared by Dataverse
-metadata, not counted", and validate_plan counts it against the rows like any other once it is fed to the plan (the
-next step; it touches infer.py, which this round does not).
+metadata, not counted", and validate_plan counts it against the rows like any other once it is fed to the plan
+(`plan`, round BL42, 23 November 2026: keys and plain lookups go in as keys and confirmed links, the way csn.plan does).
 
 - a plain lookup becomes a link source -> target, many-to-one, on the lookup column, in the candidate shape csn.links
   gives (`source`, `source_cols`, `target`, `target_cols`, `rule`, `provenance`, `declared_in`, `note`);
@@ -41,6 +41,7 @@ columns are there. What does not map is reported: tables, columns, lookups.
     read(path | str | bytes)            -> Model: entities, many_to_many, namespace, files, ignored
     match(schema, model, prefix)        -> csn.NameMatch, plus the columns that did not map
     candidates(schema, model, prefix)   -> the report: keys, links, filtered links, not applied, unmapped (plan-ready)
+    plan(schema, model, prefix, ...)    -> (plan, report): infer.plan with the declared keys and lookups first (BL42)
     summary(model)                      -> a JSON-able digest of what was read
 
 Tested on a synthetic `$metadata` written for the tests (tests/fixtures/dataverse_metadata_demo.xml) against the
@@ -387,3 +388,45 @@ def summary(model: Model) -> dict:
     return {"files": model.files, "namespace": model.namespace, "entities": ents, "abstract": model.abstract,
             "many_to_many": model.many_to_many, "ignored": model.ignored, "provenance": PROVENANCE,
             "note": "metadata only: keys and links are candidates until validate_plan counts them in the rows"}
+
+
+# --------------------------------------------------------------------------------------------------------------------
+# plan (round BL42, 23 November 2026)
+
+
+def plan(schema, model: Model, prefix: str | None = None, **kwargs):
+    """infer.plan with what the `$metadata` declares: (plan, report). The declared keys go in as keys and the plain
+    lookups as confirmed links, both with the rule RULE, the way csn.plan feeds a CSN; keys and confirmed links the caller
+    passes still win. A multi-table lookup's filtered links are listed in the report, not applied (a plain join would
+    call every row of the other target an orphan), and so is a many-to-many. Nothing is counted here: validate_plan
+    counts the declared keys and links against the rows like any other, and a link the rows contradict shows as such.
+    plan.dataverse is the report."""
+    from .infer import plan as _plan
+    report = candidates(schema, model, prefix)
+    given = {str(k).lower() for k in (kwargs.get("keys") or {})}
+    mine = {t: cols for t, cols in report["keys"].items() if cols and t.lower() not in given}
+    keep, dropped = [], []
+    for r in report["links"]:                       # a lookup stands while its target's key is the declared one
+        tk = mine.get(r["target"])
+        if tk is not None and [c.lower() for c in tk] == [c.lower() for c in r["target_cols"]]:
+            keep.append(r)
+        else:
+            dropped.append({"lookup": f"{r['source']}.{'+'.join(r['source_cols'])} -> {r['target']}",
+                            "why": f"{r['target']}'s key is not the declared one here (a key given by the caller wins)"})
+    confirmed = [{"source": r["source"], "source_cols": r["source_cols"], "target": r["target"], "target_cols": r["target_cols"]}
+                 for r in keep]
+    p = _plan(schema, keys={**mine, **(kwargs.pop("keys", None) or {})},
+              confirmed=confirmed + list(kwargs.pop("confirmed", None) or []), **kwargs)
+    for t, cols in mine.items():
+        if t in p.keys and p.keys[t][1] == "K1" and [c.lower() for c in p.keys[t][0]] == [c.lower() for c in cols]:
+            p.keys[t] = (p.keys[t][0], RULE)
+    ours = {(r["source"], tuple(c.lower() for c in r["source_cols"]), r["target"]): r for r in keep}
+    for rel in p.relationships:
+        r = ours.get(rel.key)
+        if r is not None and rel.rule == "confirmed":
+            rel.rule = RULE
+            rel.note = f"{PROVENANCE}: " + "; ".join(f"{d['entity']}.{d['navigation_property']}" for d in r.get("declared_in", []))
+    report = {**report, "keys": mine, "links": keep, "not_applied": report["not_applied"] + dropped,
+              "status": "declared by Dataverse metadata, not verified against the rows: validate_plan counts it"}
+    p.dataverse = report
+    return p, report

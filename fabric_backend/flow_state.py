@@ -16,12 +16,19 @@ The building tools (BUILD_TOOLS) read it: a rejected link or key is left out of 
 `plan_scope` the Fabric workload uses for its review), an accepted link is passed as `confirmed` (silver quarantines its
 rows that point at nothing), and the answer says so ("1 relationship left out by your decision").
 
-Nothing here reaches Fabric or a disk. Names and decisions only, never row values. A restart or another replica starts
-empty; the start card's arguments then seed it again on the next call.
+Nothing here reaches Fabric or a disk. Names and decisions only, never row values.
+
+BL44 (issue #104, 23 November 2026): where it lives. With KRUSGRAPH_REGISTRATION_STORE set (the hosted service, up to
+two replicas) a flow is one record of kind "flow" in that store (registration_store.py, Azure Table Storage), under a
+hash of who and the (workspace, source, schema), kept TTL seconds; every change reads the record and writes it back
+naming its ETag, and retries when the other replica wrote in between, so a tap that lands on either replica sees and
+keeps the other's decisions (docs/FLOW-STATE-REPLICAS.md). Without it, memory as before (one replica, local runs,
+tests). The sequence numbers are per flow, so they mean the same on every replica.
 """
 from __future__ import annotations
 
 import hashlib
+import os
 import threading
 import time
 
@@ -35,7 +42,8 @@ BUILD_TOOLS = ("create_pipeline", "create_semantic_model", "semantic_model_draft
 
 _LOCK = threading.Lock()
 _FLOWS: dict[tuple, dict] = {}
-_SEQ = [0]
+_SHARED: list = [None, False]          # [the shared store or None, decided]
+RETRIES = 6
 
 
 def who_of(identity: dict | None, bearer: str | None) -> str:
@@ -55,9 +63,47 @@ def _key(who: str, workspace, source, schema) -> tuple | None:
     return (who, str(workspace).strip().lower(), str(source).strip().lower(), str(schema or "dbo").strip().lower())
 
 
-def _next() -> int:
-    _SEQ[0] += 1
-    return _SEQ[0]
+def _next(f: dict) -> int:
+    f["n"] = int(f.get("n") or 0) + 1
+    return f["n"]
+
+
+def _shared():
+    """BL44: the store both replicas share (KRUSGRAPH_REGISTRATION_STORE), or None: memory."""
+    with _LOCK:
+        if not _SHARED[1]:
+            if os.environ.get("KRUSGRAPH_REGISTRATION_STORE", "").strip():
+                from . import registration_store as rs
+                _SHARED[0] = rs.from_env()
+            _SHARED[1] = True
+        return _SHARED[0]
+
+
+def use_store(store) -> None:
+    """Tests: share this store (a registration_store.MemoryStore stands in for Table Storage); None: memory again."""
+    with _LOCK:
+        _SHARED[0], _SHARED[1] = store, True
+        _FLOWS.clear()
+
+
+def _rk(k: tuple) -> str:
+    return "flow-" + hashlib.sha256("|".join(k).encode()).hexdigest()[:40]
+
+
+def _change(k: tuple, fn):
+    """Apply fn to the flow and keep it: in memory under the lock, or in the shared store with ETag and retry."""
+    store = _shared()
+    if store is None:
+        with _LOCK:
+            return fn(_flow(k))
+    key = _rk(k)
+    for _ in range(RETRIES):
+        got = store.get("flow", key)
+        f = got[0] if got else {"decisions": {}, "step": None, "seq": 0, "n": 0}
+        out = fn(f)
+        if (store.replace("flow", key, f, got[1], ttl=TTL) if got else store.add("flow", key, f, ttl=TTL)):
+            return out
+    return out                             # the other replica kept writing: this answer stands, its change was not kept
 
 
 def _flow(k: tuple, create: bool = True) -> dict | None:
@@ -97,15 +143,16 @@ def record(who: str, workspace, source, schema, step: str | None, decisions, con
     given = [x for x in (_clean(d) for d in decisions or []) if x]
     if k is None:
         return {"decisions": given or None, "confirmed": confirmed or None, "seq": 0}
-    with _LOCK:
-        f = _flow(k)
-        last = given[-1] if (tapped and given) else None
+    last = given[-1] if (tapped and given) else None
+
+    def apply(f: dict) -> dict:
         for d in given:
             if d is last or d["item"] not in f["decisions"]:
-                f["decisions"][d["item"]] = {**d, "link": _link_of(d["item"], confirmed), "seq": _next()}
+                f["decisions"][d["item"]] = {**d, "link": _link_of(d["item"], confirmed), "seq": _next(f)}
         f["step"] = step or f["step"]
-        f["seq"] = _next()
+        f["seq"] = _next(f)
         return _view(f, confirmed)
+    return _change(k, apply)
 
 
 def _view(f: dict, confirmed=None) -> dict:
@@ -123,6 +170,10 @@ def state(who: str, workspace, source, schema) -> dict | None:
     k = _key(who, workspace, source, schema)
     if k is None:
         return None
+    store = _shared()
+    if store is not None:
+        got = store.get("flow", _rk(k))
+        return _view(got[0]) if got else None
     with _LOCK:
         f = _flow(k, create=False)
         return _view(f) if f else None
@@ -138,8 +189,10 @@ def accepted_links(who: str, workspace, source, schema) -> list[dict]:
 
 
 def clear() -> None:
+    """Forget every flow kept in memory, and decide again from the environment which store to use."""
     with _LOCK:
         _FLOWS.clear()
+        _SHARED[0], _SHARED[1] = None, False
 
 
 def leave_out(plan, items: set[str]):

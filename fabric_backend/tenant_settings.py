@@ -170,6 +170,25 @@ def for_outputs(outputs) -> list[dict]:
     return list(seen.values())
 
 
+# BL40: the short names the dry run's one line uses (the full names are in SETTINGS and the admin request).
+SHORT = {"fabric_items": "Fabric items", "ontology": "Ontology (preview)", "copilot": "Copilot",
+         "copilot_capacity": "Copilot capacities", "aoai_process": "Azure OpenAI processing",
+         "aoai_store": "Azure OpenAI storage"}
+# BL40: the outputs each creating tool of the guided path builds (start_flow.BUILDS)
+TOOL_OUTPUTS = {"create_pipeline": ["notebook", "pipeline"], "create_semantic_model": ["semantic_model"],
+                "create_report": ["report"], "create_backend": ["graphql_api"], "create_ontology": ["ontology"],
+                "create_data_agent": ["data_agent"]}
+
+
+def dry_run_line(outputs) -> str:
+    """BL40 (C-29): the dry run's one line on tenant settings, at most 25 words: which settings the outputs need, and
+    that their live value could not be read (it takes a Fabric admin). It never blocks the dry run."""
+    names = [SHORT.get(r["setting_id"], r["setting"]) for r in for_outputs(outputs)]
+    if not names:
+        return "Needs no tenant setting."
+    return f"Needs tenant settings: {', '.join(names)}. Not checked; ask your admin if Create fails."
+
+
 def no_setting(outputs) -> list[str]:
     """The labels of the given outputs that need no tenant setting."""
     return [OUTPUTS[o] for o in _check_outputs(outputs) if all(sid is None for sid, _, _ in REQUIRED[o])]

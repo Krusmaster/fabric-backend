@@ -198,8 +198,20 @@ without an orphan. Not run on a `$metadata` exported from a real environment.
 **Limits.** The type column of a multi-table lookup is read as `<lookup>type` (`customeridtype`), as the pack and the
 demo do; that spelling is still **unverified** (the table above). Learn says `systemuser` and `team` take their key
 `ownerid` from the abstract `principal`; a lake that lands `systemuserid` then reports the table as not matched rather
-than guessing. Only the first `Schema` namespace is read. The candidates are not fed to the plan yet: that is the next
-step, after the smooth chain, because it touches `infer.py`.
+than guessing. Only the first `Schema` namespace is read.
+
+**Fed to the plan (round BL42, 23 November 2026).** `dataverse_meta.plan(schema, model)` gives the plan with the declared
+keys and plain lookups first, the way `csn.plan` does for a CSN: rule "Dataverse metadata", and `validate_plan` counts
+them in your rows like any other link. Multi-table lookups and many-to-manys stay in the report (`plan.dataverse`), not
+applied; a key you give still wins. From the command line:
+
+```bash
+krusgraph plan --folder ./landing --dataverse-metadata metadata.xml
+```
+
+It takes a saved file and refuses a URL. Unit tests only (`tests/test_bl42_dataverse_plan.py`, synthetic metadata and
+demo lake). Next: read the file from the lakehouse's Files in the hosted tools and the workload item (`server.py`), as
+the CSN file is.
 
 ## Next
 

@@ -12,7 +12,7 @@ The model uses eight tables: KNA1 (customers), MARA (materials), VBAK and VBAP (
 
 ## Step 1: check the keys against the rows
 
-A relationship in Power BI needs a one side that is unique. Before building anything, count it. On the sample, `validate_plan` reported "12 of 12 keys unique, 15 of 19 relationships hold without orphans". Among the four relationships that do not hold: 3 order items (VBAP) whose order is missing from VBAK. In a report those items appear under a blank order, and their value is not in any order's total.
+A relationship in Power BI needs a one side that is unique. Before building anything, count it. On the sample, `validate_plan` reported "Keys: 12 of 12 hold. Links: 15 of 19 hold, 4 fail." Among the four relationships that do not hold: 3 order items (VBAP) whose order is missing from VBAK. In a report those items appear under a blank order, and their value is not in any order's total.
 
 Power BI refuses a relationship whose one side has duplicates. If a key is not unique in your data, find out why first, for example an extract that has kept old versions of a row.
 
