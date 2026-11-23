@@ -216,13 +216,39 @@ only, never a row value) and why; the README has the same table under "What the 
 (n226) the counts are read on the source plan's columns and the entry names them (`counted_columns`).
 
 Unchanged: without counts, or with an answer that counted none of the model's links, the forest by certainty decides
-exactly as before, byte for byte. The model on gold views (DPM1) keeps the forest too: its tables are the gold views,
-not the counted ones. Where the counts agree with the forest, the relationships are written in the same order.
+exactly as before, byte for byte. Where the counts agree with the forest, the relationships are written in the same order.
 
-Not yet: `analyze_schema` and `join_path` still rank by certainty (with `verified` from the count, as before), so with
-counts the model's active set and `analyze_schema`'s can differ; `plan_backend` does not list R3's several targets under
-`ambiguous` (XB1 in the plan itself); a threshold for a link where most rows point at nothing is not set (one match is enough
-to be "counted with matches"; the share only breaks ties after evidence, origin and shape).
+### Follow-ups decided on 23 November 2026 (round BL63; unit tests only, not run in Fabric)
+
+Gustav decided BL51's open questions:
+
+1. **A confirmed link with no match stays inactive, with a warning.** A declared or confirmed link (R0, `confirmed`,
+   `decided`) that `validate_plan` counts with no match at all is not made active. It carries a warning in words with the
+   counts (`graphs.confirmed_without_match`): in the model's summary (`active_by_counts.confirmed_without_match`, and
+   `warning` on its row), in the README under "What the counts decided", in `analyze_schema`'s answer and in
+   `validate_plan`'s answer (`confirmed_without_match`). It is warned about even when the link cannot be a relationship of
+   the model (on `shop_faults` the customers key is not unique in the rows). Counts only, never a row value.
+2. **No threshold.** One matching row is "counted with matches"; the share of matching rows only breaks ties after
+   evidence, origin and shape.
+3. **The model on gold, `analyze_schema` and `join_path` follow the same counted active set.** The model on the gold
+   views (DPM1) counts each gold relationship as the source link it was made from (`gold_model`'s `made_from`: a line
+   view's customer column is its header's link to the customer; the summary entry names it as `counted_link`), so on
+   `sap_sd` every item view keeps both its customer and its material, where the forest cut one. `graphs.analyze` (behind
+   `analyze_schema` and the data dictionary) uses the same active set when it is given counts, and says so in its
+   summary. `paths.join_path` with counts marks every step `active` (with `inactive_why`), and its `safest` path goes
+   over the active relationships where they connect the two tables (on `sap_sd`, `ZSD_ORDER_EXT` to `LIKP` goes through
+   `VBAK` and `KNA1`, not over the R3 guess with 0 of 301 matches); where only an inactive link connects them, it says
+   that the model needs USERELATIONSHIP there.
+
+Changed answers with counts (intended, in the golden files): the shop's model on gold (`demo.json`,
+`dpm1_shop_model_on_gold.json`: `order_items -> customers` and `orders`' date are active, `addresses -> customers` is
+not) and the data dictionary with `validate=true` (`hosted_tools.json`, `local_tools.json`: the summary line and, on
+the hosted shop, which link of the one cycle is inactive). Without counts every answer is as before.
+
+Not yet: `plan_backend` does not list R3's several targets under `ambiguous` (XB1 in the plan itself; the model and the
+other answers handle it by the counts); the hosted `analyze_schema` and `join_path` tools take no counts themselves,
+so the counted set applies where an answer of `validate_plan` is passed to the functions (the model, the data
+dictionary, the demo).
 
 ## Large schemas: time and answer size
 

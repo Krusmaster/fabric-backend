@@ -1275,6 +1275,8 @@ def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema 
     if prof is not None:
         out["column_profile"] = prof
     _with_products(out, products)
+    if (warned := _graphs.confirmed_without_match(p, full_checks)):   # BL63: a confirmed link with no match, said loudly
+        out["confirmed_without_match"] = warned
     from . import csn_onelake as _csn_onelake
     if (csn_digest := _csn_onelake.digest(p)):                         # CSN2: the CSN's keys and links, and their files
         out["csn"] = csn_digest
