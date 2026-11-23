@@ -332,8 +332,36 @@ async function main() {
     }
     await shot(r, "11b-product-health", true);
     const health = said.join("; ");
+    // W3 (Gustav, 23 November 2026): Publish to OneLake catalog: after Prepare, the box and Write sit under Prepare again,
+    // after a summary and "See the N changes", before the list; the words beside Write say what is missing
+    let catalog = "";
+    const prep = r.getByRole("button", { name: "Prepare (nothing is written)", exact: true }).first();
+    if (await prep.count()) {
+      await prep.click();
+      await r.getByRole("button", { name: "Prepare again", exact: true }).first().waitFor({ timeout: 60000 });
+      await settle(r, 1000);
+      if (!BEFORE) {
+        const order = await r.evaluate(() => {
+          const all = Array.from(document.querySelectorAll("*"));
+          const at = (el) => all.indexOf(el);
+          const prepare = Array.from(document.querySelectorAll("button")).find((b) => b.textContent.trim() === "Prepare again");
+          const gate = document.querySelector("[data-w3=write-gate]");
+          const write = gate && Array.from(gate.querySelectorAll("button")).find((b) => /^Write \d+ changes? as me$/.test(b.textContent.trim()));
+          const list = document.getElementById("kg-catalog-diff");
+          const why = document.getElementById("kg-catalog-why");
+          return { gate: !!gate, write: !!write, before: !!(prepare && write && list && at(prepare) < at(write) && at(write) < at(list)),
+            link: gate && gate.querySelector("a.kg-catalog-see") ? gate.querySelector("a.kg-catalog-see").textContent : "",
+            why: why ? why.textContent : "", model: document.body.innerText.includes("This Krusgraph Model item") };
+        });
+        expectTrue(order.gate && order.write, "no box and Write beside Prepare again");
+        expectTrue(order.before, "Write is not between Prepare again and the list of changes");
+        catalog = `; catalog: Write beside Prepare again, link "${order.link || "none (nothing to write)"}", beside Write: "${order.why}"` +
+          (order.model ? ", the Model item's own description listed" : "");
+      }
+      await shot(r, "11c-catalog", true);
+    }
     await r.close();
-    return `11-product.png; ${health}`;
+    return `11-product.png; ${health}${catalog}`;
   });
   await p.close();
 

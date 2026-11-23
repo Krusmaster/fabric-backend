@@ -2,9 +2,9 @@
 validate_plan's counts. A card holds what a catalog entry needs and nothing Krusgraph cannot back:
 
 - a plain description (what it is, its tables, and one dated line of what was counted), at most 256 characters, the
-  limit of Fabric's Update Item description;
+  limit of Fabric's Update Item description; never the owner's name (W3);
 - the owner the person named, or "not chosen yet" (Fabric has no owner field to write: the card carries it to the
-  handover files and the ODCS contract);
+  handover files and the ODCS contract, never into a description);
 - the proposed Fabric domain (a proposal: creating domains and assigning workspaces is for a Fabric or domain admin);
 - tags: stable facts only (`Krusgraph`, the product's name), never a health word: a tag carries no date;
 - the ODCS v3.2.0 contract domain_draft writes for the same grouping;
@@ -172,12 +172,12 @@ def owner_name(owner: str | None) -> str | None:
     return v or None
 
 
-def description(name: str, tables: list[str], schema: str, ev: dict, owner: str | None) -> str:
+def description(name: str, tables: list[str], schema: str, ev: dict) -> str:
+    """W3 (Gustav's run of 23 November 2026): no owner in the text. The owner is the card's own field (and the contract's
+    and the handover's); written into a description, a later owner change would leave a stale name behind."""
     ents = [words(entity_name(t)) for t in tables]
-    shown = owner_name(owner)
-    who = f" Owner: {shown}." if shown else ""
     head = f"Data product {name} ({schema}):"
-    tail = f" Checked by Krusgraph: {ev['line']}.{who}" if ev["counted"] else f" Krusgraph: {ev['line']}.{who}"
+    tail = f" Checked by Krusgraph: {ev['line']}." if ev["counted"] else f" Krusgraph: {ev['line']}."
     return _fit(f"{head} {', '.join(ents)}.{tail}", f"{head} {len(tables)} tables.{tail}", f"{head}{tail}")
 
 
@@ -224,7 +224,7 @@ def cards(p, schema: str, source: str = "", validation: dict | None = None, chec
         ev = evidence(validation, dom["tables"], checked_on, d["domains_as_products"], name)
         out.append({
             "name": name, "slug": dom["slug"], "tables": dom["tables"],
-            "description": description(name, dom["tables"], schema, ev, owner),
+            "description": description(name, dom["tables"], schema, ev),
             "owner": owner_name(owner) or "not chosen yet",
             **({"owner_contact": owner} if owner and owner != owner_name(owner) else {}),
             "domain": {"proposed": dom["name"], "why": dom["name_reason"],

@@ -213,6 +213,8 @@ export interface OutputsDefinition {
   plan?: { plan_id: string; at: string };
   /** W2: how often the data agent's tables were selected again after the run (afterRun.MAX_SELECT_TRIES bounds it) */
   agent_tables?: { tries: number; at: string };
+  /** W3: the milestones Onto has cheered in the latest Create (cheer.ts), so none cheers twice */
+  cheered?: { create: string; said: string[] };
 }
 
 /** n184: as createWords.LastCreate; read through createWords.readLastCreate, which checks its shape. */

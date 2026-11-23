@@ -73,9 +73,11 @@ def test_the_editor_draws_the_3d_figures_not_the_flat_svg():
     for kind in KINDS:
         assert f'{kind}: "/assets/mascots/{kind}.png"' in fig
     assert 'alt=""' in fig and 'aria-hidden="true"' in fig and "data-pose" in fig
+    # W3: MascotSays (the bubble with its figure) lives in mascotFigure.tsx, so the cheer line can use it too
+    assert "<MascotFigure " in fig and "export function MascotSays" in fig
     for name in ("ModelItemViews.tsx", "FlowView.tsx"):
         src = (app / name).read_text(encoding="utf-8")
-        assert "MASCOT_SVG" not in src and "<MascotFigure " in src, name
+        assert "MASCOT_SVG" not in src and ("<MascotFigure " in src or "<MascotSays " in src), name
     scss = (app / "ModelItem.scss").read_text(encoding="utf-8")
     assert "prefers-reduced-motion: reduce" in scss and "krusgraph-hop" in scss
     # the on/off switch is the same as before

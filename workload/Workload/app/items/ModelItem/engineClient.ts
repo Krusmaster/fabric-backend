@@ -651,7 +651,7 @@ export function engineScope(
 
 export type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
-type Route = "review" | "check" | "build" | "schemas" | "pipeline-run" | "operation" | "product" | "health" | "access" | "drawio" | "verify" | "catalog" | "file" | "starter" | "analysis" | "run" | "sap-demo" | "selfcheck";
+type Route = "review" | "check" | "build" | "schemas" | "pipeline-run" | "operation" | "product" | "health" | "access" | "drawio" | "verify" | "catalog" | "file" | "starter" | "analysis" | "run" | "sap-demo" | "selfcheck" | "agent-publish";
 
 /** n197: send the request in the background (202 and an operation id) and read the operation until it ends; an engine
  * that answers at once (200, an older server, or no store for operations) is taken as it answers. */
@@ -1027,6 +1027,13 @@ export function verify<T>(workloadClient: WorkloadClientAPI, body: object, fetch
  * confirm is sent back; the engine writes only in a workspace its operator allows. Counting may take a while. */
 export function catalog<T>(workloadClient: WorkloadClientAPI, body: object, fetchImpl?: Fetch, opts: CallOptions = {}): Promise<T> {
   return call<T>(workloadClient, "catalog", body, REQUEST_WAIT_MS, fetchImpl, opts);
+}
+
+/** W3: the data agent card's "Make it available in Copilot" (POST /workload/v1/agent-publish, workload_api.run_agent_publish):
+ * a dry run that reads the agent and Microsoft 365 Copilot's requirements; with dry_run false and the dry run's confirm,
+ * publishing in Fabric once. Only ever sent on the person's click. */
+export function agentPublish<T>(workloadClient: WorkloadClientAPI, body: object, fetchImpl?: Fetch): Promise<T> {
+  return callOnce<T>(workloadClient, "agent-publish", body, REQUEST_WAIT_MS, fetchImpl ?? ((u, i) => fetch(u, i)), false);
 }
 
 /** WB10 (#57): a file the editor offers, kept by the engine ten minutes behind a signed single-use link

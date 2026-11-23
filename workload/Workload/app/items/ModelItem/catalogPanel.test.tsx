@@ -112,6 +112,8 @@ describe("CatalogView", () => {
     expect(write.hasAttribute("disabled")).toBe(false);
     await act(async () => { write.click(); });
     expect(run).toHaveBeenLastCalledWith({ dryRun: false, confirm: "catalog-abc", owner: null, include: [] });
-    expect(host.textContent).toContain("shop_model, description: written");
+    // W3: Onto's cheer and the receipt in one line, in place of the bare "x, description: written" list
+    expect(host.textContent).toContain("Done! 1 description is in the OneLake catalog.");
+    expect(host.textContent).toContain("Written: shop_model (description).");
   });
 });

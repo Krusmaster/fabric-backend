@@ -235,6 +235,11 @@ REGISTRATION_ENV = ("KRUSGRAPH_CLIENT_REGISTRATION", "KRUSGRAPH_CLIENT_REGISTRAT
 # list) and kept by --update, with one line asking the operator to add the key; an explicit false leaves it out.
 OPERATOR_FLAGS = {"mcp_apps": "KRUSGRAPH_MCP_APPS", "read_only": "KRUSGRAPH_READ_ONLY", "no_row_values": "KRUSGRAPH_NO_ROW_VALUES",
                   "pipeline_execute": "KRUSGRAPH_PIPELINE_EXECUTE"}     # n220: the app holds DataPipeline.Execute.All
+# W3: operator settings that hold a value rather than a switch. KRUSGRAPH_CATALOG_WRITE_WORKSPACES is the comma-separated
+# list of workspace ids where "Publish to OneLake catalog" may write (fabric_backend/catalog_publish/writes.py); it is set
+# by hand on the app, so a full run carries it over like a hand-set switch (the manifest replaces the whole list) and
+# --update keeps it. A key in deploy/krusgraph.json sets it; an empty value there leaves it out of a full run.
+OPERATOR_VALUES = {"catalog_write_workspaces": "KRUSGRAPH_CATALOG_WRITE_WORKSPACES"}
 
 
 def flag_on(variable: str, value) -> bool:
@@ -252,6 +257,11 @@ def carried_flags(config, old_env: dict) -> dict:
             carried[variable] = old_env[variable].strip()
             print(f"Behåller {variable}={carried[variable]} som sattes för hand i appen; lägg till \"{key}\": true i deploy/krusgraph.json.",
                   flush=True)
+    for key, variable in OPERATOR_VALUES.items():            # W3: a value set by hand (the catalog's write list)
+        if key not in config and (old_env.get(variable) or "").strip():
+            carried[variable] = old_env[variable].strip()
+            print(f"Behåller {variable}={carried[variable]} som sattes för hand i appen; lägg till \"{key}\": \"{carried[variable]}\" "
+                  "i deploy/krusgraph.json.", flush=True)
     return carried
 
 
@@ -516,6 +526,9 @@ def plain_env(config, build=None):
     for key, variable in OPERATOR_FLAGS.items():
         if config.get(key) is True:
             env[variable] = "1"
+    for key, variable in OPERATOR_VALUES.items():   # W3: e.g. catalog_write_workspaces, set only when filled in
+        if str(config.get(key) or "").strip():
+            env[variable] = str(config[key]).strip()
     if config.get("ontology_write"):          # offers create_ontology; only useful once the Entra app holds Item.ReadWrite.All
         env["KRUSGRAPH_ONTOLOGY_WRITE"] = "1"
     env.update(workload_env(config))          # n168: the hosted editor and its engine API (workload_client_id, ...)

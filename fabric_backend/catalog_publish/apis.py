@@ -54,7 +54,8 @@ ROLES = [
     {"action": "Set an item's description", "api": "PATCH /v1/workspaces/{ws}/items/{id} (Update Item)",
      "who": "read and write permission on the item", "by": "you",
      "scopes": "Item.ReadWrite.All or <itemType>.ReadWrite.All", "limit": "256 characters", "source": "update_item",
-     "krusgraph": "writes it after the dry run (descriptions of items it built, or of items with none)"},
+     "krusgraph": "writes it after the dry run (descriptions of items it built, of the Krusgraph Model item itself, or "
+                  "of items with none)"},
     {"action": "List the tenant's tags (to find a tag's id)", "api": "GET /v1/tags (List Tags)",
      "who": "no role named", "by": "you", "scopes": "Tag.Read.All", "limit": "25 requests a minute",
      "source": "list_tags", "krusgraph": "reads it when the token has Tag.Read.All; the apps do not ask for it today, "
@@ -86,7 +87,7 @@ ROLES = [
      "by": "reviewer", "scopes": "-", "limit": "-", "source": "endorsement", "krusgraph": "never"},
     {"action": "Set the owner or contact", "api": "none found (Update Item has displayName and description only)",
      "who": "-", "by": "you", "scopes": "-", "limit": "-", "source": "update_item",
-     "krusgraph": "puts the owner in the description, the contract and the handover files"},
+     "krusgraph": "keeps the owner on the card, in the contract and the handover files; never in a description (W3)"},
     {"action": "Find items in the catalog", "api": "POST /v1/catalog/search (preview)",
      "who": "returns only what the caller can access", "by": "you", "scopes": "Catalog.Read.All",
      "limit": "searches name, workspace name and description; not tags", "source": "catalog_search",

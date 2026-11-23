@@ -25,6 +25,7 @@ from fabric_backend.workload_api import BadRequest
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "workload" / "Workload" / "app"
 PAGES = ROOT / "tests" / "fixtures" / "n225"
+PAGE_NAMES = ("review", "outputs", "product", "catalog", "catalog-gate", "catalog-written", "copilot")
 WS = "aaaaaaaa-0000-4000-8000-000000000001"
 ITEM = "cccccccc-0000-4000-8000-000000000003"
 
@@ -112,11 +113,12 @@ def runs():
 
 
 def test_the_pages_are_rendered():
-    assert {p.stem for p in PAGES.glob("*.html")} == {"review", "outputs", "product", "catalog"}   # CA1: the catalog step
+    # CA1: the catalog step; W3: the catalog's write beside Prepare again, its finish, and the agent's Copilot step
+    assert {p.stem for p in PAGES.glob("*.html")} == set(PAGE_NAMES)
 
 
 def test_no_horizontal_scroll_at_375_412_and_1280(runs):
-    assert {(r["file"], r["width"]) for r in runs} == {(f"{p}.html", w) for p in ("review", "outputs", "product", "catalog") for w in (375, 412, 1280)}
+    assert {(r["file"], r["width"]) for r in runs} == {(f"{p}.html", w) for p in PAGE_NAMES for w in (375, 412, 1280)}
     for r in runs:
         assert r["scroll"] <= 0, (r["file"], r["width"], r["scroll"])
         assert r["wide"] == [], (r["file"], r["width"], r["wide"])

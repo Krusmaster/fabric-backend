@@ -20,6 +20,8 @@ import { ReviewFile, ReviewItem, SourceDefinition, OutputsDefinition } from "./M
 import { OUTPUTS, STATUS } from "./productPage.fixture";
 import { APP_BEFORE_CREATE } from "./appWords";
 import { CatalogView } from "./CatalogPanel";
+import { CopilotStepView } from "./CopilotStep";
+import type { CopilotAnswer } from "./copilotWords";
 import type { CatalogAnswer } from "./catalogWords";
 
 const ROOT = path.resolve(process.cwd(), "../..");
@@ -101,6 +103,26 @@ const CATALOG: CatalogAnswer = {
   note: "Nothing was created or changed in Fabric.",
 };
 
+/** W3: the Copilot step's dry run, with a long agent name. */
+const COPILOT: CopilotAnswer = {
+  name: `${LONG}_agent`, workspace: "11111111-2222-4333-8444-555555555555", agent_id: "dddddddd-0000-4000-8000-0000000000a1",
+  published: false, confirm: "agent-0123abcd", missing: 1, unverified: 2,
+  preflight_words: "Missing for Microsoft 365 Copilot: Paid capacity, F2 or higher (or P1 or higher) (the workspace is on a trial capacity (FT1))",
+  requirements: [
+    { requirement: "Paid capacity, F2 or higher (or P1 or higher)", status: "missing", detail: "the workspace is on a trial capacity (FT1)",
+      doc: "https://learn.microsoft.com/fabric/data-science/data-agent-microsoft-365-copilot" },
+    { requirement: "Microsoft Copilot licence (or Office 365 commercial subscription) and a user licence per person", status: "unverified",
+      detail: "Unverified: licences are not readable through Fabric's API", doc: "https://learn.microsoft.com/fabric/data-science/data-agent-microsoft-365-copilot" },
+  ],
+  plan: [
+    { step: `Publish ${LONG}_agent in Fabric, so people with access to the workspace can use it`, by: "Krusgraph, as you",
+      how: "Publish data agent (POST .../dataAgents/{id}/staging/publish)", scope: "Item.ReadWrite.All (or DataAgent.ReadWrite.All)" },
+    { step: `Make ${LONG}_agent available in Microsoft 365 Copilot`, by: "you, in Fabric",
+      how: "In Fabric, open the agent → Publish → tick Publish to Agent Store → Publish. Krusgraph cannot do this step: Microsoft documents no API for it.", scope: null },
+  ],
+  copilot_step: "In Fabric, open the agent → Publish → tick Publish to Agent Store → Publish. Krusgraph cannot do this step: Microsoft documents no API for it.",
+};
+
 export const PAGES: Record<string, () => React.ReactElement> = {
   review: () => (
     <ReviewView source={SOURCE} review={REVIEW} answered={{}} checking={false} mascotsOn={false} onToggleMascots={noop}
@@ -121,6 +143,18 @@ export const PAGES: Record<string, () => React.ReactElement> = {
   catalog: () => (
     <CatalogView answer={CATALOG} busy={false} owner="" checked={false} onOwner={noop} onPrepare={noop} onChecked={noop} onWrite={noop} />
   ),
+  // W3: writing on: the box and Write under Prepare again, after the summary and the link to the changes
+  "catalog-gate": () => (
+    <CatalogView answer={{ ...CATALOG, writable: true }} busy={false} owner="" checked={false} onOwner={noop} onPrepare={noop} onChecked={noop} onWrite={noop} />
+  ),
+  // W3: after the write: the cheer, the receipt and the button to the workspace
+  "catalog-written": () => (
+    <CatalogView answer={{ ...CATALOG, writable: true, workspace: "11111111-2222-4333-8444-555555555555",
+      results: [{ item: `${LONG}_model`, field: "description", ok: true, status: 200 }, { item: SOURCE.displayName, field: "tags", ok: true, status: 200 }] }}
+      written busy={false} owner="" checked={false} onOwner={noop} onPrepare={noop} onChecked={noop} onWrite={noop} />
+  ),
+  // W3: the data agent's Make it available in Copilot, after its dry run
+  copilot: () => <CopilotStepView answer={COPILOT} busy={false} ticked={false} onPrepare={noop} onTicked={noop} onPublish={noop} />,
 };
 
 describe("the editor's pages on a phone, rendered", () => {

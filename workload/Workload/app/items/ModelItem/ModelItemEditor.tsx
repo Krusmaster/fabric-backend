@@ -17,7 +17,7 @@
  * them in order and keeps the created ids and the product in outputs.json. Re-opened, the item shows its product and
  * offers Update where the output's tool updates in place, a new name where it does not (a report).
  */
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { NotificationType } from "@ms-fabric/workload-client";
 import {
@@ -88,6 +88,10 @@ import { accessLine } from "./accessWords";
 import { DrawioContext, DrawioFile, DrawioSource } from "./drawioDownload";
 import { VerifyAnswer, VerifyContext, VerifySource } from "./verifyBuilt";
 import { CatalogContext, CatalogPanel, CatalogSource } from "./CatalogPanel";
+import { CheerBook, Milestone, cheeredBefore, readCheered, withCheer } from "./cheer";
+import { CheerContext, CheerSource } from "./cheerView";
+import { AgentPublishContext, AgentPublishSource } from "./CopilotStep";
+import type { CopilotAnswer } from "./copilotWords";
 import { FileContext, FileLink, FileSource, OneLakeContext, OneLakeSaveSource } from "./fileOffer";
 import { STORAGE_SCOPE, saveEnabled } from "./onelakeSave";
 import type { CatalogAnswer } from "./catalogWords";
@@ -1600,12 +1604,38 @@ export function ModelItemEditor(props: PageProps) {
       itemNames: catalogItems ? catalogItems.split("\n") : [],
       run: ({ dryRun, confirm, owner, include }) => {
         const d = defRef.current;
+        // W3: item_id, so the Krusgraph Model item's own description is in the dry run (and written the same way)
         return engine.catalog<CatalogAnswer>(workloadClient, { ...sourceRequest(d), review: d.review, outputs: { created: d.outputs.created },
-          owner: owner ?? null, dry_run: dryRun, confirm: confirm ?? null, include: include ?? [] });
+          owner: owner ?? null, dry_run: dryRun, confirm: confirm ?? null, include: include ?? [],
+          ...(metaRef.current?.id ? { item_id: metaRef.current.id } : {}) });
       },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [workloadClient, catalogOwner, catalogPeople, catalogYou, catalogItems]
+  );
+
+  // W3: the happy mascot line at three milestones, once per Create (cheer.ts); outputs.json `cheered` remembers them
+  const cheerBook = useRef(new CheerBook());
+  const cheerCreate = readRun(def.outputs.create_run)?.id ?? "item";
+  const cheerBefore = readCheered(def.outputs.cheered);
+  const recordCheer = useCallback((m: Milestone) => {
+    const d = defRef.current;
+    const create = readRun(d.outputs.create_run)?.id ?? "item";
+    if (cheeredBefore(readCheered(d.outputs.cheered), create, m)) return;
+    void update((x) => ({ ...x, outputs: { ...x.outputs, cheered: withCheer(readCheered(x.outputs.cheered), create, m) } }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const cheerSource = useMemo<CheerSource>(
+    () => ({ on: mascotsOn, create: cheerCreate, before: cheerBefore, book: cheerBook.current, record: recordCheer }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mascotsOn, cheerCreate, cheerBefore?.create, cheerBefore?.said.join(","), recordCheer]
+  );
+
+  // W3: the data agent card's Make it available in Copilot (CopilotStep.tsx): a dry run first, publishing only on a click
+  const agentSourceName = def.source?.displayName;
+  const agentPublishSource = useMemo<AgentPublishSource>(
+    () => ({ run: (body) => engine.agentPublish<CopilotAnswer>(workloadClient, body), source: agentSourceName }),
+    [workloadClient, agentSourceName]
   );
 
   // WB10 (#57): every download goes through the engine's single-use link, opened by the Fabric host in a new tab
@@ -1679,6 +1709,8 @@ export function ModelItemEditor(props: PageProps) {
     <DrawioContext.Provider value={drawioSource}>
     <VerifyContext.Provider value={verifySource}>
     <CatalogContext.Provider value={catalogSource}>
+    <CheerContext.Provider value={cheerSource}>
+    <AgentPublishContext.Provider value={agentPublishSource}>
     <ItemEditor
       isLoading={isLoading}
       loadingMessage="Opening the model…"
@@ -1690,6 +1722,8 @@ export function ModelItemEditor(props: PageProps) {
         if (!setView) setSetView(() => setter);
       }}
     />
+    </AgentPublishContext.Provider>
+    </CheerContext.Provider>
     </CatalogContext.Provider>
     </VerifyContext.Provider>
     </DrawioContext.Provider>

@@ -46,7 +46,7 @@ def ours(item: dict, created_ids: set[str]) -> bool:
 
 
 _ours = ours
-OURS_START = ("Data product ", "Data products ")
+OURS_START = ("Data product ", "Data products ", "Krusgraph data product ", "Krusgraph data products ")   # W3: the Model item's own sentence
 NOT_OURS_WHY = ("Krusgraph did not build {name}: its description and tags are its owner's, so nothing is written to it "
                 "unless you tick it")
 
@@ -152,6 +152,23 @@ def item_writes(workspace_id: str, item: dict, text, tag_names: list[str], tenan
     return writes, kept, missing
 
 
+def model_writes(workspace_id: str, item: dict, texts) -> list[dict]:
+    """W3 (Gustav's run of 23 November 2026: the Krusgraph Model item kept Fabric's "Make this item more discoverable by
+    adding a description"): the Model item's own description, the data product it holds, with the same call as every
+    other description (Items - Update Item, PATCH .../items/{id}, which Item.ReadWrite.All covers for any item type the
+    workspace lists, the workload's own included). A description only: no tags. A person's own first sentence is kept;
+    Krusgraph's earlier sentence is replaced. Shown in the diff, written only with the dry run's confirm."""
+    url = f"{FABRIC}/v1/workspaces/{item.get('workspace') or workspace_id}/items/{item['id']}"
+    before = item.get("description") or ""
+    after = new_description(item, texts, built=False)
+    if after == before:
+        return []
+    return [{"operation": "Items_UpdateItem", "method": "PATCH", "url": url, "body": {"description": after},
+             "item": item.get("displayName") or item["id"], "item_id": item["id"], "type": item.get("type"),
+             "field": "description", "before": before, "after": after, "model_item": True,
+             "undo": {"operation": "Items_UpdateItem", "method": "PATCH", "url": url, "body": {"description": before}}}]
+
+
 def confirm_of(workspace_id: str, writes: list[dict]) -> str:
     """A hash of exactly the writes shown: the write call must send it back, so what is written is what was seen."""
     core = [[w["method"], w["url"], w["body"], w["before"]] for w in writes]
@@ -163,8 +180,8 @@ def diff(writes: list[dict], kept: list[dict], optional: list[dict] | None = Non
     """One row per item and field, in the order the items were listed: what is there now and what would be there; then
     (WB10) one row per item Krusgraph did not build, unticked, with what would be written if it is ticked."""
     # WB11: each row says its item's Fabric type, so the editor shows that item type's icon beside the name
-    rows = [{"item": w["item"], "type": w.get("type"), "field": w["field"], "before": w["before"], "after": w["after"], "action": "write"}
-            for w in writes]
+    rows = [{"item": w["item"], "type": w.get("type"), "field": w["field"], "before": w["before"], "after": w["after"], "action": "write",
+             **({"model_item": True} if w.get("model_item") else {})} for w in writes]
     rows += [{"item": k["item"], "type": k.get("type"), "field": k["field"], "before": None, "after": k.get("suggested"), "action": "kept",
               "why": k["why"]} for k in kept]
     rows += [{"item": o["item"], "item_id": o["item_id"], "type": o.get("type"), "field": " and ".join(o["fields"]), "action": "optional",
