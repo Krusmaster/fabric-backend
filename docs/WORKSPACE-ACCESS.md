@@ -58,16 +58,24 @@ one; `privacy.label_of` only reads the label id an item already has.
 `workspace_access.markdown(outputs, groups=None)` writes one summary line per item (at most 25 words), the role per
 group, the bodies and the labels, and says that nothing is written.
 
-## What wiring into the dry run needs (after the chain)
+## Wiring into the dry run
 
-Not done in this round; it touches the chain's files, which SM7 holds tonight:
+Round BL54 (23 November 2026) wired it into the start flow's dry-run step (`start_flow.py`), on your own data and on
+the synthetic shop sample alike, next to BL40's tenant-settings line (`needs`):
 
-1. `start_flow.py`'s closing step (or the dry run of `create_semantic_model` in `server.py`) calls
-   `workspace_access.markdown(outputs)` with the outputs the plan will build, next to `tenant_settings.markdown`.
-2. The check card in `mcp_apps*.py` shows it as a collapsed "Who needs which role" section; the click-through
-   `tests/test_wb15_click_through.py` is kept green.
-3. A way to name the customer's own groups (a `groups` parameter) only after the tool texts are agreed.
-4. Assigning roles stays out: it needs `Workspace.ReadWrite.All` and Gustav's yes.
+- `access`: `workspace_access.dry_run_line(outputs)` for everything step 5 may create, at most 25 words, for example
+  "Workspace roles proposed: data engineers Contributor, report readers Viewer, access managers Member. Labels read,
+  never set (the report inherits the model's). Nothing is written."
+- `contract`: one line saying that an ODCS v3.1.0 data contract drafted from the counted checks
+  (`data_contract.draft`, round BL38) comes with the data product, and that nothing is written to Fabric.
+
+`tests/test_bl54_workspace_roles_dry_run.py` checks both lines on the `shop` sample and on the SAP demo behind
+`tests/wb15_fake.py`, and fails if any POST, PATCH, PUT or DELETE is made during the dry run. Still open:
+
+1. The Start card in `mcp_apps*.py` does not show the two lines yet (the tool's answer carries them); a collapsed
+   "Who needs which role" section is left for later, with `tests/test_wb15_click_through.py` kept green.
+2. A way to name the customer's own groups (a `groups` parameter) only after the tool texts are agreed.
+3. Assigning roles stays out: it needs `Workspace.ReadWrite.All` and Gustav's yes.
 
 ## Read on Microsoft Learn, 21 November 2026
 

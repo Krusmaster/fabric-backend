@@ -18,6 +18,7 @@ sets a label.
   as the Learn pages state it, and a "set by a person" line. Krusgraph never sets a label (`privacy.label_of` only
   reads the label id an item already has).
 - `markdown(outputs, groups=None)`: the dry run's text, one summary line of at most 25 words per item.
+- `dry_run_line(outputs, groups=None)`: the start flow's one line on its dry-run step (round BL54), at most 25 words.
 
 Read on Microsoft Learn on 21 November 2026 (READ_ON), each page's own date in LEARN:
 - "Roles in workspaces in Microsoft Fabric", fabric/fundamentals/roles-workspaces (2026-04-24): the capability table.
@@ -231,6 +232,17 @@ def _summary(item: dict, label: dict) -> str:
                                                                                           "label inheritance not stated")
     unv = " (unverified)" if any(r["status"] == UNVERIFIED for r in item["roles"]) else ""
     return f"{item['label']}: {roles}{unv}; {lab}; a person sets it."
+
+
+def dry_run_line(outputs, groups=None) -> str:
+    """BL54 (B-25): the start flow's dry-run line, at most 25 words: the role proposed per group for the workspace, that
+    labels are read and never set, and that nothing is written. Unknown outputs raise ValueError."""
+    p = propose(outputs, groups)
+    roles = ", ".join(f"{g['group']} {g['role']}" for g in p["groups"])
+    keys = set(_check_outputs(outputs))
+    inherit = " (the report inherits the model's)" if {"report", "semantic_model"} <= keys else ""
+    head = f"Workspace roles proposed: {roles}. " if roles else "No workspace role proposed. "
+    return f"{head}Labels read, never set{inherit}. Nothing is written."
 
 
 def markdown(outputs, groups=None) -> str:
