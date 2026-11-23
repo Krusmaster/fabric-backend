@@ -368,6 +368,87 @@ def confirmed_without_match(plan: Plan, validation: dict | None) -> list[dict]:
     return out
 
 
+R3_TARGETS_RULE = ("R3 links a table to every table whose composite key it holds, so the same columns can point at several "
+                   "tables (XB1). validate_plan counts every one of them in the same answer, and the counts decide (BL51 rule 2): "
+                   "the links counted with no match are refuted; when exactly one is left with matches, it is the one; when two "
+                   "or more have matches, none is guessed and a person chooses with `confirmed`; a declared or confirmed link of "
+                   "the group is the one. The plan itself is unchanged: plan_backend still lists every target, and the semantic "
+                   "model with counts makes only the chosen one active.")
+
+
+def r3_targets(plan: Plan, validation: dict | None, tables: set[str] | None = None) -> list[dict]:
+    """E5 (XB1, Gustav's option (b)): for every group of the same source columns pointing at several tables, at least one
+    by R3, what validate_plan's counts decide, by BL51's rule 2 (the same rule counted_forest applies to the model):
+    {"source", "columns", "decision", "chosen" (a table or None), "candidates" (a person chooses among them, for
+    `person_chooses`), "targets": [{"target", "rule", "state", "rows_with_value", "orphans", "matched", "said"}], "why"}.
+    decision: "counts_pick" (exactly one counted with matches), "declared" (a declared or confirmed link of the group),
+    "person_chooses" (two or more counted with matches), "refuted" (every one counted with no match) or "not_decided"
+    (none with matches, and some not counted or with no rows to check). [] without counts or without such a group, so
+    an answer without one is as before. `tables`: only groups whose source and targets are all among them. Counts only,
+    never a row value."""
+    if not validation or not validation.get("relationships"):
+        return []
+    groups: dict[tuple, list[Relationship]] = {}
+    for r in plan.relationships:
+        groups.setdefault((r.source, tuple(c.lower() for c in r.source_cols)), []).append(r)
+    counts_of = None
+    out = []
+    for (source, _cols), members in groups.items():
+        if len({m.target for m in members}) < 2 or not any(m.rule == "R3" for m in members):
+            continue
+        if tables is not None and not ({source} | {m.target for m in members}) <= tables:
+            continue
+        counts_of = counts_of if counts_of is not None else link_counts(plan, validation)
+        counted = [(m, counts_of.get(m.key)) for m in members]
+        if not any(c and c["state"] != "not_counted" for _m, c in counted):
+            continue                                       # none of the group counted in this answer: nothing to say
+
+        def matched(c: dict | None) -> bool:
+            if not c or c["state"] not in ("holds", "fails"):
+                return False
+            return c["state"] == "holds" if c["matched"] is None else c["matched"] > 0
+
+        def no_match(c: dict | None) -> bool:
+            return bool(c) and c["state"] == "fails" and bool(c["rows_with_value"]) and c["matched"] == 0
+
+        alive = [(m, c) for m, c in counted if not no_match(c)]
+        declared = [(m, c) for m, c in alive if m.rule in DECLARED]
+        winners = declared or [(m, c) for m, c in alive if matched(c)]
+        what = (f"{source}.{'+'.join(members[0].source_cols)} points at {len({m.target for m in members})} tables "
+                f"({', '.join(sorted({m.target for m in members}))})")
+        refuted = [m.target for m, c in counted if no_match(c)]
+        gone = f"; refuted, counted with no match: {', '.join(refuted)}" if refuted else ""
+        chosen, candidates = None, []
+        if len(winners) == 1:
+            w, c = winners[0]
+            chosen = w.target
+            decision = "declared" if declared else "counts_pick"
+            why = (f"{what}; the link to {w.target} is the one ({DECLARED_WORDS[w.rule] if declared else _count_said(c)})"
+                   f"{gone}; the semantic model with these counts makes only it active (BL51 rule 2)")
+        elif len(winners) > 1:
+            candidates = [m.target for m, _c in winners]
+            decision = "person_chooses"
+            why = (f"{what}, and the counts do not choose: "
+                   + "; ".join(f"{m.target}: {_count_said(c)}" for m, c in winners)
+                   + f"{gone}. Nothing is guessed and none is active: a person chooses one with `confirmed` (BL51 rule 2)")
+        elif len(refuted) == len(counted):
+            decision = "refuted"
+            why = (f"{what}, and every one is counted with no match{gone.replace('; refuted, counted with no match', ':')}; "
+                   "the R3 link is refuted and none is active (BL51 rule 1)")
+        else:
+            decision = "not_decided"
+            why = (f"{what}; none is counted with matches"
+                   + "".join(f"; {m.target}: {_count_said(c)}" for m, c in counted)
+                   + ". Counting the rest (validate_plan with the same tables) or `confirmed` decides")
+        out.append({"source": source, "columns": list(members[0].source_cols), "decision": decision, "chosen": chosen,
+                    **({"candidates": candidates} if candidates else {}),
+                    "targets": [{"target": m.target, "rule": m.rule, "state": (c or {}).get("state", "not_counted"),
+                                 "rows_with_value": (c or {}).get("rows_with_value"), "orphans": (c or {}).get("orphans"),
+                                 "matched": (c or {}).get("matched"), "said": _count_said(c)} for m, c in counted],
+                    "why": why})
+    return out
+
+
 def link_counts(plan: Plan, validation: dict | None) -> dict[tuple, dict]:
     """Relationship key -> the count of it in validate_plan's answer: {"state", "reason", "rows_with_value", "orphans",
     "matched"}. The state is counts.summary's (BL33: one count everywhere); the numbers are validate_plan's own."""

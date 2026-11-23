@@ -685,6 +685,9 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
     # whether or not it could be a relationship of the model (a key the rows show is not unique, or several columns).
     warned = [w for w in graphs.confirmed_without_match(on_gold["source_plan"] if on_gold and "source_plan" in on_gold else original,
                                                         validation) if w["source"] in names and w["target"] in names]
+    # E5 (XB1): the same columns pointing at several tables by R3, and what the counts decided between them (the active
+    # set above applies the same rule 2); only on the tables the counts were taken on, and only with counts.
+    r3 = graphs.r3_targets(original, validation, set(names)) if counted is not None and not on_gold else []
     ref_cols = {(r.source, r.source_cols[0].lower()) for r in single}
 
     measures = suggested_measures(plan, chosen, role_of, ref_cols, set(whole_quantities))
@@ -890,7 +893,10 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                  else "no rows to check" if x["state"] == "no_rows" else "not counted")
             readme.append(f"| `{x['source']}.{'+'.join(x['columns'])}` | `{x['target']}` | {x['state']}: {n} | "
                           f"{'yes' if x['active'] else 'no'} | {x['why']} |")
-    if warned:                                                   # BL63: a confirmed link with no match, said loudly
+        if r3:                                                   # E5 (XB1): several R3 targets, what the counts chose
+            readme += ["", "Columns that R3 links to several tables (the counts decide, BL51 rule 2):", ""]
+            readme += [f"- {x['why']}." for x in r3]
+    if warned:                                                 # BL63: a confirmed link with no match, said loudly
         readme += (["", "### What the counts decided"] if not counted else []) + [
             "", f"**Warning: {len(warned)} declared or confirmed relationship(s) counted with no match, not made active.**", ""]
         readme += [f"- {x['warning']}." for x in warned]
@@ -992,7 +998,8 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                "storage_mode": "directLake (SQL analytics endpoint)", "compatibility_level": COMPATIBILITY_LEVEL,
                "inactive": [{"source": r.source, "columns": r.source_cols, "target": r.target, "rule": r.rule, "why": why} for r, why in inactive],
                **({"active_by_counts": {"rule": COUNTED_SAID, "relationships": counted,
-                                        **({"confirmed_without_match": warned} if warned else {})}}
+                                        **({"confirmed_without_match": warned} if warned else {}),
+                                        **({"r3_targets": r3} if r3 else {})}}
                   if counted is not None else {"active_by_counts": {"confirmed_without_match": warned}} if warned else {}),
                "not_expressible": [{"source": r.source, "columns": r.source_cols, "target": r.target, "target_columns": r.target_cols,
                                     "rule": r.rule, "why": why_not(r), **({"key_not_unique": True} if r.target in dup else {})}
