@@ -1323,10 +1323,19 @@ export function ModelItemEditor(props: PageProps) {
     setChoices((cs) => cs.map((c) => ({ ...c, enabled: outputs.includes(c.type) })));
     go("outputs");
   };
-  /** ED3: Advanced analytics is one section on the Data product step; Next links there and scrolls to it. */
+  /** ED3: Advanced analytics is one section on the Data product step; Next links there and scrolls to it. The focus goes
+   * to its heading too: the button pressed is gone with the view, and a keyboard or screen reader user would otherwise
+   * start again at the top of the Data product page. It waits (up to 2 s) for the section to be on the page. */
   const goAnalytics = () => {
     if (view !== "product") { go("product"); void loadProduct(); }
-    setTimeout(() => document.getElementById("kg-advanced-analytics")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    let tries = 0;
+    const land = () => {
+      const heading = document.getElementById("kg-advanced-title");
+      if (!heading) { if (++tries < 40) setTimeout(land, 50); return; }
+      document.getElementById("kg-advanced-analytics")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      heading.focus({ preventScroll: true });
+    };
+    setTimeout(land, 50);
   };
   const nextPanel = (
     <NextStepsPanel review={def.review} created={def.outputs.created} source={def.source} onBuild={buildNext} onAnalytics={goAnalytics} now={new Date()} />

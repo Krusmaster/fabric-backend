@@ -208,12 +208,24 @@ async function main() {
       await card.getByRole("button", { name: /^Dry run/ }).click(); await settle(p, 2500);
       const dry = await card.locator(".kg-next-starter-said").innerText();
       const before = (await (await fetch(`${BASE}/e2e/log`)).json()).created.filter((c) => c === "notebooks").length;
-      expectTrue(dry.includes("Would create the notebook") && (dry.includes("trains no model") || dry.includes("only when you choose Run now")), `dry run said: ${dry}`);   // ED3 (#136) changed the sentence
+      // ED3: the dry run says what would be created and that it runs only on Run now; the card says Krusgraph trains no model
+      const note = await card.innerText();
+      expectTrue(dry.includes("Would create the notebook") && dry.includes("runs it only when you choose Run now"), `dry run said: ${dry}`);
+      expectTrue(note.includes("Krusgraph trains no model"), "the card does not say Krusgraph trains no model");
+      const name = (dry.match(/Would create the notebook (\S+)/) || [])[1];
       await card.getByRole("button", { name: /^Create / }).click(); await settle(p, 4000);
-      const said = await card.locator(".kg-next-starter-said").innerText();
       const after = (await (await fetch(`${BASE}/e2e/log`)).json()).created.filter((c) => c === "notebooks").length;
-      expectTrue(after === before + 1 && said.startsWith("Created the notebook"), `notebooks ${before} -> ${after}; said: ${said}`);
-      return `${await shot(p, "21-starter-created")}; dry run: ${dry.slice(0, 90)}…; then ${said.slice(0, 80)}; the doubles received one notebook`;
+      // ED3: once created, the card shows the notebook (Open in Fabric, Run now) and one line, instead of a "Created" sentence
+      const said = (await card.innerText()).replace(/\s+/g, " ");
+      const runNow = await card.getByRole("button", { name: `Run now: ${name}` }).count();
+      const open = await card.getByRole("link", { name: /Open in Fabric/ }).count();
+      expectTrue(after === before + 1 && runNow === 1 && open === 1 && said.includes("The notebook is in this item's workspace") &&
+        said.includes("Krusgraph runs it only when you choose Run now") && (await card.getByRole("button", { name: /^Dry run/ }).count()) === 0,
+        `notebooks ${before} -> ${after}; Run now: ${name} x${runNow}; Open in Fabric x${open}; card: ${said.slice(0, 300)}`);
+      // never run: Create starts no job (Run now would call Fabric's jobs/instances)
+      const jobs = (await (await fetch(`${BASE}/e2e/log`)).json()).fabric_calls.filter((c) => c.includes("/jobs/instances"));
+      expectTrue(jobs.length === 0, `a job was started: ${jobs.join(", ")}`);
+      return `${await shot(p, "21-starter-created")}; dry run: ${dry.slice(0, 90)}…; then the card shows ${name} with Open in Fabric and Run now; the doubles received one notebook and no job`;
     });
     await step("9 A next step's Dry run ticks only its outputs", async () => {
       await p.locator(".kg-next-card[data-step='iq'] button").first().click(); await settle(p);
@@ -605,13 +617,15 @@ async function main() {
       r.on("request", (q) => { if (q.url().includes("/workload/v1/")) routes.push(new URL(q.url()).pathname); });
       await r.goto(`${BASE}/index.html?fresh=1`); await settle(r, 1200);
       const press = async (loc, key = "Enter") => { await loc.scrollIntoViewIfNeeded(); await loc.focus(); await r.keyboard.press(key); };
+      // each wait says what it waited for, so a timeout names the step (not only "locator.waitFor: Timeout")
+      const waitFor = async (loc, what) => { try { await loc.waitFor({ timeout: 30000 }); } catch (e) { throw new Error(`waited 30 s for ${what}: ${String(e.message).split("\n")[0]}`); } };
       await press(button(r, "Choose a source")); await settle(r);
       const sap = r.getByRole("radio", { name: /sap_sd/ });
       expectTrue(await sap.count() === 1, "no sap_sd schema to choose");
       if (!(await sap.isChecked())) await press(sap, "Space");
       await press(button(r, "Find keys and relationships"));
       // SM3: the check runs on its own after Find keys; the ranking is still asked only after the check answered
-      await button(r, /Check against the rows again/).waitFor({ timeout: 30000 });
+      await waitFor(button(r, /Check against the rows again/), "the check after Find keys");
       await settle(r, 1500);
       const calls = routes.slice();
       const firstAnalysis = calls.findIndex((c) => c.includes("/workload/v1/analysis"));
@@ -630,9 +644,19 @@ async function main() {
       await press(r.getByRole("checkbox", { name: "Semantic model" }).first(), "Space");
       await press(button(r, "Dry run", true)); await settle(r, 4000);
       await press(button(r, /^Create/)); await settle(r, 6000);
-      const section = r.locator("section.kg-analysis").first();
-      await section.waitFor({ timeout: 30000 });
-      await section.locator("[data-analysis]").first().waitFor({ timeout: 30000 });
+      // AA1 / ED3: Recommended analyses are in Advanced analytics, one section on the Data product step; after Create the
+      // result's Next has the way there. Enter on it lands the focus on that section's heading (no Tab through the page).
+      await waitFor(button(r, "Go to Advanced analytics on the Data product step"), "Go to Advanced analytics after Create");
+      await press(button(r, "Go to Advanced analytics on the Data product step"));
+      const advanced = r.locator("section#kg-advanced-analytics");
+      await waitFor(advanced, "the Advanced analytics section on the Data product step");
+      await r.waitForFunction(() => document.activeElement && document.activeElement.id === "kg-advanced-title", null, { timeout: 5000 })
+        .catch(() => undefined);
+      const landed = await r.evaluate(() => document.activeElement && (document.activeElement.id || document.activeElement.tagName));
+      expectTrue(landed === "kg-advanced-title", `Go to Advanced analytics left the focus on ${landed}`);
+      const section = advanced.locator("section.kg-analysis");
+      await waitFor(section, "Recommended analyses in Advanced analytics");
+      await waitFor(section.locator("[data-analysis]").first(), "a ranked analysis card");
       const order = await section.locator(".kg-analysis-card").evaluateAll((els) => els.map((e) => e.getAttribute("data-analysis")));
       expectTrue(order.slice(0, 4).join(",") === "A7,A8,A3,A4" && order.length === 10, `ranked ${order.join(",")}`);
       const word = async (id) => (await section.locator(`[data-analysis=${id}] .fui-Badge`).innerText()).trim();
@@ -656,11 +680,17 @@ async function main() {
       }
       const overflow = await r.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       expectTrue(overflow <= 0, `horizontal overflow ${overflow} px`);
+      // WB4 / SM3: over the whole flow, the ranking was asked, and never before the first check had answered
+      const all = routes.slice();
+      const analyses = all.map((c, i) => (c.includes("/workload/v1/analysis") ? i : -1)).filter((i) => i >= 0);
+      const firstCheck = all.findIndex((c) => c.includes("/workload/v1/check"));
+      expectTrue(analyses.length > 0 && firstCheck >= 0 && analyses[0] > firstCheck, `analysis calls at ${analyses.join(",")}, first check at ${firstCheck}`);
       const log = await (await fetch(`${BASE}/e2e/log`)).json();
       await section.screenshot({ path: path.join(OUT, "25-analyses-phone.png") });
       await ctx.close();
       return `25-analyses-phone.png; ranked ${order.join(", ")}; A7 Ready, A8 Partly ready, A1 Not ready yet; keyboard: Enter on Download gave ${file}, ` +
         `Enter on the summary opened the not-ready list; screen reader: ${snap.split("\n").filter((l) => /heading|group/.test(l)).slice(0, 3).map((l) => l.trim()).join(" | ")}; ` +
+        `Enter on Go to Advanced analytics put the focus on its heading; engine: ${analyses.length} analysis call(s), the first after check #${firstCheck}; ` +
         `items the doubles received: ${log.created.join(", ")}; overflow ${overflow} px`;
     });
   }
