@@ -185,7 +185,28 @@ def _source(body: dict) -> dict:
             out["csn_path"] = clean_path(_text(body, "csn_path", None, 400))
         except ValueError as e:
             raise BadRequest(str(e)) from None
+    up = body.get("csn_upload")
+    if up not in (None, ""):                                        # WB5: a CSN chosen in the editor, sent with the request
+        from .csn_onelake import MAX_FILE_BYTES
+        if not isinstance(up, dict) or not isinstance(up.get("csn"), dict):
+            raise BadRequest("'csn_upload' is {name, csn}: the file's name and its parsed JSON object")
+        name = up.get("name") or "uploaded.csn.json"
+        if not isinstance(name, str) or len(name) > 120:
+            raise BadRequest("'csn_upload.name' is the file's name, at most 120 characters")
+        if len(json.dumps(up["csn"], ensure_ascii=False)) > MAX_FILE_BYTES:
+            raise BadRequest(f"the uploaded CSN is larger than {MAX_FILE_BYTES // (1024 * 1024)} MB")
+        out["csn_upload"] = {"name": name, "csn": up["csn"]}
     return out
+
+
+def _connect(req: dict):
+    """The source's connection; WB5: an uploaded CSN replaces what the lakehouse's Files would give for this call."""
+    from . import server as S, csn_onelake
+    s, execute = S._connected(req["workspace"], req["source"], req["schema"], None, **_csn_kw(req))
+    up = req.get("csn_upload")
+    if up:
+        S._attach_csn(execute, csn_onelake.from_upload(up["name"], up["csn"]))
+    return s, execute
 
 
 def _csn_kw(req: dict) -> dict:
@@ -881,7 +902,7 @@ def run_review(req: dict) -> dict:
     prev = R.read(req["previous"]) if req["previous"] else None
     keys, confirmed = req.get("keys"), req.get("confirmed")
     k, c = R.merge_arguments(R.carried_arguments(prev), keys, confirmed) if prev else (keys, confirmed)
-    s, execute = S._connected(req["workspace"], req["source"], req["schema"], None, **_csn_kw(req))
+    s, execute = _connect(req)
     req = _exact(req, s.schema)
     try:
         counted = S._within_call(execute)
@@ -946,7 +967,7 @@ def run_check(req: dict) -> dict:
     prev = R.read(req["review"])
     carried = R.carried_arguments(prev)
     k, c = carried["keys"] or None, carried["confirmed"] or None
-    s, execute = S._connected(req["workspace"], req["source"], req["schema"], None, **_csn_kw(req))
+    s, execute = _connect(req)
     req = _exact(req, s.schema)
     try:
         counted = S._within_call(execute)
@@ -1180,6 +1201,92 @@ def run_starter(req: dict) -> dict:
             "note": "Created as you; nothing was run."}
 
 
+# ------------------------------------------------------------------ WB5: Load SAP demo data ---------------------------
+# POST /workload/v1/sap-demo: the next step "Load SAP demo data" for someone without SAP tables to try the SAP path on.
+# The sap_demo36 generator notebook (round AP2, fabric_backend/sap_demo36.py) is created, never run: a dry run first, then
+# Create with the dry run's confirm value. The notebook itself defaults to DRY_RUN = True and refuses dbo, sap_silver,
+# sap_gold and the other schemas in sap_demo36.REFUSED_SCHEMAS; it replaces only tables it wrote. Synthetic rows only.
+
+SAP_DEMO_NAME = "krusgraph_sap_demo36"
+SAP_DEMO_NOT_RUN = ("Krusgraph does not run it. In Fabric, open it, set DRY_RUN = False and run it to write the synthetic "
+                    "SAP tables; then pick the lakehouse and the schema in this item.")
+
+
+def sap_demo_request(body) -> dict:
+    from . import sap_demo36
+    if not isinstance(body, dict):
+        raise BadRequest("the body must be a JSON object")
+    req = _source(body)
+    name = _item_name(body.get("name") or SAP_DEMO_NAME, "The notebook's name")
+    schema = body.get("target_schema") or sap_demo36.DEFAULT_SCHEMA
+    if not isinstance(schema, str) or not re.match(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$", schema):
+        raise BadRequest("'target_schema' is a new schema name: letters, digits and _, at most 64 characters")
+    if schema.lower() in sap_demo36.REFUSED_SCHEMAS:
+        raise BadRequest(f"'target_schema' {schema} is refused: the demo never writes to "
+                         f"{', '.join(sap_demo36.REFUSED_SCHEMAS)}. Choose a new schema such as {sap_demo36.DEFAULT_SCHEMA}.")
+    dry = body.get("dry_run", True)
+    if not isinstance(dry, bool):
+        raise BadRequest("'dry_run' must be true or false")
+    confirm = body.get("confirm")
+    if confirm is not None and (not isinstance(confirm, str) or len(confirm) > 40):
+        raise BadRequest("'confirm' is the dry run's confirm value")
+    return {**req, "name": name, "target_schema": schema, "dry_run": dry, "confirm": confirm,
+            "target": target_request(body.get("target"))}
+
+
+def sap_demo_confirm(workspace: str, name: str, schema: str) -> str:
+    text = json.dumps([workspace.lower(), name, schema.lower(), "sap_demo36"], ensure_ascii=False)
+    return "sapdemo-" + hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+
+
+def run_sap_demo(req: dict) -> dict:
+    from . import server as S, notebook as _notebook, sap_demo36
+    from .deploy import create_item_with_definition, find_item
+    headers = S._headers(None)
+    place = build_place(req, headers)
+    ws = place["workspace_id"]
+    src = S._resolve_source(S._workspace_id(req["workspace"], headers), req["source"], headers)
+    lake = starter_lakehouse(req, place, S._list_items(ws, headers) if place["cross"] else [], src)
+    if lake is None or (not place["cross"] and src.get("type") not in ("Lakehouse", None)):
+        return {"error": "There is no lakehouse here for the demo notebook to write its tables to.", "kind": "bad_input",
+                "hint": "Pick a lakehouse as the source, or create one in the workspace first. Nothing was created."}
+    where = place.get("name") or "this item's workspace"
+    exists = find_item(ws, req["name"], headers, "Notebook")
+    confirm = sap_demo_confirm(ws, req["name"], req["target_schema"])
+    out = {"name": req["name"], "type": "Notebook", "workspace": ws, "workspace_name": place.get("name"),
+           "lakehouse": lake["name"], "lakehouse_id": lake["id"], "target_schema": req["target_schema"],
+           "tables": len(sap_demo36.tables()), "would": "exists" if exists else "create", "runs": False,
+           "confirm": None if exists else confirm,
+           "words": (f"A notebook named {req['name']} is already in {where}: Krusgraph does not overwrite it. "
+                     "Choose another name, or open that one." if exists else
+                     f"Would create the notebook {req['name']} in {where}, attached to {lake['name']}. When you run it "
+                     f"with DRY_RUN = False it writes {len(sap_demo36.tables())} synthetic SAP-shaped tables to the schema "
+                     f"{req['target_schema']} (36 months, made-up names). {SAP_DEMO_NOT_RUN}")}
+    if req["dry_run"] or exists:
+        log("sap_demo", dry_run=req["dry_run"], exists=bool(exists))
+        return {**out, "note": NOTHING_CHANGED}
+    if req["confirm"] != confirm:
+        return {"error": "Send back the confirm value of the dry run, so what is created is what you saw.", "kind": "not_allowed",
+                "hint": "Nothing was created. Run the dry run again."}
+    source = sap_demo36.notebook_source(req["target_schema"], workspace_id=ws, lakehouse_id=lake["id"], lakehouse_name=lake["name"])
+    got = create_item_with_definition("notebooks", "Notebook",
+                                      _notebook.envelope(req["name"], source, "Krusgraph synthetic SAP demo, 36 months "
+                                                         "(sap_demo36): SAP-shaped made-up rows, not SAP data"),
+                                      ws, token_provider=lambda: S.auth.fabric(None), update_existing=False)
+    log("sap_demo", dry_run=False, status=got.get("status"))
+    if got.get("status") == "Timeout":
+        return {"error": f"Fabric had not finished creating {req['name']} when Krusgraph stopped waiting.", "kind": "timeout",
+                "hint": "Look in the workspace before trying again: it may have arrived. Nothing else was changed."}
+    if got.get("status") != "Succeeded" or not got.get("id"):
+        return {"error": f"Fabric did not create the notebook {req['name']} (HTTP {got.get('http', '?')}).", "kind": "fabric",
+                "hint": "Creating a notebook needs the Contributor role on the workspace. Nothing else was changed."}
+    created = {"type": "Notebook", "id": got["id"], "name": req["name"], "workspace": ws, "output": "sap_demo36",
+               "attached": lake["id"]}
+    return {**out, "would": "created", "created": created,
+            "words": f"Created the notebook {req['name']} in {where}, attached to {lake['name']}. {SAP_DEMO_NOT_RUN}",
+            "note": "Created as you; nothing was run."}
+
+
 # ------------------------------------------------------------------ ED3: Run now --------------------------------------
 # POST /workload/v1/run: Gustav, 21 November 2026, after Create: "sen kanske se resultatet?". One click by the person on
 # a notebook or pipeline Krusgraph created starts one run of it, as the signed-in user, with Fabric's Job Scheduler:
@@ -1404,7 +1511,7 @@ def run_analysis(req: dict) -> dict:
     prev = R.read(req["review"])
     carried = R.carried_arguments(prev)
     k, c = carried["keys"] or None, carried["confirmed"] or None
-    s, execute = S._connected(req["workspace"], req["source"], req["schema"], None, **_csn_kw(req))
+    s, execute = _connect(req)
     req = _exact(req, s.schema)
     item = getattr(execute, "source_item", None) or {}
     try:
@@ -3404,6 +3511,7 @@ def routes(cfg, validator=None, obo=None) -> list:
             Route(f"{PREFIX}/verify", endpoint(verify_request, run_verify, "verify"), methods=["POST", "OPTIONS"]),   # n229
             Route(f"{PREFIX}/catalog", endpoint(catalog_request, run_catalog, "catalog"), methods=["POST", "OPTIONS"]),   # CA1
             Route(f"{PREFIX}/starter", endpoint(starter_request, run_starter, "starter"), methods=["POST", "OPTIONS"]),   # WB10
+            Route(f"{PREFIX}/sap-demo", endpoint(sap_demo_request, run_sap_demo, "sap-demo"), methods=["POST", "OPTIONS"]),   # WB5
             Route(f"{PREFIX}/run", endpoint(run_item_request, run_item, "run"), methods=["POST", "OPTIONS"]),   # ED3: Run now
             Route(f"{PREFIX}/analysis", endpoint(analysis_request, run_analysis, "analysis"), methods=["POST", "OPTIONS"]),   # WB4
             Route(f"{PREFIX}/access", endpoint(access_request, None, "access"), methods=["POST", "OPTIONS"])]

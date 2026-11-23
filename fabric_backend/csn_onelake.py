@@ -51,6 +51,7 @@ TIMEOUT = 15
 EXTENSIONS = (".json", ".csn")
 LAKEHOUSE_TYPES = ("Lakehouse",)
 FROM_LAKEHOUSE = "the lakehouse's Files"
+FROM_EDITOR = "a file uploaded in the editor"      # WB5: kept only in the item's definition, never logged
 
 
 class NotRead(Exception):
@@ -164,9 +165,10 @@ class Found:
     used: list = field(default_factory=list)            # [{file, entities, version}]
     skipped: list = field(default_factory=list)         # [{file, why}]
     not_read: dict | None = None                        # {kind, why, hint}
+    where: str = FROM_LAKEHOUSE                          # WB5: or FROM_EDITOR
 
     def report(self) -> dict:
-        out = {"looked_in": self.path, "where": FROM_LAKEHOUSE, "used": self.used}
+        out = {"looked_in": self.path, "where": self.where, "used": self.used}
         if self.skipped:
             out["skipped"] = self.skipped
         if self.not_read:
@@ -242,6 +244,22 @@ def find(lake: OneLake, path: str | None = None) -> Found:
             ver = next((v for v in model.versions if v["file"] == name), {})
             found.used.append({"file": name, "entities": sum(1 for e in model.entities.values() if e.file == name),
                                "version": ver.get("interop") and f"CSN Interop {ver['interop']}" or ver.get("$version") or ver.get("csn")})
+    return found
+
+
+def from_upload(name: str, obj) -> Found:
+    """WB5: a CSN the person chose in the editor (read in the browser, sent with the request, kept only in the item's
+    definition). Validated like a file in Files; never logged. The plan uses it the same way as a lakehouse CSN."""
+    found = Found(name, True, where=FROM_EDITOR)
+    ok, why = is_csn(obj)
+    if not ok:
+        found.not_read = {"kind": "not_csn", "why": why, "hint": "Choose a CSN export (.json or .csn) with a 'definitions' object."}
+        return found
+    model = _csn.read_named([(name, obj)])
+    found.model = model
+    ver = next((v for v in model.versions if v["file"] == name), {})
+    found.used.append({"file": name, "entities": sum(1 for e in model.entities.values() if e.file == name),
+                       "version": ver.get("interop") and f"CSN Interop {ver['interop']}" or ver.get("$version") or ver.get("csn")})
     return found
 
 
