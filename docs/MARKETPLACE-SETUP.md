@@ -248,6 +248,42 @@ Vault reference has no such step.
    *change quantity* are triggered from Microsoft 365 Admin Center [M2].
 7. Look at the log lines (`krusgraph.marketplace`): action, subscription id and outcome only.
 
+### 5a. The DEV offer test, step by step (WB7, 23 November 2026)
+
+What is gated once switched on: a **Create** (`dry_run=false`) on `/workload/v1/build`, `/starter`, `/sap-demo` and
+`/catalog`, and the MCP creating tools with `dry_run=false`. Every dry run, read, check, draft and `/run` of an item
+Krusgraph already made stays free. A refused Create answers `kind: upgrade` (HTTP 402) with one sentence, the hint and
+`upgrade_url`; the editor shows them with a **Subscribe in Microsoft Marketplace** link. `tests/test_wb7_marketplace_gate.py`
+runs the whole chain with doubles.
+
+**Settings to switch on, in a test revision only.** In `deploy/krusgraph.json` (copied from
+`deploy/krusgraph.example.json`, where all three stay `false`):
+
+| Key | Value for the test |
+| --- | --- |
+| `marketplace` | `true` |
+| `entitlements` | `true` (subscription only), or leave `false` and set `trial` |
+| `trial` | `true` to test the 30-day trial first (`docs/BILLING-MODEL.md`); it replaces the entitlements split |
+| `marketplace_offer_url` | the DEV offer's preview page |
+| `marketplace_tenant_id`, `marketplace_client_id`, the secret, `entitlements_source` = `table`, `entitlements_table` | section 4 |
+
+Then `bash deploy/krusgraph.sh --update --dry-run` (prints what would change, changes nothing) and
+`bash deploy/krusgraph.sh --update`. Production keeps `marketplace`, `entitlements` and `trial` **false** until the
+founder decides otherwise; switching back is the same keys set to `false` and `--update`.
+
+| # | What the founder clicks | What success looks like |
+| --- | --- | --- |
+| 1 | In a test tenant without a subscription, open a Krusgraph Model item, pick a source, review, choose **Create** | A warning bar: "… needs a Krusgraph subscription …", the dry run still offered, and the link *Subscribe in Microsoft Marketplace* to the DEV offer. Nothing appears in the workspace |
+| 2 | **Dry run** in the same item | The dry run answers as usual: "Nothing was created or changed in Fabric." |
+| 3 | Open the DEV offer's preview link, **Get it now**, buy the plan in the test tenant | Marketplace sends the buyer to `/marketplace/landing`: the plan and the test tenant's id are shown |
+| 4 | **Activate** on the landing page | The log line `krusgraph.marketplace` shows `Subscribe` (or `activate`) with outcome ok; the table row for the tenant is `Subscribed` |
+| 5 | Back in the item, **Create** again | The items are created; the result cards show them |
+| 6 | Change the plan from Microsoft 365 Admin Center | Log line `ChangePlan` ok; Create still works |
+| 7 | Cancel the subscription in the Azure portal (within 72 hours, section 5 step 5) | Log line `Unsubscribe`; step 1's warning bar again; dry runs still work |
+| 8 | With `trial` on: a second test tenant opens the item | `/access` shows "Trial: 30 days left"; Create works during the trial |
+
+Suspend and Reinstate cannot be triggered from the preview by hand; the test covers them.
+
 ## 6. What the live site must say before the first subscription
 
 Not changed by this round (the flag is off and nothing is stored yet). Before switching on:

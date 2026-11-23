@@ -429,9 +429,14 @@ def route_writes(where: str, req: dict) -> bool:
         return req.get("dry_run") is False
     if where == "product":
         return req.get("action") == "retire" and req.get("dry_run") is False
-    if where == "starter":                          # WB10: the Data Science starter's Create
+    if where in CREATE_ROUTES:                      # WB10 starter, WB5 SAP demo notebook, the catalog's write (WB7)
         return req.get("dry_run") is False
     return False
+
+
+# WB7: the workload routes whose dry_run=false creates or changes items in Fabric, besides /build and /product retire.
+# Running an item Krusgraph made (/run) and reading (/check, /analysis, /verify) stay free: the licence is for creating.
+CREATE_ROUTES = ("starter", "sap-demo", "catalog")
 
 
 def with_notice(text: str, notice: str | None) -> str:
