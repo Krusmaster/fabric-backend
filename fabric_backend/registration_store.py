@@ -37,7 +37,7 @@ import threading
 import time
 from urllib.parse import quote, urlsplit
 
-KINDS = ("txn", "code", "used", "family", "consent", "op")      # n197: "op", the workload's background operations (operations.py)
+KINDS = ("txn", "code", "used", "family", "consent", "op", "flow")   # n197: "op" (operations.py); BL44: "flow" (flow_state.py)
 STORAGE_RESOURCE = "https://storage.azure.com"
 PURGE_EVERY = 600                     # seconds between two sweeps for expired records, per replica
 PURGE_BATCH = 200                     # at most this many deletions per sweep and kind
