@@ -320,11 +320,19 @@ def _pack_entries(plan: Plan) -> dict[str, list[dict]]:
     if not name:
         return {}
     from . import data_product_catalog as dpc
-    try:
-        mapped = dpc.tables(name)
-    except KeyError:
-        return {}
-    return {t: mapped[n] for t, n in (pk.get("tables") or {}).items() if n in mapped}
+    by_schema = pk.get("by_schema") or {}                  # SM7: a plan over several schemas has a pack per schema
+    mapped: dict[str, dict] = {}
+    out = {}
+    for t, n in (pk.get("tables") or {}).items():
+        pack = by_schema.get(str(t).split(".", 1)[0]) if by_schema and "." in str(t) else name
+        if pack not in mapped:
+            try:
+                mapped[pack] = dpc.tables(pack)
+            except KeyError:
+                mapped[pack] = {}
+        if n in mapped[pack]:
+            out[t] = mapped[pack][n]
+    return out
 
 
 class _Rows:

@@ -73,7 +73,8 @@ export function typeWord(type: string | undefined): string | undefined {
 
 /** WB11: Fabric's REST item type of each output kind (what Create makes). */
 export const KIND_TYPE: Record<string, string> = {
-  silver_notebook: "Notebook", gold_views: "Notebook", ds_features: "Notebook", pipeline: "DataPipeline",
+  silver_notebook: "Notebook", gold_views: "Notebook", ds_features: "Notebook", ds_model: "Notebook", ds_predictions: "Notebook",
+  pipeline: "DataPipeline",
   semantic_model: "SemanticModel", report: "Report", graphql: "GraphQLApi", ontology: "Ontology", data_agent: "DataAgent",
   rayfin_app: "AppBackend",
 };

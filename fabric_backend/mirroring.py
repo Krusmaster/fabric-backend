@@ -169,6 +169,51 @@ def no_cross_target_words(how: str, chosen: str | None, workspace_name: str) -> 
 
 # ------------------------------------------------------------------ the SAP pack in the review -------------------------
 
+CLIENT_WORDS = "SAP client: part of every key and every link"
+
+
+def sap_fields(plan, pack: dict, tables: dict) -> dict:
+    """WB5: the SAP fields of the plan's SAP tables in plain words, only from what the pack documents: a key column
+    ("part of the key", the client column "SAP client"), and a link column with the role the pack gives its link
+    ("links to the customer"). Columns the pack says nothing about are left out; nothing is guessed.
+    {plan table: [{"column", "words"}]}, in the table's column order."""
+    from . import sap_pack
+    roles: dict[tuple[str, str], list[str]] = {}
+    for r in pack.get("relationships", []):
+        role = r.get("role")
+        if not role:
+            continue
+        for c in r.get("source_cols", []):
+            if c.upper() in sap_pack.CLIENT_COLUMNS:
+                continue
+            got = roles.setdefault((r["source"], c.upper()), [])
+            words = role.replace("_", " ")
+            if words not in got:
+                got.append(words)
+    out: dict[str, list[dict]] = {}
+    for t in plan.schema:
+        ptab = tables.get(t.name)
+        if not ptab or ptab not in pack.get("tables", {}):
+            continue
+        key = [c.upper() for c in pack["tables"][ptab].get("key", [])]
+        rows = []
+        for col in t.columns:
+            u = col.name.upper()
+            said = []
+            if u in sap_pack.CLIENT_COLUMNS and u in key:
+                said.append(CLIENT_WORDS)
+            elif u in key:
+                said.append("part of the key")
+            link = roles.get((ptab, u))
+            if link:
+                said.append("links to the " + " or the ".join(link[:3]))
+            if said:
+                rows.append({"column": col.name, "words": "; ".join(said)})
+        if rows:
+            out[t.name] = rows
+    return out
+
+
 def sap_offer(plan) -> dict | None:
     """The SAP pack's keys and links in the plan, by review item id, each marked SAP_FROM with the pack's public sources
     (title and url, as the pack cites them). None when the plan has no SAP pack: nothing is guessed beyond the pack.
@@ -206,7 +251,7 @@ def sap_offer(plan) -> dict | None:
         if hit is None:
             continue
         items[rel_id(r.source, r.source_cols, r.target)] = {"from": SAP_FROM, "module": hit["module"], "sources": cite(hit["sources"])}
-    return {"pack": "sap", "label": "SAP pack", "items": items, "tables": dict(tables),
+    return {"pack": "sap", "label": "SAP pack", "items": items, "tables": dict(tables), "fields": sap_fields(plan, p, tables),
             "status": pack.get("status", "documented, not verified against data"),
             "client_dropped": bool(pack.get("client_dropped")),
             "note": ("These keys and links are " + SAP_FROM + ": the pack's documentation of SAP's tables, with its public "

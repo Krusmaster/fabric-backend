@@ -738,3 +738,41 @@
 .krusgraph-output p {
   margin: 2px 0;
 }
+
+// ED3: Open in Fabric (a link drawn as Fluent's primary button, opening a new tab) and Run now's state and preview
+.kg-open-fabric {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border-radius: 4px;
+  font-weight: 600; text-decoration: none; border: 1px solid transparent;
+}
+.kg-open-fabric-primary {
+  background: var(--colorBrandBackground, #0f6cbd); color: var(--colorNeutralForegroundOnBrand, #fff);
+  &:hover { background: var(--colorBrandBackgroundHover, #115ea3); }
+}
+.kg-open-fabric-secondary {
+  background: var(--colorNeutralBackground1, #fff); color: var(--colorNeutralForeground1, #242424);
+  border-color: var(--colorNeutralStroke1, #d1d1d1);
+}
+.kg-open-fabric:focus-visible { outline: 2px solid var(--colorStrokeFocus2, #000); outline-offset: 2px; }
+.kg-run { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; flex: 1 1 100%; }
+.kg-run-line { flex: 1 1 100%; }
+.kg-run-preview { flex: 1 1 100%; max-width: 100%; overflow-x: auto;
+  table { border-collapse: collapse; font-size: 12px; }
+  th, td { border: 1px solid var(--colorNeutralStroke2, #e0e0e0); padding: 2px 6px; text-align: left; white-space: nowrap; }
+}
+.kg-analysis-pick { display: flex; align-items: center; gap: 6px; }
+@media (max-width: 480px) {
+  .kg-open-fabric { min-height: 44px; flex: 1 1 100%; justify-content: center; }
+}
+.kg-dp-open { font-weight: 600; background: var(--colorBrandBackground, #0f6cbd); color: var(--colorNeutralForegroundOnBrand, #fff);
+  border: 1px solid transparent; border-radius: 4px; padding: 2px 10px; }
+
+/* AA1: in Advanced analytics on the Data product step, each analysis with its three stages, one column on a phone */
+.kg-adv { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--colorNeutralStroke2); }
+.kg-adv-list, .kg-adv-stages { margin: 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.kg-adv-analysis { display: flex; flex-direction: column; gap: 4px; }
+.kg-adv-stage { display: flex; flex-direction: column; gap: 4px; padding-left: 12px; border-left: 2px solid var(--colorNeutralStroke1); min-width: 0; }
+.kg-adv-stage .kg-next-actions { flex-wrap: wrap; }
+
+/* WB6 (F7): Onto on the first screen, in place of the kit's picture; full width, no extra indent, wraps at 390 px */
+.kg-empty-onto { width: 100%; text-align: left; }
+.kg-empty-onto .krusgraph-mascots { margin: 0 0 8px; padding: 0; }

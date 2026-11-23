@@ -43,8 +43,10 @@ from . import evidence as _evidence
 from . import semantic_model as _semantic_model, paths as _paths, dictionary as _dictionary, dbt as _dbt, quality_suites as _quality, drift as _drift
 from . import views as _views, data_agent as _data_agent, app_starter as _app_starter, graphs as _graphs, readiness as _readiness
 from . import lineage as _lineage, compact as _compact, sap_pack as _sap_pack
+from . import security_roles as _security_roles                   # BL46: role candidates in the model dry run
 from . import coverage as _coverage
 from . import multi_schema as _multi_schema  # SM5: a plan over several schemas of one item
+from . import combine as _combine  # SM7: several sources in one data product, matched by rules with counts
 from . import domains as _domains
 from . import limits as _limits, usage as _usage, entitlements as _entitlements
 from . import usage_metrics as _usage_metrics  # UM1: anonymous daily counts for /metrics
@@ -151,6 +153,10 @@ _PLAN_SCOPE = contextvars.ContextVar("krusgraph_plan_scope", default=None)
 # n185: the Model editor's create_pipeline call: no wait for the run (the editor reads it on its own, so no other card
 # waits) and the schedule ids outputs.json records as Krusgraph's. None for an MCP call: wait up to two minutes.
 PIPELINE_JOBS = contextvars.ContextVar("krusgraph_pipeline_jobs", default=None)
+# DPM1: set by the Krusgraph Model's build when it has gold views and a semantic model ({silver_schema, gold_schema,
+# target_lakehouse, gold_lakehouse}): the gold notebook adds the dimension views, and the model reads the gold views,
+# grouped by data product (semantic_model.draft_on_gold). Not a tool argument: the tools' signatures stay as they are.
+MODEL_ON_GOLD = contextvars.ContextVar("krusgraph_model_on_gold", default=None)
 
 
 @contextlib.contextmanager
@@ -753,6 +759,8 @@ def start(workspace: _p.StartPick = "", source: _p.StartPick = "", schema: _p.St
     the rows and the doubled totals, counted), decide, a dry run of everything, then create after a second confirmation
     of the names. Returns JSON {step, path, actions: [{tool, arguments, say}],
     after}: each action is an existing tool; after is the next start call. Changes nothing. Errors: {error, kind, hint}."""
+    if (step or "").strip().lower() == _start_flow.LATEST:  # BL47 (#104): the card asks whether it is still the latest
+        return json.dumps(_start_latest(workspace, source, schema, bool(sample), ctx))
     plan = dict(plan) if isinstance(plan, dict) else {}
     kept = {"seq": 0}
     if not sample:                                         # WB15 (E, G): the shared state; the latest tap wins
@@ -780,13 +788,25 @@ def start(workspace: _p.StartPick = "", source: _p.StartPick = "", schema: _p.St
                                   plan.get("confirmed"), False)
         plan["decisions"], plan["confirmed"] = kept["decisions"], kept["confirmed"]
     review = _start_review(workspace, source, schema, step, plan, bool(sample), ctx)
+    combined = _start_combine(workspace, source, schema, step, plan, bool(sample), ctx)
     out = _start_flow.guide(workspace=workspace, source=source, schema=schema, step=step,
                             keys=plan.get("keys"), confirmed=plan.get("confirmed"),
                             decisions=plan.get("decisions"), create=create, confirm=confirm,
                             sample=sample, options=options, review=review, picked=picked, suggested=suggested,
-                            targets=_start_targets(workspace, source, schema, step, bool(sample), ctx))
+                            targets=_start_targets(workspace, source, schema, step, bool(sample), ctx),
+                            combine=combined)
     out["seq"] = kept.get("seq") or 0
     return json.dumps(out, indent=2)
+
+
+def _start_latest(workspace: str, source: str, schema: str, sample: bool, ctx) -> dict:
+    """BL47 (issue #104, second part): step "latest". Only reads the flow's newest sequence number and step
+    (flow_state.latest), so an older start card can fold to one line when the path has moved on in a newer card, also
+    where two cards cannot talk to each other. Records nothing, reads nothing from Fabric, names no row value."""
+    c = [(x or "").strip() for x in (workspace, source, schema)]
+    got = None if sample or not all(c) else _flow_state.latest(_flow_who(ctx), *c)
+    return {"latest": got, "changes_nothing": True,
+            "note": "Only for the start card: whether a newer card has moved the path on. Nothing was recorded."}
 
 
 def _start_targets(workspace: str, source: str, schema: str, step: str, sample: bool, ctx) -> dict | None:
@@ -805,6 +825,103 @@ def _start_targets(workspace: str, source: str, schema: str, step: str, sample: 
         return None
     names = [str(x.get("name")) for x in listed if isinstance(x, dict) and x.get("type", "Lakehouse") == "Lakehouse" and x.get("name")]
     return _start_flow.layer_targets(c["source"], names)
+
+
+def _combine_counts(workspace: str, source: str, schema: str, ctx):
+    """SM7: (plan, combine.count's answer) for a plan over several schemas of one item: the match rules counted on the
+    rows of the one connection (counts only, no row value)."""
+    p, item, headers = _plan(workspace, source, schema, None, None, ctx)
+    execute = _execute_factory(item, auth.sql(ctx))
+    try:
+        from .dialects import of as _dialect_of
+        return p, _combine.count(p, execute, _dialect_of(execute))
+    finally:
+        getattr(execute, "close", lambda: None)()
+
+
+def _start_combine(workspace: str, source: str, schema: str, step: str, plan: dict, sample: bool, ctx) -> dict | None:
+    """SM7 (COMBINE-SOURCES.md): on Check, Decide and the dry run of a plan over several schemas, the proposed match of
+    their customers with its counts, and whether the person accepted it (the flow state's decisions). None elsewhere,
+    on one schema, or when no party table is found in two schemas; {error} when the rows cannot be counted."""
+    c = {"workspace": (workspace or "").strip() or None, "source": (source or "").strip() or None,
+         "schema": (schema or "").strip() or None}
+    if sample or not all(c.values()) or not _multi_schema.is_multi(c["schema"]):
+        return None
+    if _start_flow.current((step or "").strip().lower() or None, c) not in ("check", "decide", "dry_run", "create"):
+        return None
+    try:
+        p, found = _combine_counts(c["workspace"], c["source"], c["schema"], ctx)
+    except Exception as e:                                       # noqa: BLE001 - the card says it, nothing is joined
+        return {"error": (str(e) or type(e).__name__).splitlines()[0][:200]}
+    return _combine_view(p, found, plan.get("decisions"))
+
+
+def _combine_view(p, found: dict, decisions) -> dict | None:
+    """What start_flow.guide shows of a counted match (combine.py): the proposed candidate in words, and the accepted one."""
+    if len(found.get("party") or {}) < 2:
+        return None
+    best = next((x for x in found["candidates"] if x["id"] == found.get("proposed")), None)
+    chosen = _combine.accepted(found, decisions)
+    out = {"sources": sorted(found["party"]), "candidates": len(found["candidates"]), "queries": found["queries"]}
+    if best:
+        out["proposed"] = {"id": best["id"], "rule": best["rule"], "line": _combine.card_line(best),
+                           "evidence": _combine.evidence(best), "counts": best["counts"], "certainty": best["certainty"],
+                           "customers": _combine.customers(best)}
+    if chosen:
+        out["accepted"] = {"id": chosen["id"], "rule": chosen["rule"], "line": _combine.model_line(chosen, found["facts"]),
+                           "customers": _combine.customers(chosen)}
+    return out
+
+
+def _combined_model(workspace: str, source: str, schema: str, name: str, dry_run: bool, ctx) -> str | None:
+    """SM7: create_semantic_model over a plan of several schemas whose customer match the person accepted on the path
+    (the flow state): one Direct Lake model over the product lakehouse's conformed gold (dim_customer and each source's
+    facts re-keyed to it, no link between facts), with the gold SQL it reads. None when no match is accepted: the model
+    is drafted as before, each source apart."""
+    if not _multi_schema.is_multi(schema):
+        return None
+    decided = (_flow_state.state(_flow_who(ctx), workspace, source, schema) or {}).get("decisions") or []
+    if not any(str(d.get("item", "")).startswith(_combine.PREFIX) and d.get("review") == "accepted" for d in decided):
+        return None
+    p, found = _combine_counts(workspace, source, schema, ctx)
+    chosen = _combine.accepted(found, decided)
+    if chosen is None:
+        return json.dumps({"error": "The match you accepted is no longer found by the rules on these rows, so nothing is "
+                                    "combined.", "kind": "stale", "hint": "Open Decide on the start card again."}, indent=2)
+    if not dry_run:
+        return json.dumps({"error": "The combined model is a dry run in this version: its conformed gold is not built by "
+                                    "the pipeline yet.", "kind": "not_yet",
+                           "hint": "Run the gold SQL of the dry run in the product lakehouse first, or build each source "
+                                   "apart (reject the match)."}, indent=2)
+    _, info = _source_inputs(workspace, source, schema, None, None, ctx)
+    gold = "gold"
+    gs = _combine.model_schema(chosen, p, found["facts"], gold)
+    gp = make_plan(gs, packs=False)
+    ginfo = {**info, "schema": gold, "schemas_enabled": True}
+    draft = _semantic_model.draft(gp, ginfo, name)
+    rels = [{"from": f"{r.source}.{r.source_cols[0]}", "to": f"{r.target}.{r.target_cols[0]}"} for r in gp.relationships]
+    out = {"dry_run": True, "layers_to": f"model \u2192 {info['item_name']} ({gold})",
+           "combined": {"line": _combine.model_line(chosen, found["facts"]), "match": chosen["id"], "rule": chosen["rule"],
+                        "match_line": _combine.card_line(chosen), "customers": _combine.customers(chosen),
+                        "dimension": "dim_customer",
+                        "facts": [{"name": f["name"], "from": f["table"], "source": f["schema"]} for f in found["facts"]],
+                        "relationships": rels,
+                        "fact_to_fact": [x for x in rels if not x["to"].startswith("dim_customer.")],
+                        "personal_left_out": _combine.personal_left_out(p, chosen)},
+           "first": (f"Build the conformed gold first: the model reads {gold}.dim_customer and the fact views in "
+                     f"{info['item_name']}, which the gold SQL below creates. The pipeline does not run it yet."),
+           "gold_sql": _combine.gold_sql(chosen, p, found["facts"], gold),
+           "summary": draft["summary"],
+           "rest": {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{_out_ws(info['workspace_id'])}/semanticModels",
+                    "delegated_scope": "SemanticModel.ReadWrite.All or Item.ReadWrite.All"},
+           "parts": draft["parts"],
+           "note": "Matched by rules and counted on the rows; nothing is joined on a match you did not accept."}
+    text = json.dumps(out, indent=2)
+    if len(text) > MAX_RESULT_CHARS:
+        out["omitted"] = sorted(k for k in draft["parts"] if k.startswith("definition/tables/"))
+        out["parts"] = {k: v for k, v in draft["parts"].items() if not k.startswith("definition/tables/")}
+        text = json.dumps(out, indent=2)
+    return text
 
 
 def _start_review(workspace: str, source: str, schema: str, step: str, plan: dict, sample: bool, ctx) -> dict | None:
@@ -1082,6 +1199,28 @@ def _connected(workspace: str, source: str, schema: str, ctx, csn_path: str | No
     return s, execute
 
 
+_EVIDENCE_COUNTS = re.compile(r"^\d+ of \d+ keys unique, \d+ of \d+ relationships hold without orphans")
+
+
+def _one_count_summary(plan, out: dict, keep) -> str:
+    """BL39 (C-31): validate_plan's summary says counts.summary's numbers, the same the review, the receipt and the cards
+    say: a link to a table whose key is not unique fails, and what this call did not count is "not counted", never
+    left out of the total. What follows the counts in evidence.validate's line (checked n of m, the time budget,
+    resume_from) is kept after it."""
+    from . import counts as _counts
+    sentence = _counts.summary(plan, out, tables=sorted(keep) if keep is not None else None)["sentence"]
+    old = str(out.get("summary") or "")
+    m = _EVIDENCE_COUNTS.match(old)
+    if not m:
+        return sentence
+    rest = old[m.end():].strip().lstrip(";").strip()
+    if rest.startswith("(") and rest.endswith(")"):
+        rest = rest[1:-1]
+    elif rest.startswith("(") and ")" in rest:
+        rest = rest[1:].replace(")", "", 1)
+    return sentence + (f" {rest[0].upper()}{rest[1:]}." if rest else "")
+
+
 @mcp.tool(title="Check a schema's keys and links against the rows", annotations=RO, meta=_mcp_apps.tool_meta())
 @safe
 def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", keys: _p.Keys = None,
@@ -1127,6 +1266,7 @@ def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema 
     if flagged or label:
         out["personal_data"] = {"columns": flagged, "sensitivity_label": label,
                                 "note": "validate_plan returns counts and verdicts only, never a value, so nothing here is masked."}
+    out["summary"] = _one_count_summary(p, out, keep)                  # BL39: the numbers are counts.summary's
     full_checks = out
     if detail == "summary":
         out = _evidence.summarize(out, p)
@@ -2349,19 +2489,28 @@ def _silver_there(workspace: str, source: str, summary: dict, ctx) -> bool | Non
 def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.ModelName, schema: _p.Schema = "dbo", keys: _p.Keys = None,
                           confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, dry_run: _p.DryRun = True,
                           refresh: _p.RefreshOnce = False, check: _p.CreateCheck = "", silver_schema: _p.ReadSilverSchema = "",
-                          pipeline: _p.LayerPipeline = "", target_lakehouse: _p.TargetLakehouse = "", ctx: Context = None) -> str:
+                          pipeline: _p.LayerPipeline = "", target_lakehouse: _p.TargetLakehouse = "", roles: _p.ModelRoles = None,
+                          ctx: Context = None) -> str:
     """Creates a Fabric semantic model item from semantic_model_draft's TMDL (Direct Lake), or updates the item of that
     name in place. Requires workspace, source and name; SemanticModel.ReadWrite.All or Item.ReadWrite.All and
     Contributor on the workspace. Returns JSON with the parts and the REST call; with dry_run=false also the result,
     or kind consent. Changes Fabric only with dry_run=false: an update replaces the model's definition, so tables,
     relationships and measures added outside the plan leave it; no item is deleted. refresh=true refreshes the model
-    once after a create, and only refreshes a model that exists. Errors: {error, kind, hint}."""
+    once after a create, and only refreshes a model that exists. The dry run lists row-level security roles the names
+    suggest (role_candidates); one is added only when passed in roles. Errors: {error, kind, hint}."""
     if (check or "").strip():                                # n227: how a started create went; reads only
         return _create_status("create_semantic_model", workspace, name, check, ctx)
+    combined = _combined_model(workspace, source, schema, name, dry_run, ctx)   # SM7: the match the person accepted
+    if combined is not None:
+        return combined
     began = time.monotonic()
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
     schema = p.schema.schema                                   # n175: the name the metadata returns
     check_tables(p.schema, tables)
+    accepted = _security_roles.accepted_columns(p, roles)     # BL46: an unknown role is refused before anything is read
+    if accepted and MODEL_ON_GOLD.get() and not tables:
+        raise _p_error("roles: this model reads the gold views, which a role is not drafted on yet; build the model "
+                             "without roles, or on the source tables (no gold views in the build).")
     read = _model_reads(workspace, source, schema, p, tables, ctx)          # n151: the calendar's range, whole-number quantities
     lay = _layers(info, silver_schema, "", pipeline, ctx, need=_combines(p, tables), which=("silver",))   # WB2 (#54): the dry run's and Create's
     info = {**info, "silver_schema": lay["silver"]}
@@ -2369,7 +2518,19 @@ def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.M
     if refusal:
         return refusal
     info = at
-    draft = _semantic_model.draft(p, info, name, tables, date_range=read["date_range"], whole_quantities=read["whole"])
+    og = MODEL_ON_GOLD.get()
+    if og and not tables:                                        # DPM1: the build has gold views: the model reads them
+        _, ginfo, gspec, refusal = _gold(workspace, source, schema, og.get("silver_schema") or "silver", og.get("gold_schema") or "gold",
+                                         keys, confirmed, None, False, ctx, og.get("target_lakehouse", ""), og.get("gold_lakehouse", ""))
+        if refusal:
+            return refusal
+        info = {**ginfo, "schema": gspec["gold_schema"]}
+        predictions = _prediction_tables(ginfo, gspec["gold_schema"], ctx)         # AA1: only the ones that exist
+        draft = _semantic_model.draft_on_gold(p, ginfo, gspec, name, checked_validation(p), date_range=read["date_range"],
+                                              whole_quantities=read["whole"], predictions=predictions)
+    else:
+        draft = _semantic_model.draft(p, info, name, tables, date_range=read["date_range"], whole_quantities=read["whole"],
+                                      roles=accepted or None)
     _model_layers(draft, lay)
     body = _semantic_model.envelope(draft["parts"], name, description=_marked(f"Created by Krusgraph from {source} ({schema})", p, schema))
     replaces = _model_replacement(_out_ws(info["workspace_id"]), name, draft["parts"], _headers(ctx))   # n221: where it is built
@@ -2383,6 +2544,10 @@ def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.M
         if not there:
             out["first"] = (f"Run the pipeline once first: the model reads the silver tables in {info['reads_at']}, "
                             "which the pipeline writes.")
+    if (draft["summary"].get("reads") or {}).get("layer") == "gold":   # DPM1
+        out["layers_to"] = f"model \u2192 {info['item_name']} ({info['schema']})"
+        out["first"] = (f"Run the gold views once first (the pipeline, or the gold notebook): the model reads the gold views in "
+                        f"{info['item_name']} ({info['schema']}), which they create.")
     out |= {"summary": draft["summary"], "read_from_rows": read["said"], "dry_run": dry_run,
            "rest": {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{_out_ws(info['workspace_id'])}/semanticModels",
                     "update": f"{FABRIC}/v1/workspaces/{_out_ws(info['workspace_id'])}/semanticModels/{{id}}/updateDefinition",
@@ -2392,6 +2557,10 @@ def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.M
                               "Open the model in the portal or Power BI Desktop and check the relationships README.generated.md lists as inactive."],
            "note": "Unit-tested against Microsoft's sample definitions. " + _tool_status.answer_note("create_semantic_model")
                    + " Without the permission the create answers kind=consent naming it, see docs/SCOPES.md."}
+    if (draft["summary"].get("reads") or {}).get("layer") != "gold":   # BL46: the role candidates, off by default
+        offered = _security_roles.offer(p, tables, (draft["summary"].get("security_roles") or {}).get("added"))
+        if offered["proposed"]:                                    # a source with none (the shop) answers as before
+            out["role_candidates"] = offered
     if refresh:                                                    # n229: one refresh, the fix for a model that shows no data
         out["refresh"] = {"planned": True, "said": (f"{name} exists: with dry_run=false it is refreshed once and its definition is left as it is."
                                                    if replaces else f"With dry_run=false {name} is refreshed once right after it is created."),
@@ -3171,8 +3340,35 @@ def _gold(workspace, source, schema, silver_schema, gold_schema, keys, confirmed
     refusal = _schemas_only(info)
     if refusal:
         return None, None, None, refusal
-    spec = _gold_mod.spec(p, info, silver_schema, gold_schema, tables, show_personal_data)
+    spec = _gold_mod.spec(p, info, silver_schema, gold_schema, tables, show_personal_data,
+                          dimensions=MODEL_ON_GOLD.get() is not None)          # DPM1: the star schema the model reads
     return p, info, spec, None
+
+
+def _prediction_tables(ginfo: dict, gold_schema: str, ctx) -> list[dict]:
+    """AA1: the tables in the gold schema that an Advanced analytics predictions notebook wrote (advanced_stages.
+    prediction_kind, by their columns), read from the lakehouse's metadata as the signed-in user, the same read as any
+    plan. Empty when there is none, or when the read fails: then the model is drafted without them, as before."""
+    from . import advanced_stages as _aa
+    try:
+        s, execute = _connected(ginfo["workspace_id"], ginfo.get("item_id") or ginfo["item_name"], gold_schema, ctx)
+    except Exception:                                              # noqa: BLE001 - no gold schema yet, or not readable: none
+        return []
+    try:
+        return [{"table": t.name, "columns": [{"name": c.name, "type": c.data_type} for c in t.columns]}
+                for t in s if _aa.prediction_kind([c.name for c in t.columns])]
+    finally:
+        getattr(execute, "close", lambda: None)()
+
+
+def checked_validation(p) -> dict | None:
+    """DPM1: the build's row check (Plan.checked_keys with how=rows) as validate_plan's `keys`, for the model on gold's
+    rule that it relates only onto a key the rows showed unique. None when no key was checked against the rows."""
+    rows = {t: k for t, k in (getattr(p, "checked_keys", None) or {}).items() if k.get("how") == "rows"}
+    if not rows:
+        return None
+    return {"keys": [{"table": t, "columns": list(k["columns"]), "verdict": "unique (Check against the rows)",
+                      "rows": k.get("rows"), "distinct": k.get("distinct"), "nulls": 0} for t, k in rows.items()]}
 
 
 def _gold_answer(p, info, spec, name: str, tool: str = "gold_views_draft") -> dict:

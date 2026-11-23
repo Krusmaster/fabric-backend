@@ -17,6 +17,7 @@
 import type { CreatedItem, ReviewFile, ReviewItem } from "./ModelItemDefinition";
 import type { OutputKind } from "./engineClient";
 import { KIND_TYPE, typeWord } from "./fabricIcons";
+import { AdvancedPlan, advancedStages, provenLinks } from "./advancedStages";
 
 /** Fabric's workloads, as Fabric names them (the Workload hub). */
 export type Workload =
@@ -43,6 +44,9 @@ export interface NextStep {
   /** WB11: the Fabric item types this step makes or names (REST names: Notebook, SemanticModel, ...), each shown with its
    * icon beside the workload's name at the card's top left (fabricIcons.ts) */
   items: string[];
+  /** AA1: the Data Science card's Advanced analytics: per recommended analysis, Feature table -> Model -> Predictions in
+   * gold (advancedStages.ts), and the names of the notebooks this item already created */
+  advanced?: AdvancedPlan & { inWorkspace: string[] };
 }
 
 /** WB11: the item types of the outputs a build step ticks, once each, in the outputs' order. */
@@ -107,7 +111,8 @@ export function proofOf(review: ReviewFile | undefined): Proof {
     duplicates += Math.max(0, num(r.rows) - num(r.nulls) - num(r.distinct));
   }
   for (const l of links.filter(checked)) orphans += num(l.check?.result?.orphans);
-  for (const it of items.filter(checked)) {
+  // ED3: the same source of truth as ED2's freshest review (ed2Create.reviewStamp): the newest check of any item
+  for (const it of items) {
     const at = it.check?.checked_at;
     if (at && (!checkedAt || at > checkedAt)) checkedAt = at;
   }
@@ -147,6 +152,17 @@ export function proofLine(p: Proof): string {
     `${plural(p.orphans, "orphan")}, ${plural(p.duplicates, "duplicate key")}.`;
 }
 
+/** ED3 (Gustav: "checked 2026-11-11 20:23 UTC" on 21 November): when the newest check is more than a day old, one line
+ * that says how old and what refreshes it; nothing when it is from today. */
+export function staleCheckLine(checkedAt: string | undefined, now: Date = new Date()): string | undefined {
+  if (!checkedAt) return undefined;
+  const t = Date.parse(checkedAt);
+  if (Number.isNaN(t)) return undefined;
+  const days = Math.floor((now.getTime() - t) / 86_400_000);
+  if (days < 1) return undefined;
+  return `That check is ${days === 1 ? "1 day" : `${days} days`} old: Check against the rows again to prove it on today's rows.`;
+}
+
 /** The doubled total the proven grain prevents, in one sentence; empty when no link repeats its target. */
 export function grainLine(g: Grain | undefined): string {
   if (!g) return "";
@@ -161,7 +177,7 @@ export function grainLine(g: Grain | undefined): string {
 // ------------------------------------------------------------------ the Data Science starter -------------------------
 
 const py = (s: string) => JSON.stringify(s);
-const ident = (s: string) => s.replace(/[^A-Za-z0-9_]+/g, "_").replace(/^(\d)/, "_$1").toLowerCase();
+export const ident = (s: string) => s.replace(/[^A-Za-z0-9_]+/g, "_").replace(/^(\d)/, "_$1").toLowerCase();
 
 /** The notebook's cells (Python, PySpark): a feature table one row per parent, the grain proven, and an Experiment. */
 export function featureCells(g: Grain, source: { name: string; schema: string; checkedAt?: string }): string[] {
@@ -256,6 +272,12 @@ export function factoryTitle(left: OutputKind[], done: OutputKind[]): string {
     ks.map((k, i) => FACTORY_WORDS[k][first && i === 0 ? 0 : 1]).join(ks.length > 2 ? ", " : " and ").replace(/, ([^,]+)$/, " and $1");
   const head = say(left, true);
   if (!done.length) return head;
+  // ED3 (Gustav: "the pipeline is built" while silver failed): a pipeline runs silver and gold; without them it waits
+  if (done.includes("pipeline") && left.some((k) => k === "silver_notebook" || k === "gold_views")) {
+    const rest = done.filter((k) => k !== "pipeline");
+    return `${head}; the pipeline exists but has nothing to run until ${left.length > 1 ? "they are" : "it is"} built` +
+      (rest.length ? `, and the ${say(rest, false).replace(/^a /, "")} ${rest.length > 1 ? "are" : "is"} built` : "");
+  }
   return `${head}; the ${say(done, false).replace(/^a /, "")} ${done.length > 1 ? "are" : "is"} built`;
 }
 
@@ -294,9 +316,12 @@ export function nextSteps(input: NextInput): { proof: Proof; steps: NextStep[]; 
       how: { kind: "starter", label: "Download notebook (.ipynb)", filename: `${ident(g.parent)}_features.ipynb`, mime: "application/x-ipynb+json",
         content: toIpynb(cells), code: cells.join("\n\n# ----\n\n"), name: nbName, cells },
       status: "starter", items: ["Notebook", "MLExperiment"],
+      // ED3 (Gustav: the card said it twice): one line; Open in Fabric and Run now are the card's buttons
+      advanced: { ...advancedStages(g, { name: src.displayName, schema: src.schema }, provenLinks(input.review)),
+        inWorkspace: input.created.filter((c) => c.type === "Notebook").map((c) => c.name ?? "") },
       note: nbBuilt
-        ? `The notebook is in your workspace: open it and run it. Krusgraph does not run it and trains no model.`
-        : "Dry run, then Create puts the notebook in your workspace, attached to the lakehouse; or download it. Krusgraph never runs it and trains no model.",
+        ? "The notebook is in this item's workspace, attached to the data product's lakehouse."
+        : "Dry run, then Create puts the notebook in this item's workspace, attached to the data product's lakehouse; or download it. Krusgraph trains no model.",
     });
   }
   if (!has("semantic_model", "report")) {

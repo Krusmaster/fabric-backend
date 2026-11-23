@@ -75,13 +75,25 @@ def test_the_plan_card_offers_check_doubled_totals_draft_and_review(fabric):
     assert "next" not in json.loads(r.content[-1].text)                             # structuredContent only
 
 
+def _no_clock(o):
+    """The two answers below are made seconds apart; checked_at has minute resolution and differs when a minute turns
+    between them (seen in CI, 10:25 -> 10:26). Everything else must be identical."""
+    if isinstance(o, dict):
+        return {k: ("<minute>" if k == "checked_at" else _no_clock(v)) for k, v in o.items()}
+    if isinstance(o, list):
+        return [_no_clock(v) for v in o]
+    if isinstance(o, str):
+        return re.sub(r"\d{4}-\d\d-\d\dT\d\d:\d\dZ", "<minute>", o)
+    return o
+
+
 def test_the_text_answer_leads_with_the_result_and_lists_the_same_next_steps(fabric):
     for tool, args in (("plan_backend", SRC), ("validate_plan", SRC), ("review_plan", {**SRC, "validate": True})):
         r, d = _sc(tool, **args)
         lead, full = r.content[0].text, r.content[-1].text
         assert len(r.content) == 2 and not lead.lstrip().startswith("{") and len(lead) < 2000, (tool, lead)
         plain, shown = json.loads(getattr(server, tool)(**args)), json.loads(full)
-        assert {k: v for k, v in shown.items() if k in plain} == plain                # the JSON answer, unchanged
+        assert _no_clock({k: v for k, v in shown.items() if k in plain}) == _no_clock(plain)   # the JSON answer, unchanged
         first, _, rest = lead.partition("\n\n")
         assert first and "Next steps:" in rest
         user, _, model = lead.partition("What each number is:")          # DIR1: facts, not instructions
@@ -104,7 +116,7 @@ def test_the_check_card_lists_every_key_and_link_with_counts_and_no_row_values(f
     assert amount["state"] == "failed" and amount["counts"] == "repeated on every line: do not sum over the lines"
     links = [x for x in c["rows"] if x["kind"] == "link"]
     assert all(x["counts"].startswith("0 of ") and x["counts"].endswith(" point at nothing") for x in links)
-    assert not any("sql" in x for x in c["rows"] if x["kind"] in ("key", "link"))   # SQL only for a failure
+    assert all(x.get("sql") for x in c["rows"] if x["state"] != "not_checked")     # BL41: every counted number has its query
     shown = json.dumps(c)
     assert not [v for v in _row_values() if v in shown]
     assert "checks" not in json.loads(r.content[-1].text)
@@ -208,7 +220,7 @@ def test_the_check_card_shows_states_and_the_sql_on_request(tmp_path, fabric):
     r, d = _sc("validate_plan", **args)
     out = _browse(tmp_path, mcp_apps.card_html(), {"args": args, "result": _result(r), "caps": {"serverTools": {}},
                                                    "clicks": [{"css": "details.ck-details > summary"},   # CO1: under Details
-                                                              {"text": "Show the SQL that counts it"}], "scheme": "dark"})
+                                                              {"text": "Show the SQL"}], "scheme": "dark"})          # BL41: every row
     n = d["checks"]["counts"]
     assert out["pills"] == [[x["id"], x["state"].replace("_", " ")] for x in d["checks"]["rows"]]
     assert ["key:order_items", "failed"] in out["pills"]

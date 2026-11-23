@@ -15,6 +15,7 @@
 
 import type { MapData } from "./cardMap";
 import type { SchemasAnswer } from "./engineClient";
+import { cleanRoles } from "./roleWords";
 
 export const DEFINITION_VERSION = 1;
 export const ITEM_FORMAT = "krusgraph-model";
@@ -71,6 +72,8 @@ export interface SourceDefinition {
   buildIn?: "item" | "source";
   /** n221: the lakehouse Create may make in the build's workspace for silver and gold (ticked by the person) */
   createLakehouse?: string;
+  /** WB5: a CSN file chosen in the editor (csnUpload.ts), sent with review and check; kept only here */
+  csn?: { name: string; csn: Record<string, unknown> };
 }
 
 export interface CreatedItem {
@@ -82,6 +85,8 @@ export interface CreatedItem {
   output?: string;
   /** n180: the plan it was built from (absent for items built before n180: "plan unknown") */
   plan?: PlanMark;
+  /** ED3: a notebook's default lakehouse (its id): where Run now's preview reads the table the notebook wrote */
+  attached?: string;
   /** n185: a data agent Krusgraph published in Fabric */
   published?: boolean;
   /** n197: in the data product, an item an earlier Create of this item built */
@@ -132,6 +137,9 @@ export interface OutputChoice {
   jobs?: { run_once: boolean; schedule: { every: "day" | "hours"; at: string; hours?: number; time_zone: string; start?: string } | null };
   /** n185: the data agent's layer and its Publish / Microsoft 365 Copilot ticks (both off unless ticked) */
   agent?: { layer: "silver" | "gold" | "source"; publish: boolean; copilot: boolean };
+  /** BL58: the semantic model's ticked row-level security roles, by the column each filters on (roleWords.ts); absent or
+   * empty: none, the default, and the request is as before */
+  roles?: string[];
 }
 
 /** n209: as appWords.AppPackageRecord; read through appWords.readAppRecord, which checks its shape. */
@@ -153,9 +161,11 @@ export interface AppPackageStored {
 export function cleanChoice(c: OutputChoice): OutputChoice {
   const lists = (x: unknown): boolean => !!x && typeof x === "object"
     && ["kpis", "tables", "charts"].every((k) => Array.isArray((x as Record<string, unknown>)[k]));
-  const { app, app_package, ...rest } = c;
+  const { app, app_package, roles, ...rest } = c;
+  const keptRoles = c.type === "semantic_model" ? cleanRoles(roles) : undefined;   // BL58: column names only
   return {
     ...rest,
+    ...(keptRoles ? { roles: keptRoles } : {}),
     ...(app !== undefined && lists(app) ? { app } : {}),
     ...(app_package && typeof app_package === "object" && typeof app_package.name === "string" && lists(app_package.chosen) ? { app_package } : {}),
   };

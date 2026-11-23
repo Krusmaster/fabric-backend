@@ -158,21 +158,22 @@ def test_start_has_use_it_in_fabric_next_to_claude_and_other_agents(client):
 def test_docs_have_krusgraph_in_fabric_with_its_pages(client):
     paths = [p["path"] for p in pages.docs_pages() if p["gpath"] == "/docs/krusgraph-for-fabric"]
     assert paths == ["/docs/krusgraph-for-fabric", "/docs/krusgraph-for-fabric/what-the-krusgraph-model-item-does",
+                     "/docs/krusgraph-for-fabric/next-steps-with-other-workloads",   # WB6: the Hub's third Get started card
                      "/docs/krusgraph-for-fabric/add-it-to-your-fabric", "/docs/krusgraph-for-fabric/permissions-in-plain-words",
                      "/docs/krusgraph-for-fabric/network-hosts", "/docs/krusgraph-for-fabric/troubleshooting"]
     group = _plain(client.get(paths[0]).text)
     assert "uses no AI model" in group and "Workload Hub is planned and not available" in group
-    add = client.get(paths[2]).text
+    add = client.get(paths[3]).text
     assert 'href="/pilot/fabric"' in add and "planned, not available" in add and "up to 20" in _plain(client.get(paths[0]).text)
-    perms = client.get(paths[3]).text
+    perms = client.get(paths[4]).text
     from fabric_backend.workload_api import KINDS
     for v in KINDS.values():
         assert f"<td>{v['label']}</td>" in perms
         for alt in v["needs"]:
             assert " or ".join(alt) in perms
-    hosts = _plain(client.get(paths[4]).text)
+    hosts = _plain(client.get(paths[5]).text)
     assert "workload.krusgraph.com" in hosts and "krusgraph.com" in hosts and "TLS 1.2" in hosts
-    trouble = _plain(client.get(paths[5]).text)
+    trouble = _plain(client.get(paths[6]).text)
     for needle in ("keeps loading", "consent", "schema list", "not turned on for your organisation yet"):
         assert needle in trouble, needle
     for p in paths:
@@ -184,13 +185,16 @@ def test_docs_have_krusgraph_in_fabric_with_its_pages(client):
 def test_the_screenshots_are_the_editors_labelled_synthetic_and_served(client):
     h = client.get("/docs/krusgraph-for-fabric/what-the-krusgraph-model-item-does").text
     imgs = re.findall(r'<img src="(/static/workload-shots/[^"]+\.webp)" alt="([^"]+)"', h)
-    assert [Path(s).stem for s, _ in imgs] == [n for n, _ in offering.SHOTS]
+    here = [n for n, _ in offering.SHOTS if n != "model-next-steps"]          # WB6: that one is on its own page
+    assert [Path(s).stem for s, _ in imgs] == here
+    nxt = client.get("/docs/krusgraph-for-fabric/next-steps-with-other-workloads").text
+    assert re.findall(r'<img src="/static/workload-shots/([^"]+)\.webp" alt="[^"]+Synthetic data\."', nxt) == ["model-next-steps"]
     for src, alt in imgs:
         assert alt.endswith("Synthetic data."), alt
         r = client.get(src)
         assert r.status_code == 200 and r.headers["content-type"] == "image/webp" and r.content[:4] == b"RIFF", src
         assert len(r.content) < 350_000, src
-    assert h.count('<span class="shot-tag">Synthetic data</span>') == len(offering.SHOTS)
+    assert h.count('<span class="shot-tag">Synthetic data</span>') == len(here)
     # the images are in the package (pyproject package-data), and the harness that made them is in the repository
     assert '"static/workload-shots/*"' in (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     for f in ("build_fixtures.py", "harness.tsx", "shoot.js", "README.md"):
@@ -312,7 +316,7 @@ def test_browser_start_and_the_docs_screenshots(browser_site):
     s = browser_site["start"]
     assert s["paths"][-1] == "Use it in Fabric" and s["fabricHref"] == "/docs/krusgraph-for-fabric" and s["short"]
     shots = browser_site["shots"]
-    assert [Path(x["src"]).stem for x in shots] == [n for n, _ in offering.SHOTS]
+    assert [Path(x["src"]).stem for x in shots] == [n for n, _ in offering.SHOTS if n != "model-next-steps"]   # WB6: own page
     assert all(x["w"] == 1280 and "Synthetic data" in x["cap"] for x in shots)
 
 

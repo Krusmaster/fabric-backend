@@ -20,11 +20,29 @@ import { MapData } from "./cardMap";
 import { CheckTotals } from "./modelWords";
 import { getWorkloadName } from "../../controller/ConfigurationController";
 import type { WaitKind, WaitSignal } from "./waitWords";
+import type { RolesCard } from "./roleWords";
 
 export interface EngineError {
   error: string;
   kind: string;
   hint?: string;
+  /** kind upgrade (entitlements.py, billing.py): the Marketplace offer */
+  upgrade_url?: string;
+  /** WB8: the request's correlation id, the reference support looks up in the engine's log */
+  correlation_id?: string;
+}
+
+/** WB8 (requirement 2.4): the header the engine logs on every line of a request (workload_api.CORRELATION_HEADER). */
+export const CORRELATION_HEADER = "x-krusgraph-correlation-id";
+
+/** A fresh id per engine call: the browser's UUID, or 32 random hex characters where randomUUID is missing. */
+export function newCorrelationId(): string {
+  const c = (globalThis as { crypto?: Crypto }).crypto;
+  if (c && typeof c.randomUUID === "function") return c.randomUUID();
+  const b = new Uint8Array(16);
+  if (c && typeof c.getRandomValues === "function") c.getRandomValues(b);
+  else for (let i = 0; i < b.length; i++) b[i] = Math.floor(Math.random() * 256);
+  return Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
 }
 
 export interface ReviewAnswer {
@@ -159,6 +177,8 @@ export interface OutputRequest {
   jobs?: PipelineJobs;
   /** n185: the data agent's layer and its Publish / Microsoft 365 Copilot ticks, both off unless ticked */
   agent?: AgentOptions;
+  /** BL58 (BL46): the semantic model's ticked row-level security roles, by column; sent only when one is ticked */
+  roles?: string[];
 }
 
 /** n185: a schedule as the engine takes it (pipeline_jobs.schedule_spec). */
@@ -366,6 +386,8 @@ export interface BuildCard {
   agent?: AgentCard;
   /** ED2: the semantic model's one line: what it reads */
   reads?: string;
+  /** BL58 (BL46, workload_api.role_card): the row-level security roles the model's dry run proposes, off by default */
+  roles?: RolesCard;
 }
 
 /** n180 (workload_api.refresh_new_model): planned in the dry run; refreshed, refreshing (still running when the wait
@@ -480,6 +502,8 @@ export interface SourceRequest {
    * notebook, gold views and pipeline write. */
   silver_schema?: string;
   gold_schema?: string;
+  /** WB5: a CSN file chosen in the editor; the engine uses it like a CSN in the lakehouse's Files, for this call only */
+  csn_upload?: { name: string; csn: Record<string, unknown> };
 }
 
 export class EngineCallError extends Error {
@@ -620,7 +644,7 @@ export function engineScope(
 
 export type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
-type Route = "review" | "check" | "build" | "schemas" | "pipeline-run" | "operation" | "product" | "health" | "access" | "drawio" | "verify" | "catalog" | "file" | "starter" | "analysis";
+type Route = "review" | "check" | "build" | "schemas" | "pipeline-run" | "operation" | "product" | "health" | "access" | "drawio" | "verify" | "catalog" | "file" | "starter" | "analysis" | "run" | "sap-demo" | "selfcheck";
 
 /** n197: send the request in the background (202 and an operation id) and read the operation until it ends; an engine
  * that answers at once (200, an older server, or no store for operations) is taken as it answers. */
@@ -750,17 +774,18 @@ async function callOnce<T>(
   const onCancel = () => abort?.abort();
   cancel?.addEventListener?.("abort", onCancel);
   let response: Response;
+  const cid = newCorrelationId();
   try {
     response = await fetchImpl(`${base}/workload/v1/${route}`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(background ? { Prefer: "respond-async" } : {}) },
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", [CORRELATION_HEADER]: cid, ...(background ? { Prefer: "respond-async" } : {}) },
       body: JSON.stringify(body),
       ...(abort ? { signal: abort.signal } : {}),
     });
   } catch (e) {
     if (cancel?.aborted) throw cancelled();
     // n179: "Failed to fetch" carries no reason; say what it means for this request instead
-    throw new EngineCallError(lostAnswer(route, Math.round((Date.now() - started) / 1000), !!abort?.signal.aborted), 0);
+    throw new EngineCallError({ ...lostAnswer(route, Math.round((Date.now() - started) / 1000), !!abort?.signal.aborted), correlation_id: cid }, 0);
   } finally {
     if (timer) clearTimeout(timer);
     cancel?.removeEventListener?.("abort", onCancel);
@@ -773,7 +798,8 @@ async function callOnce<T>(
   }
   if (!response.ok || (answer as EngineError).error) {
     if (response.status === 401) forgetToken(workloadClient);
-    throw new EngineCallError(answer as EngineError, response.status);
+    const err = answer as EngineError;
+    throw new EngineCallError({ ...err, correlation_id: err.correlation_id || response.headers?.get?.(CORRELATION_HEADER) || cid }, response.status);
   }
   if (background) (answer as any).__status = response.status;
   return answer as T;
@@ -1002,8 +1028,27 @@ export function file<T>(workloadClient: WorkloadClientAPI, body: object, fetchIm
 
 /** WB10 (#64): the Data Science starter notebook, created in the item's workspace (POST /workload/v1/starter). A dry run
  * unless dry_run is false and the dry run's confirm is sent back; never run by Krusgraph, never overwriting. */
+/** WB5: Load SAP demo data (POST /workload/v1/sap-demo, fabric_backend/workload_api.run_sap_demo): the sap_demo36
+ * generator notebook, a dry run first, then Create with the dry run's confirm. Never run by Krusgraph. */
+export function sapDemo<T>(workloadClient: WorkloadClientAPI, body: object, fetchImpl?: Fetch): Promise<T> {
+  return callOnce<T>(workloadClient, "sap-demo", body, REQUEST_WAIT_MS, fetchImpl ?? ((u, i) => fetch(u, i)), false);
+}
+
+/** WB9: the pilot's self-check (POST /workload/v1/selfcheck, fabric_backend/workload_api.run_selfcheck): consent,
+ * capacity, workspace access and a lakehouse, read as the signed-in user. Read only. */
+export function selfcheck<T>(workloadClient: WorkloadClientAPI, body: object, fetchImpl?: Fetch): Promise<T> {
+  return callOnce<T>(workloadClient, "selfcheck", body, REQUEST_WAIT_MS, fetchImpl ?? ((u, i) => fetch(u, i)), false);
+}
+
 export function starter<T>(workloadClient: WorkloadClientAPI, body: object, fetchImpl?: Fetch): Promise<T> {
   return callOnce<T>(workloadClient, "starter", body, REQUEST_WAIT_MS, fetchImpl ?? ((u, i) => fetch(u, i)), false);
+}
+
+/** ED3: Run now (POST /workload/v1/run, fabric_backend/workload_api.run_item): without run_id one run of a notebook or
+ * pipeline Krusgraph created starts, as the signed-in user; with run_id its state is read (and, once it succeeded, the
+ * output table's row count and first 10 rows when `preview` names it). Only ever sent on the person's click. */
+export function runItem<T>(workloadClient: WorkloadClientAPI, body: object, fetchImpl?: Fetch): Promise<T> {
+  return callOnce<T>(workloadClient, "run", body, REQUEST_WAIT_MS, fetchImpl ?? ((u, i) => fetch(u, i)), false);
 }
 
 /** WB4: Recommended analyses (POST /workload/v1/analysis, fabric_backend/workload_api.run_analysis): analysis_plan's

@@ -59,12 +59,14 @@ import {
 } from "./createRun";
 import { PREPARING, Ticked, chosenProducts, ticked } from "./productSuggestions";
 import { SuggestedProductsPanel } from "./SuggestedProductsView";
+import type { SelfCheckAnswer } from "./SelfCheck";
 import { Busy, EmptyView, ErrorBar, OutputsView, PreviewView, ResultView, ReviewView } from "./ModelItemViews";
 import { MapData } from "./cardMap";
 import { Choice, acceptAll, totalsOf } from "./modelWords";
 import { notCheckedLine } from "./ed1Words";
 import { Blocker, freshestReview, staleLine, toFinish } from "./ed2Create";
 import { readAppRecord, rememberApp, withAppChoices } from "./appWords";
+import { keepOffered, withRoles } from "./roleWords";
 import {
   MAX_WAIT_MS, POLL_MS, agentAfterRun, jobsBlocked, pipelineItem, recordRun, recordSchedule, runFinished, scheduleIds, stillRunning,
 } from "./jobsWords";
@@ -76,7 +78,10 @@ import { DataProductPage, preloadParts } from "./lazyParts";   // n223: the Data
 import { OntoWait } from "./OntoWait";
 import { FlowSteps } from "./FlowSteps";
 import { flowSteps } from "./stepWords";
-import { AnalysisContext, AnalysisSource, NextStepsPanel, StarterAnswer, StarterContext, StarterSource } from "./NextStepsView";
+import { AdvancedAnalytics, AnalysisContext, AnalysisSource, NextStepsPanel, StarterAnswer, StarterContext, StarterSource } from "./NextStepsView";
+import { RunContext, RunSource } from "./RunNowView";
+import { RUN_ONLY_WHEN, RunAnswer } from "./runNow";
+import { fabricItemUrl, openInNewTab } from "./openInFabric";
 import type { AnalysisAnswer } from "./analysisPlan";
 import { Wait, WaitSignal, checkLabel, newWait, reviewLabel, withSignal } from "./waitWords";
 import { accessLine } from "./accessWords";
@@ -98,6 +103,8 @@ import {
 } from "./autosave";
 import { SaveIndicator } from "./SaveIndicator";
 import { CreatedItem, ItemCache, RemovedItem, ReviewFile } from "./ModelItemDefinition";
+import { CsnUpload } from "./csnUpload";
+import { SapDemoAnswer } from "./SapViews";
 
 const VIEWS: ModelView[] = ["empty", "review", "outputs", "preview", "result", "product"];
 const EMPTY_RESULT = { dry_run: false, order: [], left_out_by_review: [], refused: 0, note: "", outputs: [] } as unknown as engine.ManyAnswer;
@@ -194,6 +201,7 @@ export function ModelItemEditor(props: PageProps) {
     // n201: a read-only source's build writes to the chosen lakehouse, or the workspace's first (null). n221: the build's
     // workspace (this item's by default, buildPlace.ts) and the lakehouse there; review and check ignore it
     target: targetRequest(d.source, metaRef.current?.workspaceId, productRef.current.name.trim() || metaRef.current?.displayName),
+    ...(d.source.csn ? { csn_upload: d.source.csn } : {}),   // WB5
   });
 
   /** n201: the source's real item type (the picker may name it otherwise) and what the review says about it. */
@@ -260,6 +268,17 @@ export function ModelItemEditor(props: PageProps) {
     setDirty(true);
     setView?.("review");
     if (check && a.review) await checkRows(next);
+  }
+
+  /** WB5: a CSN file chosen (or removed) in the review: kept in the item's source, then the review is read again with it. */
+  async function onCsn(v: CsnUpload | null) {
+    const d = defRef.current;
+    if (!d.source) return;
+    const { csn: _old, ...rest } = d.source;
+    const next = { ...d, source: v ? { ...rest, csn: v } : rest };
+    setDef(next);
+    setDirty(true);
+    await plan(next);
   }
 
   /** n197: the review read again in the background on reopening an item that has outputs; the result stays in view.
@@ -545,6 +564,15 @@ export function ModelItemEditor(props: PageProps) {
   }
 
   /** n181: the App's ticks, kept in outputs.json at once (the item stores the choices) and sent with Preview and Create. */
+  /** BL58: the semantic model's ticked roles, saved in outputs.json and sent with Create (none by default). */
+  async function chooseRoles(roles: string[]) {
+    const next = withRoles(choicesRef.current, roles);
+    setChoices(next);
+    const d = { ...defRef.current, outputs: { ...defRef.current.outputs, outputs: next } };
+    setDef(d);
+    await save(d);
+  }
+
   async function chooseApp(app: AppChoices) {
     const next = withAppChoices(choices, app);
     setChoices(next);
@@ -597,7 +625,8 @@ export function ModelItemEditor(props: PageProps) {
     setStaleNote(staleLine(savedReview.current, d.review));     // ED2: said once, when the saved review was older
     if (d.review) savedReview.current = d.review;
     // n209: the App's choices, pages, package and one command, kept in outputs.json so an App built later shows them
-    const kept = rememberApp(choices, a.outputs, new Date().toISOString());
+    // BL58: only the roles this dry run offers stay ticked (a role refused by the model is unticked)
+    const kept = keepOffered(rememberApp(choices, a.outputs, new Date().toISOString()), a.outputs);
     if (kept !== choices) {
       setChoices(kept);
       const d2 = { ...d, outputs: { ...d.outputs, outputs: kept } };
@@ -1263,8 +1292,14 @@ export function ModelItemEditor(props: PageProps) {
     if (row.id) void openItem({ id: row.id, workspaceId: row.workspace ?? defRef.current.source?.workspaceId, type: row.type, displayName: row.name } as never);
   }
 
+  /** ED3: Open in Fabric opens the item in a new browser tab (the host's openBrowserTab), so this item stays open. */
   async function openItem(item: OpenLink["item"]) {
-    await navigateToItem(workloadClient, item as never);
+    const url = fabricItemUrl(item);
+    if (!url) return navigateToItem(workloadClient, item as never);
+    await openInNewTab(url, async (u) => {
+      const got = (await workloadClient.navigation.openBrowserTab({ url: u })) as { success?: boolean } | undefined;
+      if (got && got.success === false) throw new Error("not opened");
+    });
   }
 
   // ---------------------------------------------------------------- ribbon (one sticky ribbon, Home first)
@@ -1299,8 +1334,22 @@ export function ModelItemEditor(props: PageProps) {
     setChoices((cs) => cs.map((c) => ({ ...c, enabled: outputs.includes(c.type) })));
     go("outputs");
   };
+  /** ED3: Advanced analytics is one section on the Data product step; Next links there and scrolls to it. The focus goes
+   * to its heading too: the button pressed is gone with the view, and a keyboard or screen reader user would otherwise
+   * start again at the top of the Data product page. It waits (up to 2 s) for the section to be on the page. */
+  const goAnalytics = () => {
+    if (view !== "product") { go("product"); void loadProduct(); }
+    let tries = 0;
+    const land = () => {
+      const heading = document.getElementById("kg-advanced-title");
+      if (!heading) { if (++tries < 40) setTimeout(land, 50); return; }
+      document.getElementById("kg-advanced-analytics")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      heading.focus({ preventScroll: true });
+    };
+    setTimeout(land, 50);
+  };
   const nextPanel = (
-    <NextStepsPanel review={def.review} created={def.outputs.created} source={def.source} onBuild={buildNext} />
+    <NextStepsPanel review={def.review} created={def.outputs.created} source={def.source} onBuild={buildNext} onAnalytics={goAnalytics} now={new Date()} />
   );
 
   const wrap = (node: React.ReactNode) => (
@@ -1328,6 +1377,7 @@ export function ModelItemEditor(props: PageProps) {
           onChooseLakehouse={chooseLakehouse}
           onChooseTarget={chooseTarget}
           onReview={() => plan(def, {}, true)}
+          onSelfCheck={itemMeta?.workspaceId ? () => engine.selfcheck<SelfCheckAnswer>(workloadClient, { workspace: itemMeta.workspaceId }) : undefined}
           mascotsOn={mascotsOn}
         />
       ),
@@ -1351,6 +1401,10 @@ export function ModelItemEditor(props: PageProps) {
             readOnly={sourceInfo.readOnly}
             sap={sourceInfo.sap}
             onNext={() => go("outputs")}
+            csn={def.source.csn}
+            onCsn={(v) => void onCsn(v)}
+            onSapDemo={(dryRun, confirm) => engine.sapDemo<SapDemoAnswer>(workloadClient,
+              { ...sourceRequest(defRef.current), dry_run: dryRun, ...(confirm ? { confirm } : {}) })}
           />
         ) : null
       ),
@@ -1384,6 +1438,7 @@ export function ModelItemEditor(props: PageProps) {
       component: wrap(preview ? <PreviewView answer={preview} onCreate={() => void create()} creating={creating || !!busy} mascotsOn={mascotsOn} createLabel={createLabel(preview)}
         stale={staleNote} onFixBlocker={(b) => void fixBlocker(b)}
         appChoices={choices.find((c) => c.type === "rayfin_app")?.app} onAppChoices={chooseApp}
+        roles={choices.find((c) => c.type === "semantic_model")?.roles} onRoles={(r) => void chooseRoles(r)} onDryRunAgain={() => void previewBuild()}
         appRecord={readAppRecord(choices.find((c) => c.type === "rayfin_app")?.app_package, choices.find((c) => c.type === "rayfin_app")?.name)} /> : null),
     },
     // W13: next steps with other Fabric workloads, under the result once something was built
@@ -1441,7 +1496,9 @@ export function ModelItemEditor(props: PageProps) {
         onFixAndFinish={() => { go("result"); }}
       />
   );
-  views.push({ name: "product", component: wrap(<>{productPage}<CatalogPanel />{nextPanel}</>) });   // CA1
+  views.push({ name: "product", component: wrap(<>{productPage}
+    <AdvancedAnalytics review={def.review} source={def.source} created={def.outputs.created} />
+    <CatalogPanel />{nextPanel}</>) });   // CA1; ED3: Advanced analytics
 
 
   // n228: "Download as draw.io" under the map and the data flow (drawioDownload.tsx); the engine makes the file from what is shown
@@ -1520,14 +1577,21 @@ export function ModelItemEditor(props: PageProps) {
   // WB10 (#64): the Data Science starter's Dry run and Create; what Create made joins outputs.json like any output
   const starterSource = useMemo<StarterSource>(
     () => ({
-      run: ({ name, cells, dryRun, confirm }) =>
-        engine.starter<StarterAnswer>(workloadClient, { ...sourceRequest(defRef.current), name, cells, dry_run: dryRun, confirm: confirm ?? null }),
+      run: ({ name, cells, dryRun, confirm, output }) =>
+        engine.starter<StarterAnswer>(workloadClient, { ...sourceRequest(defRef.current), name, cells, dry_run: dryRun, confirm: confirm ?? null,
+          ...(output ? { output } : {}) }),
       onCreated: (item) => {
         void update((d) => ({ ...d, outputs: { ...d.outputs, created: [...d.outputs.created.filter((c) => c.id !== item.id), item] } }));
-        callNotificationOpen(workloadClient, "Notebook created", `${item.name} is in your workspace. Krusgraph did not run it.`);
+        callNotificationOpen(workloadClient, "Notebook created", `${item.name} is in this item's workspace. ${RUN_ONLY_WHEN}`);
       },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
+    [workloadClient]
+  );
+
+  // ED3: Run now on a notebook or pipeline this item created; only on the person's click (RunNowView.tsx)
+  const runSource = useMemo<RunSource>(
+    () => ({ run: (body) => engine.runItem<RunAnswer>(workloadClient, body) }),
     [workloadClient]
   );
 
@@ -1545,6 +1609,7 @@ export function ModelItemEditor(props: PageProps) {
     <AnalysisContext.Provider value={analysisSource}>
     <OneLakeContext.Provider value={oneLakeSource}>
     <StarterContext.Provider value={starterSource}>
+    <RunContext.Provider value={runSource}>
     <DrawioContext.Provider value={drawioSource}>
     <VerifyContext.Provider value={verifySource}>
     <CatalogContext.Provider value={catalogSource}>
@@ -1562,6 +1627,7 @@ export function ModelItemEditor(props: PageProps) {
     </CatalogContext.Provider>
     </VerifyContext.Provider>
     </DrawioContext.Provider>
+    </RunContext.Provider>
     </StarterContext.Provider>
     </OneLakeContext.Provider>
     </AnalysisContext.Provider>

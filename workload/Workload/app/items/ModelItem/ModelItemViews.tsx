@@ -7,6 +7,9 @@
  * (green passed, red failed with its orphans or duplicates, grey not checked), Onto, Thinker and Builder in their own
  * colours with the site's figures, Thinker's questions with their choices inline, and Accept all. Words: modelWords.ts.
  */
+import { RunNow } from "./RunNowView";
+import { CsnChooser, SapDemo, SapDemoAnswer, SapFields } from "./SapViews";
+import { CsnUpload } from "./csnUpload";
 import { ReadOnlySource, SapOffer, isReadOnly, restType, sapMark, schemaProblem, sourceButton, sourceNotes, targetButton, targetLine } from "./sourceWords";
 import React, { useState } from "react";
 import {
@@ -33,6 +36,7 @@ import {
 } from "@fluentui/react-components";
 import { ArrowRight24Regular, CheckmarkCircle20Filled, CheckmarkStarburst24Regular, ErrorCircle20Filled, Open24Regular, Warning20Filled } from "@fluentui/react-icons";
 import { ItemEditorEmptyView } from "../../components/ItemEditor";
+import { SelfCheck, SelfCheckAnswer } from "./SelfCheck";
 import { AppChoices, BuildCard, DataProduct, EngineError, JobsCard, ManyAnswer, OutputKind, SchemasAnswer } from "./engineClient";
 import {
   AppApi, AppDesign, AppPackageRecord, AppPreflight, APP_BEFORE_CREATE, BUILT_APP_NOTE, BUILT_APP_UNKNOWN, CHART_TYPE_WORDS, EDIT_NOTE, EDIT_TITLE, GROUPS, PREVIEW_NOTE, apiLines, builtChoices,
@@ -73,10 +77,11 @@ import { builtOn, defaultsLine, notCheckedLine } from "./ed1Words";
 import { ChosenProductsView } from "./SuggestedProductsView";
 import { progressLabel } from "./createRun";
 import { AgentChoices, AgentPanel, JobsPanel, PipelineChoices } from "./JobsViews";
+import { RolesPanel } from "./RolesView";
 import { agentOf, jobsOf, scheduleProblems } from "./jobsWords";
 import { ICON_SIZE, KIND_TYPE, NOTICES, altBeside, itemIcon } from "./fabricIcons";
 import { TypeIcon, TypeName } from "./itemIcons";
-import { DEFAULT_BUILD, FIRST_LINE, PIPELINE_PARTS } from "./stepWords";
+import { ONTO_EMPTY, DEFAULT_BUILD, FIRST_LINE, PIPELINE_PARTS } from "./stepWords";
 import { ProofStrip } from "./NextStepsView";
 import {
   APP_STEPS_TITLE, CardState, FINISH_CSS, LastCreate, STATE_MARK, banner, cardState, itemTypeLabel, keepUpToDate, nextSteps,
@@ -133,14 +138,28 @@ export function Busy(props: { label?: string; wait?: Wait; mascotsOn?: boolean; 
   );
 }
 
+/** WB7: a Create refused for the licence (kind upgrade) gets the offer as a link, not only as text in the hint: no dead
+ * end. Only an https address is linked; the dry run stays one click away. */
+export function upgradeLink(error?: EngineError): string | undefined {
+  const url = error?.kind === "upgrade" ? error.upgrade_url : undefined;
+  return url && url.startsWith("https://") ? url : undefined;
+}
+
 export function ErrorBar({ error }: { error?: EngineError }) {
   if (!error) return null;
+  const offer = upgradeLink(error);
   return (
-    <MessageBar intent="error">
+    <MessageBar intent={offer ? "warning" : "error"}>
       <MessageBarBody>
         {error.error}
         {error.hint ? ` ${error.hint}` : ""}
+        {error.correlation_id ? <span className="kg-reference"> Reference for support: <code>{error.correlation_id}</code></span> : null}
       </MessageBarBody>
+      {offer && (
+        <MessageBarActions>
+          <Link href={offer} target="_blank" rel="noopener noreferrer">Subscribe in Microsoft Marketplace</Link>
+        </MessageBarActions>
+      )}
     </MessageBar>
   );
 }
@@ -213,6 +232,8 @@ export function EmptyView(props: {
   /** n201: a read-only source's target lakehouse */
   onChooseTarget?: () => void;
   onReview: () => void;
+  /** WB9: the pilot's self-check, when the item's workspace is known */
+  onSelfCheck?: () => Promise<SelfCheckAnswer>;
 }) {
   const { source } = props;
   const readOnly = !!source && isReadOnly(source.itemType);
@@ -220,10 +241,16 @@ export function EmptyView(props: {
     <ItemEditorEmptyView
       title="Choose a source"
       description={FIRST_LINE}
-      imageSrc="/assets/items/ModelItem/EditorEmpty.svg"
-      imageAlt=""
       customContent={
         <div className="krusgraph-empty-form">
+          {props.mascotsOn !== false && (
+            // WB6 (F7): Onto and one plain sentence instead of the kit's check-mark picture; the figure is decorative,
+            // the sentence is text. With the mascots off, the title and first line above say the same.
+            <section className="kg-empty-onto" aria-label="Onto">
+              <style>{MASCOT_CSS}</style>
+              <ul className="krusgraph-mascots"><MascotSays kind="onto" pose="explain" text={ONTO_EMPTY} /></ul>
+            </section>
+          )}
           <details className="kg-how">
             <summary><Caption1>What Krusgraph reads, and what it changes</Caption1></summary>
             <Caption1 as="p">{CHOOSE_SOURCE_WORDS}</Caption1>
@@ -248,6 +275,7 @@ export function EmptyView(props: {
             (!!props.schemas.error && !schemaProblem(props.schemas.error, source.displayName).typeIt)} onClick={props.onReview}>
             Find keys and relationships
           </Button>
+          <SelfCheck send={props.onSelfCheck} />
         </div>
       }
     />
@@ -378,6 +406,11 @@ export function ReviewView(props: {
   sap?: SapOffer;
   /** W13: the step after the review, shown on the page (it was only the ribbon's arrow) */
   onNext?: () => void;
+  /** WB5: the CSN file chosen in the editor, and choosing or removing one */
+  csn?: CsnUpload;
+  onCsn?: (v: CsnUpload | null) => void;
+  /** WB5: Load SAP demo data (shown when the review found no SAP tables) */
+  onSapDemo?: (dryRun: boolean, confirm?: string) => Promise<SapDemoAnswer>;
 }) {
   const [tab, setTab] = useState<"map" | "list">("map");
   const notes = sourceNotes(props.readOnly, props.sap);
@@ -404,6 +437,9 @@ export function ReviewView(props: {
           {notes.map((line) => <Body1 key={line}>{line}</Body1>)}
         </section>
       )}
+      <SapFields sap={props.sap} />
+      {props.onCsn && <CsnChooser csn={props.csn} disabled={props.checking} onCsn={props.onCsn} />}
+      {!props.sap && props.onSapDemo && <SapDemo send={props.onSapDemo} />}
 
       <div className="krusgraph-actions">
         <Button appearance={totals.checked ? "secondary" : "primary"} icon={<CheckmarkStarburst24Regular />}
@@ -730,6 +766,10 @@ export interface CardActions {
   appRecord?: AppPackageRecord;
   /** ED2: errors several cards share, said once above them */
   shared?: SharedError[];
+  /** BL58: the semantic model's ticked roles as stored in outputs.json, how to change them, and the dry run again */
+  roles?: string[];
+  onRoles?: (roles: string[]) => void;
+  onDryRunAgain?: () => void;
 }
 
 /** n181: the App (Rayfin, preview): the preflight, the ticks, the pages, the read-only connector, the package. */
@@ -1056,6 +1096,9 @@ export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["i
       {isApp(c) && <AppPanel card={c} saved={props.appChoices} onAppChoices={props.onAppChoices} record={props.appRecord} />}
       {c.output === "pipeline" && <JobsPanel card={c} />}
       {c.output === "data_agent" && <AgentPanel card={c} />}
+      {c.output === "semantic_model" && (
+        <RolesPanel card={c} saved={props.roles} onRoles={c.dry_run ? props.onRoles : undefined} onDryRunAgain={props.onDryRunAgain} busy={props.busy} />
+      )}
       {refresh && (
         <MessageBar intent={c.refresh?.status === "refreshed" ? "success" : c.refresh?.status === "planned" || c.refresh?.status === "refreshing" ? "info" : "warning"} layout="multiline">
           <MessageBarBody>
@@ -1073,9 +1116,13 @@ export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["i
       {links.length > 0 && (
         <div className="krusgraph-actions">
           {links.map((l) => (
-            <Button key={l.item.id} icon={<Open24Regular />} onClick={() => props.onOpen?.(l.item)}>
-              Open in Fabric: {l.label}
-            </Button>
+            <React.Fragment key={l.item.id}>
+              {/* ED3: primary, a new tab; Run now beside a notebook or pipeline this Create made */}
+              <Button appearance="primary" icon={<Open24Regular />} onClick={() => props.onOpen?.(l.item)}>
+                Open in Fabric: {l.label}
+              </Button>
+              <RunNow item={l.item} />
+            </React.Fragment>
           ))}
         </div>
       )}
@@ -1253,6 +1300,10 @@ export function PreviewView(props: {
   stale?: string;
   /** ED2: the one button that fixes what keeps Create off */
   onFixBlocker?: (b: Blocker) => void;
+  /** BL58: the semantic model's ticked roles, how to change them, and the dry run again with them */
+  roles?: string[];
+  onRoles?: (roles: string[]) => void;
+  onDryRunAgain?: () => void;
 }) {
   const a = props.answer;
   const checkLine = dryRunCheckLine(a.row_check);
@@ -1283,7 +1334,8 @@ export function PreviewView(props: {
       <ChosenProductsView products={a.products} />
       {a.flow && <FlowView flow={a.flow} mascotsOn={props.mascotsOn} idPrefix="kg-flow-preview" />}
       {a.outputs.map((c) => (
-        <OutputCard key={c.output} card={c} appChoices={props.appChoices} onAppChoices={props.onAppChoices} appRecord={props.appRecord} />
+        <OutputCard key={c.output} card={c} appChoices={props.appChoices} onAppChoices={props.onAppChoices} appRecord={props.appRecord}
+          roles={props.roles} onRoles={props.onRoles} onDryRunAgain={props.onDryRunAgain} busy={props.creating} />
       ))}
       {a.left_out_by_review.length > 0 && (
         <section>
@@ -1394,9 +1446,12 @@ export function ResultView(props: {
           <Subtitle2>Created items</Subtitle2>
           <div className="krusgraph-actions">
             {earlier.map((l) => (
-              <Button key={l.item.id} icon={<Open24Regular />} onClick={() => props.onOpen(l.item)}>
-                Open in Fabric: {l.label}
-              </Button>
+              <React.Fragment key={l.item.id}>
+                <Button appearance="primary" icon={<Open24Regular />} onClick={() => props.onOpen(l.item)}>
+                  Open in Fabric: {l.label}
+                </Button>
+                <RunNow item={l.item} />
+              </React.Fragment>
             ))}
           </div>
         </section>

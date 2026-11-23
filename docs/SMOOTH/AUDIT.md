@@ -418,3 +418,70 @@ shortcut), which is a new gold shape.
 Not verified: none of this has run in Fabric. Spark SQL reads `lakehouse.schema.table` across schema-enabled
 lakehouses of one workspace (*Lakehouse schemas*, Microsoft Learn); a materialized lake view over another lakehouse's
 tables has not been created in a Fabric workspace by Krusgraph. SM8's demo workspace is where that is checked.
+
+## 15. After SM7: combine SAP + CRM in one data product (21 November 2026)
+
+PLAN.md row 6, COMBINE-SOURCES.md. Everything below ran locally on the synthetic fixture
+`tests/fixtures/multi_lakehouse.py`, layout (b): `sap_lh`, `crm_lh` and `sales_product_lh`, whose `sap` and `crm` schemas
+are the sources (simulated schema shortcuts). Synthetic rows only. Nothing reached Fabric; any POST, PATCH, PUT or DELETE
+fails the test. Tests: `tests/test_sm7_combine.py`.
+
+| Measure | Before (main, 21 Nov) | After SM7 |
+|---|---|---|
+| (b) customers matched across SAP and CRM | none: a link across schemas only when typed in `confirmed` | **M0 `crm.Account.SAP_Customer_No__c` → `sap.KNA1.KUNNR`**, counted: 4 of 5 accounts hold a value, 3 match as written, 4 after normalising; 3 of 4 SAP customers found (1 is in another client), 1 SAP customer matched by 2 accounts |
+| (b) what the Check card says | "38 tables, 77 links, nothing needs you." | "38 tables, 77 links, 1 needs you." and, in 24 words, "SAP has 4 customers, the CRM 5 accounts. 4 accounts match on SAP_Customer_No__c after normalising. 1 only in SAP, 1 only in the CRM." |
+| (b) the decision | | Decide: Accept the match / Keep them apart, with the counted evidence; kept in the flow state (the latest tap wins); nothing combined before Accept |
+| (b) the model dry run | each source's tables, apart | **one `dim_customer` (5 customers), 3 SAP facts + 7 CRM facts re-keyed to `customer_key`, 10 relationships fact → dim_customer, 0 fact → fact**, Direct Lake on `sales_product_lh` (`gold`), with the gold SQL |
+| (b) Start → combined dry run (`tools/smooth_measure.py --combine`, server side, no browser) | not possible | **5 taps, 1.81 / 1.68 / 1.86 s** (3 runs, `measure-sm7-2026-11-21.json`), 0 errors, 0 writes |
+| One-lakehouse demo (browser, `tools/smooth_measure.py`) | 4 taps | unchanged: the combine step runs only on a plan over several schemas |
+
+What changed:
+- **`fabric_backend/combine.py`.** The party tables come from DP1's catalog (`customer`, `crm_account`, role master,
+  with their business keys). Rules M0 (a column that names the other source and an identifier), M1 (the same official
+  identifier: VAT id, organisation number, DUNS, GLN, by fixed normalising steps) and M2 (a key-shaped column, counted;
+  0.9 only with ≥ 95 % found and ≥ 50 distinct values). M4 (names) is never used. Two counting statements per
+  candidate, at most 4 candidates, on the one connection; counts only.
+- **Start.** Check shows the match line and counts the open decision; Decide asks for it first; the dry run says what it
+  combines ("SAP + CRM → 1 dim_customer (5 customers); 3 SAP facts and 7 CRM facts share it, no link between facts.").
+- **`create_semantic_model`** over a plan of several schemas with an accepted match drafts the conformed model and
+  returns the gold SQL (`xref_customer`, `dim_customer`, one view per fact). Its Create answers `not_yet` until the
+  pipeline builds that gold (issue #152).
+- **DP2's coverage on a plan over several schemas** now reads each schema's own pack (`data_product_match._pack_entries`):
+  before, the SAP tables of `crm+sap` were looked up in the Salesforce mapping, and Check said "customer missing".
+
+Decisions for Gustav: the master is the side the match points at (not "the most keys"), so no source row ever gets two
+customer keys; the SAP side is matched within its client with the most rows when the CRM field holds no client. Both
+are said on the card's evidence and in COMBINE-SOURCES.md.
+
+Not verified: none of this has run in Fabric. The gold SQL was run on SQLite in a test after fixed translations
+(`test_the_gold_sql_runs_and_conforms_the_fixture`), not on Spark. SM8's demo workspace is where that is checked.
+
+## 16. After ED3, part 1: open it, run it, see it (21 November 2026)
+
+Gustav's third editor test (about 13:00 to 14:10 UTC, the same shop sample) after ED2's Create. What he saw, and what
+the Model item does now. Deterministic rules; nothing here uses AI.
+
+| # | Before | After |
+|---|---|---|
+| 1 | After Create of `shop_lh_orders_features` the Data Science card offered only "Download notebook (.ipynb)" and "Copy the code" ("jag vill kunna öppna notebooken från Krusgraph eller ha en ny flik") | Every created item has a primary **Open in Fabric** that opens it in a new browser tab (`openInFabric.tsx`: the portal address from the starter kit's `getFrontendPath`, opened with the workload client's `navigation.openBrowserTab`; the link's own `target=_blank rel=noopener` as the fallback). The Data product rows and the result lists open in a new tab too. Download and Copy are secondary |
+| 2 | No way to see the result ("sen kanske se resultatet?") | **Run now** beside Open in Fabric for a notebook or pipeline Krusgraph created (`RunNowView.tsx`, `runNow.ts`, `POST /workload/v1/run`): one click starts one run with Fabric's Run On Demand Item Job (learn.microsoft.com/rest/api/fabric/core/job-scheduler/run-on-demand-item-job; job types `RunNotebook` and `Pipeline`), and Get Item Job Instance (…/get-item-job-instance) is read every 5 s, then every 15 s, for at most 30 minutes: Queued, Running, Succeeded, or Failed with Fabric's message once. After a run that wrote a table: its row count and first 10 rows, read once the way `sample_rows` reads (masked by the privacy rules), not stored. Never automatic. Card text: "Krusgraph runs it only when you choose Run now." |
+| 3 | "The notebook is in your workspace: open it and run it …" and "Created the notebook … open it in Fabric and run it yourself." | One line: "The notebook is in this item's workspace, attached to the data product's lakehouse." plus the Run now line once |
+| 4 | Thinker "checked 2026-11-11 20:23 UTC"; "Silver notebook and gold views; the pipeline is built" while silver had failed | Thinker's time is the newest check of any item (the same source as ED2's `freshestReview`); when it is more than a day old one line says how old and what refreshes it. The Data Factory card says "the pipeline exists but has nothing to run until they are built" |
+| 9a | The starter was created next to the source lakehouse, in the source's workspace, not the item's | Created where every output goes (`build_place`: the item's workspace by default), attached to the data product's lakehouse (the one chosen, else the one Create made or reused, else the workspace's first), reading the source through OneLake; the dry run and the answer say where |
+| 9b | The analysis pack (AP1, WB4's Recommended analyses) was not a visible track | One section **Advanced analytics** on the Data product step, linked from the Next page: the analyses the rules recommend, why each, the top one ticked, Dry run then Create (each a notebook in this workspace, through the starter route), then Open in Fabric and Run now. Nothing is created without Create; Krusgraph trains no model |
+| 9c | 409 "already in use" for `shop_lh_krusgraph_test`, which was in this very workspace | ED2's check uses a lakehouse of that name; now also after a 409 (the listing had not caught up): a lakehouse of exactly that name is used, never `_2` |
+
+**The preview and permissions.** Run now asks for no new Entra permission. It uses the sign-in's
+`Notebook.Execute.All`, `DataPipeline.Execute.All` or `Item.Execute.All` when the sign-in already carries one (the
+hosted app has `DataPipeline.Execute.All` only where the operator switched `pipeline_execute` on); without one, Run now
+says so in one line and points to Run in Fabric. Running a notebook from the item therefore needs an administrator to
+grant `Notebook.Execute.All` (or `Item.Execute.All`) to the workload's app, which this round did not do. The preview
+needs nothing new: it is part of Run now's answer and reads the lakehouse's SQL analytics endpoint with the same token
+as the row check.
+
+Tests: `tests/test_ed3_open_run.py` (fake Fabric: the starter in the item's workspace and lakehouse; Run now's job type,
+states and failure message once; no new permission; the preview read once after success; the same-name lakehouse after a
+409) and `workload/Workload/app/items/ModelItem/ed3OpenRun.test.tsx` (the Open in Fabric address per item type and the
+new tab, Run now's states and preview, no sentence twice on the card, the stale check line, Advanced analytics with the
+top recommendation ticked). `tools/smooth_measure.py` before and after: the same taps, words and buttons on all six
+paths (the guided chat path is not changed by this part).

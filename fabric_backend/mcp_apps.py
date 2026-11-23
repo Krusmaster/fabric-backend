@@ -115,6 +115,10 @@ def call_result(text: str, extra: dict | None = None, lead: str | None = None, c
     return CallToolResult(content=content, structured_content=data if isinstance(data, dict) else None)
 
 
+LATEST_LEAD = ("Start Krusgraph: the card's own check whether a newer card has moved the path on. Nothing was recorded, "
+               "and there is nothing to tell the user.")
+
+
 def structured(fn, name: str | None = None):
     """n137: the registered form of a tool in STRUCTURED when the flag is on: the tool's own function, its answer
     wrapped by call_result. The module's function stays the one that returns text. n170: for a tool with a picture
@@ -140,6 +144,9 @@ def structured(fn, name: str | None = None):
             answer = json.loads(out)
         except ValueError:
             return call_result(out)
+        if name == "start" and isinstance(answer, dict) and "latest" in answer and "step" not in answer:
+            # BL47 (#104): the card's own read-only "still the latest?" check: no coach, no step, no next steps
+            return call_result(out, None, LATEST_LEAD)
         if name in pictures.PICTURE_TOOLS:
             try:
                 extra.update(pictures.extras(name, answer, stash))

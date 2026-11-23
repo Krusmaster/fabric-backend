@@ -964,7 +964,12 @@
       var model = f.nodes.filter(function (x) { return x.column === 'built'; })[0];
       var html = '<h3>The data flow</h3><p>' + plural(n('bronze'), 'source table') + ' (bronze) become ' +
         plural(n('silver'), 'silver table') + (n('gold') ? ', and ' + plural(n('gold'), 'gold view') + ' join them' : '') + '.' +
-        (model ? ' The semantic model ' + code(model.label) + ' reads the source tables directly.' : '') +
+        // DPM1: the model reads the gold views, grouped by the data products the chat draws (demo.py's flow.model)
+        (model ? ' The semantic model ' + code(model.label) + (f.model && f.model.layer === 'gold'
+          ? ' is built on gold: it reads the gold views as a star schema, grouped into ' +
+            list(f.model.data_products.map(function (g) { return code(g.name); })) + ', the same data products as the picture' +
+            (f.model.left_out.length ? '; ' + list(f.model.left_out.map(function (x) { return code(x.table); })) + ' is in none, so it stays out of the model' : '') + '.'
+          : ' reads the source tables directly.') : '') +
         ' Left to right; choose a box to see its code.</p><div class="kgd-slot"></div>';
       var does = data('flow', 'does');
       var note = 'This is a demo, so nothing was created or run. ' + (does === 'creates'

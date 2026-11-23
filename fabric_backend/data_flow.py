@@ -16,7 +16,9 @@ relationships and measures (an excerpt of the dry run's TMDL). tests/test_worklo
 schema. `built` says whether this build creates the node: what is not part of it is drawn dashed.
 
 The model, the API, the ontology and the data agent read the source tables (bronze) directly: that is what their
-definitions bind to, so the flow draws them from the source, not from the gold views.
+definitions bind to, so the flow draws them from the source, not from the gold views. DPM1: a semantic model built in
+the same run as the gold views reads them (semantic_model.draft_on_gold): its card carries `on_gold` (the gold views it
+reads), the flow draws a line from each of them to the model, and the column is titled "Built on gold".
 """
 from __future__ import annotations
 
@@ -43,8 +45,17 @@ def silver_nodes(spec: dict, built: bool) -> tuple[list[dict], list[dict]]:
     nodes, edges = [], []
     for t in spec["tables"]:
         lines, pills = [], []
-        if t["key"] and not t.get("dedupe") and not t.get("fix_key"):     # n208: a guessed key removes no rows
-            lines.append(f"every row kept: key {' + '.join(t['key'])} not checked")
+        if t["key"] and t.get("key_check_counts"):                      # DPM1: the row check ran: what it counted
+            kc = t["key_check_counts"]
+            lines.append(f"key checked: {kc['distinct']} of {kc['rows']} unique")
+            if (t.get("key_checked") or {}).get("on"):
+                lines.append(f"checked against the rows on {t['key_checked']['on']}")
+            if t.get("dedupe") and t["order_by"]:
+                lines.append(f"the latest by {t['order_by']}")
+            pills.append(t["key_rule"])
+        elif t["key"] and not t.get("dedupe") and not t.get("fix_key"):     # n208: a guessed key removes no rows
+            lines.append(f"every row kept: key {' + '.join(t['key'])} " + ("counted unique when the plan was made"
+                                                                          if t.get("key_counted_unique") else "not checked"))
             pills.append(t["key_rule"])
         elif t["key"] and t.get("key_checked"):                         # n221: the key the row check or the review stands behind
             kc = t["key_checked"]
@@ -74,13 +85,15 @@ def silver_nodes(spec: dict, built: bool) -> tuple[list[dict], list[dict]]:
 
 def gold_nodes(spec: dict, built: bool) -> tuple[list[dict], list[dict]]:
     nodes, edges = [], []
-    for v in spec["views"]:
+    for v in _gold.all_views(spec):
         nid = f"gold:{v['name']}"
-        lines = [f"one row per {v['fact']} row"] + [f"joins {j['to']} on {'+'.join(j['source_cols'])}" for j in v["joins"]]
+        lines = ([f"dimension: one row per {v['fact']} row"] if v.get("kind") == "dimension" else
+                 [f"one row per {v['fact']} row"] + [f"joins {j['to']} on {'+'.join(j['source_cols'])}" for j in v["joins"]])
         nodes.append({"id": nid, "column": "gold", "label": v["name"], "table": v["fact"], "lines": lines,
                       "pills": [j["rule"] for j in v["joins"]], "built": built, "code": _gold.create_sql(v, spec),
                       "language": "sql", "code_title": f"CREATE MATERIALIZED LAKE VIEW {v['name']}"})
-        edges.append({"from": f"silver:{v['fact']}", "to": nid, "label": "fact", "built": built})
+        edges.append({"from": f"silver:{v['fact']}", "to": nid, "label": "dimension" if v.get("kind") == "dimension" else "fact",
+                      "built": built})
         for j in v["joins"]:
             edges.append({"from": f"silver:{j['to']}", "to": nid, "label": f"on {', '.join(j['on'])}", "rule": j["rule"],
                           "via": j["from"], "built": built})
@@ -123,10 +136,11 @@ def tmdl_excerpt(parts: dict) -> str:
 
 
 def flow(p, info: dict, chosen: dict, *, silver_schema: str = "silver", gold_schema: str = "gold",
-         pipeline_names: tuple[str, str, str] | None = None, items: list[dict] | None = None) -> dict:
+         pipeline_names: tuple[str, str, str] | None = None, items: list[dict] | None = None, dimensions: bool = False) -> dict:
     """The flow of one build. `chosen`: {kind: name} of the outputs in the build. `items`: the cards of the items built on
     the source ({output, label, name, code?, on_model?}). Nothing is invented: a column the engine has nothing for is
-    left out, and `notes` says why."""
+    left out, and `notes` says why. `dimensions` (DPM1): the gold views include the dimension views, as when a semantic
+    model in the build reads gold; an item with `on_gold` (the gold view names it reads) is drawn from them."""
     silver_spec = _silver.spec(p, info, silver_schema, None, None, False)
     silver_built = "silver_notebook" in chosen or "pipeline" in chosen
     gold_built = "gold_views" in chosen or "pipeline" in chosen
@@ -136,7 +150,7 @@ def flow(p, info: dict, chosen: dict, *, silver_schema: str = "silver", gold_sch
     nodes += sn
     notes, gold_spec = [], None
     if info.get("schemas_enabled"):
-        gold_spec = _gold.spec(p, info, silver_schema, gold_schema, None, False)
+        gold_spec = _gold.spec(p, info, silver_schema, gold_schema, None, False, dimensions=dimensions)
         gn, ge = gold_nodes(gold_spec, gold_built)
         nodes += gn
         edges += ge
@@ -161,16 +175,22 @@ def flow(p, info: dict, chosen: dict, *, silver_schema: str = "silver", gold_sch
                       "code_title": it.get("code_title", "")})
         if it.get("on_model"):
             edges.append({"from": it["on_model"], "to": nid, "label": "on the model", "built": True})
+        elif it.get("on_gold"):                                   # DPM1: a line from each gold view the item reads
+            edges += [{"from": f"gold:{g}", "to": nid, "label": "built on gold", "built": True} for g in it["on_gold"]]
         else:
             edges.append({"from": "bronze", "to": nid, "label": "reads the source tables", "built": True})
-    on_source = [it for it in items or [] if not it.get("on_model")]
+    on_source = [it for it in items or [] if not it.get("on_model") and not it.get("on_gold")]
     if on_source and gold_spec and chosen.get("gold_views"):         # n179: the founder's live preview, 9 November 2026
         notes.append(f"{_listed([it['label'] for it in on_source])} {'reads' if len(on_source) == 1 else 'read'} the source tables "
                      "(bronze) directly, also with the gold views built in this run. Building them on the gold views is a later "
                      "option; this version does not.")
     n_gold = len(gold_spec["views"]) if gold_spec else 0
+    n_dim = len(gold_spec.get("dimension_views") or []) if gold_spec else 0
     said = (f"Bronze to gold: {len(silver_spec['tables'])} source table(s) become {len(silver_spec['tables'])} silver table(s)"
             + (f", and {n_gold} gold view(s) join them" if n_gold else "")
+            + (f", beside {n_dim} gold dimension view(s)" if n_dim else "")
             + ". Dashed boxes are not part of this build. Click a box to see its code.")
-    return {"columns": [{"id": c, "title": t} for c, t in COLUMNS], "nodes": nodes, "edges": edges, "pipeline": pipe,
+    on_gold = any(it.get("on_gold") for it in items or [])
+    titles = [(c, "Built on gold" if c == "built" and on_gold else t) for c, t in COLUMNS]
+    return {"columns": [{"id": c, "title": t} for c, t in titles], "nodes": nodes, "edges": edges, "pipeline": pipe,
             "notes": notes, "said": said}

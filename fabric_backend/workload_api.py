@@ -151,6 +151,33 @@ class BadRequest(ValueError):
     pass
 
 
+# WB8 (requirement 2.4): one correlation id per request, on every log line of that request and on every error answer.
+# In the Extensibility Toolkit the editor calls this engine itself, so Fabric adds no activity id of its own (Microsoft
+# Learn, extensibility-toolkit/authentication-javascript-api: the token only; read 23 November 2026). The editor sends
+# a fresh id per call (CORRELATION_HEADER, engineClient.ts); a missing or malformed one is replaced by a new UUID. Fabric's
+# own ActivityId and RequestId (workload-development-kit/supportability; extensibility-toolkit/
+# how-to-enable-remote-item-lifecycle: "Extra required headers include ActivityId, RequestId, and x-ms-client-tenant-id")
+# arrive only on calls Fabric makes; when present they are logged beside it. docs/TRUST.md, "Tracing an incident".
+CORRELATION_HEADER = "x-krusgraph-correlation-id"
+FABRIC_ID_HEADERS = {"activityid": "fabric_activity_id", "requestid": "fabric_request_id",
+                     "x-ms-root-activity-id": "fabric_root_activity_id"}
+_CORRELATION_OK = re.compile(r"^[A-Za-z0-9-]{8,64}$")
+_CID: contextvars.ContextVar[str | None] = contextvars.ContextVar("krusgraph_correlation_id", default=None)
+
+
+def correlation_id(headers) -> tuple[str, dict]:
+    """The request's correlation id (the editor's, when well formed, else a new UUID) and Fabric's own ids when sent."""
+    import uuid
+    got = (headers.get(CORRELATION_HEADER) or "").strip()
+    cid = got if _CORRELATION_OK.match(got) else str(uuid.uuid4())
+    fabric = {}
+    for h, key in FABRIC_ID_HEADERS.items():
+        v = (headers.get(h) or "").strip()
+        if _CORRELATION_OK.match(v):
+            fabric[key] = v
+    return cid, fabric
+
+
 def log(event: str, **fields) -> None:
     """n179: one JSON line on the console (Log Analytics when the deploy sends console logs there): what the workload
     routes did and why a call failed, so 'Failed to fetch' in the browser can be matched to a cause. Names of routes,
@@ -160,6 +187,9 @@ def log(event: str, **fields) -> None:
         fields.setdefault("peak_rss_mb", round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024))
     except (ImportError, OSError):
         pass
+    cid = _CID.get()
+    if cid:
+        fields.setdefault("cid", cid)
     line = json.dumps({"krusgraph": "workload", "event": event, **fields}, default=str)
     sys.stdout.write(line + "\n")
     sys.stdout.flush()
@@ -185,7 +215,28 @@ def _source(body: dict) -> dict:
             out["csn_path"] = clean_path(_text(body, "csn_path", None, 400))
         except ValueError as e:
             raise BadRequest(str(e)) from None
+    up = body.get("csn_upload")
+    if up not in (None, ""):                                        # WB5: a CSN chosen in the editor, sent with the request
+        from .csn_onelake import MAX_FILE_BYTES
+        if not isinstance(up, dict) or not isinstance(up.get("csn"), dict):
+            raise BadRequest("'csn_upload' is {name, csn}: the file's name and its parsed JSON object")
+        name = up.get("name") or "uploaded.csn.json"
+        if not isinstance(name, str) or len(name) > 120:
+            raise BadRequest("'csn_upload.name' is the file's name, at most 120 characters")
+        if len(json.dumps(up["csn"], ensure_ascii=False)) > MAX_FILE_BYTES:
+            raise BadRequest(f"the uploaded CSN is larger than {MAX_FILE_BYTES // (1024 * 1024)} MB")
+        out["csn_upload"] = {"name": name, "csn": up["csn"]}
     return out
+
+
+def _connect(req: dict):
+    """The source's connection; WB5: an uploaded CSN replaces what the lakehouse's Files would give for this call."""
+    from . import server as S, csn_onelake
+    s, execute = S._connected(req["workspace"], req["source"], req["schema"], None, **_csn_kw(req))
+    up = req.get("csn_upload")
+    if up:
+        S._attach_csn(execute, csn_onelake.from_upload(up["name"], up["csn"]))
+    return s, execute
 
 
 def _csn_kw(req: dict) -> dict:
@@ -288,6 +339,8 @@ def build_request(body) -> dict:
             c["agent"] = _agent_request(o["agent"])
         if o["kind"] == "pipeline" and o.get("jobs") is not None:    # n185: Run once and Schedule, both off by default
             c["jobs"] = _jobs_request(o["jobs"])
+        if o["kind"] == "semantic_model" and o.get("roles") is not None:   # BL46: the role candidates the person accepted
+            c["roles"] = _roles_request(o["roles"])
         if o["kind"] == "report" and o.get("model") not in (None, ""):
             if not isinstance(o["model"], str) or len(o["model"]) > 123:
                 raise BadRequest("report.model: the name or id of an existing semantic model, or empty for the one this build makes")
@@ -362,6 +415,17 @@ def build_request(body) -> dict:
     return {**req, "outputs": chosen, "dry_run": dry_run, "review": body["review"], "product": product,
             "created": [{k: c.get(k) for k in ("type", "id", "name", "workspace", "output", "plan") if k != "plan" or isinstance(c.get(k), dict)}
                         for c in created], "form": 2, **flags}
+
+
+def _roles_request(roles) -> list[str]:
+    """BL46: semantic_model.roles, the row-level security roles accepted from the dry run's role_candidates, by the column
+    each filters on (["BUKRS"]). Checked for shape here; whether a rule proposes it is checked against the plan by
+    create_semantic_model, which refuses an unknown one in plain words before anything is read."""
+    if (not isinstance(roles, list) or len(roles) > 20
+            or not all(isinstance(r, str) and re.match(r"^\$?[A-Za-z][A-Za-z0-9_]{0,63}$", r.strip()) for r in roles)):
+        raise BadRequest("semantic_model.roles: a list of column names from the dry run's role_candidates, such as [\"BUKRS\"], "
+                         "or omitted for none")
+    return [r.strip() for r in roles]
 
 
 def layers_request(body: dict) -> dict:
@@ -881,7 +945,7 @@ def run_review(req: dict) -> dict:
     prev = R.read(req["previous"]) if req["previous"] else None
     keys, confirmed = req.get("keys"), req.get("confirmed")
     k, c = R.merge_arguments(R.carried_arguments(prev), keys, confirmed) if prev else (keys, confirmed)
-    s, execute = S._connected(req["workspace"], req["source"], req["schema"], None, **_csn_kw(req))
+    s, execute = _connect(req)
     req = _exact(req, s.schema)
     try:
         counted = S._within_call(execute)
@@ -946,7 +1010,7 @@ def run_check(req: dict) -> dict:
     prev = R.read(req["review"])
     carried = R.carried_arguments(prev)
     k, c = carried["keys"] or None, carried["confirmed"] or None
-    s, execute = S._connected(req["workspace"], req["source"], req["schema"], None, **_csn_kw(req))
+    s, execute = _connect(req)
     req = _exact(req, s.schema)
     try:
         counted = S._within_call(execute)
@@ -1063,6 +1127,11 @@ def run_catalog(req: dict) -> dict:
 
 STARTER_MAX_CELLS = 12
 STARTER_MAX_CHARS = 60_000
+# AA1: the three stages of Advanced analytics (advanced_stages.py): the output recorded on the created item, and the
+# item's description in Fabric. The cells come from the editor, filled from advanced_stages' templates.
+STARTER_STAGES = {"features": ("ds_features", "Krusgraph starter: a feature table from the keys and links proven on {lh}"),
+                  "model": ("ds_model", "Krusgraph Advanced analytics, stage 2: a model on the feature table from {lh}"),
+                  "predictions": ("ds_predictions", "Krusgraph Advanced analytics, stage 3: predictions in gold from {lh}")}
 
 
 def starter_request(body) -> dict:
@@ -1080,7 +1149,16 @@ def starter_request(body) -> dict:
     confirm = body.get("confirm")
     if confirm is not None and (not isinstance(confirm, str) or len(confirm) > 40):
         raise BadRequest("'confirm' is the dry run's confirm value")
-    return {**req, "name": name, "cells": cells, "dry_run": dry, "confirm": confirm}
+    # AA1: the stage of Advanced analytics this notebook is; the editor sends it as the output (ds_model, ds_predictions)
+    stage = body.get("stage") or {"ds_model": "model", "ds_predictions": "predictions"}.get(body.get("output"), "features")
+    if stage not in STARTER_STAGES:
+        raise BadRequest(f"'stage' is one of {', '.join(STARTER_STAGES)}")
+    output = body.get("output") or STARTER_STAGES[stage][0]
+    if not isinstance(output, str) or not re.match(r"^(ds_features|ds_model|ds_predictions|analysis_[A-Za-z0-9]{1,8})$", output):
+        raise BadRequest("'output' is ds_features (the feature table), ds_model or ds_predictions (AA1's stages) or "
+                         "analysis_<id> (an analysis of Advanced analytics)")
+    return {**req, "name": name, "cells": cells, "dry_run": dry, "confirm": confirm, "output": output, "stage": stage,
+            "target": target_request(body.get("target"))}   # ED3: the item's workspace and its lakehouse, as Create
 
 
 def starter_confirm(workspace: str, name: str, cells: list[str]) -> str:
@@ -1088,23 +1166,56 @@ def starter_confirm(workspace: str, name: str, cells: list[str]) -> str:
     return "starter-" + hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
-STARTER_NOT_RUN = "Krusgraph does not run it and trains no model: open it in Fabric and run it yourself."
+STARTER_NOT_RUN = "Krusgraph runs it only when you choose Run now."
+
+
+def starter_lakehouse(req: dict, place: dict, items: list[dict], src: dict) -> dict | None:
+    """ED3 (Gustav, 21 November 2026: "vart är advanced analytics-spåret?"): a starter goes where the other outputs go,
+    the item's workspace by default (build_place), attached to the lakehouse of this data product's silver and gold: the
+    one chosen (target.lakehouse, an id or a name), else the one Create made or reuses (target.create_lakehouse, or the
+    name ED2 moved it to), else the workspace's first lakehouse. In the source's own workspace with none of these, the
+    source lakehouse, as before. None: nothing to attach to yet (Create silver and gold first)."""
+    tgt = req.get("target") or {}
+    lakes = [it for it in items if it.get("type") == "Lakehouse"]
+    want = (tgt.get("lakehouse") or "").lower()
+    if want:
+        hit = next((it for it in lakes if str(it.get("id", "")).lower() == want or str(it.get("displayName", "")).lower() == want), None)
+        if hit:
+            return {"id": hit["id"], "name": hit["displayName"]}
+    if tgt.get("create_lakehouse"):
+        plan = free_lakehouse_name(tgt["create_lakehouse"], items)
+        if plan["action"] == "use":
+            hit = next(it for it in lakes if str(it.get("displayName", "")).lower() == plan["name"].lower())
+            return {"id": hit["id"], "name": hit["displayName"]}
+    if not place.get("cross") and src.get("id"):
+        return {"id": src["id"], "name": src.get("displayName") or req["source_name"]}
+    if lakes:
+        return {"id": lakes[0]["id"], "name": lakes[0]["displayName"]}
+    return None
 
 
 def run_starter(req: dict) -> dict:
     from . import server as S, notebook as _notebook
     from .deploy import create_item_with_definition, find_item
     headers = S._headers(None)
-    ws = S._workspace_id(req["workspace"], headers)
-    src = S._resolve_source(ws, req["source"], headers)
-    lh_id, lh_name = src.get("id") or "", src.get("displayName") or req["source_name"]
+    place = build_place(req, headers)                              # ED3: the item's workspace, like every other output
+    ws = place["workspace_id"]
+    src = S._resolve_source(S._workspace_id(req["workspace"], headers), req["source"], headers)
+    lake = starter_lakehouse(req, place, S._list_items(ws, headers) if place["cross"] else [], src)
+    if lake is None:
+        return {"error": "There is no lakehouse in this item's workspace for the notebook to write to yet.", "kind": "bad_input",
+                "hint": "Create the silver notebook and gold views first: the starter is attached to their lakehouse. Nothing was created."}
+    lh_id, lh_name = lake["id"], lake["name"]
+    where = place.get("name") or "this item's workspace"
     exists = find_item(ws, req["name"], headers, "Notebook")
     confirm = starter_confirm(ws, req["name"], req["cells"])
-    out = {"name": req["name"], "type": "Notebook", "workspace": ws, "lakehouse": lh_name, "cells": len(req["cells"]),
-           "would": "exists" if exists else "create", "runs": False, "confirm": None if exists else confirm,
-           "words": (f"A notebook named {req['name']} is already in this workspace: Krusgraph does not overwrite it. "
+    reads = f"; it reads {req['source_name']} through OneLake" if place["cross"] else ""
+    out = {"name": req["name"], "type": "Notebook", "workspace": ws, "workspace_name": place.get("name"), "lakehouse": lh_name,
+           "lakehouse_id": lh_id,
+           "cells": len(req["cells"]), "would": "exists" if exists else "create", "runs": False, "confirm": None if exists else confirm,
+           "words": (f"A notebook named {req['name']} is already in {where}: Krusgraph does not overwrite it. "
                      "Choose another name, or open that one." if exists else
-                     f"Would create the notebook {req['name']} in this workspace, attached to {lh_name}, with "
+                     f"Would create the notebook {req['name']} in {where}, attached to {lh_name}{reads}, with "
                      f"{len(req['cells'])} cells. {STARTER_NOT_RUN}")}
     if req["dry_run"] or exists:
         log("starter", dry_run=req["dry_run"], exists=bool(exists))
@@ -1114,7 +1225,9 @@ def run_starter(req: dict) -> dict:
                 "hint": "Nothing was created. Run the dry run again."}
     source = _notebook.fabric_source([("code", c) for c in req["cells"]], _notebook.notebook_metadata(ws, lh_id, lh_name))
     got = create_item_with_definition("notebooks", "Notebook",
-                                      _notebook.envelope(req["name"], source, f"Krusgraph starter: a feature table from the keys and links proven on {lh_name}"),
+                                      _notebook.envelope(req["name"], source, (STARTER_STAGES[req.get("stage", "features")][1].format(lh=req["source_name"])
+                                                                if req.get("output", "ds_features") in ("ds_features", "ds_model", "ds_predictions") else
+                                                                f"Krusgraph analysis notebook {req['name']}, by rules on the keys and links proven on {req['source_name']}")),
                                       ws, token_provider=lambda: S.auth.fabric(None), update_existing=False)
     log("starter", dry_run=False, status=got.get("status"))
     if got.get("status") == "Timeout":
@@ -1123,10 +1236,342 @@ def run_starter(req: dict) -> dict:
     if got.get("status") != "Succeeded" or not got.get("id"):
         return {"error": f"Fabric did not create the notebook {req['name']} (HTTP {got.get('http', '?')}).", "kind": "fabric",
                 "hint": "Creating a notebook needs the Contributor role on the workspace. Nothing else was changed."}
-    created = {"type": "Notebook", "id": got["id"], "name": req["name"], "workspace": ws, "output": "ds_features"}
+    created = {"type": "Notebook", "id": got["id"], "name": req["name"], "workspace": ws, "output": req.get("output") or "ds_features",
+               "attached": lh_id}
+    # ED3 (Gustav: the card said it twice): one sentence of what was made and where; the card adds Run now's one line
     return {**out, "would": "created", "created": created,
-            "words": f"Created the notebook {req['name']}, attached to {lh_name}. {STARTER_NOT_RUN}",
+            "words": f"Created the notebook {req['name']} in {where}, attached to {lh_name}{reads}.",
             "note": "Created as you; nothing was run."}
+
+
+# ------------------------------------------------------------------ WB9: the pilot's self-check ------------------------
+# POST /workload/v1/selfcheck {workspace}: what a pilot user still lacks, one sentence each, read-only. Only documented
+# APIs: the delegated permissions on the signed-in user's token (token_scopes), Workspaces - List Workspaces (its
+# capacityId; learn.microsoft.com/rest/api/fabric/core/workspaces/list-workspaces) and Items - List Items. The tenant
+# setting "Users can see and work with additional workloads not validated by Microsoft" is in the admin portal and has no
+# documented read for a non-admin: the answer says so instead of guessing (docs/PILOT-DAY.md).
+
+SELFCHECK_SCOPES = (("Workspace.Read.All", "Workspace.ReadWrite.All"), ("Item.Read.All", "Item.ReadWrite.All"))
+SELFCHECK_TENANT = ("Not readable from here: the tenant setting \"Users can see and work with additional workloads not "
+                    "validated by Microsoft\" is in Fabric's admin portal, and no documented API reads it without a Fabric "
+                    "administrator. You can open this item, so it is on for you.")
+
+
+def selfcheck_request(body) -> dict:
+    if not isinstance(body, dict):
+        raise BadRequest("the body must be a JSON object")
+    ws = body.get("workspace")
+    if not isinstance(ws, str) or not _GUID.match(ws):
+        raise BadRequest("'workspace' is the workspace id (a GUID)")
+    return {"workspace": ws.lower()}
+
+
+def run_selfcheck(req: dict) -> dict:
+    import requests
+    from . import server as S
+    checks: list[dict] = []
+    scopes = token_scopes()
+    if scopes is None:
+        checks.append({"id": "consent", "state": "unknown", "words": "The permissions on your sign-in could not be read here; "
+                       "the first dry run says if one is missing."})
+    else:
+        missing = [alt[0] for alt in SELFCHECK_SCOPES if not set(alt) & scopes]
+        checks.append({"id": "consent", "state": "missing" if missing else "ok",
+                       "words": (f"Admin consent is missing for {', '.join(missing)}: an Entra administrator grants it once "
+                                 "(docs/PILOT-ONBOARDING.md, Path B step 4)." if missing else
+                                 "Your organisation has consented to the permissions Krusgraph needs to read.")})
+    headers = S._headers(None)
+    ws = None
+    try:
+        url = f"{FABRIC_API}/v1/workspaces"
+        while url and ws is None:
+            r = requests.get(url, headers=headers, timeout=30)
+            if r.status_code in (401, 403):
+                break
+            r.raise_for_status()
+            body = r.json()
+            ws = next((w for w in body.get("value", []) if str(w.get("id", "")).lower() == req["workspace"]), None)
+            url = body.get("continuationUri")
+    except requests.RequestException:
+        ws = None
+    if ws is None:
+        checks.append({"id": "workspace", "state": "missing", "words": "This workspace is not among the ones you can see: "
+                       "ask its admin for the Contributor role."})
+    else:
+        cap = ws.get("capacityId")
+        checks.append({"id": "capacity", "state": "ok" if cap else "missing",
+                       "words": ("The workspace is on a Fabric capacity." if cap else
+                                 "The workspace has no Fabric capacity: assign it to an F capacity or a trial "
+                                 "(Workspace settings -> License info). Power BI Pro alone is not enough.")})
+        try:
+            items = S._list_items(req["workspace"], headers)
+        except Exception:                                          # noqa: BLE001 — no access: said, not raised
+            items = None
+        if items is None:
+            checks.append({"id": "workspace", "state": "missing", "words": "The workspace's items could not be read: ask its "
+                           "admin for the Contributor role."})
+        else:
+            lakes = sum(1 for it in items if it.get("type") == "Lakehouse")
+            checks.append({"id": "workspace", "state": "ok", "words": "You can read this workspace's items. Whether you may "
+                           "create items shows at the first dry run (Contributor or higher)."})
+            checks.append({"id": "lakehouse", "state": "ok" if lakes else "missing",
+                           "words": (f"{lakes} lakehouse(s) here to pick as the source." if lakes else
+                                     "No lakehouse in this workspace yet: create one, or use Load SAP demo data after picking one.")})
+    checks.append({"id": "tenant_setting", "state": "unknown", "words": SELFCHECK_TENANT})
+    log("selfcheck", missing=sum(c["state"] == "missing" for c in checks))
+    return {"checks": checks, "ready": not any(c["state"] == "missing" for c in checks), "note": NOTHING_CHANGED}
+
+
+# ------------------------------------------------------------------ WB5: Load SAP demo data ---------------------------
+# POST /workload/v1/sap-demo: the next step "Load SAP demo data" for someone without SAP tables to try the SAP path on.
+# The sap_demo36 generator notebook (round AP2, fabric_backend/sap_demo36.py) is created, never run: a dry run first, then
+# Create with the dry run's confirm value. The notebook itself defaults to DRY_RUN = True and refuses dbo, sap_silver,
+# sap_gold and the other schemas in sap_demo36.REFUSED_SCHEMAS; it replaces only tables it wrote. Synthetic rows only.
+
+SAP_DEMO_NAME = "krusgraph_sap_demo36"
+SAP_DEMO_NOT_RUN = ("Krusgraph does not run it. In Fabric, open it, set DRY_RUN = False and run it to write the synthetic "
+                    "SAP tables; then pick the lakehouse and the schema in this item.")
+
+
+def sap_demo_request(body) -> dict:
+    from . import sap_demo36
+    if not isinstance(body, dict):
+        raise BadRequest("the body must be a JSON object")
+    req = _source(body)
+    name = _item_name(body.get("name") or SAP_DEMO_NAME, "The notebook's name")
+    schema = body.get("target_schema") or sap_demo36.DEFAULT_SCHEMA
+    if not isinstance(schema, str) or not re.match(r"^[A-Za-z_][A-Za-z0-9_]{0,63}$", schema):
+        raise BadRequest("'target_schema' is a new schema name: letters, digits and _, at most 64 characters")
+    if schema.lower() in sap_demo36.REFUSED_SCHEMAS:
+        raise BadRequest(f"'target_schema' {schema} is refused: the demo never writes to "
+                         f"{', '.join(sap_demo36.REFUSED_SCHEMAS)}. Choose a new schema such as {sap_demo36.DEFAULT_SCHEMA}.")
+    dry = body.get("dry_run", True)
+    if not isinstance(dry, bool):
+        raise BadRequest("'dry_run' must be true or false")
+    confirm = body.get("confirm")
+    if confirm is not None and (not isinstance(confirm, str) or len(confirm) > 40):
+        raise BadRequest("'confirm' is the dry run's confirm value")
+    return {**req, "name": name, "target_schema": schema, "dry_run": dry, "confirm": confirm,
+            "target": target_request(body.get("target"))}
+
+
+def sap_demo_confirm(workspace: str, name: str, schema: str) -> str:
+    text = json.dumps([workspace.lower(), name, schema.lower(), "sap_demo36"], ensure_ascii=False)
+    return "sapdemo-" + hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+
+
+def run_sap_demo(req: dict) -> dict:
+    from . import server as S, notebook as _notebook, sap_demo36
+    from .deploy import create_item_with_definition, find_item
+    headers = S._headers(None)
+    place = build_place(req, headers)
+    ws = place["workspace_id"]
+    src = S._resolve_source(S._workspace_id(req["workspace"], headers), req["source"], headers)
+    lake = starter_lakehouse(req, place, S._list_items(ws, headers) if place["cross"] else [], src)
+    if lake is None or (not place["cross"] and src.get("type") not in ("Lakehouse", None)):
+        return {"error": "There is no lakehouse here for the demo notebook to write its tables to.", "kind": "bad_input",
+                "hint": "Pick a lakehouse as the source, or create one in the workspace first. Nothing was created."}
+    where = place.get("name") or "this item's workspace"
+    exists = find_item(ws, req["name"], headers, "Notebook")
+    confirm = sap_demo_confirm(ws, req["name"], req["target_schema"])
+    out = {"name": req["name"], "type": "Notebook", "workspace": ws, "workspace_name": place.get("name"),
+           "lakehouse": lake["name"], "lakehouse_id": lake["id"], "target_schema": req["target_schema"],
+           "tables": len(sap_demo36.tables()), "would": "exists" if exists else "create", "runs": False,
+           "confirm": None if exists else confirm,
+           "words": (f"A notebook named {req['name']} is already in {where}: Krusgraph does not overwrite it. "
+                     "Choose another name, or open that one." if exists else
+                     f"Would create the notebook {req['name']} in {where}, attached to {lake['name']}. When you run it "
+                     f"with DRY_RUN = False it writes {len(sap_demo36.tables())} synthetic SAP-shaped tables to the schema "
+                     f"{req['target_schema']} (36 months, made-up names). {SAP_DEMO_NOT_RUN}")}
+    if req["dry_run"] or exists:
+        log("sap_demo", dry_run=req["dry_run"], exists=bool(exists))
+        return {**out, "note": NOTHING_CHANGED}
+    if req["confirm"] != confirm:
+        return {"error": "Send back the confirm value of the dry run, so what is created is what you saw.", "kind": "not_allowed",
+                "hint": "Nothing was created. Run the dry run again."}
+    source = sap_demo36.notebook_source(req["target_schema"], workspace_id=ws, lakehouse_id=lake["id"], lakehouse_name=lake["name"])
+    got = create_item_with_definition("notebooks", "Notebook",
+                                      _notebook.envelope(req["name"], source, "Krusgraph synthetic SAP demo, 36 months "
+                                                         "(sap_demo36): SAP-shaped made-up rows, not SAP data"),
+                                      ws, token_provider=lambda: S.auth.fabric(None), update_existing=False)
+    log("sap_demo", dry_run=False, status=got.get("status"))
+    if got.get("status") == "Timeout":
+        return {"error": f"Fabric had not finished creating {req['name']} when Krusgraph stopped waiting.", "kind": "timeout",
+                "hint": "Look in the workspace before trying again: it may have arrived. Nothing else was changed."}
+    if got.get("status") != "Succeeded" or not got.get("id"):
+        return {"error": f"Fabric did not create the notebook {req['name']} (HTTP {got.get('http', '?')}).", "kind": "fabric",
+                "hint": "Creating a notebook needs the Contributor role on the workspace. Nothing else was changed."}
+    created = {"type": "Notebook", "id": got["id"], "name": req["name"], "workspace": ws, "output": "sap_demo36",
+               "attached": lake["id"]}
+    return {**out, "would": "created", "created": created,
+            "words": f"Created the notebook {req['name']} in {where}, attached to {lake['name']}. {SAP_DEMO_NOT_RUN}",
+            "note": "Created as you; nothing was run."}
+
+
+# ------------------------------------------------------------------ ED3: Run now --------------------------------------
+# POST /workload/v1/run: Gustav, 21 November 2026, after Create: "sen kanske se resultatet?". One click by the person on
+# a notebook or pipeline Krusgraph created starts one run of it, as the signed-in user, with Fabric's Job Scheduler:
+#   Run On Demand Item Job  POST /v1/workspaces/{ws}/items/{id}/jobs/instances?jobType={RunNotebook|Pipeline}, 202 with
+#                           Location (learn.microsoft.com/rest/api/fabric/core/job-scheduler/run-on-demand-item-job;
+#                           the job types: learn.microsoft.com/fabric/data-engineering/notebook-public-api, "Run a notebook
+#                           on demand", and data-factory/pipeline-rest-api-capabilities, "Run on demand pipeline job")
+#   Get Item Job Instance   GET /v1/workspaces/{ws}/items/{id}/jobs/instances/{jobInstanceId}: status NotStarted,
+#                           InProgress, Completed, Failed, Cancelled or Deduped, failureReason.message
+#                           (learn.microsoft.com/rest/api/fabric/core/job-scheduler/get-item-job-instance)
+# Never automatic: no Create starts a run of a starter. The delegated scopes are the item type's Execute.All or
+# Item.Execute.All; Krusgraph asks for no new permission: without one the answer says so and Run in Fabric is the way.
+# After a run that succeeded, the output table's row count and first 10 rows are read once, the way sample_rows reads
+# (masked by the same privacy rules), and returned in the answer only: Krusgraph stores none of it.
+
+RUN_JOB_TYPE = {"Notebook": "RunNotebook", "DataPipeline": "Pipeline"}
+RUN_SCOPES = {"Notebook": ("Notebook.Execute.All", "Item.Execute.All"), "DataPipeline": ("DataPipeline.Execute.All", "Item.Execute.All")}
+RUN_STATE = {"NotStarted": "queued", "InProgress": "running", "Completed": "succeeded", "Failed": "failed",
+             "Cancelled": "failed", "Deduped": "failed"}
+RUN_DOC = "https://learn.microsoft.com/rest/api/fabric/core/job-scheduler/run-on-demand-item-job"
+RUN_ONLY_WHEN = "Krusgraph runs it only when you choose Run now."
+_TABLE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,127}$")
+
+
+def run_item_request(body) -> dict:
+    if not isinstance(body, dict):
+        raise BadRequest("the body must be a JSON object")
+    out = {}
+    for k in ("workspace", "item_id"):
+        v = body.get(k)
+        if not isinstance(v, str) or not _GUID.match(v.strip()):
+            raise BadRequest(f"'{k}' is a Fabric id (a GUID)")
+        out[k] = v.strip().lower()
+    if body.get("item_type") not in RUN_JOB_TYPE:
+        raise BadRequest("'item_type' is Notebook or DataPipeline: Run now runs only a notebook or pipeline Krusgraph created")
+    out["item_type"] = body["item_type"]
+    out["name"] = _item_name(body.get("name"), "The item's name")
+    run_id = body.get("run_id")
+    if run_id is not None and (not isinstance(run_id, str) or not _GUID.match(run_id)):
+        raise BadRequest("'run_id' is the job instance id Run now answered")
+    out["run_id"] = run_id.lower() if run_id else None
+    pv = body.get("preview")
+    if pv is not None:
+        if (not isinstance(pv, dict) or not isinstance(pv.get("lakehouse"), str) or not _GUID.match(pv["lakehouse"])
+                or not isinstance(pv.get("table"), str) or not _TABLE.match(pv["table"])
+                or not isinstance(pv.get("schema", "dbo"), str) or not _TABLE.match(pv.get("schema") or "dbo")):
+            raise BadRequest("'preview' is {lakehouse: its id, table, schema}: the table the run writes")
+        pv = {"lakehouse": pv["lakehouse"].lower(), "table": pv["table"], "schema": pv.get("schema") or "dbo"}
+    out["preview"] = pv
+    out["source_name"] = out["name"]                              # for the error layer's words
+    return out
+
+
+def run_permission(scopes: set[str] | None, item_type: str) -> dict | None:
+    """None when the sign-in may run it (or its permissions are not known: then Fabric is asked); else why not."""
+    need = RUN_SCOPES[item_type]
+    if scopes is None or set(need) & scopes:
+        return None
+    what = "notebook" if item_type == "Notebook" else "pipeline"
+    return {"error": f"Your sign-in cannot start a {what} from Krusgraph: it does not carry {need[0]} or {need[1]}, and "
+                     "Krusgraph asks for no new permission for this.", "kind": "needs_permission",
+            "hint": f"Open in Fabric and choose Run there; the result is the same. {RUN_ONLY_WHEN}", "doc": RUN_DOC}
+
+
+def start_item_run(http, workspace: str, item_id: str, item_type: str) -> dict:
+    """Run On Demand Item Job: one run, its job instance id from the Location header."""
+    r = http("post", f"{_fabric()}/v1/workspaces/{workspace}/items/{item_id}/jobs/instances?jobType={RUN_JOB_TYPE[item_type]}")
+    status = getattr(r, "status_code", 0)
+    if status != 202:
+        msg = ""
+        try:
+            msg = str((r.json() or {}).get("message") or "")[:300]
+        except Exception:  # noqa: BLE001 — the status is the answer
+            pass
+        return {"state": "failed", "http": status, "message": msg or f"Fabric did not start the run (HTTP {status})."}
+    loc = (getattr(r, "headers", {}) or {}).get("Location") or ""
+    run_id = loc.rstrip("/").rsplit("/", 1)[-1] if "/instances/" in loc else None
+    return {"state": "queued", "run_id": run_id}
+
+
+def read_item_run(http, workspace: str, item_id: str, run_id: str) -> dict:
+    """Get Item Job Instance, as one of queued, running, succeeded, failed (with Fabric's message, said once)."""
+    r = http("get", f"{_fabric()}/v1/workspaces/{workspace}/items/{item_id}/jobs/instances/{run_id}")
+    if getattr(r, "status_code", 0) >= 400:
+        return {"state": "unknown", "run_id": run_id, "http": getattr(r, "status_code", 0),
+                "message": "Fabric did not answer about the run; open the item in Fabric to see it."}
+    j = r.json() or {}
+    state = RUN_STATE.get(str(j.get("status")), "running")
+    out = {"state": state, "run_id": run_id, "fabric_status": j.get("status"), "start": j.get("startTimeUtc"), "end": j.get("endTimeUtc")}
+    if state == "failed":
+        out["message"] = str(((j.get("failureReason") or {}).get("message")) or j.get("status") or "")[:300]
+    return out
+
+
+def _fabric() -> str:
+    from . import server as S
+    return S.FABRIC
+
+
+def run_state_words(run: dict, name: str) -> str:
+    """One line per state; Fabric's own message once, on failed."""
+    s = run.get("state")
+    if s == "queued":
+        return f"{name}: queued in Fabric."
+    if s == "running":
+        return f"{name}: running in Fabric."
+    if s == "succeeded":
+        return f"{name}: succeeded."
+    if s == "failed":
+        return f"{name}: failed. Fabric says: {run.get('message') or 'no message'}"
+    return f"{name}: {run.get('message') or 'no answer from Fabric yet'}"
+
+
+def preview_table(workspace: str, lakehouse: str, schema: str, table: str) -> dict:
+    """The output table after a run that succeeded: its row count and first 10 rows, read the way sample_rows reads
+    (masked by the privacy rules), as the signed-in user. Returned once; nothing is kept."""
+    from . import server as S
+    s, execute = S._connected(workspace, lakehouse, schema, None)
+    try:
+        t = next((x for x in s if x.name.lower() == table.lower()), None)
+        if t is None:
+            return {"table": table, "missing": True,
+                    "words": f"The run succeeded, but {table} is not in the lakehouse yet: Fabric may still be writing it."}
+        q = S._evidence
+        types = {c.name: c.data_type for c in t.columns}
+        rows = execute(q.sample_sql(s.schema, t.name, t.column_names, 10, types))
+        counted = execute(f"SELECT COUNT_BIG(*) AS n FROM [{s.schema.replace(']', ']]')}].[{t.name.replace(']', ']]')}]")
+    finally:
+        getattr(execute, "close", lambda: None)()
+    shown = S._privacy_rows(t.name, t.column_names, [{k: (v if isinstance(v, (int, float, bool)) or v is None else str(v)[:200])
+                                                      for k, v in r.items()} for r in rows], s, False)
+    n = int((counted[0] if counted else {}).get("n") or 0)
+    return {**shown, "row_count": n, "words": f"{t.name}: {n:,} rows; the first {min(10, len(rows))} below. Read now, not stored."}
+
+
+def run_item(req: dict) -> dict:
+    """ED3: Run now (no run_id: start one run) or the run's state (run_id), and on succeeded the output's preview."""
+    from . import server as S
+    from .deploy import send
+    headers = S._headers(None)
+
+    def http(method, url, **kw):
+        return send(method, url, headers, write=method != "get", timeout=30, **kw)
+    if not req["run_id"]:
+        refused = run_permission(token_scopes(), req["item_type"])
+        if refused:
+            log("run_now", outcome="needs_permission")
+            return refused
+        run = start_item_run(http, req["workspace"], req["item_id"], req["item_type"])
+        log("run_now", outcome=run["state"])
+    else:
+        run = read_item_run(http, req["workspace"], req["item_id"], req["run_id"])
+    run["words"] = run_state_words(run, req["name"])
+    run["only_when"] = RUN_ONLY_WHEN
+    if run["state"] == "succeeded" and req.get("preview"):
+        pv = req["preview"]
+        try:
+            run["preview"] = preview_table(req["workspace"], pv["lakehouse"], pv["schema"], pv["table"])
+        except Exception as exc:  # noqa: BLE001 — the run's state stands; the preview says why it is missing
+            from .errors import explain
+            got = explain(exc, f"reading {pv['table']}")
+            run["preview"] = {"table": pv["table"], "missing": True,
+                              "words": f"The run succeeded; the preview of {pv['table']} could not be read: {got.get('error', 'no answer')}"}
+    return run
 
 
 # ------------------------------------------------------------------ WB4: Recommended analyses -----------------------
@@ -1187,7 +1632,7 @@ def run_analysis(req: dict) -> dict:
     prev = R.read(req["review"])
     carried = R.carried_arguments(prev)
     k, c = carried["keys"] or None, carried["confirmed"] or None
-    s, execute = S._connected(req["workspace"], req["source"], req["schema"], None, **_csn_kw(req))
+    s, execute = _connect(req)
     req = _exact(req, s.schema)
     item = getattr(execute, "source_item", None) or {}
     try:
@@ -2167,6 +2612,24 @@ def _call(kind: str, o: dict, chosen: dict, req: dict, keys, confirmed, dry_run:
     common = {"workspace": req["workspace"], "source": req["source"], "schema": req["schema"], "keys": keys,
               "confirmed": confirmed, "dry_run": dry_run}
     layers = layer_args(kind, chosen, req)                         # WB2 (#54)
+    on_gold = S.MODEL_ON_GOLD.set(model_on_gold(chosen, req))      # DPM1: the model reads the gold views this build writes
+    try:
+        return _call_tool(S, kind, o, chosen, req, keys, confirmed, dry_run, built, common, layers)
+    finally:
+        S.MODEL_ON_GOLD.reset(on_gold)
+
+
+def model_on_gold(chosen: dict, req: dict) -> dict | None:
+    """DPM1: the gold layer a semantic model of this build reads: when the build has the semantic model and gold views
+    (the gold views output, or the pipeline, which runs them), its silver and gold schemas; else None (the model reads
+    the source tables, bronze)."""
+    from . import layer_schemas as _ls
+    if "semantic_model" not in chosen or not ({"gold_views", "pipeline"} & set(chosen)):
+        return None
+    return {"silver_schema": req.get("silver_schema") or _ls.DEFAULT_SILVER, "gold_schema": req.get("gold_schema") or _ls.DEFAULT_GOLD}
+
+
+def _call_tool(S, kind: str, o: dict, chosen: dict, req: dict, keys, confirmed, dry_run: bool, built: dict, common: dict, layers: dict) -> dict:
     if kind == "silver_notebook":
         text = S.create_silver_notebook(name=o["name"], **layers, **common)
     elif kind == "gold_views":
@@ -2183,7 +2646,8 @@ def _call(kind: str, o: dict, chosen: dict, req: dict, keys, confirmed, dry_run:
         finally:
             S.PIPELINE_JOBS.reset(token)
     elif kind == "semantic_model":
-        text = S.create_semantic_model(name=o["name"], **layers, **common)
+        accepted = {"roles": o["roles"]} if o.get("roles") else {}   # BL46: only when the person accepted a role
+        text = S.create_semantic_model(name=o["name"], **accepted, **layers, **common)
     elif kind == "ontology":
         text = S.create_ontology(name=o["name"], **layers, **common)
     elif kind == "data_agent":                                     # n185: one layer; publishing is decided after (agent_card)
@@ -2217,14 +2681,29 @@ def _call(kind: str, o: dict, chosen: dict, req: dict, keys, confirmed, dry_run:
     return json.loads(text)
 
 
+ROLES_HOW = ("Proposed, not added: tick a role to add it to the model (the build's semantic_model output takes it as roles, "
+             "by the column it filters on). Nothing is written until Create.")
+
+
+def role_card(offered: dict) -> dict:
+    """BL46: the model card's row-level security roles, from create_semantic_model's role_candidates: each role, the column
+    and the tables it filters, why, and whether it is added. Names only, never a row value."""
+    return {"proposed": [{k: r[k] for k in ("role", "column", "rule", "filters", "why", "fits", "added", "why_not") if k in r}
+                         for r in offered.get("proposed", [])],
+            "how": ROLES_HOW, "map_table": offered.get("map_table"), "written": False}
+
+
 def model_reads(answer: dict, req: dict) -> str:
     """ED2: what the semantic model reads, in one line, the same in the dry run and the result (from the model's own
     summary.reads: the silver tables when composite keys are combined, else the source's tables)."""
     summary = answer.get("summary") if isinstance(answer.get("summary"), dict) else (answer.get("draft") or {}).get("summary") or {}
     reads = summary.get("reads") if isinstance(summary, dict) else None
+    if isinstance(reads, dict) and reads.get("layer") == "gold":       # DPM1: said in one line, the dry run and the result
+        return f"Reads: {reads.get('said')}"
     if isinstance(reads, dict) and reads.get("layer") == "silver":
         return f"Reads: the silver tables in schema {reads.get('schema')} (Direct Lake)."
-    return f"Reads: the source tables of {req.get('source_name') or 'the source'}, schema {req.get('schema')} (bronze, Direct Lake)."
+    return (f"Reads: the source tables of {req.get('source_name') or 'the source'}, schema {req.get('schema')} (bronze, Direct Lake): "
+            "no gold views in this build.")
 
 
 def product_owner(req: dict) -> str | None:
@@ -2272,7 +2751,14 @@ def _flow(req: dict, p, chosen: dict, cards: list[dict], keys, confirmed) -> dic
     info, refusal = S._write_info(info, "The data flow")           # n201: a read-only source flows into the target lakehouse
     if refusal:
         return None
-    items = []
+    items, og, gold_at = [], None, model_on_gold(chosen, req)
+    if gold_at and info.get("schemas_enabled"):                    # DPM1: what the model on gold reads, from the engine itself
+        from . import gold as _gold, semantic_model as _sm
+        try:
+            og = _sm.gold_model(p, _gold.spec(p, info, gold_at["silver_schema"], gold_at["gold_schema"], dimensions=True),
+                                S.checked_validation(p))
+        except Exception:                                          # noqa: BLE001 — a schema the gold views refuse: drawn as before
+            og = None
     for c in cards:
         if c["output"] not in data_flow.ON_SOURCE + ("report",) or c.get("refusal"):
             continue
@@ -2280,6 +2766,8 @@ def _flow(req: dict, p, chosen: dict, cards: list[dict], keys, confirmed) -> dic
         if "gold_views" in chosen:                                 # n179: said plainly when gold views are built in the same run
             reads += ", not the gold views built in this run"
         it = {"output": c["output"], "label": c["label"], "name": c["name"], "reads": reads}
+        if c["output"] == "semantic_model" and og:                 # DPM1: built on gold, a line from each gold view it reads
+            it.update(reads=og["said"], on_gold=[f"{og['schema']}.{t}".lower() for t in og["kinds"]])
         if c["output"] == "semantic_model" and isinstance((c.get("answer") or {}).get("parts"), dict):
             it.update(code=data_flow.tmdl_excerpt(c["answer"]["parts"]), language="tmdl", code_title=f"{c['name']}: relationships and measures")
         if c["output"] == "report":
@@ -2293,7 +2781,8 @@ def _flow(req: dict, p, chosen: dict, cards: list[dict], keys, confirmed) -> dic
     if "pipeline" in chosen:
         names = (chosen.get("silver_notebook") or f"silver_{req['schema']}", chosen.get("gold_views") or f"gold_{req['schema']}",
                  f"{chosen['pipeline']}_check")
-    out = data_flow.flow(p, info, chosen, pipeline_names=names, items=items)
+    out = data_flow.flow(p, info, chosen, pipeline_names=names, items=items, gold_schema=(gold_at or {}).get("gold_schema", "gold"),
+                         silver_schema=(gold_at or {}).get("silver_schema", "silver"), dimensions=gold_at is not None)
     if info.get("target") and isinstance(out, dict):              # n201: said on the flow, where the dry run shows it
         out["target"] = info["target"]
         if isinstance(out.get("notes"), list):
@@ -2410,7 +2899,10 @@ def checked_keys(rv: dict) -> dict:
             continue
         c = it.get("check") or {}
         if c.get("status") == "passed":
-            out[it["table"]] = {"columns": list(it["columns"]), "how": "rows", "checked_at": c.get("checked_at") or ""}
+            res = c.get("result") or {}
+            out[it["table"]] = {"columns": list(it["columns"]), "how": "rows", "checked_at": c.get("checked_at") or "",
+                                **({"rows": int(res["rows"]), "distinct": int(res["distinct"])}       # DPM1: "key checked: N of N unique"
+                                   if res.get("rows") is not None and res.get("distinct") is not None else {})}
         elif it.get("review") == "accepted":
             out[it["table"]] = {"columns": list(it["columns"]), "how": "accepted", "checked_at": ""}
     return out
@@ -2556,8 +3048,17 @@ def make_lakehouse(ws: str, plan: dict, headers: dict, req: dict, list_items=Non
             return got
         if int(got.get("http") or 0) != 409 and "already in use" not in str(got.get("error", "")).lower():
             return got
+        listed = list_items()
+        # ED3 (Gustav, 21 November: shop_lh_krusgraph_test was in this very workspace, made by an earlier Create, and
+        # Create still got 409 "already in use"): when the listing now shows a lakehouse of exactly this name, it is
+        # this data product's own, made before (or a moment ago); it is used, never replaced by name_2
+        same = next((it for it in listed if it.get("type") == "Lakehouse"
+                     and str(it.get("displayName") or "").lower() == name.lower()), None)
+        if same:
+            return {"id": same.get("id"), "name": same.get("displayName") or name, "workspace": ws, "made": False,
+                    "words": f"Uses the lakehouse {same.get('displayName') or name}, already in this workspace (an earlier Create made it)."}
         tried.append(name)
-        nxt = free_lakehouse_name(first.get("asked") or first["name"], list_items(), tuple(tried))
+        nxt = free_lakehouse_name(first.get("asked") or first["name"], listed, tuple(tried))
         if nxt["action"] == "use":
             return {"id": None, "name": nxt["name"], "workspace": ws, "made": False}
         name = nxt["name"]
@@ -2695,6 +3196,8 @@ def _build_many(req, S, rv, keys, confirmed, dry_run, scopes, app_id, chosen, ou
                         answer.setdefault("result", {})["published"] = True
                 if kind == "semantic_model" and not answer.get("error"):   # ED2: one line, what the model reads
                     card["reads"] = model_reads(answer, req)
+                    if answer.get("role_candidates"):          # BL46: proposed, accepted like a key or a link
+                        card["roles"] = role_card(answer["role_candidates"])
                 if kind == "pipeline":                             # n185: the two choices, what they will do or did
                     card["jobs"] = _jobs_card(o, answer, jobs_permission(scopes, app_id), dry_run)
                 if kind == "semantic_model" and not answer.get("error") and dry_run and would == "create":
@@ -2975,7 +3478,8 @@ class Tokens:
 def cors_headers(origin: str | None) -> dict:
     if origin and FABRIC_ORIGIN.match(origin.lower()):
         return {"Access-Control-Allow-Origin": origin, "Vary": "Origin", "Access-Control-Allow-Methods": "POST, OPTIONS",
-                "Access-Control-Allow-Headers": "Authorization, Content-Type, Prefer", "Access-Control-Max-Age": "600"}
+                "Access-Control-Allow-Headers": f"Authorization, Content-Type, Prefer, {CORRELATION_HEADER}",
+                "Access-Control-Expose-Headers": CORRELATION_HEADER, "Access-Control-Max-Age": "600"}
     return {"Vary": "Origin"}
 
 
@@ -3024,9 +3528,15 @@ def routes(cfg, validator=None, obo=None) -> list:
     obo = obo or OnBehalfOf(cfg)
 
     def reply(body: dict, status: int, origin: str | None, extra: dict | None = None) -> Response:
-        return JSONResponse(body, status_code=status, headers={**SECURITY_HEADERS, **cors_headers(origin), **(extra or {})})
+        cid = _CID.get()
+        if cid and isinstance(body, dict) and "error" in body:
+            body = {**body, "correlation_id": cid}        # WB8: the reference a user gives support
+        trace = {CORRELATION_HEADER: cid} if cid else {}
+        return JSONResponse(body, status_code=status, headers={**SECURITY_HEADERS, **cors_headers(origin), **trace, **(extra or {})})
 
     def licence(req: dict, tid: str) -> dict | None:
+        """KRUSGRAPH_ENTITLEMENTS without the trial: a Create (dry_run=false) on /build and, since WB7, on the routes in
+        billing.CREATE_ROUTES is the create_backend feature; every dry run and read stays free."""
         from . import entitlements
         if not entitlements.enabled():
             return None
@@ -3038,6 +3548,17 @@ def routes(cfg, validator=None, obo=None) -> list:
             browser reports only 'Failed to fetch' and the editor cannot say which output or why."""
             started = time.monotonic()
             origin = request.headers.get("origin")
+            cid, fabric_ids = correlation_id(request.headers)
+            token = _CID.set(cid)
+            try:
+                return await traced(request, origin, started, fabric_ids)
+            finally:
+                _CID.reset(token)
+
+        async def traced(request, origin, started, fabric_ids):
+            if fabric_ids:
+                log("fabric_ids", route=where, **fabric_ids)
+            cid = _CID.get()
             try:
                 response = await inner(request, origin)
             except Exception as exc:  # noqa: BLE001 — logged by type and route, answered without details
@@ -3047,6 +3568,7 @@ def routes(cfg, validator=None, obo=None) -> list:
                               "hint": "Try again. If it repeats, the server's log has the cause (event route_failed)."}, 500, origin)
             if response.status_code >= 400:
                 log("route_answer", route=where, status=response.status_code, seconds=round(time.monotonic() - started, 1))
+            response.headers.setdefault(CORRELATION_HEADER, cid)
             return response
 
         async def inner(request, origin):
@@ -3142,8 +3664,11 @@ def routes(cfg, validator=None, obo=None) -> list:
             Route(f"{PREFIX}/file", endpoint(file_request, run_file, "file"), methods=["POST", "OPTIONS"]),   # WB10
             Route(f"{PREFIX}/file/{{token}}", serve_file, methods=["GET"]),   # WB10: the link opened in a new tab
             Route(f"{PREFIX}/verify", endpoint(verify_request, run_verify, "verify"), methods=["POST", "OPTIONS"]),   # n229
-            Route(f"{PREFIX}/catalog", endpoint(catalog_request, run_catalog, "catalog"), methods=["POST", "OPTIONS"]),   # CA1
-            Route(f"{PREFIX}/starter", endpoint(starter_request, run_starter, "starter"), methods=["POST", "OPTIONS"]),   # WB10
+            Route(f"{PREFIX}/catalog", endpoint(catalog_request, run_catalog, "catalog", gate=licence), methods=["POST", "OPTIONS"]),   # CA1
+            Route(f"{PREFIX}/starter", endpoint(starter_request, run_starter, "starter", gate=licence), methods=["POST", "OPTIONS"]),   # WB10
+            Route(f"{PREFIX}/sap-demo", endpoint(sap_demo_request, run_sap_demo, "sap-demo", gate=licence), methods=["POST", "OPTIONS"]),   # WB5
+            Route(f"{PREFIX}/selfcheck", endpoint(selfcheck_request, run_selfcheck, "selfcheck"), methods=["POST", "OPTIONS"]),   # WB9
+            Route(f"{PREFIX}/run", endpoint(run_item_request, run_item, "run"), methods=["POST", "OPTIONS"]),   # ED3: Run now
             Route(f"{PREFIX}/analysis", endpoint(analysis_request, run_analysis, "analysis"), methods=["POST", "OPTIONS"]),   # WB4
             Route(f"{PREFIX}/access", endpoint(access_request, None, "access"), methods=["POST", "OPTIONS"])]
 

@@ -104,7 +104,8 @@ def test_the_workload_and_the_item_use_the_krusgraph_icons():
     assert PRODUCT["productDetail"]["image"]["source"] == "assets/images/Workload_Hub_Banner.png"
     # n201: the founder's overview film first (a video slide, mediaType 1), then the quick look image as before
     assert [s["source"] for s in PRODUCT["productDetail"]["slideMedia"]] == ["https://www.youtube.com/embed/69oikujqZDI",
-                                                                            "assets/images/Workload_Hub_SlideMedia_1.png"]
+                                                                            "assets/images/Workload_Hub_SlideMedia_1.png",
+                                                                            "assets/images/Workload_Hub_SlideMedia_2.png"]   # WB6
 
 
 def test_the_editor_loads_with_the_krusgraph_mark_not_the_fabric_logo():
@@ -158,8 +159,12 @@ def test_the_page_describes_every_output_the_product_and_the_flow():
                  "data agent", "data product", "data flow", "dry run"):
         assert word.lower() in d.lower(), word
     assert "Semantic models, reports and pipelines come later" not in d
-    for step in ("+ New item", "Check against the rows", "dry run", "Create"):
-        assert step in WORDS["Workload_Hub_GetStarted_1_Description"], step
+    # WB6: three Get started cards (find and prove, build, next steps); together they carry every step
+    cards = " ".join(WORDS[f"Workload_Hub_GetStarted_{i}_Description"] for i in (1, 2, 3))
+    for step in ("+ New item", "Check against the rows", "dry run", "Create", "why it fits"):
+        assert step in cards, step
+    links = [m["link"] for m in PRODUCT["homePage"]["learningMaterials"]]
+    assert len(links) == 3 and all(u.startswith("https://krusgraph.com/docs/") for u in links)
 
 
 def test_no_speed_or_compliance_claims():

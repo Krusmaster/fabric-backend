@@ -142,6 +142,16 @@ class Workspace:
         self._dir.cleanup()
 
 
+def _patindex(pattern, text):
+    """SM7: T-SQL's PATINDEX for the one pattern the engine sends, '%[^0]%' (the first character that is not a zero,
+    1-based; 0 when there is none), so the S1 normalisation of propose.normal_forms runs on SQLite."""
+    if pattern != "%[^0]%":
+        raise ValueError(f"PATINDEX: only '%[^0]%' is simulated, not {pattern!r}")
+    if text is None:
+        return None
+    return next((i for i, ch in enumerate(str(text), 1) if ch != "0"), 0)
+
+
 class Connection:
     """One lakehouse's SQL endpoint: its schemas ATTACHed under their names, one connection, two-part names."""
 
@@ -150,6 +160,7 @@ class Connection:
         self.queries: list[str] = []
         self._lock = threading.Lock()
         self._con = sqlite3.connect(":memory:", check_same_thread=False)
+        self._con.create_function("PATINDEX", 2, _patindex, deterministic=True)     # SM7: T-SQL's, for '%[^0]%' only
         for schema, (_, key) in LAKEHOUSES[lakehouse].items():
             self._con.execute(f"ATTACH DATABASE ? AS [{schema}]", (ws.file(key),))
 

@@ -29,13 +29,44 @@ function record(flow, ok, evidence) {
   results.push({ flow, result: ok ? "pass" : "fail", evidence });
   console.log(`${ok ? "PASS" : "FAIL"}  ${flow}: ${evidence}`);
 }
+// WB8 (requirement 2.9): axe-core over every step. After each step, every open page is scanned against WCAG 2.1 A and
+// AA; each violation is kept once (rule and element), with the step it first appeared in. Serious and critical ones
+// fail the accessibility record at the end; moderate and minor are listed in results.json (a11y).
+const AXE = (() => { try { return fs.readFileSync(require.resolve("axe-core/axe.min.js", { paths: [path.resolve(__dirname, "../../Workload")] }), "utf8"); } catch { return null; } })();
+// Fluent UI's focus manager (Tabster) puts <i data-tabster-dummy tabindex=0 aria-hidden role=none> guards at the edges
+// of tab lists and toolbars on purpose, for arrow-key navigation; axe reports them as aria-hidden-focus. They are
+// left out of the scan and counted on their own (results.json a11y_excluded), not hidden.
+const AXE_EXCLUDE = "[data-tabster-dummy]";
+const livePages = new Set();
+const a11y = new Map();
+let currentFlow = "";
+let excluded = 0;
+async function scan(flow) {
+  if (!AXE || BEFORE) return;
+  for (const pg of [...livePages]) {
+    if (pg.isClosed()) { livePages.delete(pg); continue; }
+    try {
+      if (!(await pg.evaluate(() => !!window.axe))) await pg.addScriptTag({ content: AXE });
+      excluded = Math.max(excluded, await pg.evaluate((sel) => document.querySelectorAll(sel).length, AXE_EXCLUDE));
+      const found = await pg.evaluate(async (sel) => (await window.axe.run({ exclude: [[sel]] }, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] }, resultTypes: ["violations"] }))
+        .violations.map((v) => ({ id: v.id, impact: v.impact, help: v.help, targets: v.nodes.map((n) => n.target.join(" ")).slice(0, 5) })), AXE_EXCLUDE);
+      const dark = await pg.evaluate(() => matchMedia("(prefers-color-scheme: dark)").matches);
+      for (const v of found) for (const t of v.targets) {
+        const key = `${v.id} ${t}`;
+        if (!a11y.has(key)) a11y.set(key, { rule: v.id, impact: v.impact, help: v.help, target: t, step: flow, theme: dark ? "dark" : "light" });
+      }
+    } catch { /* a page mid-navigation: scanned again after the next step */ }
+  }
+}
 async function step(flow, fn) {
+  currentFlow = flow;
   try {
     const ev = await fn();
     record(flow, true, ev || "");
   } catch (e) {
     record(flow, false, String(e && e.message ? e.message : e).split("\n")[0]);
   }
+  await scan(flow);
 }
 const expectTrue = (cond, what) => { if (!cond) throw new Error(what); };
 
@@ -52,6 +83,18 @@ async function main() {
   }
   const scenario = (name) => fetch(`${BASE}/e2e/scenario`, { method: "POST", body: JSON.stringify({ name }) });
   const browser = await chromium.launch();
+  {
+    // every page any flow opens is scanned too, also one closed inside its step (the phone, dark and frame flows)
+    const newContext = browser.newContext.bind(browser);
+    browser.newContext = async (o) => {
+      const c = await newContext(o);
+      const newPage = c.newPage.bind(c);
+      c.newPage = async () => { const pg = await newPage(); livePages.add(pg); return pg; };
+      const close = c.close.bind(c);
+      c.close = async () => { await scan(currentFlow); return close(); };
+      return c;
+    };
+  }
   const errors = [];
   let mainCtx;
   async function open(opts = {}) {
@@ -60,6 +103,7 @@ async function main() {
     if (!opts.keep && !mainCtx) mainCtx = ctx;
     const p = await ctx.newPage();
     p.on("pageerror", (e) => errors.push(e.message));
+    livePages.add(p);
     await p.goto(`${BASE}/index.html${opts.keep ? "" : "?fresh=1"}`);
     await p.waitForTimeout(1200);
     return p;
@@ -164,12 +208,24 @@ async function main() {
       await card.getByRole("button", { name: /^Dry run/ }).click(); await settle(p, 2500);
       const dry = await card.locator(".kg-next-starter-said").innerText();
       const before = (await (await fetch(`${BASE}/e2e/log`)).json()).created.filter((c) => c === "notebooks").length;
-      expectTrue(dry.includes("Would create the notebook") && dry.includes("trains no model"), `dry run said: ${dry}`);
+      // ED3: the dry run says what would be created and that it runs only on Run now; the card says Krusgraph trains no model
+      const note = await card.innerText();
+      expectTrue(dry.includes("Would create the notebook") && dry.includes("runs it only when you choose Run now"), `dry run said: ${dry}`);
+      expectTrue(note.includes("Krusgraph trains no model"), "the card does not say Krusgraph trains no model");
+      const name = (dry.match(/Would create the notebook (\S+)/) || [])[1];
       await card.getByRole("button", { name: /^Create / }).click(); await settle(p, 4000);
-      const said = await card.locator(".kg-next-starter-said").innerText();
       const after = (await (await fetch(`${BASE}/e2e/log`)).json()).created.filter((c) => c === "notebooks").length;
-      expectTrue(after === before + 1 && said.startsWith("Created the notebook"), `notebooks ${before} -> ${after}; said: ${said}`);
-      return `${await shot(p, "21-starter-created")}; dry run: ${dry.slice(0, 90)}…; then ${said.slice(0, 80)}; the doubles received one notebook`;
+      // ED3: once created, the card shows the notebook (Open in Fabric, Run now) and one line, instead of a "Created" sentence
+      const said = (await card.innerText()).replace(/\s+/g, " ");
+      const runNow = await card.getByRole("button", { name: `Run now: ${name}` }).count();
+      const open = await card.getByRole("link", { name: /Open in Fabric/ }).count();
+      expectTrue(after === before + 1 && runNow === 1 && open === 1 && said.includes("The notebook is in this item's workspace") &&
+        said.includes("Krusgraph runs it only when you choose Run now") && (await card.getByRole("button", { name: /^Dry run/ }).count()) === 0,
+        `notebooks ${before} -> ${after}; Run now: ${name} x${runNow}; Open in Fabric x${open}; card: ${said.slice(0, 300)}`);
+      // never run: Create starts no job (Run now would call Fabric's jobs/instances)
+      const jobs = (await (await fetch(`${BASE}/e2e/log`)).json()).fabric_calls.filter((c) => c.includes("/jobs/instances"));
+      expectTrue(jobs.length === 0, `a job was started: ${jobs.join(", ")}`);
+      return `${await shot(p, "21-starter-created")}; dry run: ${dry.slice(0, 90)}…; then the card shows ${name} with Open in Fabric and Run now; the doubles received one notebook and no job`;
     });
     await step("9 A next step's Dry run ticks only its outputs", async () => {
       await p.locator(".kg-next-card[data-step='iq'] button").first().click(); await settle(p);
@@ -561,13 +617,15 @@ async function main() {
       r.on("request", (q) => { if (q.url().includes("/workload/v1/")) routes.push(new URL(q.url()).pathname); });
       await r.goto(`${BASE}/index.html?fresh=1`); await settle(r, 1200);
       const press = async (loc, key = "Enter") => { await loc.scrollIntoViewIfNeeded(); await loc.focus(); await r.keyboard.press(key); };
+      // each wait says what it waited for, so a timeout names the step (not only "locator.waitFor: Timeout")
+      const waitFor = async (loc, what) => { try { await loc.waitFor({ timeout: 30000 }); } catch (e) { throw new Error(`waited 30 s for ${what}: ${String(e.message).split("\n")[0]}`); } };
       await press(button(r, "Choose a source")); await settle(r);
       const sap = r.getByRole("radio", { name: /sap_sd/ });
       expectTrue(await sap.count() === 1, "no sap_sd schema to choose");
       if (!(await sap.isChecked())) await press(sap, "Space");
       await press(button(r, "Find keys and relationships"));
       // SM3: the check runs on its own after Find keys; the ranking is still asked only after the check answered
-      await button(r, /Check against the rows again/).waitFor({ timeout: 30000 });
+      await waitFor(button(r, /Check against the rows again/), "the check after Find keys");
       await settle(r, 1500);
       const calls = routes.slice();
       const firstAnalysis = calls.findIndex((c) => c.includes("/workload/v1/analysis"));
@@ -586,9 +644,19 @@ async function main() {
       await press(r.getByRole("checkbox", { name: "Semantic model" }).first(), "Space");
       await press(button(r, "Dry run", true)); await settle(r, 4000);
       await press(button(r, /^Create/)); await settle(r, 6000);
-      const section = r.locator("section.kg-analysis").first();
-      await section.waitFor({ timeout: 30000 });
-      await section.locator("[data-analysis]").first().waitFor({ timeout: 30000 });
+      // AA1 / ED3: Recommended analyses are in Advanced analytics, one section on the Data product step; after Create the
+      // result's Next has the way there. Enter on it lands the focus on that section's heading (no Tab through the page).
+      await waitFor(button(r, "Go to Advanced analytics on the Data product step"), "Go to Advanced analytics after Create");
+      await press(button(r, "Go to Advanced analytics on the Data product step"));
+      const advanced = r.locator("section#kg-advanced-analytics");
+      await waitFor(advanced, "the Advanced analytics section on the Data product step");
+      await r.waitForFunction(() => document.activeElement && document.activeElement.id === "kg-advanced-title", null, { timeout: 5000 })
+        .catch(() => undefined);
+      const landed = await r.evaluate(() => document.activeElement && (document.activeElement.id || document.activeElement.tagName));
+      expectTrue(landed === "kg-advanced-title", `Go to Advanced analytics left the focus on ${landed}`);
+      const section = advanced.locator("section.kg-analysis");
+      await waitFor(section, "Recommended analyses in Advanced analytics");
+      await waitFor(section.locator("[data-analysis]").first(), "a ranked analysis card");
       const order = await section.locator(".kg-analysis-card").evaluateAll((els) => els.map((e) => e.getAttribute("data-analysis")));
       expectTrue(order.slice(0, 4).join(",") === "A7,A8,A3,A4" && order.length === 10, `ranked ${order.join(",")}`);
       const word = async (id) => (await section.locator(`[data-analysis=${id}] .fui-Badge`).innerText()).trim();
@@ -612,12 +680,81 @@ async function main() {
       }
       const overflow = await r.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       expectTrue(overflow <= 0, `horizontal overflow ${overflow} px`);
+      // WB4 / SM3: over the whole flow, the ranking was asked, and never before the first check had answered
+      const all = routes.slice();
+      const analyses = all.map((c, i) => (c.includes("/workload/v1/analysis") ? i : -1)).filter((i) => i >= 0);
+      const firstCheck = all.findIndex((c) => c.includes("/workload/v1/check"));
+      expectTrue(analyses.length > 0 && firstCheck >= 0 && analyses[0] > firstCheck, `analysis calls at ${analyses.join(",")}, first check at ${firstCheck}`);
       const log = await (await fetch(`${BASE}/e2e/log`)).json();
       await section.screenshot({ path: path.join(OUT, "25-analyses-phone.png") });
       await ctx.close();
       return `25-analyses-phone.png; ranked ${order.join(", ")}; A7 Ready, A8 Partly ready, A1 Not ready yet; keyboard: Enter on Download gave ${file}, ` +
         `Enter on the summary opened the not-ready list; screen reader: ${snap.split("\n").filter((l) => /heading|group/.test(l)).slice(0, 3).map((l) => l.trim()).join(" | ")}; ` +
+        `Enter on Go to Advanced analytics put the focus on its heading; engine: ${analyses.length} analysis call(s), the first after check #${firstCheck}; ` +
         `items the doubles received: ${log.created.join(", ")}; overflow ${overflow} px`;
+    });
+
+    // BL58: the semantic model's row-level security roles (BL46) on the SAP sample, at 390 px, by keyboard only: the dry
+    // run lists BUKRS and MANDT as tick boxes, unticked, each named by the role and described by its column, rule and
+    // tables; the dry run's request has no roles; Space ticks BUKRS, Dry run again sends roles ["BUKRS"], and so does Create.
+    await step("27 BL58: row-level security roles as ticks on the model's dry run (SAP sample, keyboard, 390 px)", async () => {
+      await scenario("sap");
+      const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 });
+      const r = await ctx.newPage();
+      r.on("pageerror", (e) => errors.push(e.message));
+      const builds = [];                                        // the outputs of every build request, in order
+      r.on("request", (q) => {
+        if (q.url().includes("/workload/v1/build") && q.method() === "POST") {
+          try { const b = JSON.parse(q.postData() || "{}"); builds.push({ dry_run: b.dry_run, outputs: b.outputs }); } catch { /* not JSON */ }
+        }
+      });
+      await r.goto(`${BASE}/index.html?fresh=1`); await settle(r, 1200);
+      const press = async (loc, key = "Enter") => { await loc.scrollIntoViewIfNeeded(); await loc.focus(); await r.keyboard.press(key); };
+      await press(button(r, "Choose a source")); await settle(r);
+      const sap = r.getByRole("radio", { name: /sap_sd/ });
+      if (!(await sap.isChecked())) await press(sap, "Space");
+      await press(button(r, "Find keys and relationships"));
+      await button(r, /Check against the rows again/).waitFor({ timeout: 30000 });
+      await settle(r, 1500);
+      await press(button(r, /Accept all that passed/)); await settle(r, 600);
+      await press(button(r, "Next: Decide what to build")); await settle(r);
+      for (let i = 0; i < 12; i++) {
+        const on = r.locator(".krusgraph-outputs > section.krusgraph-output:visible").getByRole("checkbox", { checked: true }).first();
+        if (!(await on.count())) break;
+        await press(on, "Space"); await settle(r, 200);
+      }
+      await press(r.getByRole("checkbox", { name: "Semantic model" }).first(), "Space");
+      await press(button(r, "Dry run", true)); await settle(r, 4000);
+      const roles = r.locator("fieldset.kg-roles");
+      await roles.waitFor({ timeout: 30000 });
+      const first = builds.filter((b) => b.dry_run);
+      expectTrue(first.length === 1 && JSON.stringify(first[0].outputs) === JSON.stringify([{ kind: "semantic_model", name: "demo_lh_model" }]),
+        `the first dry run sent ${JSON.stringify(first.map((b) => b.outputs))}`);
+      const bukrs = roles.getByRole("checkbox", { name: "Rows by company code (BUKRS)" });
+      const mandt = roles.getByRole("checkbox", { name: "Rows by client (MANDT)" });
+      expectTrue(await bukrs.count() === 1 && await mandt.count() === 1, "no BUKRS or MANDT tick box");
+      expectTrue(!(await bukrs.isChecked()) && !(await mandt.isChecked()), "a role is ticked by default");
+      const desc = await bukrs.evaluate((el) => document.getElementById(el.getAttribute("aria-describedby") || "")?.textContent || "");
+      expectTrue(/^Filters on BUKRS \(rule S1\) in .*T001.*\. Fits this model's tables\.$/i.test(desc), `BUKRS is described as: ${desc}`);
+      await press(bukrs, "Space"); await settle(r, 800);
+      expectTrue(await bukrs.isChecked(), "Space did not tick BUKRS");
+      const again = button(r, "Dry run again", true);
+      await press(again); await settle(r, 4000);
+      const second = builds.filter((b) => b.dry_run);
+      expectTrue(second.length === 2 && JSON.stringify(second[1].outputs) === JSON.stringify([{ kind: "semantic_model", name: "demo_lh_model", roles: ["BUKRS"] }]),
+        `the dry run again sent ${JSON.stringify(second.map((b) => b.outputs))}`);
+      expectTrue(await r.locator("fieldset.kg-roles").getByRole("checkbox", { name: "Rows by company code (BUKRS)" }).isChecked(), "BUKRS unticked after the dry run again");
+      const snap = await r.locator("fieldset.kg-roles").ariaSnapshot();
+      const overflow = await r.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expectTrue(overflow <= 0, `horizontal overflow ${overflow} px`);
+      await r.locator("fieldset.kg-roles").screenshot({ path: path.join(OUT, "27-roles-phone.png") });
+      await press(button(r, /^Create/)); await settle(r, 6000);
+      const created = builds.filter((b) => b.dry_run === false);
+      expectTrue(created.length >= 1 && created.every((b) => JSON.stringify(b.outputs) === JSON.stringify([{ kind: "semantic_model", name: "demo_lh_model", roles: ["BUKRS"] }])),
+        `Create sent ${JSON.stringify(created.map((b) => b.outputs))}`);
+      await ctx.close();
+      return `27-roles-phone.png; the first dry run sent no roles; BUKRS and MANDT unticked; Space ticked BUKRS; Dry run again and Create sent roles ["BUKRS"]; ` +
+        `screen reader: ${snap.split("\n").filter((l) => l.includes("checkbox")).map((l) => l.trim()).join(" | ")}; overflow ${overflow} px`;
     });
   }
 
@@ -666,7 +803,14 @@ async function main() {
   await browser.close();
   engine.kill();
   record("No uncaught errors in the page", errors.length === 0, errors.slice(0, 3).join(" | ") || "none");
-  fs.writeFileSync(path.join(OUT, "results.json"), JSON.stringify({ before: BEFORE, at: new Date().toISOString(), lazy, results }, null, 1));
+  const found = [...a11y.values()];
+  if (!BEFORE) {
+    const bad = found.filter((v) => v.impact === "serious" || v.impact === "critical");
+    record("Accessibility: axe-core, WCAG 2.1 A and AA, every step", AXE !== null && bad.length === 0,
+      AXE === null ? "axe-core is not installed (npm ci in workload/Workload)"
+        : `${found.length} finding(s), ${bad.length} serious or critical${bad.length ? ": " + bad.slice(0, 4).map((v) => `${v.rule} at ${v.target} (${v.step})`).join(" | ") : ""}`);
+  }
+  fs.writeFileSync(path.join(OUT, "results.json"), JSON.stringify({ before: BEFORE, at: new Date().toISOString(), lazy, results, a11y: found, a11y_excluded: { selector: AXE_EXCLUDE, why: "Fluent UI Tabster focus guards", most_on_one_page: excluded } }, null, 1));
   fs.rmSync(dist, { recursive: true, force: true });
   if (engineLog.trim()) fs.writeFileSync(path.join(OUT, "engine.log"), engineLog);
   process.exit(results.some((r) => r.result === "fail") ? 1 : 0);

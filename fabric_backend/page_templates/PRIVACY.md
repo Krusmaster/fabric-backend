@@ -31,7 +31,8 @@ processing for organisations* below).
 {{PRODUCT}} is a remote MCP server. When you use it from Claude (or another MCP client), it reads the metadata of the
 Microsoft Fabric items you choose and infers keys and relationships. To do that, the tools that build on that plan
 also runs a few read-only counting queries (described below); only the counts come back. Only when you ask for it does
-it read rows, run a read-only GraphQL query, or create or update an item in your Fabric workspace.
+it read rows, run a read-only GraphQL query, create or update an item in your Fabric workspace, or start one run of a
+notebook or pipeline it created there (Run now in the Krusgraph Model item, only on your click).
 
 ## Your Microsoft account
 
@@ -61,6 +62,10 @@ What the service reads from Fabric depends on the tool you ask for:
   like personal data (a person's name, e-mail, telephone, national identity number, address, birth date; one rule per
   pattern, judged by the column's name and never by its values) come back as `***` unless you ask with
   `show_personal_data=true`. `answer_query_draft` and the gold views leave those columns out the same way.
+- **Run now.** In the Krusgraph Model item, Run now starts one run of a notebook or pipeline the item created, as
+  you, with Fabric's job scheduler; never on its own. When the run succeeded and wrote a table, the item shows that
+  table's row count and first 10 rows, read once as you and masked like `sample_rows`; they pass through the service to
+  your browser and are not stored.
 - **Sensitivity labels.** When Fabric returns a Microsoft Purview sensitivity label on the source item, it comes with
   the item's metadata as the label's id only; `sample_rows` and `validate_plan` name it. The service does not look the
   label up anywhere else.
@@ -93,7 +98,7 @@ record is deleted.{{/IF}} Each token, per client:
 | --- | --- | --- |
 | Access tokens from Claude, and the Fabric and SQL tokens exchanged for you from any client | to call Fabric and SQL as you | in memory only, never written to disk or logs: Claude's token for the request (only its SHA-256 stays, as the key of the cache); the exchanged tokens are reused until 120 seconds before the expiry Microsoft gives them and never after, and dropped when the cache is trimmed or the server restarts |
 | Workspace, item, table and column names, and item definitions | to build the plan, the draft or the definition you asked for | only for the duration of the request |
-| Counts from the checks, sample rows and query results you request | returned to your MCP client | not stored |
+| Counts from the checks, sample rows and query results you request, and the first rows after a Run now | returned to your MCP client or the Krusgraph Model item | not stored |
 {{#IF CLIENT_REGISTRATION}}| Sign-in records for MCP clients other than Claude: a sign-in in progress (the client's address, its redirect address and its request); the Microsoft tokens of a finished sign-in, encrypted; Microsoft's refresh token, encrypted, with a hash of the refresh token your client holds; after each renewal, the answer your client got (a Microsoft access token and the next refresh token), encrypted, with a hash of the refresh token it replaced | signing in from VS Code, Cursor and other MCP clients through {{DOMAIN}}/mcp/connect; answering a client's repeated renewal request the same way | in {{REGISTRATION_WHERE}}: 10 minutes, 60 seconds, and at most 90 days, each deleted once used; the answer to a renewal is used for at most 60 seconds and overwritten at the next renewal |
 | Your approval of an MCP client that receives the answer at a web address: a keyed hash of your user and organisation ids (not the ids themselves), the client's address, name and redirect address, and the date | not asking you again at every sign-in | the same place, 180 days |
 | A cookie in your browser on {{DOMAIN}} with the same keyed hash, signed; and two short-lived cookies that protect the approval form and the sign-in | recognising your earlier approval; stopping forged approvals | 180 days, and 10 minutes, in your browser |

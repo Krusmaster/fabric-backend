@@ -4,6 +4,7 @@ purple samples (microsoft/fabric-extensibility-toolkit dacab1b, MIT; the file na
 
     python workload/scripts/build_manifest_images.py           # writes workload/Workload/Manifest/assets/images/*.png
     python workload/scripts/build_manifest_images.py --list    # the images and their sizes, nothing written
+    python workload/scripts/build_manifest_images.py --from-e2e <dir>   # WB6: the Hub's screenshot cards from run.js
 
 Run it from the repository root after the logo, the mascots or the cards' map change. It needs Node's
 Playwright and Chromium (as tests/test_browser.py; CHROMIUM=<path> picks the browser) and draws each image as a small HTML page at its exact size:
@@ -62,7 +63,28 @@ SIZES = {
     "Workload_Hub_Banner.png": (1920, 240, "the workload page's banner"),
     "Workload_Hub_GetStarted_1.png": (320, 180, "the getting-started card"),
     "Workload_Hub_SlideMedia_1.png": (985, 552, "the quick look: the editor's map"),
+    # WB6: crops of the editor's own e2e screenshots on synthetic data (workload/scripts/e2e, the shop schema), made
+    # with --from-e2e <the harness's out dir>; the drawn images above are not touched by that run
+    "Workload_Hub_GetStarted_2.png": (320, 180, "Get started card 2: the dry run and the data flow (06-preview.png)"),
+    "Workload_Hub_GetStarted_3.png": (320, 180, "Get started card 3: the next-steps cards (08-next-steps.png)"),
+    "Workload_Hub_SlideMedia_2.png": (985, 552, "the second quick look: the next-steps cards (08-next-steps.png)"),
 }
+
+# WB6: file -> (screenshot of workload/scripts/e2e/run.js, crop box at 1280 px wide, 1x)
+E2E_CROPS = {
+    "Workload_Hub_GetStarted_2.png": ("06-preview.png", (20, 380, 820, 830)),
+    "Workload_Hub_GetStarted_3.png": ("08-next-steps.png", (0, 140, 960, 680)),
+    "Workload_Hub_SlideMedia_2.png": ("08-next-steps.png", (0, 140, 1264, 848)),
+}
+
+
+def from_e2e(out_dir: Path) -> None:
+    """Crops the e2e harness's screenshots (synthetic shop data) to the Hub's card and slide sizes."""
+    from PIL import Image
+    for name, (shot, box) in E2E_CROPS.items():
+        w, h, _ = SIZES[name]
+        Image.open(out_dir / shot).convert("RGB").crop(box).resize((w, h), Image.LANCZOS).save(IMAGES / name, optimize=True)
+        print(f"wrote {name} ({w}x{h}) from {shot}")
 
 CORAL, GREEN, VIOLET = "#F2735C", "#9DB8A0", "#A99AD8"
 
@@ -252,6 +274,9 @@ const { chromium } = require("playwright");
 
 
 def main(argv: list[str]) -> int:
+    if "--from-e2e" in argv:
+        from_e2e(Path(argv[argv.index("--from-e2e") + 1]))
+        return 0
     if "--list" in argv:
         for f, (w, h, what) in SIZES.items():
             print(f"{f:34} {w}x{h}  {what}")

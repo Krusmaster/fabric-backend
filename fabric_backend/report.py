@@ -411,6 +411,8 @@ def visuals(model: dict, model_name: str = "") -> dict:
     measures left out with the reason (left_out, n144) and the visuals not drawn with the reason (not_drawn, n151)."""
     usable, left = measures(model)
     has_measures = {m["table"] for m in usable} | {m["table"] for m in left}
+    advanced = _advanced(model, usable)                              # AA1: drawn on their own, after the page's own visuals
+    usable = [m for m in usable if m not in [a["measure"] for a in advanced]]
     date = _date_table(model)
     is_dim = lambda t: t not in has_measures and (not date or t != date[0])
     out: list[dict] = []
@@ -462,7 +464,27 @@ def visuals(model: dict, model_name: str = "") -> dict:
         dim = bar_dim or next(((v["category"]) for v in out if v["type"] == "tableEx"), None)
         if dim:
             out.append({"type": "slicer", "title": _dim_title(model, dim[0], True), "category": dim, "fields": [f"{dim[0]}[{dim[1]}]"]})
+    out += advanced if out else []
     return {"visuals": out, "left_out": left, "not_drawn": not_drawn}
+
+
+def _advanced(model: dict, usable: list[dict]) -> list[dict]:
+    """AA1: one visual per prediction table the semantic model has (advanced_stages.MEASURES, by the measure's name and
+    the table's columns): the segments as a bar chart by segment, the forecast as a column chart by week."""
+    from . import advanced_stages as _aa
+    out = []
+    for m in usable:
+        cols = set(model["tables"][m["table"]]["columns"])
+        kind = _aa.prediction_kind(list(cols))
+        if not kind or m["measure"] != _aa.MEASURES[kind][0]:
+            continue
+        if kind == "segments":
+            out.append({"type": "clusteredBarChart", "title": "Customers by segment", "measure": m, "category": (m["table"], "segment"),
+                        "sort": "measure", "labels": True, "fields": [f"{m['table']}[segment]", f"{m['table']}[{m['measure']}]"]})
+        else:
+            out.append({"type": "clusteredColumnChart", "title": "Forecast orders by week", "measure": m, "category": (m["table"], "week_start"),
+                        "sort": "category", "labels": True, "fields": [f"{m['table']}[week_start]", f"{m['table']}[{m['measure']}]"]})
+    return out
 
 
 def _rows(vs: list[dict]) -> dict[str, tuple[float, float]]:

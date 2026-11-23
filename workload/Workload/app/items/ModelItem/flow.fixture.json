@@ -14,7 +14,7 @@
   },
   {
    "id": "built",
-   "title": "Built on the source"
+   "title": "Built on gold"
   }
  ],
  "nodes": [
@@ -276,6 +276,62 @@
    "code_title": "CREATE MATERIALIZED LAKE VIEW gold.orders"
   },
   {
+   "id": "gold:gold.addresses",
+   "column": "gold",
+   "label": "gold.addresses",
+   "table": "addresses",
+   "lines": [
+    "dimension: one row per addresses row"
+   ],
+   "pills": [],
+   "built": true,
+   "code": "-- addresses is a dimension table (a leaf that only refers to others (a child entity without measures)); one row per addresses row, the dimension side of the star schema the semantic model reads.\nCREATE OR REPLACE MATERIALIZED LAKE VIEW `gold`.`addresses`\n(\n    -- the key of addresses is address_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)); a row without it identifies nothing\n    CONSTRAINT addresses_key_present CHECK (`address_id` IS NOT NULL) ON MISMATCH DROP\n)\nCOMMENT \"Krusgraph gold dimension view of addresses from silver, generated from the plan; rules in the constraint and WHERE comments\"\nTBLPROPERTIES (\"krusgraph.gold\"=\"00000000-0000-0000-0000-000000000001/shop\")\nAS\nSELECT\n    f.`address_id` AS `address_id`,\n    f.`customer_id` AS `customer_id`\nFROM `silver`.`addresses` AS f",
+   "language": "sql",
+   "code_title": "CREATE MATERIALIZED LAKE VIEW gold.addresses"
+  },
+  {
+   "id": "gold:gold.categories",
+   "column": "gold",
+   "label": "gold.categories",
+   "table": "categories",
+   "lines": [
+    "dimension: one row per categories row"
+   ],
+   "pills": [],
+   "built": true,
+   "code": "-- categories is a dimension table (1 reference(s) in, 0 out, few measures (0.0)); one row per categories row, the dimension side of the star schema the semantic model reads.\nCREATE OR REPLACE MATERIALIZED LAKE VIEW `gold`.`categories`\n(\n    -- the key of categories is id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)); a row without it identifies nothing\n    CONSTRAINT categories_key_present CHECK (`id` IS NOT NULL) ON MISMATCH DROP\n)\nCOMMENT \"Krusgraph gold dimension view of categories from silver, generated from the plan; rules in the constraint and WHERE comments\"\nTBLPROPERTIES (\"krusgraph.gold\"=\"00000000-0000-0000-0000-000000000001/shop\")\nAS\nSELECT\n    f.`id` AS `id`,\n    f.`name` AS `name`\nFROM `silver`.`categories` AS f",
+   "language": "sql",
+   "code_title": "CREATE MATERIALIZED LAKE VIEW gold.categories"
+  },
+  {
+   "id": "gold:gold.customers",
+   "column": "gold",
+   "label": "gold.customers",
+   "table": "customers",
+   "lines": [
+    "dimension: one row per customers row"
+   ],
+   "pills": [],
+   "built": true,
+   "code": "-- customers is a dimension table (3 reference(s) in, 0 out, few measures (0.0)); one row per customers row, the dimension side of the star schema the semantic model reads.\nCREATE OR REPLACE MATERIALIZED LAKE VIEW `gold`.`customers`\n(\n    -- the key of customers is customer_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)); a row without it identifies nothing\n    CONSTRAINT customers_key_present CHECK (`customer_id` IS NOT NULL) ON MISMATCH DROP\n)\nCOMMENT \"Krusgraph gold dimension view of customers from silver, generated from the plan; rules in the constraint and WHERE comments\"\nTBLPROPERTIES (\"krusgraph.gold\"=\"00000000-0000-0000-0000-000000000001/shop\")\nAS\nSELECT\n    f.`customer_id` AS `customer_id`,\n    f.`country` AS `country`\nFROM `silver`.`customers` AS f",
+   "language": "sql",
+   "code_title": "CREATE MATERIALIZED LAKE VIEW gold.customers"
+  },
+  {
+   "id": "gold:gold.products",
+   "column": "gold",
+   "label": "gold.products",
+   "table": "products",
+   "lines": [
+    "dimension: one row per products row"
+   ],
+   "pills": [],
+   "built": true,
+   "code": "-- products is a dimension table (1 reference(s) in, 1 out, few measures (0.0)); one row per products row, the dimension side of the star schema the semantic model reads.\nCREATE OR REPLACE MATERIALIZED LAKE VIEW `gold`.`products`\n(\n    -- the key of products is product_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)); a row without it identifies nothing\n    CONSTRAINT products_key_present CHECK (`product_id` IS NOT NULL) ON MISMATCH DROP\n)\nCOMMENT \"Krusgraph gold dimension view of products from silver, generated from the plan; rules in the constraint and WHERE comments\"\nTBLPROPERTIES (\"krusgraph.gold\"=\"00000000-0000-0000-0000-000000000001/shop\")\nAS\nSELECT\n    f.`product_id` AS `product_id`,\n    f.`name` AS `name`,\n    f.`category_id` AS `category_id`,\n    f.`list_price` AS `list_price`\nFROM `silver`.`products` AS f",
+   "language": "sql",
+   "code_title": "CREATE MATERIALIZED LAKE VIEW gold.products"
+  },
+  {
    "id": "pipeline:0",
    "column": "pipeline",
    "under": "silver",
@@ -329,11 +385,11 @@
    "label": "shop_sales",
    "kind_label": "Semantic model",
    "lines": [
-    "reads the source tables in shop (bronze) directly, not the gold views built in this run"
+    "Built on gold: reads the gold views in schema gold (2 fact view(s), 4 dimension view(s), a star schema), grouped into 2 data product(s): customers, products."
    ],
    "pills": [],
    "built": true,
-   "code": "// definition/relationships.tmdl\nrelationship ba28c101-7344-50ec-aff0-139148a5dbaa\n\tfromColumn: order_items.order_id\n\ttoColumn: orders.order_id\n\nrelationship 6ce3d257-8c9f-5b31-a238-130816343052\n\tfromColumn: order_items.product_id\n\ttoColumn: products.product_id\n\nrelationship 74444cac-8194-538a-990b-b6ed2a145059\n\tfromColumn: addresses.customer_id\n\ttoColumn: customers.customer_id\n\nrelationship 97c2b04e-4e36-5afa-bc44-07adfcdee80f\n\tfromColumn: audit_log.customer_id\n\ttoColumn: customers.customer_id\n\nrelationship 2ae7ce22-3e35-5c81-9861-d14b394ae85f\n\tfromColumn: orders.customer_id\n\ttoColumn: customers.customer_id\n\nrelationship 4e360a7c-d1ee-5bdf-9892-f30670806203\n\tfromColumn: products.category_id\n\ttoColumn: categories.id\n\nrelationship 61d8b116-27c0-5e1e-93ea-2e5f4b9e8622\n\tfromColumn: orders.order_date\n\ttoColumn: Calendar.Date\n\n// definition/tables/audit_log.tmdl (measures)\n\tmeasure 'Rows in audit_log' = COUNTROWS('audit_log')\n\t\tformatString: #,0\n\t\tlineageTag: 7959d9c4-81da-53f0-b0cb-61a4f8e8acba\n\n// definition/tables/order_items.tmdl (measures)\n\tmeasure 'Rows in order_items' = COUNTROWS('order_items')\n\t\tformatString: #,0\n\t\tlineageTag: fcae4dc7-0e9b-50ed-a9ff-bf7bf92b6ff8\n\tmeasure 'Total quantity' = SUM('order_items'[quantity])\n\t\tformatString: #,##0.00\n\t\tlineageTag: f1ba337d-ea16-5606-951c-cf9ffb1bd197\n\tmeasure 'Order amount' = SUMX('order_items', 'order_items'[quantity] * RELATED('products'[list_price]))\n\t\tformatString: #,##0.00\n\t\tlineageTag: 3c3184d8-2a7f-54bc-992d-83e53d575322\n\n// definition/tables/orders.tmdl (measures)\n\tmeasure 'Rows in orders' = COUNTROWS('orders')\n\t\tformatString: #,0\n\t\tlineageTag: 76bf5d89-a80d-520a-aaa2-00b728efa786",
+   "code": "// definition/relationships.tmdl\nrelationship 74e5d9c4-6fb4-5704-a3d9-fe456c6f0eeb\n\tfromColumn: order_items.orders_customer_id\n\ttoColumn: customers.customer_id\n\nrelationship 6ce3d257-8c9f-5b31-a238-130816343052\n\tfromColumn: order_items.product_id\n\ttoColumn: products.product_id\n\n\tannotation Krusgraph_Interface = customers -> products\n\nrelationship 74444cac-8194-538a-990b-b6ed2a145059\n\tfromColumn: addresses.customer_id\n\ttoColumn: customers.customer_id\n\nrelationship 2ae7ce22-3e35-5c81-9861-d14b394ae85f\n\tfromColumn: orders.customer_id\n\ttoColumn: customers.customer_id\n\nrelationship 4e360a7c-d1ee-5bdf-9892-f30670806203\n\tfromColumn: products.category_id\n\ttoColumn: categories.id\n\nrelationship 7e8fbd76-7f49-5059-8284-a9ba42d64266\n\tfromColumn: order_items.orders_order_date\n\ttoColumn: Calendar.Date\n\nrelationship 61d8b116-27c0-5e1e-93ea-2e5f4b9e8622\n\tisActive: false\n\tfromColumn: orders.order_date\n\ttoColumn: Calendar.Date\n\n// definition/tables/order_items.tmdl (measures)\n\tmeasure 'Rows in order_items' = COUNTROWS('order_items')\n\t\tformatString: #,0\n\t\tdisplayFolder: customers\n\t\tlineageTag: fcae4dc7-0e9b-50ed-a9ff-bf7bf92b6ff8\n\tmeasure 'Total quantity' = SUM('order_items'[quantity])\n\t\tformatString: #,##0.00\n\t\tdisplayFolder: customers\n\t\tlineageTag: f1ba337d-ea16-5606-951c-cf9ffb1bd197\n\tmeasure 'Order amount' = SUMX('order_items', 'order_items'[quantity] * RELATED('products'[list_price]))\n\t\tformatString: #,##0.00\n\t\tdisplayFolder: customers\n\t\tlineageTag: 3c3184d8-2a7f-54bc-992d-83e53d575322\n\n// definition/tables/orders.tmdl (measures)\n\tmeasure 'Rows in orders' = COUNTROWS('orders')\n\t\tformatString: #,0\n\t\tdisplayFolder: customers\n\t\tlineageTag: 76bf5d89-a80d-520a-aaa2-00b728efa786",
    "language": "tmdl",
    "code_title": "shop_sales: relationships and measures"
   }
@@ -448,6 +504,30 @@
    "built": true
   },
   {
+   "from": "silver:addresses",
+   "to": "gold:gold.addresses",
+   "label": "dimension",
+   "built": true
+  },
+  {
+   "from": "silver:categories",
+   "to": "gold:gold.categories",
+   "label": "dimension",
+   "built": true
+  },
+  {
+   "from": "silver:customers",
+   "to": "gold:gold.customers",
+   "label": "dimension",
+   "built": true
+  },
+  {
+   "from": "silver:products",
+   "to": "gold:gold.products",
+   "label": "dimension",
+   "built": true
+  },
+  {
    "from": "pipeline:0",
    "to": "pipeline:1",
    "label": "on success",
@@ -460,9 +540,39 @@
    "built": true
   },
   {
-   "from": "bronze",
+   "from": "gold:gold.order_items",
    "to": "item:semantic_model",
-   "label": "reads the source tables",
+   "label": "built on gold",
+   "built": true
+  },
+  {
+   "from": "gold:gold.orders",
+   "to": "item:semantic_model",
+   "label": "built on gold",
+   "built": true
+  },
+  {
+   "from": "gold:gold.addresses",
+   "to": "item:semantic_model",
+   "label": "built on gold",
+   "built": true
+  },
+  {
+   "from": "gold:gold.categories",
+   "to": "item:semantic_model",
+   "label": "built on gold",
+   "built": true
+  },
+  {
+   "from": "gold:gold.customers",
+   "to": "item:semantic_model",
+   "label": "built on gold",
+   "built": true
+  },
+  {
+   "from": "gold:gold.products",
+   "to": "item:semantic_model",
+   "label": "built on gold",
    "built": true
   }
  ],
@@ -474,8 +584,6 @@
    "pipeline:2"
   ]
  },
- "notes": [
-  "Semantic model reads the source tables (bronze) directly, also with the gold views built in this run. Building them on the gold views is a later option; this version does not."
- ],
- "said": "Bronze to gold: 7 source table(s) become 7 silver table(s), and 3 gold view(s) join them. Dashed boxes are not part of this build. Click a box to see its code."
+ "notes": [],
+ "said": "Bronze to gold: 7 source table(s) become 7 silver table(s), and 3 gold view(s) join them, beside 4 gold dimension view(s). Dashed boxes are not part of this build. Click a box to see its code."
 }

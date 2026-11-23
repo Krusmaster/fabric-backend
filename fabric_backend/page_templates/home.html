@@ -20,7 +20,7 @@
         </li>
         <li class="session-turn">
           <div class="session-thread"><p class="session-sent">Check the plan against the data.</p>
-          <div class="session-answer"><p class="session-tool">validate_plan</p><p>6 of 6 keys unique, 7 of 7 relationships hold without orphans. <code>order_items</code> → <code>orders</code>: holds for all 134 rows with a value.</p></div></div>
+          <div class="session-answer"><p class="session-tool">validate_plan</p><p>Keys: 6 of 6 hold. Links: 7 of 7 hold. The plan also asks 1 open question. <code>order_items</code> → <code>orders</code>: holds for all 134 rows with a value.</p></div></div>
           <p class="session-ask" aria-hidden="true"><span class="session-text">Check the plan against the data.</span><span class="session-send">↑</span></p>
         </li>
         <li class="session-turn">
@@ -86,7 +86,7 @@
   <details><summary>What does {{PRODUCT}} create in my Fabric, and when?</summary>
     <p>Nothing until you ask. Planning, checking and the drafts only read. The creating tools run as a dry run by default and show what they would create; only a call with <code>dry_run=false</code> creates the item. <code>create_backend</code> creates or updates only the GraphQL API you name. No item is ever deleted and no table dropped.</p></details>
   <details><summary>What does my IT department need to approve?</summary>
-    <p>One admin consent for the {{PRODUCT}} app in Microsoft Entra ID. Its permissions are delegated, so every call runs as the signed-in person with their own Fabric rights. <a href="/it">The page for your IT department</a> lists each permission and why, what is stored, and how to revoke it.</p></details>
+    <p>One admin consent for the {{PRODUCT}} app in Microsoft Entra ID. Its permissions are delegated, so every call runs as the signed-in person with their own Fabric rights. <a href="/it">The page for your IT department</a> lists each permission and why, what is stored, and how to revoke it. <a href="/getting-started">Getting started</a> has the steps for a first pilot, in order.</p></details>
   <details><summary>Can I try it without Fabric?</summary>
     <p>Yes. <a href="/check">/check</a> runs the same engine in your browser on CSV or Excel exports, or on a list of columns, with no account. The <a href="/check?example=sample&amp;guide=1">guided demo</a> uses synthetic sample data.</p></details>
   <details><summary>How is this different from asking a chat assistant directly?</summary>

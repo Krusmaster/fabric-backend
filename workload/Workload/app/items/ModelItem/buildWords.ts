@@ -9,6 +9,7 @@
  */
 import { blockedBy, dependsOn, inSentence, waitingCard } from "./ed2Create";
 import { jobsOf } from "./jobsWords";
+import { cleanRoles, modelOnGold } from "./roleWords";
 import { DEFAULT_BUILD, PIPELINE_PARTS } from "./stepWords";
 import { CreatedItem, OutputChoice, OutputsDefinition, ProductDefinition } from "./ModelItemDefinition";
 import {
@@ -90,6 +91,7 @@ export function toRequests(choices: OutputChoice[], created: CreatedItem[] = [])
   const modelOn = choices.some((c) => c.type === "semantic_model" && c.enabled);
   const before = modelOn ? undefined : [...created].reverse().find((c) => c.output === "semantic_model" || c.type === "SemanticModel")?.name;
   choices = choices.map((c) => (c.type === "report" && !c.model && before ? { ...c, model: before } : c));
+  const onGold = modelOnGold(choices);
   return choices
     .filter((c) => c.enabled && kindInfo(c.type))
     .sort((a, b) => ORDER.indexOf(a.type as OutputKind) - ORDER.indexOf(b.type as OutputKind))
@@ -100,6 +102,8 @@ export function toRequests(choices: OutputChoice[], created: CreatedItem[] = [])
       ...(c.type === "rayfin_app" && c.app ? { app: c.app } : {}),       // n181: the ticked key figures, pages, charts
       ...(c.type === "pipeline" ? { jobs: jobsOf(c) } : {}),               // n185: Run once and Schedule; ED2: Run once by default
       ...(c.type === "data_agent" && c.agent ? { agent: c.agent } : {}),   // n185: the layer, Publish and Copilot
+      // BL58: only ticked roles, and only on a model that reads the source or silver (one on gold takes no role yet)
+      ...(c.type === "semantic_model" && !onGold && cleanRoles(c.roles) ? { roles: cleanRoles(c.roles) } : {}),
     }));
 }
 

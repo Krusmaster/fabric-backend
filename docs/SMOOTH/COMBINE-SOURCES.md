@@ -1,5 +1,15 @@
 # Combining several sources into one data product, by rules (SM1 design, 20 November 2026)
 
+**Status (SM7, 21 November 2026).** Built in `fabric_backend/combine.py` and on the start card: rules M0, M1 and M2 with
+counts (section 2), the match decision as one tap kept in the flow state (section 3), and the conformed gold
+(`xref_customer`, `dim_customer`, re-keyed facts) as Spark SQL plus one semantic model dry run over it (section 4). Two
+choices differ from the text below and are Gustav's to confirm: the **master** is the side the match points at (SAP's
+KNA1 for M0), not the side with the most keys, because two CRM accounts may point at one SAP customer and a master per
+account would give that customer two keys and double its SAP totals; and when the side pointed at has a tenant column
+(MANDT) and the other has none, the match runs **within the tenant with the most rows**. Properties are carried per
+source (`sap_LAND1`, `crm_Industry`); personal-data columns are left out. Not built yet (issue #152): schema shortcuts
+(G5), M3, the gold in the pipeline, ontology and agent, catalog publish, survivorship choices.
+
 **The case.** SAP holds orders and customers. A CRM such as Salesforce holds accounts, opportunities and cases. The
 business wants one question answered over both, for example "revenue and open opportunities per customer". It wants one
 semantic model, one ontology and one data agent over both, published as one data product. Today Krusgraph builds each

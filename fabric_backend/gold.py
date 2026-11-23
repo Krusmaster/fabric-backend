@@ -102,9 +102,10 @@ def _unique(names: list[str]) -> list[str]:
 
 
 def spec(plan: Plan, info: dict, silver_schema: str = "silver", gold_schema: str = DEFAULT_SCHEMA, tables: list[str] | None = None,
-         show_personal_data: bool = False, within: list[str] | None = None) -> dict:
+         show_personal_data: bool = False, within: list[str] | None = None, dimensions: bool = False) -> dict:
     """The views as data. Raises PlanInputError when the lakehouse has no schemas (MLV needs them), a schema name will
-    not do, or a target would be a source or silver table."""
+    not do, or a target would be a source or silver table. DPM1: `dimensions` adds one view per dimension table with a
+    key (`dimension_views`), so a semantic model can read a star schema from gold alone."""
     from . import graphs
     schema = info.get("schema") or plan.schema.schema
     gold_schema, silver_schema = (gold_schema or "").strip(), (silver_schema or "").strip()
@@ -144,8 +145,9 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", gold_schema: str
     sources = {f"{schema}.{t.name}".lower() for t in plan.schema}
     silver = {f"{silver_schema}.{t.name}".lower() for t in plan.schema}
     views, omitted, kept, levels = [], [], [], []
-    from . import amounts as _amounts
+    from . import amounts as _amounts, combined_keys as _combined
     header_amounts = _amounts.columns(plan)
+    comb = _combined.columns(plan, within) if dimensions else {}      # DPM1: what the model relates on for composite keys
     for fact in sorted(facts, key=str.lower):
         target = f"{gold_schema}.{fact}".lower()
         if target in sources or target in silver:
@@ -187,6 +189,12 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", gold_schema: str
                     kept.append({"view": target, "table": t, "column": c, **f, "why_kept": "a key or join column of this view"})
                 columns.append({"table": t, "column": c, "alias": alias[t], "personal": f})
                 out_names.append(c if t == fact else f"{t}_{c}")
+        for t in ([fact] + [s["to"] for s in steps]) if comb else []:   # DPM1: the combined key columns silver wrote (n226)
+            for c in comb.get(t, []):
+                if t != fact and c.name == _combined.key_column(plan, t, comb):
+                    continue                                    # equals the reference that joined it, as a key column does
+                columns.append({"table": t, "column": c.name, "alias": alias[t], "personal": None, "combined": list(c.columns)})
+                out_names.append(c.name if t == fact else f"{t}_{c.name}")
         for col, name in zip(columns, _unique(out_names)):
             col["as"] = name
         out_of = {(c["table"], c["column"].lower()): c["as"] for c in columns}
@@ -227,14 +235,60 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", gold_schema: str
                                  "source_cols": list(s["rel"].source_cols), "target_cols": list(s["rel"].target_cols)} for s in steps],
                       "columns": columns, "constraints": constraints, "filters": filters, "keys_once": keys_once,
                       "tables": [fact] + [s["to"] for s in steps]})
+    dims = _dimension_views(plan, roles, gold_schema, sources | silver, inside, flagged, show_personal_data, omitted, comb) if dimensions else []
     owner = f"{info.get('item_id') or info.get('item_name') or 'lakehouse'}/{schema}"
-    return {"source": {"item": info.get("item_name") or "", "item_id": info.get("item_id") or "", "workspace_id": info.get("workspace_id") or "",
+    return {**({"dimension_views": dims} if dimensions else {}), "source": {"item": info.get("item_name") or "", "item_id": info.get("item_id") or "", "workspace_id": info.get("workspace_id") or "",
                        "schema": schema, "tables": sorted(t.name for t in plan.schema)},
             "silver_schema": silver_schema, "gold_schema": gold_schema, "owner": owner, "views": views,
             **({"silver_lakehouse": info["silver_from"]["lakehouse"]} if info.get("silver_from") else {}),   # SM6
             "header_amounts_left_out": levels,
             "personal_data": {"shown": bool(show_personal_data), "omitted": omitted, "kept_for_joins": kept,
-                              "flagged": _privacy.findings({k: v for k, v in flagged.items() if k[0] in {t for v in views for t in v["tables"]}})}}
+                              "flagged": _privacy.findings({k: v for k, v in flagged.items() if k[0] in {t for v in views + dims for t in v["tables"]}})}}
+
+
+def _dimension_views(plan: Plan, roles: dict, gold_schema: str, taken: set[str], inside: set[str] | None, flagged: dict,
+                     show_personal_data: bool, omitted: list[dict], comb: dict | None = None) -> list[dict]:
+    """DPM1 (Gustav, 21 November 2026: "should we not use the data products for the semantic model?"): one view per
+    dimension table (graphs' role) whose key is one column, over its silver table, with its own columns only (personal
+    data left out as in the fact views, its key kept) and the key-present rule. The fact views already carry the
+    dimensions' columns they join; these views are the dimension side of the star schema the model reads, so the model
+    reads gold alone. A composite key (SAP's MANDT + KUNNR) counts as one column when silver writes its combined key
+    column (combined_keys.py, n226), which the view then carries. A table without such a key is no one side of a
+    relationship and gets no view."""
+    from . import combined_keys as _combined
+    comb = comb or {}
+    out = []
+    for t in sorted(plan.schema, key=lambda x: x.name.lower()):
+        key, key_rule = plan.keys.get(t.name, ([], None))
+        one = len(key) == 1 or (len(key) > 1 and _combined.key_column(plan, t.name, comb) is not None)
+        if roles[t.name]["role"] != "dimension" or not one or (inside is not None and t.name not in inside):
+            continue
+        target = f"{gold_schema}.{t.name}".lower()
+        if target in taken:
+            raise PlanInputError(f"the gold view for {t.name} would be {target}, which is a source or silver table; choose another gold_schema")
+        columns = []
+        for c in t.column_names:
+            f = flagged.get((t.name, c))
+            if f and not show_personal_data and c.lower() not in {k.lower() for k in key}:
+                omitted.append({"view": target, "table": t.name, "column": c, **f})
+                continue
+            columns.append({"table": t.name, "column": c, "alias": "f", "personal": f, "as": c})
+        columns += [{"table": t.name, "column": c.name, "alias": "f", "personal": None, "as": c.name, "combined": list(c.columns)}
+                    for c in comb.get(t.name, [])]
+        out.append({"kind": "dimension", "fact": t.name, "name": target,
+                    "why": f"{t.name} is a dimension table ({roles[t.name]['why'].split(';')[0]}); one row per {t.name} row, the "
+                           "dimension side of the star schema the semantic model reads",
+                    "joins": [], "columns": columns, "filters": [], "keys_once": [], "tables": [t.name],
+                    "constraints": [{"name": _constraint_name(t.name, "key", "present"),
+                                     "check": " AND ".join(f"{q(k)} IS NOT NULL" for k in key),
+                                     "why": f"the key of {t.name} is {' + '.join(key)} (rule {key_rule}: {_rule_text(key_rule)}); a row "
+                                            "without it identifies nothing"}]})
+    return out
+
+
+def all_views(s: dict) -> list[dict]:
+    """DPM1: the fact views and, when the spec has them, the dimension views: everything the notebook creates."""
+    return list(s["views"]) + list(s.get("dimension_views") or [])
 
 
 def filter_sql(fl: dict, quote=q) -> str:
@@ -282,7 +336,8 @@ def create_sql(view: dict, s: dict) -> str:
             lines.append(_sql_comment(c["why"], "    -- "))
             lines.append(f"    CONSTRAINT {c['name']} CHECK ({c['check']}) ON MISMATCH DROP" + ("," if i < len(view["constraints"]) - 1 else ""))
         lines.append(")")
-    comment = f"Krusgraph gold view of {view['fact']} from {s['silver_schema']}, generated from the plan; rules in the constraint and WHERE comments"
+    comment = (f"Krusgraph gold {'dimension ' if view.get('kind') == 'dimension' else ''}view of {view['fact']} from {s['silver_schema']}, "
+               "generated from the plan; rules in the constraint and WHERE comments")
     # a backslash would escape the closing quote in Spark SQL; a line break is written as its escape (codegen.one_line)
     lines.append('COMMENT "' + _one_line(comment).replace("\\", "\\\\").replace('"', "'") + '"')
     lines.append(f'TBLPROPERTIES ("{PROPERTY}"="' + s["owner"].replace("\\", "\\\\").replace('"', "'") + '")')
@@ -295,7 +350,7 @@ def statements(s: dict) -> list[dict]:
     return [{"name": v["name"], "sql": create_sql(v, s), "why": v["why"],
              "rules": [{"constraint": c["name"], "why": c["why"]} for c in v["constraints"]]
                       + [{"filter": f["name"], "why": f["why"]} for f in v.get("filters", [])]}           # n209: the join rules
-            for v in s["views"]]
+            for v in all_views(s)]
 
 
 # ------------------------------------------------------------------ the notebook ---------------------------------
@@ -348,6 +403,10 @@ def cells(s: dict) -> list[tuple[str, str]]:
              "kept; the pipeline's check compares the rows before and after. Each join key appears once, under the referencing "
              "column's name. Source and silver tables are only read; the notebook stops before touching a table it did not create. "
              "Schedule the refresh in the lakehouse: Manage materialized lake views -> Manage schedules.")
+    if s.get("dimension_views"):                       # DPM1
+        intro += (f"\n\nAnd {len(s['dimension_views'])} dimension view(s), one per dimension table with a key (one column, or the combined key column silver writes) "
+                  f"({', '.join(v['fact'] for v in s['dimension_views'])}): the dimension side of the star schema the semantic "
+                  "model reads from gold.")
     if s["personal_data"]["omitted"]:
         intro += ("\n\nLeft out because the column name looks like personal data: "
                   + ", ".join(f"{o['table']}.{o['column']} ({o['rule']})" for o in s["personal_data"]["omitted"])
@@ -357,16 +416,16 @@ def cells(s: dict) -> list[tuple[str, str]]:
     lh = s.get("silver_lakehouse")                     # SM6: the silver tables are in another lakehouse of this workspace
     if lh:
         params += f"\nSILVER_LAKEHOUSE = {_py_literal(lh)}   # the lakehouse of the silver tables; the gold views go to this notebook's"
-    reads = sorted({t for v in s["views"] for t in v["tables"]}, key=str.lower)
+    reads = sorted({t for v in all_views(s) for t in v["tables"]}, key=str.lower)
     setup = SETUP.format(source_schema=_py_literal(s["source"]["schema"]), owner=_py_literal(s["owner"]),
                          source_tables=_py_literal(s["source"]["tables"]), silver_tables=_py_literal(reads),
-                         writes=_py_literal([v["name"].split(".", 1)[1] for v in s["views"]]))
+                         writes=_py_literal([v["name"].split(".", 1)[1] for v in all_views(s)]))
     if lh:
         intro += (f"\n\nThe silver tables are in the lakehouse `{lh}` of this workspace and are read by their three-part name "
                   f"`{lh}.{s['silver_schema']}.<table>`; the views are created in this notebook's default lakehouse.")
         setup = setup.replace("spark.catalog.tableExists(q(SILVER_SCHEMA, t))", "spark.catalog.tableExists(q(SILVER_LAKEHOUSE, SILVER_SCHEMA, t))")
     out = [("markdown", intro), ("parameters", params), ("code", setup)]
-    for v in s["views"]:
+    for v in all_views(s):
         sql = create_sql(v, s)
         # the schema names become the parameters' values at run time; the SQL is a plain (not f-) string with backslashes and
         # triple quotes escaped, so any table or column name survives as it is
@@ -392,7 +451,7 @@ def notebook_source(s: dict) -> str:
 
 def written(s: dict) -> list[str]:
     """Every name the notebook creates, lower case, schema-qualified: the test that no target is a source or silver table."""
-    return [v["name"].lower() for v in s["views"]]
+    return [v["name"].lower() for v in all_views(s)]
 
 
 def run_select(view: dict, s: dict, execute, quote=q) -> list[dict]:

@@ -114,6 +114,9 @@ OntologyName = Annotated[str, _name("ontology item", "shop_ontology")]
 ModelDraftName = Annotated[str, _d('Name of the semantic model in the draft. Default "semantic_model". Example: '
                                    '"shop_model".')]
 ModelName = Annotated[str, _name("semantic model item", "shop_model")]
+ModelRoles = Annotated[list[str] | None, _d(
+    'Row-level security roles to add, by the column each filters on, from the dry run\'s role_candidates. Default none: '
+    'the roles are only listed, nothing is added. Example: ["BUKRS"].')]
 ReportModel = Annotated[str, _d('Semantic model the report is bound to, name or id (as create_semantic_model named it). '
                                 'Example: "shop_model".')]
 ReportName = Annotated[str, _d('Display name of the report; a report of this name in the workspace is left alone and the call '
@@ -229,7 +232,8 @@ SapExport = Annotated[str, _d('"none" (default), or one export of the plan: "kru
 # Short on purpose: the read-only listing has a size cap (tests/test_tool_descriptions.py).
 
 StartPick = Annotated[str, _d('Chosen so far; "" if not yet.')]
-StartStep = Annotated[str, _d('Step to show: data, check, decide, dry_run, create or done (the answer\'s after names it).')]
+StartStep = Annotated[str, _d('Step to show: data, check, decide, dry_run, create or done (the answer\'s after names it). '
+                              '"latest" is the card\'s own read-only check.')]
 StartPlan = Annotated[dict | None, _d('{keys, confirmed, decisions} so far, as review_plan takes them.')]
 StartCreate = Annotated[list[str] | None, _d('Step create: dry-run item names the user asked to create.')]
 StartConfirm = Annotated[bool, _d('Step create: true only after the user said yes to exactly those names.')]

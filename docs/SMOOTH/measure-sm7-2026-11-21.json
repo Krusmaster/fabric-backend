@@ -1,0 +1,158 @@
+[
+ {
+  "layout": "b",
+  "taps": 5,
+  "seconds": 1.81,
+  "steps": [
+   {
+    "stage": "schema",
+    "taps": 0,
+    "seconds": 0.0,
+    "say": "Which schema in sales_product_lh shall I read?",
+    "words": 7
+   },
+   {
+    "stage": "check",
+    "taps": 1,
+    "seconds": 0.5,
+    "say": "38 tables, 77 links, 1 needs you.",
+    "words": 7,
+    "line": "SAP has 4 customers, the CRM 5 accounts. 4 accounts match on SAP_Customer_No__c after normalising. 1 only in SAP, 1 only in the CRM."
+   },
+   {
+    "stage": "decide",
+    "taps": 2,
+    "seconds": 0.61,
+    "say": "The match needs you: are these the same customers?",
+    "words": 9
+   },
+   {
+    "stage": "decide",
+    "taps": 3,
+    "seconds": 0.72,
+    "say": "Match accepted. Next: the dry run over both sources.",
+    "words": 9
+   },
+   {
+    "stage": "dry_run",
+    "taps": 4,
+    "seconds": 0.76,
+    "say": "One tap dry-runs everything over both sources: 5 customers in one dim_customer.",
+    "words": 12,
+    "combined": "SAP + CRM → 1 dim_customer (5 customers); 3 SAP facts and 7 CRM facts share it, no link between facts."
+   }
+  ],
+  "errors": [],
+  "model": {
+   "line": "SAP + CRM → 1 dim_customer (5 customers); 3 SAP facts and 7 CRM facts share it, no link between facts.",
+   "facts": 10,
+   "relationships": 10,
+   "fact_to_fact": 0
+  },
+  "writes": 0
+ },
+ {
+  "layout": "b",
+  "taps": 5,
+  "seconds": 1.68,
+  "steps": [
+   {
+    "stage": "schema",
+    "taps": 0,
+    "seconds": 0.0,
+    "say": "Which schema in sales_product_lh shall I read?",
+    "words": 7
+   },
+   {
+    "stage": "check",
+    "taps": 1,
+    "seconds": 0.32,
+    "say": "38 tables, 77 links, 1 needs you.",
+    "words": 7,
+    "line": "SAP has 4 customers, the CRM 5 accounts. 4 accounts match on SAP_Customer_No__c after normalising. 1 only in SAP, 1 only in the CRM."
+   },
+   {
+    "stage": "decide",
+    "taps": 2,
+    "seconds": 0.44,
+    "say": "The match needs you: are these the same customers?",
+    "words": 9
+   },
+   {
+    "stage": "decide",
+    "taps": 3,
+    "seconds": 0.6,
+    "say": "Match accepted. Next: the dry run over both sources.",
+    "words": 9
+   },
+   {
+    "stage": "dry_run",
+    "taps": 4,
+    "seconds": 0.64,
+    "say": "One tap dry-runs everything over both sources: 5 customers in one dim_customer.",
+    "words": 12,
+    "combined": "SAP + CRM → 1 dim_customer (5 customers); 3 SAP facts and 7 CRM facts share it, no link between facts."
+   }
+  ],
+  "errors": [],
+  "model": {
+   "line": "SAP + CRM → 1 dim_customer (5 customers); 3 SAP facts and 7 CRM facts share it, no link between facts.",
+   "facts": 10,
+   "relationships": 10,
+   "fact_to_fact": 0
+  },
+  "writes": 0
+ },
+ {
+  "layout": "b",
+  "taps": 5,
+  "seconds": 1.86,
+  "steps": [
+   {
+    "stage": "schema",
+    "taps": 0,
+    "seconds": 0.0,
+    "say": "Which schema in sales_product_lh shall I read?",
+    "words": 7
+   },
+   {
+    "stage": "check",
+    "taps": 1,
+    "seconds": 0.32,
+    "say": "38 tables, 77 links, 1 needs you.",
+    "words": 7,
+    "line": "SAP has 4 customers, the CRM 5 accounts. 4 accounts match on SAP_Customer_No__c after normalising. 1 only in SAP, 1 only in the CRM."
+   },
+   {
+    "stage": "decide",
+    "taps": 2,
+    "seconds": 0.44,
+    "say": "The match needs you: are these the same customers?",
+    "words": 9
+   },
+   {
+    "stage": "decide",
+    "taps": 3,
+    "seconds": 0.56,
+    "say": "Match accepted. Next: the dry run over both sources.",
+    "words": 9
+   },
+   {
+    "stage": "dry_run",
+    "taps": 4,
+    "seconds": 0.6,
+    "say": "One tap dry-runs everything over both sources: 5 customers in one dim_customer.",
+    "words": 12,
+    "combined": "SAP + CRM → 1 dim_customer (5 customers); 3 SAP facts and 7 CRM facts share it, no link between facts."
+   }
+  ],
+  "errors": [],
+  "model": {
+   "line": "SAP + CRM → 1 dim_customer (5 customers); 3 SAP facts and 7 CRM facts share it, no link between facts.",
+   "facts": 10,
+   "relationships": 10,
+   "fact_to_fact": 0
+  },
+  "writes": 0
+ }
+]

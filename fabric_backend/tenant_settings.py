@@ -11,6 +11,10 @@ Krusgraph never changes a tenant setting.
 
 Deterministic: fixed tables, no model call. `getting_started_md()` is docs/GETTING-STARTED.md and `page_html()` the
 body of /getting-started; tests/test_bl2_tenant_settings.py keeps the three equal.
+
+BL53 (23 November 2026, backlog C-28): the same page opens with the steps for a first pilot tenant, in order (`STEPS`):
+who does each, what it needs and the error `kind` a missing step answers with; the two ways to run Krusgraph today,
+and what it never does. tests/test_bl53_pilot_getting_started.py keeps those tied to the code they describe.
 Regenerate the doc with `python -m fabric_backend.tenant_settings --write`.
 """
 from __future__ import annotations
@@ -170,6 +174,25 @@ def for_outputs(outputs) -> list[dict]:
     return list(seen.values())
 
 
+# BL40: the short names the dry run's one line uses (the full names are in SETTINGS and the admin request).
+SHORT = {"fabric_items": "Fabric items", "ontology": "Ontology (preview)", "copilot": "Copilot",
+         "copilot_capacity": "Copilot capacities", "aoai_process": "Azure OpenAI processing",
+         "aoai_store": "Azure OpenAI storage"}
+# BL40: the outputs each creating tool of the guided path builds (start_flow.BUILDS)
+TOOL_OUTPUTS = {"create_pipeline": ["notebook", "pipeline"], "create_semantic_model": ["semantic_model"],
+                "create_report": ["report"], "create_backend": ["graphql_api"], "create_ontology": ["ontology"],
+                "create_data_agent": ["data_agent"]}
+
+
+def dry_run_line(outputs) -> str:
+    """BL40 (C-29): the dry run's one line on tenant settings, at most 25 words: which settings the outputs need, and
+    that their live value could not be read (it takes a Fabric admin). It never blocks the dry run."""
+    names = [SHORT.get(r["setting_id"], r["setting"]) for r in for_outputs(outputs)]
+    if not names:
+        return "Needs no tenant setting."
+    return f"Needs tenant settings: {', '.join(names)}. Not checked; ask your admin if Create fails."
+
+
 def no_setting(outputs) -> list[str]:
     """The labels of the given outputs that need no tenant setting."""
     return [OUTPUTS[o] for o in _check_outputs(outputs) if all(sid is None for sid, _, _ in REQUIRED[o])]
@@ -209,6 +232,33 @@ def _sections() -> list[tuple[str, str, list[str]]]:
             "administrator who approves the Krusgraph app in Microsoft Entra ID once (admin consent). "
             "The connection itself is on [the set-up guide](/start).",
         ]),
+        ("paths", "Two ways to run it", [
+            "**The hosted MCP server, available now.** Your AI client (Claude, or another MCP client) connects to "
+            "Krusgraph and you work in chat; [the set-up guide](/start) has the address and the steps. Everything on "
+            "this page works on this path.",
+            "**The Krusgraph Model item inside Fabric.** The same engine as an item type in your workspace "
+            "(+ New item → Krusgraph Model). Its listing in Fabric's Workload Hub is pending, so it cannot yet be added "
+            "from the Hub. What your administrator does for it, and how to try it before then, is on "
+            "[the Fabric pilot page](/pilot/fabric).",
+        ]),
+        ("steps", "Steps for a first pilot, in order", [
+            "Who does what, from \"we have Fabric\" to the first items built. Each step says which error a missing "
+            "step answers with: every error has a `kind`, a stable name, and a `hint` that says what fixes it.",
+        ]),
+        ("never", "What Krusgraph never does", [
+            "**Shows no row values unless you ask.** The guided path and the check return counts, not row values. "
+            "Rows come back only from a tool you ask for them: `sample_rows` (up to 20 rows of one table, with columns "
+            "that look like personal data masked by name) or `query_graphql` (the query you ask for).",
+            "**Deletes nothing.** No MCP tool deletes an item in Fabric, and the creating tools never write over the "
+            "tables they read. In the Fabric item, only the data product page's Delete from Fabric deletes, after a dry "
+            "run and the data product's name typed.",
+            "**Uses only your permissions.** Every call runs as the signed-in person, with delegated permissions; the "
+            "app has no application permissions, so it reaches nothing that person cannot already reach.",
+            "**Creates nothing on its own.** Every creating tool answers with a dry run first; only `dry_run=false` "
+            "creates, and the guided path asks you to confirm the names before that.",
+            "**Leaves your settings alone.** It never reads or changes tenant settings, capacity settings or Entra "
+            "settings.",
+        ]),
         ("reads", "What Krusgraph reads, and with which permission", [
             "Planning reads names and types: the workspace's items, each source's schemas, tables and columns. "
             "Checking runs read-only counting queries (`COUNT`, `GROUP BY`) on the tables you check. "
@@ -245,17 +295,67 @@ def _sections() -> list[tuple[str, str, list[str]]]:
             "schema, so a link to a table outside the 20 is not lost.",
             "Example: \"Plan the 20 tables `sales_*` and `customer` in the schema `dbo`, then check them.\"",
         ]),
-        ("next", "Next step", [
-            "Showing these settings in the dry-run card before Create, with the outputs that card would build, comes "
-            "after the start card's current work (docs/SMOOTH/PLAN.md); until then this page and "
-            "`fabric_backend.tenant_settings.markdown(outputs)` say it.",
+        ("next", "In the dry run", [
+            "The guided path's dry run names, in one line, the tenant settings its outputs need, and says that their "
+            "value was not checked. For a chosen set of outputs, `fabric_backend.tenant_settings.markdown(outputs)` "
+            "writes the request to your administrator in order.",
         ]),
     ]
 
 
+# BL53 (C-28): the steps for a first pilot tenant, in order: who, what, the text, and the error kinds a missing step
+# answers with. Every kind is a key of errors.HINTS; every tool named is an MCP tool (tests/test_bl53_pilot_getting_started.py).
+FIRST_OUTPUTS = ["graphql_api", "semantic_model", "report"]
+
+
+def _scopes_text() -> str:
+    """The app's delegated permissions, from fabric_backend/access.py (read here, never changed)."""
+    from . import access
+    by: dict[str, list[str]] = {}
+    for g in access.GRANTED:
+        by.setdefault(g.resource, []).append(f"`{g.scope}`")
+    return "; ".join(f"{r}: {', '.join(v)}" for r, v in by.items())
+
+
+def steps() -> list[dict]:
+    first = ", ".join(f"**{a['setting']}**" for a in for_outputs(FIRST_OUTPUTS)) or "none"
+    return [
+        {"who": "Entra administrator", "title": "Approve the app once (admin consent)", "kinds": ["consent"],
+         "text": "A Global Administrator or Privileged Role Administrator grants admin consent for the Krusgraph app "
+                 "in Microsoft Entra ID, once for the organisation. The permissions it asks for, all delegated: "
+                 + _scopes_text() + ". Why each is needed, and how to revoke it: [For your IT department](/it#permissions)."},
+        {"who": "Fabric administrator", "title": "A capacity, a workspace and a role", "kinds": ["capacity", "no_access"],
+         "text": "A workspace on a Fabric capacity (F SKU, P SKU or trial), with a lakehouse or warehouse that has test "
+                 "or sample tables. Viewer on the workspace is enough for the data lead to plan; creating items needs "
+                 "Contributor."},
+        {"who": "Fabric administrator", "title": "Turn on the tenant settings for the outputs you want",
+         "kinds": ["feature_disabled", "fabric_refused"],
+         "text": "Admin portal → Tenant settings, from the table under \"Tenant settings per output\" below. For a first "
+                 "API for GraphQL, semantic model and report that is " + first + ". Krusgraph cannot read these "
+                 "settings: when one is off, Create is refused (HTTP 403) and the answer quotes Fabric's own error code."},
+        {"who": "Data lead", "title": "Connect, and try the synthetic sample first", "kinds": ["sign_in"],
+         "text": "Add Krusgraph to your AI client as [the set-up guide](/start) says and sign in with your work "
+                 "account. Then ask \"Show me on the synthetic shop sample\" (the `start` tool with `sample=true`): "
+                 "the whole path on synthetic data, reading nothing in your Fabric. In the Fabric item, \"Is everything "
+                 "ready? Check this workspace\" reads consent, capacity, workspace and lakehouse instead, and changes "
+                 "nothing."},
+        {"who": "Data lead", "title": "Choose your data and check it against the rows",
+         "kinds": ["not_found", "schema_not_found"],
+         "text": "Say \"start Krusgraph\". The `start` tool lists your workspaces, sources and schemas to choose from "
+                 "(start with about 20 tables; see \"How to scope to 20 tables\" below). `plan_backend` proposes keys "
+                 "and relationships, each with the rule that found it; `validate_plan` counts them against the rows: "
+                 "unique keys, empty keys, references that find no row. You decide on each one."},
+        {"who": "Data lead", "title": "Dry run, create, then verify", "kinds": ["consent", "feature_disabled"],
+         "text": "The dry run shows every item that would be created, and the tenant settings it needs. Nothing is "
+                 "created until you confirm the names (`dry_run=false`). Afterwards `verify_build` reads back what was "
+                 "built and compares it with the dry run, by rules, not by AI."},
+    ]
+
+
 TITLE = "Getting started: what Krusgraph reads and what your admin turns on"
-INTRO = ("Read this before the first build. It says what Krusgraph reads and with which permission, which Fabric "
-         "tenant settings each output needs, the limits, and how to start with a small set of tables.")
+INTRO = ("Read this before the first pilot. It says who does what, in order, to try Krusgraph on your own Fabric data; "
+         "what Krusgraph reads and with which permission, which Fabric tenant settings each output needs, the limits, "
+         "and how to start with a small set of tables.")
 
 
 def _table_md() -> str:
@@ -269,8 +369,17 @@ def _table_md() -> str:
     return "\n".join(out)
 
 
+def _kinds(kinds: list[str]) -> str:
+    return ", ".join(f"`{k}`" for k in kinds)
+
+
+def _steps_md() -> str:
+    return "\n".join(f"{i}. **{x['title']}** ({x['who']}). {x['text']} Errors that point here: {_kinds(x['kinds'])}."
+                      for i, x in enumerate(steps(), 1))
+
+
 def getting_started_md() -> str:
-    parts = [f"> {READ_ON}, round BL2. Generated by `python -m fabric_backend.tenant_settings --write` from "
+    parts = [f"> {READ_ON}, round BL2. Steps for a first pilot added 2026-11-23, round BL53. Generated by `python -m fabric_backend.tenant_settings --write` from "
              "`fabric_backend/tenant_settings.py`; edit the module, not this file.", "", f"# {TITLE}", "", INTRO, ""]
     for sid, heading, paras in _sections():
         parts += [f"## {heading}", ""]
@@ -279,6 +388,8 @@ def getting_started_md() -> str:
         if sid == "settings":
             parts += [_table_md(), "", "For a set of outputs, `tenant_settings.markdown([...])` writes the request in "
                       "order. For all of them:", "", markdown(list(OUTPUTS)), ""]
+        if sid == "steps":
+            parts += [_steps_md(), ""]
     return "\n".join(parts).rstrip() + "\n"
 
 
@@ -318,6 +429,13 @@ def _asks_html() -> str:
     return f'<ol class="gs-asks">{"".join(items)}</ol>'
 
 
+def _steps_html() -> str:
+    items = [f'<li id="step-{i}"><strong>{html.escape(x["title"])}</strong> <span class="muted">({html.escape(x["who"])})</span>. '
+             f'{_inline(x["text"])} Errors that point here: {_inline(_kinds(x["kinds"]))}.</li>'
+             for i, x in enumerate(steps(), 1)]
+    return f'<ol class="gs-steps">{"".join(items)}</ol>'
+
+
 def page_html() -> str:
     """The body of /getting-started, from the same sections and rows as the doc."""
     out = []
@@ -327,6 +445,8 @@ def page_html() -> str:
         if sid == "settings":
             out += [_table_html(), "<p>For every output, ask your administrator in this order (Admin portal → Tenant "
                     "settings):</p>", _asks_html()]
+        if sid == "steps":
+            out.append(_steps_html())
     return "\n  ".join(out)
 
 
