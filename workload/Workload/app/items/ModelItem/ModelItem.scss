@@ -772,3 +772,7 @@
 .kg-adv-analysis { display: flex; flex-direction: column; gap: 4px; }
 .kg-adv-stage { display: flex; flex-direction: column; gap: 4px; padding-left: 12px; border-left: 2px solid var(--colorNeutralStroke1); min-width: 0; }
 .kg-adv-stage .kg-next-actions { flex-wrap: wrap; }
+
+/* WB6 (F7): Onto on the first screen, in place of the kit's picture; full width, no extra indent, wraps at 390 px */
+.kg-empty-onto { width: 100%; text-align: left; }
+.kg-empty-onto .krusgraph-mascots { margin: 0 0 8px; padding: 0; }
