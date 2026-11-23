@@ -27,6 +27,21 @@ export interface EngineError {
   hint?: string;
   /** kind upgrade (entitlements.py, billing.py): the Marketplace offer */
   upgrade_url?: string;
+  /** WB8: the request's correlation id, the reference support looks up in the engine's log */
+  correlation_id?: string;
+}
+
+/** WB8 (requirement 2.4): the header the engine logs on every line of a request (workload_api.CORRELATION_HEADER). */
+export const CORRELATION_HEADER = "x-krusgraph-correlation-id";
+
+/** A fresh id per engine call: the browser's UUID, or 32 random hex characters where randomUUID is missing. */
+export function newCorrelationId(): string {
+  const c = (globalThis as { crypto?: Crypto }).crypto;
+  if (c && typeof c.randomUUID === "function") return c.randomUUID();
+  const b = new Uint8Array(16);
+  if (c && typeof c.getRandomValues === "function") c.getRandomValues(b);
+  else for (let i = 0; i < b.length; i++) b[i] = Math.floor(Math.random() * 256);
+  return Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
 }
 
 export interface ReviewAnswer {
@@ -754,17 +769,18 @@ async function callOnce<T>(
   const onCancel = () => abort?.abort();
   cancel?.addEventListener?.("abort", onCancel);
   let response: Response;
+  const cid = newCorrelationId();
   try {
     response = await fetchImpl(`${base}/workload/v1/${route}`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(background ? { Prefer: "respond-async" } : {}) },
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", [CORRELATION_HEADER]: cid, ...(background ? { Prefer: "respond-async" } : {}) },
       body: JSON.stringify(body),
       ...(abort ? { signal: abort.signal } : {}),
     });
   } catch (e) {
     if (cancel?.aborted) throw cancelled();
     // n179: "Failed to fetch" carries no reason; say what it means for this request instead
-    throw new EngineCallError(lostAnswer(route, Math.round((Date.now() - started) / 1000), !!abort?.signal.aborted), 0);
+    throw new EngineCallError({ ...lostAnswer(route, Math.round((Date.now() - started) / 1000), !!abort?.signal.aborted), correlation_id: cid }, 0);
   } finally {
     if (timer) clearTimeout(timer);
     cancel?.removeEventListener?.("abort", onCancel);
@@ -777,7 +793,8 @@ async function callOnce<T>(
   }
   if (!response.ok || (answer as EngineError).error) {
     if (response.status === 401) forgetToken(workloadClient);
-    throw new EngineCallError(answer as EngineError, response.status);
+    const err = answer as EngineError;
+    throw new EngineCallError({ ...err, correlation_id: err.correlation_id || response.headers?.get?.(CORRELATION_HEADER) || cid }, response.status);
   }
   if (background) (answer as any).__status = response.status;
   return answer as T;

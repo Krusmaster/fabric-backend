@@ -151,6 +151,33 @@ class BadRequest(ValueError):
     pass
 
 
+# WB8 (requirement 2.4): one correlation id per request, on every log line of that request and on every error answer.
+# In the Extensibility Toolkit the editor calls this engine itself, so Fabric adds no activity id of its own (Microsoft
+# Learn, extensibility-toolkit/authentication-javascript-api: the token only; read 23 November 2026). The editor sends
+# a fresh id per call (CORRELATION_HEADER, engineClient.ts); a missing or malformed one is replaced by a new UUID. Fabric's
+# own ActivityId and RequestId (workload-development-kit/supportability; extensibility-toolkit/
+# how-to-enable-remote-item-lifecycle: "Extra required headers include ActivityId, RequestId, and x-ms-client-tenant-id")
+# arrive only on calls Fabric makes; when present they are logged beside it. docs/TRUST.md, "Tracing an incident".
+CORRELATION_HEADER = "x-krusgraph-correlation-id"
+FABRIC_ID_HEADERS = {"activityid": "fabric_activity_id", "requestid": "fabric_request_id",
+                     "x-ms-root-activity-id": "fabric_root_activity_id"}
+_CORRELATION_OK = re.compile(r"^[A-Za-z0-9-]{8,64}$")
+_CID: contextvars.ContextVar[str | None] = contextvars.ContextVar("krusgraph_correlation_id", default=None)
+
+
+def correlation_id(headers) -> tuple[str, dict]:
+    """The request's correlation id (the editor's, when well formed, else a new UUID) and Fabric's own ids when sent."""
+    import uuid
+    got = (headers.get(CORRELATION_HEADER) or "").strip()
+    cid = got if _CORRELATION_OK.match(got) else str(uuid.uuid4())
+    fabric = {}
+    for h, key in FABRIC_ID_HEADERS.items():
+        v = (headers.get(h) or "").strip()
+        if _CORRELATION_OK.match(v):
+            fabric[key] = v
+    return cid, fabric
+
+
 def log(event: str, **fields) -> None:
     """n179: one JSON line on the console (Log Analytics when the deploy sends console logs there): what the workload
     routes did and why a call failed, so 'Failed to fetch' in the browser can be matched to a cause. Names of routes,
@@ -160,6 +187,9 @@ def log(event: str, **fields) -> None:
         fields.setdefault("peak_rss_mb", round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024))
     except (ImportError, OSError):
         pass
+    cid = _CID.get()
+    if cid:
+        fields.setdefault("cid", cid)
     line = json.dumps({"krusgraph": "workload", "event": event, **fields}, default=str)
     sys.stdout.write(line + "\n")
     sys.stdout.flush()
@@ -3420,7 +3450,8 @@ class Tokens:
 def cors_headers(origin: str | None) -> dict:
     if origin and FABRIC_ORIGIN.match(origin.lower()):
         return {"Access-Control-Allow-Origin": origin, "Vary": "Origin", "Access-Control-Allow-Methods": "POST, OPTIONS",
-                "Access-Control-Allow-Headers": "Authorization, Content-Type, Prefer", "Access-Control-Max-Age": "600"}
+                "Access-Control-Allow-Headers": f"Authorization, Content-Type, Prefer, {CORRELATION_HEADER}",
+                "Access-Control-Expose-Headers": CORRELATION_HEADER, "Access-Control-Max-Age": "600"}
     return {"Vary": "Origin"}
 
 
@@ -3469,7 +3500,11 @@ def routes(cfg, validator=None, obo=None) -> list:
     obo = obo or OnBehalfOf(cfg)
 
     def reply(body: dict, status: int, origin: str | None, extra: dict | None = None) -> Response:
-        return JSONResponse(body, status_code=status, headers={**SECURITY_HEADERS, **cors_headers(origin), **(extra or {})})
+        cid = _CID.get()
+        if cid and isinstance(body, dict) and "error" in body:
+            body = {**body, "correlation_id": cid}        # WB8: the reference a user gives support
+        trace = {CORRELATION_HEADER: cid} if cid else {}
+        return JSONResponse(body, status_code=status, headers={**SECURITY_HEADERS, **cors_headers(origin), **trace, **(extra or {})})
 
     def licence(req: dict, tid: str) -> dict | None:
         """KRUSGRAPH_ENTITLEMENTS without the trial: a Create (dry_run=false) on /build and, since WB7, on the routes in
@@ -3485,6 +3520,17 @@ def routes(cfg, validator=None, obo=None) -> list:
             browser reports only 'Failed to fetch' and the editor cannot say which output or why."""
             started = time.monotonic()
             origin = request.headers.get("origin")
+            cid, fabric_ids = correlation_id(request.headers)
+            token = _CID.set(cid)
+            try:
+                return await traced(request, origin, started, fabric_ids)
+            finally:
+                _CID.reset(token)
+
+        async def traced(request, origin, started, fabric_ids):
+            if fabric_ids:
+                log("fabric_ids", route=where, **fabric_ids)
+            cid = _CID.get()
             try:
                 response = await inner(request, origin)
             except Exception as exc:  # noqa: BLE001 — logged by type and route, answered without details
@@ -3494,6 +3540,7 @@ def routes(cfg, validator=None, obo=None) -> list:
                               "hint": "Try again. If it repeats, the server's log has the cause (event route_failed)."}, 500, origin)
             if response.status_code >= 400:
                 log("route_answer", route=where, status=response.status_code, seconds=round(time.monotonic() - started, 1))
+            response.headers.setdefault(CORRELATION_HEADER, cid)
             return response
 
         async def inner(request, origin):
