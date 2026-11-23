@@ -34,11 +34,11 @@ Keep MANDT in the combined key even when the data has one client. A model built 
 
 ## Step 3: one active path between two tables
 
-Among the eight tables, the plan has 14 relationships. A Power BI model can keep only one active path between any two tables, or a filter would have two ways to travel. The draft keeps 7 active and makes 7 inactive, each with its reason, for example "it would close a cycle with VBAP - VBRP - MARA".
+Among the eight tables, the plan has 14 relationships. A Power BI model can keep only one active filter path between any two tables, or a filter would have two ways to travel. With the counts from the row check, the draft keeps 9 active and makes 5 inactive, each with its reason and its count, for example "a filter on KNA1 would reach VBRP two ways". Orders, deliveries and invoices each keep their items, their customer and their material; the links from one document to another, such as an invoice item to its order item, are the inactive ones.
 
-The customer table shows why this is a decision and not a detail. KNA1 is reached by five links: VBAK.KUNNR (the order's sold-to party), LIKP.KUNNR and LIKP.KUNAG (the delivery's ship-to and sold-to party), VBRK.KUNAG and VBRK.KUNRG (the invoice's sold-to party and payer). Only one of them can be active. The draft picks one by its rules and lists the others under "Decisions to check". For revenue per sold-to customer on orders, make VBAK.KUNNR the active one and deactivate the link the draft chose instead. Reach the others with `USERELATIONSHIP` in a measure.
+The customer table shows why this is a decision and not a detail. KNA1 is reached by five links: VBAK.KUNNR (the order's sold-to party), LIKP.KUNNR and LIKP.KUNAG (the delivery's ship-to and sold-to party), VBRK.KUNAG and VBRK.KUNRG (the invoice's sold-to party and payer). Only one link per document can be active. The draft keeps VBAK.KUNNR, LIKP.KUNAG and VBRK.KUNAG active and lists the other two under "Decisions to check". For revenue per payer, make VBRK.KUNRG the active one instead. Reach the others with `USERELATIONSHIP` in a measure.
 
-The same applies to dates. The draft adds a Calendar table, marked as a date table, related to the ERDAT column of each of the six document tables: VBAK.ERDAT is active, the other five are inactive.
+The same applies to dates. The draft adds a Calendar table, marked as a date table, related to the ERDAT column of each of the six document tables: VBAK.ERDAT, LIKP.ERDAT and VBRK.ERDAT are active, and the three item tables reach the calendar through their header, so their ERDAT links are inactive.
 
 ## Step 4: the doubled total
 

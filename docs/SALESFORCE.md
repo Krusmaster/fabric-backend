@@ -208,7 +208,7 @@ Data products (domains) the engine proposes, by community detection over the pla
 
 Ontology draft (`ontology_draft`, nothing created): entity_types: 21; with_key: 21; relationship_types: 53; skipped_relationships: 0
 
-Semantic-model draft (`semantic_model_draft`, nothing created): tables: 21; relationships_active: 20; relationships_inactive: 33; relationships_not_expressible: 0; storage_mode: directLake (SQL analytics endpoint); compatibility_level: 1604; measures: 43; header_amounts: 18
+Semantic-model draft (`semantic_model_draft`, nothing created): tables: 21; relationships_active: 33; relationships_inactive: 20; relationships_not_expressible: 0; storage_mode: directLake (SQL analytics endpoint); compatibility_level: 1604; measures: 43; header_amounts: 18
 
 <!-- end of generated section -->
 

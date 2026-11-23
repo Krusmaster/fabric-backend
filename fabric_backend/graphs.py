@@ -255,6 +255,261 @@ def spanning_forest(plan: Plan, es: list[dict]) -> tuple[list[dict], list[dict]]
     return active, inactive
 
 
+# ------------------------------------------------------------------ BL51: the counted evidence decides ---------------
+# Backlog C-33 (FINDINGS-13NOV B7, ADDENDUM XA2 and XB1). On the SAP-shaped sample the forest above, which ranks by the
+# rule's certainty alone, left VBAP -> VBAK and VBAK -> KNA1 inactive and kept ZSD_ORDER_EXT -> LIKP active, a guess
+# by R3 that validate_plan counts as 301 of 301 rows pointing at nothing. When validate_plan's answer has counted at
+# least one of the links, the active set is chosen by the counts instead, by these rules, in this order:
+#
+#   1. A link counted with no match at all (every row with a value points at nothing) is never active.
+#   2. Columns that point at more than one table (the same source columns, several targets) are ambiguous. Links of
+#      such a group that the count refuted (rule 1) drop out; when exactly one is left that was counted with matches,
+#      it is the one; when two or more were counted with matches, none of them is active and a person chooses
+#      (`confirmed`), never guessed; a declared or confirmed link of the group is the one whatever the counts.
+#   3. The rest are ranked, and Kruskal keeps one active path between any two tables (a tabular model allows no more):
+#      a. evidence: declared or confirmed, then counted with matches (holds, or some rows point at nothing), then not
+#         counted (no rows to check, or not counted in this answer);
+#      b. origin: declared/confirmed, then a knowledge pack or published metadata (SAP pack, CSN), then R1, R2, then
+#         R3/R4 and the rest: a pack's link ranks above a guess by name;
+#      c. shape: a link whose columns are all part of its own table's key (an item to its header, VBAP -> VBAK), then a
+#         link to a dimension (a header to its master data, VBAK -> KNA1), then the rest (one document to another);
+#      d. the share of rows with a value that match (holds is 1);
+#      e. the forest's own tie-breaks (references leaving the source, then names).
+#
+# Without counts nothing here runs, and the forest above decides exactly as before. Counts only, never a row value.
+
+COUNTED_ORIGIN = {"R0": 4, "confirmed": 4, "decided": 4, "SAP pack": 3, "CSN metadata": 3, "R1": 2, "R2": 1}
+DECLARED = ("R0", "confirmed", "decided")
+SHAPES = {2: "an item to its header (the link's columns are part of its own key)", 1: "a link to a dimension",
+          0: "one table to another that is not a dimension"}
+
+
+class FilterPaths:
+    """Power BI's rule for active relationships, as filters travel: a relationship (many side -> one side, single
+    cross-filter direction, as the draft writes them) lets a filter on the one side reach the many side. A model is
+    ambiguous when a filter on one table can reach another by two routes. Two facts sharing two dimensions (orders and
+    invoices both on customer and material) are not: no table filters another two ways, and both stay active, where
+    the undirected forest would cut one. `clash(source, target)` says in words which two routes an extra relationship
+    would open, or "" when it opens none; `add` records it as active."""
+
+    def __init__(self) -> None:
+        self.down: dict[str, list[str]] = {}            # one side -> many sides it filters
+        self.up: dict[str, list[str]] = {}
+
+    def _reach(self, start: str, step: dict[str, list[str]]) -> dict[str, list[str]]:
+        """table -> the route from start to it (start itself included), breadth first in name order."""
+        routes = {start: [start]}
+        q = deque([start])
+        while q:
+            v = q.popleft()
+            for w in sorted(step.get(v, [])):
+                if w not in routes:
+                    routes[w] = routes[v] + [w]
+                    q.append(w)
+        return routes
+
+    def clash(self, source: str, target: str) -> str:
+        if source == target:
+            return f"{source} would filter itself"
+        above = self._reach(target, self.up)            # tables whose filter reaches the one side (target), routes reversed
+        below = self._reach(source, self.down)          # tables the many side (source) filters
+        for x in sorted(above):
+            if x in below:
+                return (f"a filter on {source} already reaches {x} ({' -> '.join(below[x])}), and {x} reaches {target}, so this "
+                        "link would make a loop of filters")
+            reached = self._reach(x, self.down)
+            for y in sorted(below):
+                if y in reached:
+                    new = list(reversed(above[x])) + below[y]
+                    return (f"a filter on {x} would reach {y} two ways: {' -> '.join(reached[y])} (active) and "
+                            f"{' -> '.join(new)} (through this link)")
+        return ""
+
+    def add(self, source: str, target: str) -> None:
+        self.down.setdefault(target, []).append(source)
+        self.up.setdefault(source, []).append(target)
+
+
+def link_counts(plan: Plan, validation: dict | None) -> dict[tuple, dict]:
+    """Relationship key -> the count of it in validate_plan's answer: {"state", "reason", "rows_with_value", "orphans",
+    "matched"}. The state is counts.summary's (BL33: one count everywhere); the numbers are validate_plan's own."""
+    if not validation:
+        return {}
+    from . import counts
+    summary = counts.summary(plan, validation)
+    entries: dict[tuple, dict] = {}
+    for r in validation.get("relationships") or []:
+        if not r.get("kind"):
+            entries.setdefault((r["source"], tuple(str(c).lower() for c in r["columns"]), r["target"]), r)
+    out = {}
+    for it in summary["items"]:
+        if it["kind"] != "link":
+            continue
+        key = (it["source"], tuple(str(c).lower() for c in it["columns"]), it["target"])
+        e = entries.get(key) or {}
+        if e and "rows_with_value" not in e:             # a verdict without its numbers (an older or hand-made answer):
+            ok = str(e.get("verdict", "")).startswith("holds")      # the verdict alone, as edges() reads it
+            out[key] = {"state": "holds" if ok else "fails", "reason": str(e.get("verdict", "")), "rows_with_value": None,
+                        "orphans": None, "matched": None}
+            continue
+        rows, orphans = int(e.get("rows_with_value") or 0), int(e.get("orphans") or 0)
+        out[key] = {"state": it["state"], "reason": it["reason"], "rows_with_value": rows, "orphans": orphans,
+                    "matched": max(rows - orphans, 0)}
+    return out
+
+
+def _count_said(c: dict | None) -> str:
+    if not c or c["state"] == "not_counted":
+        return "not counted"
+    if c["state"] == "no_rows":
+        return "counted, no rows with a value to check"
+    if c["rows_with_value"] is None:
+        return f"counted: {c['reason']}"
+    return (f"counted, {c['matched']} of {c['rows_with_value']} rows with a value match"
+            + ("" if c["state"] == "holds" else f" ({c['state']}: {c['reason']})"))
+
+
+def counted_forest(plan: Plan, es: list[dict], counted: dict[int, dict], basis: dict[int, Relationship] | None = None,
+                   role_of: dict[str, str] | None = None, keys: dict | None = None) -> tuple[list[dict], list[dict]]:
+    """The active set by the counted rules above. `counted`: id(edge's rel) -> link_counts entry (absent: not counted);
+    `basis`: id(edge's rel) -> the relationship of the plan as validated (the source plan, when the edges are the
+    silver layer's carried ones), for the shape; `role_of`: table -> role (graphs.roles); `keys`: that plan's keys (a
+    carried plan's key is one combined column, so the shape is read on the source plan's key). Returns (active,
+    inactive) edge copies, each with "why" (in words, with the count) and "counted" (the count, or None)."""
+    basis = basis or {}
+    role_of = role_of or {}
+    keys = plan.keys if keys is None else keys
+
+    def count(e: dict) -> dict | None:
+        return counted.get(id(e["rel"]))
+
+    def matched(e: dict) -> bool:
+        c = count(e)
+        if not c or c["state"] not in ("holds", "fails"):
+            return False
+        return c["state"] == "holds" if c["matched"] is None else c["matched"] > 0
+
+    def no_match(e: dict) -> bool:
+        c = count(e)
+        return bool(c) and c["state"] == "fails" and bool(c["rows_with_value"]) and c["matched"] == 0
+
+    def declared(e: dict) -> bool:
+        return e["rule"] in DECLARED
+
+    def shape(e: dict) -> int:
+        r = basis.get(id(e["rel"]), e["rel"])
+        own = {c.lower() for c in keys.get(r.source, ([], ""))[0]}
+        if own and all(c.lower() in own for c in r.source_cols):
+            return 2
+        return 1 if role_of.get(r.target) == "dimension" else 0
+
+    def evidence(e: dict) -> int:
+        return 2 if declared(e) else 1 if matched(e) else 0
+
+    def said(e: dict) -> str:
+        return (f"{_count_said(count(e))}; {plan.label(e['rule'])}; {SHAPES[shape(e)]}")
+
+    inactive: list[dict] = []
+    left: list[dict] = []
+    for e in es:
+        if no_match(e):
+            c = count(e)
+            inactive.append({**e, "counted": c, "why": (f"counted with no match: {c['orphans']} of {c['rows_with_value']} rows with a value "
+                                                        f"point at nothing in {e['target']}, so it is never active (BL51 rule 1)")})
+        else:
+            left.append(e)
+    groups: dict[tuple, list[dict]] = {}
+    for e in es:
+        groups.setdefault((e["source"], tuple(c.lower() for c in e["columns"])), []).append(e)
+    out_of_group: set[int] = set()
+    kept = {id(e) for e in left}
+    for (source, cols), members in sorted(groups.items()):
+        if len({m["target"] for m in members}) < 2:
+            continue
+        alive = [m for m in members if id(m) in kept]
+        what = f"{source}.{'+'.join(members[0]['columns'])} points at {len({m['target'] for m in members})} tables ({', '.join(sorted({m['target'] for m in members}))})"
+        winners = [m for m in alive if declared(m)] or [m for m in alive if matched(m)]
+        if len(winners) == 1:
+            w = winners[0]
+            for m in alive:
+                if m is not w:
+                    out_of_group.add(id(m))
+                    inactive.append({**m, "counted": count(m), "why": (f"ambiguous: {what}; the link to {w['target']} is the one "
+                                                                        f"({_count_said(count(w))}), this link: {_count_said(count(m))} (BL51 rule 2)")})
+        elif len(winners) > 1:
+            for m in winners:
+                out_of_group.add(id(m))
+                others = "; ".join(f"{x['target']}: {_count_said(count(x))}" for x in winners if x is not m)
+                inactive.append({**m, "counted": count(m), "why": (f"ambiguous: {what}, and the counts do not choose (this link: "
+                                                                    f"{_count_said(count(m))}; {others}); a person chooses one with "
+                                                                    "`confirmed`, and it becomes active (BL51 rule 2)")})
+    left = [e for e in left if id(e) not in out_of_group]
+
+    out_deg: dict[str, int] = {}
+    for e in left:
+        out_deg[e["source"]] = out_deg.get(e["source"], 0) + 1
+
+    def share(e: dict) -> float:
+        c = count(e)
+        if c and c["rows_with_value"] is None:
+            return 1.0 if c["state"] == "holds" else 0.0
+        return c["matched"] / c["rows_with_value"] if c and c["rows_with_value"] else 0.0
+
+    def rank(e: dict) -> tuple:
+        return (evidence(e), COUNTED_ORIGIN.get(e["rule"], 0), shape(e), share(e))
+
+    paths = FilterPaths()
+    active: list[dict] = []
+    ordered = sorted(left, key=lambda e: (tuple(-x for x in rank(e)), -out_deg[e["source"]], e["source"], e["target"], e["columns"]))
+    for e in ordered:
+        same = next((x for x in active if x["source"] == e["source"] and x["target"] == e["target"]), None)
+        clash = paths.clash(e["source"], e["target"])
+        if same is not None:
+            why = (f"a relationship between these two tables is already active ({same['source']}.{'+'.join(same['columns'])}: "
+                   f"{said(same)}); this link: {said(e)} (BL51 rule 3)")
+        elif clash:
+            why = (f"{clash}; every active link there ranks at least as high by the counted rule, this link: {said(e)} (BL51 rule 3)")
+        else:
+            paths.add(e["source"], e["target"])
+            active.append({**e, "counted": count(e), "why": f"active: {said(e)}; first on its path by the counted rule (BL51 rule 3)"})
+            continue
+        inactive.append({**e, "counted": count(e), "why": why})
+    order = {id(e["rel"]): i for i, e in enumerate(es)}
+    inactive.sort(key=lambda e: order[id(e["rel"])])
+    return active, inactive
+
+
+def counted_roles(plan: Plan, validation: dict | None = None) -> dict[str, str]:
+    """table -> role, as analyze() gives it (for the shape rule of counted_forest)."""
+    es = edges(plan, validation)
+    nodes = sorted(t.name for t in plan.schema)
+    _, _, und = _adjacency(plan, es)
+    return {t: r["role"] for t, r in roles(plan, es, betweenness(nodes, und)).items()}
+
+
+def counted_active_set(plan: Plan, es: list[dict], validation: dict | None, basis_plan: Plan | None = None) -> tuple[list[dict], list[dict]] | None:
+    """BL51's entry point: (active, inactive) by the counted rules when validate_plan's answer counted at least one of
+    the edges' links; None otherwise (the caller keeps spanning_forest, exactly as before). `basis_plan`: the plan the
+    validation was run on, when `plan` is the silver layer's carried copy (same relationships in the same order)."""
+    if not validation or not validation.get("relationships"):
+        return None
+    source = basis_plan or plan
+    counts_of = link_counts(source, validation)
+    basis: dict[int, Relationship] = {}
+    if basis_plan is not None and basis_plan is not plan and len(basis_plan.relationships) == len(plan.relationships):
+        for carried, orig in zip(plan.relationships, basis_plan.relationships):
+            basis[id(carried)] = orig
+    counted = {}
+    for e in es:
+        r = basis.get(id(e["rel"]), e["rel"])
+        c = counts_of.get(r.key)
+        if c and c["state"] != "not_counted":
+            counted[id(e["rel"])] = c
+    if not counted:
+        return None
+    return counted_forest(plan, es, counted, basis, counted_roles(source, validation), source.keys)
+
+
 def _forest_path(active: list[dict], a: str, b: str) -> list[str]:
     adj: dict[str, list[str]] = {}
     for e in active:
