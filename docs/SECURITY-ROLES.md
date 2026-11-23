@@ -220,5 +220,14 @@ on the tool, or `roles` on the workload build's semantic model output (`{"kind":
 `bad_input` before anything is read, naming the roles proposed. A source with no candidate (the shop) answers exactly
 as before. A model on the gold views takes no role yet (refused in plain words). `tests/test_bl46_roles_dry_run.py`.
 
-Next: a tick box per role in the workload editor's model step (the engine takes `roles` already); roles on a model over
-the gold views; and open one in Power BI Desktop on the SAP demo.
+**Done in round BL58 (23 November 2026):** a tick box per role in the workload editor. The semantic model card on the
+Dry run step lists the proposed roles, unticked by default, each with its column, rule, the tables it filters (names
+only) and whether it fits the model's tables; one that does not fit is disabled with the reason. A ticked role is saved
+in the item and sent as `roles` on the semantic_model output, by its column; without a tick the request is exactly as
+before. The editor offers *Dry run again* when the ticks differ from the dry run shown. After Create the card lists each
+role as added or not (`workload/Workload/app/items/ModelItem/RolesView.tsx`, `roleWords.ts`, `bl58RoleTicks.test.tsx`;
+e2e flow 27 on the SAP sample). In the editor the roles appear only when the model reads the source or silver tables: a
+build with gold views has its model on gold, which takes no role yet, so no candidates are offered there.
+
+Next: roles on a model over the gold views (then the editor's default build, which has gold, offers them too); open one
+in Power BI Desktop on the SAP demo.

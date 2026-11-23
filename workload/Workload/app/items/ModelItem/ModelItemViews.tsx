@@ -77,6 +77,7 @@ import { builtOn, defaultsLine, notCheckedLine } from "./ed1Words";
 import { ChosenProductsView } from "./SuggestedProductsView";
 import { progressLabel } from "./createRun";
 import { AgentChoices, AgentPanel, JobsPanel, PipelineChoices } from "./JobsViews";
+import { RolesPanel } from "./RolesView";
 import { agentOf, jobsOf, scheduleProblems } from "./jobsWords";
 import { ICON_SIZE, KIND_TYPE, NOTICES, altBeside, itemIcon } from "./fabricIcons";
 import { TypeIcon, TypeName } from "./itemIcons";
@@ -765,6 +766,10 @@ export interface CardActions {
   appRecord?: AppPackageRecord;
   /** ED2: errors several cards share, said once above them */
   shared?: SharedError[];
+  /** BL58: the semantic model's ticked roles as stored in outputs.json, how to change them, and the dry run again */
+  roles?: string[];
+  onRoles?: (roles: string[]) => void;
+  onDryRunAgain?: () => void;
 }
 
 /** n181: the App (Rayfin, preview): the preflight, the ticks, the pages, the read-only connector, the package. */
@@ -1091,6 +1096,9 @@ export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["i
       {isApp(c) && <AppPanel card={c} saved={props.appChoices} onAppChoices={props.onAppChoices} record={props.appRecord} />}
       {c.output === "pipeline" && <JobsPanel card={c} />}
       {c.output === "data_agent" && <AgentPanel card={c} />}
+      {c.output === "semantic_model" && (
+        <RolesPanel card={c} saved={props.roles} onRoles={c.dry_run ? props.onRoles : undefined} onDryRunAgain={props.onDryRunAgain} busy={props.busy} />
+      )}
       {refresh && (
         <MessageBar intent={c.refresh?.status === "refreshed" ? "success" : c.refresh?.status === "planned" || c.refresh?.status === "refreshing" ? "info" : "warning"} layout="multiline">
           <MessageBarBody>
@@ -1292,6 +1300,10 @@ export function PreviewView(props: {
   stale?: string;
   /** ED2: the one button that fixes what keeps Create off */
   onFixBlocker?: (b: Blocker) => void;
+  /** BL58: the semantic model's ticked roles, how to change them, and the dry run again with them */
+  roles?: string[];
+  onRoles?: (roles: string[]) => void;
+  onDryRunAgain?: () => void;
 }) {
   const a = props.answer;
   const checkLine = dryRunCheckLine(a.row_check);
@@ -1322,7 +1334,8 @@ export function PreviewView(props: {
       <ChosenProductsView products={a.products} />
       {a.flow && <FlowView flow={a.flow} mascotsOn={props.mascotsOn} idPrefix="kg-flow-preview" />}
       {a.outputs.map((c) => (
-        <OutputCard key={c.output} card={c} appChoices={props.appChoices} onAppChoices={props.onAppChoices} appRecord={props.appRecord} />
+        <OutputCard key={c.output} card={c} appChoices={props.appChoices} onAppChoices={props.onAppChoices} appRecord={props.appRecord}
+          roles={props.roles} onRoles={props.onRoles} onDryRunAgain={props.onDryRunAgain} busy={props.creating} />
       ))}
       {a.left_out_by_review.length > 0 && (
         <section>

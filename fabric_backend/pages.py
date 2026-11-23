@@ -73,7 +73,7 @@ PAGES = {
                          "What each {{PRODUCT}} tool returns for the synthetic shop plan: the API, views, ontology, semantic model and data agent, with each tool's test status.", "usecases"),
     # BL2: what Krusgraph reads and the tenant settings each output needs (tenant_settings.py)
     "/getting-started": ("getting-started.html", "Getting started: permissions and tenant settings — {{PRODUCT}}",
-                         "Before the first build: what {{PRODUCT}} reads and with which permission, the Microsoft Fabric tenant settings each output needs, the limits, and how to start with 20 tables.", "docs"),
+                         "Steps for a first pilot, in order, for the admin and the data lead; what {{PRODUCT}} reads and with which permission, the Microsoft Fabric tenant settings each output needs, the limits, and how to start with 20 tables.", "docs"),
     "/it": ("it.html", "For your IT department — {{PRODUCT}}",
             "For a BI lead to forward to IT: the delegated permissions the {{PRODUCT}} Entra app asks for and why, what is stored where and for how long, how to revoke access, and who stands behind it.", ""),
     "/pricing": ("pricing.html", "Pricing — {{PRODUCT}}",
@@ -1520,7 +1520,7 @@ DOCS_GROUPS = ["Overview", "Get started", "Concepts", "Explore and check", "Buil
                "Hosting and permissions"]
 # n188: "Which Krusgraph should I use?" is the docs menu's first entry (DOCS_FIRST), above the docs' own pages
 DOCS_FIRST = ("/choose", "Which Krusgraph should I use?")
-DOCS_MORE = [("/start", "The set-up guide"), ("/it", "For your IT department"), ("/lovable", "Use with Lovable")]
+DOCS_MORE = [("/getting-started", "Getting started for a pilot"), ("/start", "The set-up guide"), ("/it", "For your IT department"), ("/lovable", "Use with Lovable")]
 
 
 def _md_plain(s: str) -> str:

@@ -693,6 +693,69 @@ async function main() {
         `Enter on Go to Advanced analytics put the focus on its heading; engine: ${analyses.length} analysis call(s), the first after check #${firstCheck}; ` +
         `items the doubles received: ${log.created.join(", ")}; overflow ${overflow} px`;
     });
+
+    // BL58: the semantic model's row-level security roles (BL46) on the SAP sample, at 390 px, by keyboard only: the dry
+    // run lists BUKRS and MANDT as tick boxes, unticked, each named by the role and described by its column, rule and
+    // tables; the dry run's request has no roles; Space ticks BUKRS, Dry run again sends roles ["BUKRS"], and so does Create.
+    await step("27 BL58: row-level security roles as ticks on the model's dry run (SAP sample, keyboard, 390 px)", async () => {
+      await scenario("sap");
+      const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 });
+      const r = await ctx.newPage();
+      r.on("pageerror", (e) => errors.push(e.message));
+      const builds = [];                                        // the outputs of every build request, in order
+      r.on("request", (q) => {
+        if (q.url().includes("/workload/v1/build") && q.method() === "POST") {
+          try { const b = JSON.parse(q.postData() || "{}"); builds.push({ dry_run: b.dry_run, outputs: b.outputs }); } catch { /* not JSON */ }
+        }
+      });
+      await r.goto(`${BASE}/index.html?fresh=1`); await settle(r, 1200);
+      const press = async (loc, key = "Enter") => { await loc.scrollIntoViewIfNeeded(); await loc.focus(); await r.keyboard.press(key); };
+      await press(button(r, "Choose a source")); await settle(r);
+      const sap = r.getByRole("radio", { name: /sap_sd/ });
+      if (!(await sap.isChecked())) await press(sap, "Space");
+      await press(button(r, "Find keys and relationships"));
+      await button(r, /Check against the rows again/).waitFor({ timeout: 30000 });
+      await settle(r, 1500);
+      await press(button(r, /Accept all that passed/)); await settle(r, 600);
+      await press(button(r, "Next: Decide what to build")); await settle(r);
+      for (let i = 0; i < 12; i++) {
+        const on = r.locator(".krusgraph-outputs > section.krusgraph-output:visible").getByRole("checkbox", { checked: true }).first();
+        if (!(await on.count())) break;
+        await press(on, "Space"); await settle(r, 200);
+      }
+      await press(r.getByRole("checkbox", { name: "Semantic model" }).first(), "Space");
+      await press(button(r, "Dry run", true)); await settle(r, 4000);
+      const roles = r.locator("fieldset.kg-roles");
+      await roles.waitFor({ timeout: 30000 });
+      const first = builds.filter((b) => b.dry_run);
+      expectTrue(first.length === 1 && JSON.stringify(first[0].outputs) === JSON.stringify([{ kind: "semantic_model", name: "demo_lh_model" }]),
+        `the first dry run sent ${JSON.stringify(first.map((b) => b.outputs))}`);
+      const bukrs = roles.getByRole("checkbox", { name: "Rows by company code (BUKRS)" });
+      const mandt = roles.getByRole("checkbox", { name: "Rows by client (MANDT)" });
+      expectTrue(await bukrs.count() === 1 && await mandt.count() === 1, "no BUKRS or MANDT tick box");
+      expectTrue(!(await bukrs.isChecked()) && !(await mandt.isChecked()), "a role is ticked by default");
+      const desc = await bukrs.evaluate((el) => document.getElementById(el.getAttribute("aria-describedby") || "")?.textContent || "");
+      expectTrue(/^Filters on BUKRS \(rule S1\) in .*T001.*\. Fits this model's tables\.$/i.test(desc), `BUKRS is described as: ${desc}`);
+      await press(bukrs, "Space"); await settle(r, 800);
+      expectTrue(await bukrs.isChecked(), "Space did not tick BUKRS");
+      const again = button(r, "Dry run again", true);
+      await press(again); await settle(r, 4000);
+      const second = builds.filter((b) => b.dry_run);
+      expectTrue(second.length === 2 && JSON.stringify(second[1].outputs) === JSON.stringify([{ kind: "semantic_model", name: "demo_lh_model", roles: ["BUKRS"] }]),
+        `the dry run again sent ${JSON.stringify(second.map((b) => b.outputs))}`);
+      expectTrue(await r.locator("fieldset.kg-roles").getByRole("checkbox", { name: "Rows by company code (BUKRS)" }).isChecked(), "BUKRS unticked after the dry run again");
+      const snap = await r.locator("fieldset.kg-roles").ariaSnapshot();
+      const overflow = await r.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expectTrue(overflow <= 0, `horizontal overflow ${overflow} px`);
+      await r.locator("fieldset.kg-roles").screenshot({ path: path.join(OUT, "27-roles-phone.png") });
+      await press(button(r, /^Create/)); await settle(r, 6000);
+      const created = builds.filter((b) => b.dry_run === false);
+      expectTrue(created.length >= 1 && created.every((b) => JSON.stringify(b.outputs) === JSON.stringify([{ kind: "semantic_model", name: "demo_lh_model", roles: ["BUKRS"] }])),
+        `Create sent ${JSON.stringify(created.map((b) => b.outputs))}`);
+      await ctx.close();
+      return `27-roles-phone.png; the first dry run sent no roles; BUKRS and MANDT unticked; Space ticked BUKRS; Dry run again and Create sent roles ["BUKRS"]; ` +
+        `screen reader: ${snap.split("\n").filter((l) => l.includes("checkbox")).map((l) => l.trim()).join(" | ")}; overflow ${overflow} px`;
+    });
   }
 
   // SM3 (docs/SMOOTH/PLAN.md row 2): the lazy path, counted. A fresh item, from opening it to the dry run of the pipeline,

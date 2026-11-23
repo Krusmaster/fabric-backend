@@ -66,6 +66,7 @@ import { Choice, acceptAll, totalsOf } from "./modelWords";
 import { notCheckedLine } from "./ed1Words";
 import { Blocker, freshestReview, staleLine, toFinish } from "./ed2Create";
 import { readAppRecord, rememberApp, withAppChoices } from "./appWords";
+import { keepOffered, withRoles } from "./roleWords";
 import {
   MAX_WAIT_MS, POLL_MS, agentAfterRun, jobsBlocked, pipelineItem, recordRun, recordSchedule, runFinished, scheduleIds, stillRunning,
 } from "./jobsWords";
@@ -563,6 +564,15 @@ export function ModelItemEditor(props: PageProps) {
   }
 
   /** n181: the App's ticks, kept in outputs.json at once (the item stores the choices) and sent with Preview and Create. */
+  /** BL58: the semantic model's ticked roles, saved in outputs.json and sent with Create (none by default). */
+  async function chooseRoles(roles: string[]) {
+    const next = withRoles(choicesRef.current, roles);
+    setChoices(next);
+    const d = { ...defRef.current, outputs: { ...defRef.current.outputs, outputs: next } };
+    setDef(d);
+    await save(d);
+  }
+
   async function chooseApp(app: AppChoices) {
     const next = withAppChoices(choices, app);
     setChoices(next);
@@ -615,7 +625,8 @@ export function ModelItemEditor(props: PageProps) {
     setStaleNote(staleLine(savedReview.current, d.review));     // ED2: said once, when the saved review was older
     if (d.review) savedReview.current = d.review;
     // n209: the App's choices, pages, package and one command, kept in outputs.json so an App built later shows them
-    const kept = rememberApp(choices, a.outputs, new Date().toISOString());
+    // BL58: only the roles this dry run offers stay ticked (a role refused by the model is unticked)
+    const kept = keepOffered(rememberApp(choices, a.outputs, new Date().toISOString()), a.outputs);
     if (kept !== choices) {
       setChoices(kept);
       const d2 = { ...d, outputs: { ...d.outputs, outputs: kept } };
@@ -1427,6 +1438,7 @@ export function ModelItemEditor(props: PageProps) {
       component: wrap(preview ? <PreviewView answer={preview} onCreate={() => void create()} creating={creating || !!busy} mascotsOn={mascotsOn} createLabel={createLabel(preview)}
         stale={staleNote} onFixBlocker={(b) => void fixBlocker(b)}
         appChoices={choices.find((c) => c.type === "rayfin_app")?.app} onAppChoices={chooseApp}
+        roles={choices.find((c) => c.type === "semantic_model")?.roles} onRoles={(r) => void chooseRoles(r)} onDryRunAgain={() => void previewBuild()}
         appRecord={readAppRecord(choices.find((c) => c.type === "rayfin_app")?.app_package, choices.find((c) => c.type === "rayfin_app")?.name)} /> : null),
     },
     // W13: next steps with other Fabric workloads, under the result once something was built
