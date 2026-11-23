@@ -109,3 +109,27 @@ build id. After that, every green CI run on `main` deploys on its own.
 The workflow opens an issue named "Automatic deployment of <commit> failed". It shows which step failed and whether
 the rollback brought the previous build back with passing checks. If the rollback did not pass, look at the revisions in
 Azure Container Apps and run `bash deploy/krusgraph.sh --doctor` in Cloud Shell.
+
+Read the *deploy* job's log first and find the first step that is not green. Every step after a failed one shows
+"skipped", so an issue with all three lines "skipped" means the failure came before the snapshot: in `azure/login` or
+`az extension add`, and nothing in Azure changed.
+
+| What the log says | What it means | What to do |
+| --- | --- | --- |
+| The gate's summary says "Automatic deployment is not set up", or names a variable | the one-time steps above are not done, or a value has a space or line break | steps 1 to 3 above |
+| `azure/login`: `AADSTS700213: No matching federated identity record found` | the federated credential's subject does not match | step 1, the immutable-ID subject |
+| `azure/login`: `Failed to fetch federated token from GitHub` with `Request timeout: .../idtoken/...` | GitHub's token service did not answer in time; the workflow already has `id-token: write` | nothing to fix: the next commit on `main` deploys by itself, or **Actions → Deploy → Run workflow** once. If it happens three times in a row, see the proposal below |
+| `--update`: "Hittade inte container-appen ..." | the app or resource group name is wrong | step 3, `KRUSGRAPH_APP` and `KRUSGRAPH_RESOURCE_GROUP` |
+| `--update` fails after "Uppdaterar container-appen" | the new build does not answer the checks; the rollback step ran | the issue says whether the rollback passed; `--doctor` if not |
+
+**Issue #135 (21 November 2026, commit `48f735d`)** was the token timeout in the third row. The gate had passed with
+every variable set, the deploy job stopped in `azure/login` after 9 seconds, and the next commit (`215441f`, 15:15 UTC)
+deployed with every step green. Every later tip of `main` deployed too; `docs/DEPLOY-NEXT.md` lists the runs and the
+live build.
+
+**Proposed, needs Gustav (not made):** if token timeouts come back, the `azure/login` step in
+`.github/workflows/deploy.yml` could be tried twice before the job fails: give the step `id: login` and
+`continue-on-error: true`, then add after it a second `azure/login` step with the same three inputs and
+`if: steps.login.outcome == 'failure'`. A second failure stops the job as today, before any Azure call, and the rollback
+condition (`steps.before.outcome == 'success'`) is unchanged. This is a workflow change, so it waits for Gustav's yes
+and the `needs-gustav` label; one timeout in about 200 runs does not need it yet.
