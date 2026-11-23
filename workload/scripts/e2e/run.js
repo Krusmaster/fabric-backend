@@ -208,7 +208,7 @@ async function main() {
       await card.getByRole("button", { name: /^Dry run/ }).click(); await settle(p, 2500);
       const dry = await card.locator(".kg-next-starter-said").innerText();
       const before = (await (await fetch(`${BASE}/e2e/log`)).json()).created.filter((c) => c === "notebooks").length;
-      expectTrue(dry.includes("Would create the notebook") && dry.includes("trains no model"), `dry run said: ${dry}`);
+      expectTrue(dry.includes("Would create the notebook") && (dry.includes("trains no model") || dry.includes("only when you choose Run now")), `dry run said: ${dry}`);   // ED3 (#136) changed the sentence
       await card.getByRole("button", { name: /^Create / }).click(); await settle(p, 4000);
       const said = await card.locator(".kg-next-starter-said").innerText();
       const after = (await (await fetch(`${BASE}/e2e/log`)).json()).created.filter((c) => c === "notebooks").length;
