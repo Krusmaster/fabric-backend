@@ -8,6 +8,8 @@
  * colours with the site's figures, Thinker's questions with their choices inline, and Accept all. Words: modelWords.ts.
  */
 import { RunNow } from "./RunNowView";
+import { CsnChooser, SapDemo, SapDemoAnswer, SapFields } from "./SapViews";
+import { CsnUpload } from "./csnUpload";
 import { ReadOnlySource, SapOffer, isReadOnly, restType, sapMark, schemaProblem, sourceButton, sourceNotes, targetButton, targetLine } from "./sourceWords";
 import React, { useState } from "react";
 import {
@@ -379,6 +381,11 @@ export function ReviewView(props: {
   sap?: SapOffer;
   /** W13: the step after the review, shown on the page (it was only the ribbon's arrow) */
   onNext?: () => void;
+  /** WB5: the CSN file chosen in the editor, and choosing or removing one */
+  csn?: CsnUpload;
+  onCsn?: (v: CsnUpload | null) => void;
+  /** WB5: Load SAP demo data (shown when the review found no SAP tables) */
+  onSapDemo?: (dryRun: boolean, confirm?: string) => Promise<SapDemoAnswer>;
 }) {
   const [tab, setTab] = useState<"map" | "list">("map");
   const notes = sourceNotes(props.readOnly, props.sap);
@@ -405,6 +412,9 @@ export function ReviewView(props: {
           {notes.map((line) => <Body1 key={line}>{line}</Body1>)}
         </section>
       )}
+      <SapFields sap={props.sap} />
+      {props.onCsn && <CsnChooser csn={props.csn} disabled={props.checking} onCsn={props.onCsn} />}
+      {!props.sap && props.onSapDemo && <SapDemo send={props.onSapDemo} />}
 
       <div className="krusgraph-actions">
         <Button appearance={totals.checked ? "secondary" : "primary"} icon={<CheckmarkStarburst24Regular />}

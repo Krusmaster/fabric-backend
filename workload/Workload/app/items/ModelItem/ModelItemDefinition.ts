@@ -71,6 +71,8 @@ export interface SourceDefinition {
   buildIn?: "item" | "source";
   /** n221: the lakehouse Create may make in the build's workspace for silver and gold (ticked by the person) */
   createLakehouse?: string;
+  /** WB5: a CSN file chosen in the editor (csnUpload.ts), sent with review and check; kept only here */
+  csn?: { name: string; csn: Record<string, unknown> };
 }
 
 export interface CreatedItem {

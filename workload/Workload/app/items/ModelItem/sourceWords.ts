@@ -119,6 +119,14 @@ export interface SapOffer {
   status: string;
   client_dropped: boolean;
   learn: Record<string, string>;
+  /** WB5: the SAP fields in plain words, only from what the pack documents ({table: [{column, words}]}) */
+  fields?: Record<string, { column: string; words: string }[]>;
+}
+
+/** WB5: the pack's field meanings as rows, table by table in name order, columns in the table's order. */
+export function sapFieldRows(offer: SapOffer | undefined): { table: string; column: string; words: string }[] {
+  const f = offer?.fields ?? {};
+  return Object.keys(f).sort().flatMap((table) => (f[table] ?? []).map((r) => ({ table, column: r.column, words: r.words })));
 }
 
 /** The line under a review row that came from the SAP pack: "from the SAP pack", the client column, the sources. */

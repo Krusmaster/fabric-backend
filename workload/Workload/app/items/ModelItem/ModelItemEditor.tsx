@@ -101,6 +101,8 @@ import {
 } from "./autosave";
 import { SaveIndicator } from "./SaveIndicator";
 import { CreatedItem, ItemCache, RemovedItem, ReviewFile } from "./ModelItemDefinition";
+import { CsnUpload } from "./csnUpload";
+import { SapDemoAnswer } from "./SapViews";
 
 const VIEWS: ModelView[] = ["empty", "review", "outputs", "preview", "result", "product"];
 const EMPTY_RESULT = { dry_run: false, order: [], left_out_by_review: [], refused: 0, note: "", outputs: [] } as unknown as engine.ManyAnswer;
@@ -197,6 +199,7 @@ export function ModelItemEditor(props: PageProps) {
     // n201: a read-only source's build writes to the chosen lakehouse, or the workspace's first (null). n221: the build's
     // workspace (this item's by default, buildPlace.ts) and the lakehouse there; review and check ignore it
     target: targetRequest(d.source, metaRef.current?.workspaceId, productRef.current.name.trim() || metaRef.current?.displayName),
+    ...(d.source.csn ? { csn_upload: d.source.csn } : {}),   // WB5
   });
 
   /** n201: the source's real item type (the picker may name it otherwise) and what the review says about it. */
@@ -263,6 +266,17 @@ export function ModelItemEditor(props: PageProps) {
     setDirty(true);
     setView?.("review");
     if (check && a.review) await checkRows(next);
+  }
+
+  /** WB5: a CSN file chosen (or removed) in the review: kept in the item's source, then the review is read again with it. */
+  async function onCsn(v: CsnUpload | null) {
+    const d = defRef.current;
+    if (!d.source) return;
+    const { csn: _old, ...rest } = d.source;
+    const next = { ...d, source: v ? { ...rest, csn: v } : rest };
+    setDef(next);
+    setDirty(true);
+    await plan(next);
   }
 
   /** n197: the review read again in the background on reopening an item that has outputs; the result stays in view.
@@ -1365,6 +1379,10 @@ export function ModelItemEditor(props: PageProps) {
             readOnly={sourceInfo.readOnly}
             sap={sourceInfo.sap}
             onNext={() => go("outputs")}
+            csn={def.source.csn}
+            onCsn={(v) => void onCsn(v)}
+            onSapDemo={(dryRun, confirm) => engine.sapDemo<SapDemoAnswer>(workloadClient,
+              { ...sourceRequest(defRef.current), dry_run: dryRun, ...(confirm ? { confirm } : {}) })}
           />
         ) : null
       ),
