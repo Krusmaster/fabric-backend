@@ -173,6 +173,9 @@ class Plan:
     # CDS2: what a CSN file declared for this schema (csn.plan's report: keys, links, amounts with their level, what was
     # not applied and why). None: no CSN given. Its keys and links carry the rule "CSN metadata"; validate_plan counts them.
     csn: dict | None = None
+    # BL42: what a Dataverse $metadata file declared for this schema (dataverse_meta.plan's report). Its keys and plain
+    # lookups carry the rule "Dataverse metadata"; validate_plan counts them. None: no $metadata given.
+    dataverse: dict | None = None
     # L1: what the tenant's earlier decisions did to this plan (decisions.plan's report: accepted keys and links applied
     # with the rule "decided", rejected ones not proposed, conflicts, what no longer applies). None: no decisions read.
     decisions: dict | None = None
@@ -224,6 +227,12 @@ class Plan:
             lines.append(f"{len(c['matched'])} table(s) described by CSN metadata ({', '.join(c['files'])}): {len(c['keys'])} key(s) and "
                          f"{len(c['links'])} link(s) declared, {len(c['not_applied'])} association(s) not applied (rule \"CSN metadata\"; "
                          "declared, not proven: validate_plan counts them) — see plan.csn")
+        if self.dataverse:                                             # BL42
+            d = self.dataverse
+            lines.append(f"{len(d['matched'])} table(s) described by Dataverse metadata ({', '.join(d['files'])}): {len(d['keys'])} key(s) and "
+                         f"{len(d['links'])} lookup(s) declared, {len(d['filtered'])} multi-table lookup link(s) and "
+                         f"{len(d['not_applied'])} other(s) not applied (rule \"Dataverse metadata\"; declared, not proven: "
+                         "validate_plan counts them) — see plan.dataverse")
         if self.decisions and self.decisions.get("rules"):
             from .decisions import summary_line
             lines.append(summary_line(self.decisions))

@@ -401,7 +401,7 @@ def test_the_card_in_a_browser_after_a_create_and_at_a_gated_dry_run(tmp_path, s
     assert c["pills"] == ["3 verified", "1 differs", "0 not checked"] and c["label"] == vb.LABEL
     assert c["rowStates"] == ["differs", "verified", "verified", "verified"]
     assert c["rowWhat"][0].startswith("Semantic model shop_model") and c["rowWhat"][2].startswith("Figure Orders")
-    assert c["sqlButtons"] == ["Show the SQL", "Show the SQL"] and c["sqlHiddenFirst"] is True
+    assert c["sqlButtons"] == ["Show the SQL", "Select", "Show the SQL", "Select"] and c["sqlHiddenFirst"] is True  # BL41: Select
     assert c["sqlShown"] == "SELECT COUNT_BIG(*) AS v FROM [shop].[orders]"
     assert c["callsAfterSay"] == 0 and len(c["said"]) == 1 and c["said"][0].startswith("Refresh the semantic model shop_model once")
     assert c["sayNote"].startswith("Sent to the chat")

@@ -163,7 +163,7 @@ def test_sales_article_keys_are_the_plans(measured):
 def test_the_hosted_tools_numbers_are_the_articles(hosted):
     """What a person sees from the connector: the hosted plan also takes a key from the rows for each Z table (K6)."""
     summary = hosted["validate"]["summary"]
-    assert summary == "12 of 12 keys unique, 15 of 19 relationships hold without orphans"
+    assert summary == "Keys: 12 of 12 hold. Links: 15 of 19 hold, 4 fail."               # BL39: counts.summary's sentence
     for md in TEXT.values():
         assert f'`validate_plan` reported "{summary}"' in md
     keys = hosted["plan"]["keys"]

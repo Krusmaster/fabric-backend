@@ -192,8 +192,13 @@ def _needs_rows(src, command: str) -> None:
                        "use --sample sap, --folder DIR (CSV files with rows) or --odbc-from-env")
 
 
-def _plan(src):
+def _plan(src, dataverse_metadata: str | None = None):
     from .infer import plan
+    if dataverse_metadata:                       # BL42: the keys and lookups a Dataverse $metadata file declares
+        from . import dataverse_meta
+        if re.match(r"^[a-z][a-z0-9+.-]*://", dataverse_metadata, re.I):
+            raise ValueError("--dataverse-metadata takes a local file, never a URL: save the $metadata page first")
+        return dataverse_meta.plan(src.schema, dataverse_meta.read(Path(dataverse_metadata)))[0]
     return plan(src.schema)
 
 
@@ -253,7 +258,7 @@ def cmd_plan(a) -> dict:
     from . import evidence
     src = a._src
     _needs_rows(src, "plan")
-    p = _plan(src)
+    p = _plan(src, getattr(a, "dataverse_metadata", None))
     out = evidence.validate(p, src.execute, max(1, min(int(a.max_items), 200)))
     keys_failed = [k for k in out["keys"] if str(k.get("verdict", "")).startswith(("not a key", "not unique"))]
     rels_failed = [r for r in out["relationships"] if r.get("orphans")]
@@ -262,6 +267,8 @@ def cmd_plan(a) -> dict:
         "passed": not keys_failed and not rels_failed,
         "keys_failed": len(keys_failed), "relationships_with_orphans": len(rels_failed),
         "validation": out,
+        **({"dataverse": {k: p.dataverse[k] for k in ("files", "keys", "links", "filtered", "not_applied", "unmatched",
+                                                       "unmapped_columns")}} if p.dataverse else {}),
         "note": "Counts and verdicts only, never a row value. Read-only.",
     }
 
@@ -518,6 +525,9 @@ def build_parser() -> argparse.ArgumentParser:
         if name == "plan":
             s.add_argument("--strict", action="store_true",
                            help="exit 6 when a key is not unique or a link has orphans (for CI jobs); the JSON is the same")
+            s.add_argument("--dataverse-metadata", metavar="FILE",
+                           help="a Dataverse $metadata file saved locally: its keys and lookups go into the plan as declared, "
+                                "and are counted like any other (never a URL)")
         if name == "demo":
             s.add_argument("demo", choices=sorted(DEMOS), help="which demo: " + "; ".join(f"{k}: {v}" for k, v in DEMOS.items()))
         if name == "relationships":
