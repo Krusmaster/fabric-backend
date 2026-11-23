@@ -520,7 +520,8 @@ def permissions_table(_rendered: str = "") -> str:
 SHOTS = (("model-review", "The review: the proposed keys and links with the rule behind each, checked against the rows, and the map."),
          ("model-outputs", "Choose what to build: each output with its name and the permission it needs."),
          ("model-preview-cards", "The dry run: one card per output, saying what it would create. Nothing is written yet."),
-         ("model-flow", "The data flow: source tables, silver, gold and what is built on them; a box opens to show its code."))
+         ("model-flow", "The data flow: source tables, silver, gold and what is built on them; a box opens to show its code."),
+         ("model-next-steps", "Next, with other Fabric workloads: one card per workload, each with one line on why it fits what was proven."))
 
 
 def shot(name: str) -> str:
