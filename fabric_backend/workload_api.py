@@ -339,6 +339,8 @@ def build_request(body) -> dict:
             c["agent"] = _agent_request(o["agent"])
         if o["kind"] == "pipeline" and o.get("jobs") is not None:    # n185: Run once and Schedule, both off by default
             c["jobs"] = _jobs_request(o["jobs"])
+        if o["kind"] == "semantic_model" and o.get("roles") is not None:   # BL46: the role candidates the person accepted
+            c["roles"] = _roles_request(o["roles"])
         if o["kind"] == "report" and o.get("model") not in (None, ""):
             if not isinstance(o["model"], str) or len(o["model"]) > 123:
                 raise BadRequest("report.model: the name or id of an existing semantic model, or empty for the one this build makes")
@@ -413,6 +415,17 @@ def build_request(body) -> dict:
     return {**req, "outputs": chosen, "dry_run": dry_run, "review": body["review"], "product": product,
             "created": [{k: c.get(k) for k in ("type", "id", "name", "workspace", "output", "plan") if k != "plan" or isinstance(c.get(k), dict)}
                         for c in created], "form": 2, **flags}
+
+
+def _roles_request(roles) -> list[str]:
+    """BL46: semantic_model.roles, the row-level security roles accepted from the dry run's role_candidates, by the column
+    each filters on (["BUKRS"]). Checked for shape here; whether a rule proposes it is checked against the plan by
+    create_semantic_model, which refuses an unknown one in plain words before anything is read."""
+    if (not isinstance(roles, list) or len(roles) > 20
+            or not all(isinstance(r, str) and re.match(r"^\$?[A-Za-z][A-Za-z0-9_]{0,63}$", r.strip()) for r in roles)):
+        raise BadRequest("semantic_model.roles: a list of column names from the dry run's role_candidates, such as [\"BUKRS\"], "
+                         "or omitted for none")
+    return [r.strip() for r in roles]
 
 
 def layers_request(body: dict) -> dict:
@@ -2633,7 +2646,8 @@ def _call_tool(S, kind: str, o: dict, chosen: dict, req: dict, keys, confirmed, 
         finally:
             S.PIPELINE_JOBS.reset(token)
     elif kind == "semantic_model":
-        text = S.create_semantic_model(name=o["name"], **layers, **common)
+        accepted = {"roles": o["roles"]} if o.get("roles") else {}   # BL46: only when the person accepted a role
+        text = S.create_semantic_model(name=o["name"], **accepted, **layers, **common)
     elif kind == "ontology":
         text = S.create_ontology(name=o["name"], **layers, **common)
     elif kind == "data_agent":                                     # n185: one layer; publishing is decided after (agent_card)
@@ -2665,6 +2679,18 @@ def _call_tool(S, kind: str, o: dict, chosen: dict, req: dict, keys, confirmed, 
     else:
         raise BadRequest(kind)
     return json.loads(text)
+
+
+ROLES_HOW = ("Proposed, not added: tick a role to add it to the model (the build's semantic_model output takes it as roles, "
+             "by the column it filters on). Nothing is written until Create.")
+
+
+def role_card(offered: dict) -> dict:
+    """BL46: the model card's row-level security roles, from create_semantic_model's role_candidates: each role, the column
+    and the tables it filters, why, and whether it is added. Names only, never a row value."""
+    return {"proposed": [{k: r[k] for k in ("role", "column", "rule", "filters", "why", "fits", "added", "why_not") if k in r}
+                         for r in offered.get("proposed", [])],
+            "how": ROLES_HOW, "map_table": offered.get("map_table"), "written": False}
 
 
 def model_reads(answer: dict, req: dict) -> str:
@@ -3170,6 +3196,8 @@ def _build_many(req, S, rv, keys, confirmed, dry_run, scopes, app_id, chosen, ou
                         answer.setdefault("result", {})["published"] = True
                 if kind == "semantic_model" and not answer.get("error"):   # ED2: one line, what the model reads
                     card["reads"] = model_reads(answer, req)
+                    if answer.get("role_candidates"):          # BL46: proposed, accepted like a key or a link
+                        card["roles"] = role_card(answer["role_candidates"])
                 if kind == "pipeline":                             # n185: the two choices, what they will do or did
                     card["jobs"] = _jobs_card(o, answer, jobs_permission(scopes, app_id), dry_run)
                 if kind == "semantic_model" and not answer.get("error") and dry_run and would == "create":

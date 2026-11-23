@@ -37,8 +37,8 @@ Syntax followed, read on Microsoft Learn on 21 November 2026:
 The role files go under `definition/roles/` as the TMDL folder structure on the first page shows. USERPRINCIPALNAME()
 is the DAX function for the signed-in user's name.
 
-Next step (not today, after the smooth chain): offer these drafts in the model dry run (`semantic_model.draft`) and the
-review, so a role is accepted like a key or a link before anything is written.
+BL43 added a role to `semantic_model.draft` on request; BL46 offers the candidates in create_semantic_model's dry run
+(`offer`, off by default) and takes the accepted ones by column (`accepted_columns`), as a key or a link is accepted.
 """
 from __future__ import annotations
 
@@ -146,6 +146,52 @@ def candidates(plan: Plan) -> list[dict]:
 def passed_over(plan: Plan) -> list[dict]:
     """Columns a G1 name matched that are not proposed, each with why (one table, no key)."""
     return _all(plan)[1]
+
+
+# ------------------------------------------------------------------ BL46: offered in the model dry run ------------
+
+ACCEPT_HOW = ("Proposed, not added: nothing is added to the model unless you pass the roles you accept, by the column each "
+              "filters on (roles=[\"BUKRS\"]). Each role filters the tables that carry its column; in the model the filter "
+              "flows on over the relationships, from the one side to the many side. Names only: no row value is read.")
+
+
+def accepted_columns(plan: Plan, roles) -> list[str]:
+    """BL46: the candidates' columns for the roles a caller accepted (by column name, any case; RBUKRS finds BUKRS's
+    candidate). Raises PlanInputError, in plain words with the roles proposed here, for a name no rule proposed."""
+    from .infer import PlanInputError
+    if roles is None:
+        return []
+    if not isinstance(roles, (list, tuple)) or not all(isinstance(r, str) and r.strip() for r in roles):
+        raise PlanInputError("roles: a list of column names, such as [\"BUKRS\"], from the dry run's role_candidates")
+    offered = ", ".join(c["column"] for c in candidates(plan)) or "none (no column here names a unit the rows are kept by)"
+    out = []
+    for r in roles:
+        try:
+            col = _find(plan, r.strip())["column"]
+        except ValueError:
+            raise PlanInputError(f"roles: {r.strip()!r} is not a role proposed for this source. The roles proposed here, by "
+                                 f"the column each filters on: {offered}. Nothing was read or written.") from None
+        if col not in out:
+            out.append(col)
+    return out
+
+
+def offer(plan: Plan, tables: list[str] | None = None, added: list[dict] | None = None) -> dict:
+    """BL46: the role candidates as the model dry run lists them, off by default: {proposed: [{role, column, kind, rule,
+    filters, why, fits, added}], how, map_table, written: False}. `tables` is the model's table filter (a role whose
+    tables are not all in it is not added); `added` is the summary's security_roles.added. Names only, never a value."""
+    keep = None if not tables else {t.lower() for t in tables}
+    done = {a["column"] for a in (added or [])}
+    proposed = []
+    for c in candidates(plan):
+        filters = list(c["tables"])
+        missing = [t for t in filters if keep is not None and t.lower() not in keep]
+        item = {"role": role_name(c), "column": c["column"], "kind": c["kind"], "rule": c["rule"], "filters": filters,
+                "why": c["reason"], "fits": not missing, "added": c["column"] in done}
+        if missing:
+            item["why_not"] = f"its tables {', '.join(missing)} are not in this model"
+        proposed.append(item)
+    return {"proposed": proposed, "how": ACCEPT_HOW, "map_table": MAP_TABLE, "written": False}
 
 
 # ------------------------------------------------------------------ propagation over counted links ----------------
