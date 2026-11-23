@@ -36,6 +36,7 @@ import {
 } from "@fluentui/react-components";
 import { ArrowRight24Regular, CheckmarkCircle20Filled, CheckmarkStarburst24Regular, ErrorCircle20Filled, Open24Regular, Warning20Filled } from "@fluentui/react-icons";
 import { ItemEditorEmptyView } from "../../components/ItemEditor";
+import { SelfCheck, SelfCheckAnswer } from "./SelfCheck";
 import { AppChoices, BuildCard, DataProduct, EngineError, JobsCard, ManyAnswer, OutputKind, SchemasAnswer } from "./engineClient";
 import {
   AppApi, AppDesign, AppPackageRecord, AppPreflight, APP_BEFORE_CREATE, BUILT_APP_NOTE, BUILT_APP_UNKNOWN, CHART_TYPE_WORDS, EDIT_NOTE, EDIT_TITLE, GROUPS, PREVIEW_NOTE, apiLines, builtChoices,
@@ -216,6 +217,8 @@ export function EmptyView(props: {
   /** n201: a read-only source's target lakehouse */
   onChooseTarget?: () => void;
   onReview: () => void;
+  /** WB9: the pilot's self-check, when the item's workspace is known */
+  onSelfCheck?: () => Promise<SelfCheckAnswer>;
 }) {
   const { source } = props;
   const readOnly = !!source && isReadOnly(source.itemType);
@@ -251,6 +254,7 @@ export function EmptyView(props: {
             (!!props.schemas.error && !schemaProblem(props.schemas.error, source.displayName).typeIt)} onClick={props.onReview}>
             Find keys and relationships
           </Button>
+          <SelfCheck send={props.onSelfCheck} />
         </div>
       }
     />
