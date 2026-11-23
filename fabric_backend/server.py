@@ -1278,6 +1278,8 @@ def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema 
     _with_products(out, products)
     if (warned := _graphs.confirmed_without_match(p, full_checks)):   # BL63: a confirmed link with no match, said loudly
         out["confirmed_without_match"] = warned
+    if (decided := _graphs.r3_targets(p, full_checks)):            # E5 (XB1): several R3 targets, the counts decide
+        out["r3_targets"] = {"rule": _graphs.R3_TARGETS_RULE, "groups": decided}
     from . import csn_onelake as _csn_onelake
     if (csn_digest := _csn_onelake.digest(p)):                         # CSN2: the CSN's keys and links, and their files
         out["csn"] = csn_digest

@@ -245,10 +245,43 @@ Changed answers with counts (intended, in the golden files): the shop's model on
 not) and the data dictionary with `validate=true` (`hosted_tools.json`, `local_tools.json`: the summary line and, on
 the hosted shop, which link of the one cycle is inactive). Without counts every answer is as before.
 
-Not yet: `plan_backend` does not list R3's several targets under `ambiguous` (XB1 in the plan itself; the model and the
-other answers handle it by the counts); the hosted `analyze_schema` and `join_path` tools take no counts themselves,
-so the counted set applies where an answer of `validate_plan` is passed to the functions (the model, the data
-dictionary, the demo).
+Not yet: the hosted `analyze_schema` and `join_path` tools take no counts themselves, so the counted set applies where an
+answer of `validate_plan` is passed to the functions (the model, the data dictionary, the demo). R3's several targets:
+see the next section.
+
+### R3 with several targets: the counts decide (round E5, 23 November 2026; unit tests only, not run in Fabric)
+
+R3 links a table to every table whose composite key it holds, so the same columns can point at several tables (XB1:
+`ZSD_ORDER_EXT.MANDT+VBELN` holds the key of `VBAK`, `LIKP` and `VBRK`, since VBELN is the document number in all
+three). Gustav chose option (b): the counts decide, instead of listing every R3 target under `ambiguous`. `ambiguous`
+means "not applied", and the plan is left as it was: `plan_backend` still applies every R3 target and lists none of
+them as ambiguous, so a plan, a model and every answer without counts are byte for byte as before.
+
+With counts:
+
+- `validate_plan` counts every target of such a group in the same answer. `evidence.check_order` puts a group's keys
+  and links next to each other, at the place of its first link, and a `max_items` cut that would fall inside a group
+  ends after it (`evidence.r3_groups`). A plan without a group keeps its check order exactly.
+- `graphs.r3_targets` applies BL51's rule 2 to each group: exactly one target counted with matches is the one
+  (`counts_pick`); every target counted with no match refutes the R3 link (`refuted`, none active); two or more with
+  matches are not guessed, and a person chooses with `confirmed` (`person_chooses`, with `candidates`); a declared or
+  confirmed link of the group is the one (`declared`); none with matches and some not counted is `not_decided`.
+- The decision is in `validate_plan`'s answer (`r3_targets`: the rule and one entry per group, with each target's
+  rows with a value, orphans and matched) and in the model summary's `active_by_counts.r3_targets`, with one line per
+  group in the README under "What the counts decided". The model's active set already follows the same rule (BL51), so
+  the two agree. Counts only, never a row value.
+
+On the synthetic samples (`tests/test_e5_r3_counted_targets.py`):
+
+| Sample | Group | Counted (matched of rows with a value) | Decision |
+| --- | --- | --- | --- |
+| `sap_sd` | `ZSD_ORDER_EXT.MANDT+VBELN` -> `VBAK`, `LIKP`, `VBRK` | `VBAK` 300 of 301, `LIKP` 0 of 301, `VBRK` 0 of 301 | `counts_pick`: `VBAK`; `LIKP` and `VBRK` refuted |
+| `sap_renamed` (corpus) | `order_extension.MANDT+VBELN` -> three headers | as `sap_sd` | the order header, as `sap_sd` |
+| `sap_mm` | none: `ZMM_PO_CONF` has two R3 links on different columns (`MANDT+EBELN` -> `EKKO`, `MANDT+EBELN+EBELP` -> `EKPO`) | | not a group |
+| `sap_demo`, `shop`, `shop_faults` | none | | nothing added to any answer |
+
+A small synthetic schema in the test covers the other outcomes: one target of three matching (picked), none matching
+(refuted), two matching (a person chooses, none active), and a confirmation that settles a group.
 
 ## Large schemas: time and answer size
 
