@@ -15,7 +15,21 @@
                 "introduction": "Workload_Hub_GetStarted_1_Sub_Title",
                 "description": "Workload_Hub_GetStarted_1_Description",
                 "image": "assets/images/Workload_Hub_GetStarted_1.png",
-                "link": "https://krusgraph.com/docs"
+                "link": "https://krusgraph.com/docs/explore-and-check/review-check-then-create"
+            },
+            {
+                "title": "Workload_Hub_GetStarted_2_Title",
+                "introduction": "Workload_Hub_GetStarted_2_Sub_Title",
+                "description": "Workload_Hub_GetStarted_2_Description",
+                "image": "assets/images/Workload_Hub_GetStarted_2.png",
+                "link": "https://krusgraph.com/docs/krusgraph-for-fabric/what-the-krusgraph-model-item-does"
+            },
+            {
+                "title": "Workload_Hub_GetStarted_3_Title",
+                "introduction": "Workload_Hub_GetStarted_3_Sub_Title",
+                "description": "Workload_Hub_GetStarted_3_Description",
+                "image": "assets/images/Workload_Hub_GetStarted_3.png",
+                "link": "https://krusgraph.com/docs/krusgraph-for-fabric/next-steps-with-other-workloads"
             }
         ],
         "newSection": {
@@ -71,6 +85,10 @@
             {
                 "mediaType": 0,
                 "source": "assets/images/Workload_Hub_SlideMedia_1.png"
+            },
+            {
+                "mediaType": 0,
+                "source": "assets/images/Workload_Hub_SlideMedia_2.png"
             }
         ],
         "supportLink": {
