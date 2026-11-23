@@ -15,6 +15,7 @@
 
 import type { MapData } from "./cardMap";
 import type { SchemasAnswer } from "./engineClient";
+import { cleanRoles } from "./roleWords";
 
 export const DEFINITION_VERSION = 1;
 export const ITEM_FORMAT = "krusgraph-model";
@@ -136,6 +137,9 @@ export interface OutputChoice {
   jobs?: { run_once: boolean; schedule: { every: "day" | "hours"; at: string; hours?: number; time_zone: string; start?: string } | null };
   /** n185: the data agent's layer and its Publish / Microsoft 365 Copilot ticks (both off unless ticked) */
   agent?: { layer: "silver" | "gold" | "source"; publish: boolean; copilot: boolean };
+  /** BL58: the semantic model's ticked row-level security roles, by the column each filters on (roleWords.ts); absent or
+   * empty: none, the default, and the request is as before */
+  roles?: string[];
 }
 
 /** n209: as appWords.AppPackageRecord; read through appWords.readAppRecord, which checks its shape. */
@@ -157,9 +161,11 @@ export interface AppPackageStored {
 export function cleanChoice(c: OutputChoice): OutputChoice {
   const lists = (x: unknown): boolean => !!x && typeof x === "object"
     && ["kpis", "tables", "charts"].every((k) => Array.isArray((x as Record<string, unknown>)[k]));
-  const { app, app_package, ...rest } = c;
+  const { app, app_package, roles, ...rest } = c;
+  const keptRoles = c.type === "semantic_model" ? cleanRoles(roles) : undefined;   // BL58: column names only
   return {
     ...rest,
+    ...(keptRoles ? { roles: keptRoles } : {}),
     ...(app !== undefined && lists(app) ? { app } : {}),
     ...(app_package && typeof app_package === "object" && typeof app_package.name === "string" && lists(app_package.chosen) ? { app_package } : {}),
   };

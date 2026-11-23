@@ -20,6 +20,7 @@ import { MapData } from "./cardMap";
 import { CheckTotals } from "./modelWords";
 import { getWorkloadName } from "../../controller/ConfigurationController";
 import type { WaitKind, WaitSignal } from "./waitWords";
+import type { RolesCard } from "./roleWords";
 
 export interface EngineError {
   error: string;
@@ -176,6 +177,8 @@ export interface OutputRequest {
   jobs?: PipelineJobs;
   /** n185: the data agent's layer and its Publish / Microsoft 365 Copilot ticks, both off unless ticked */
   agent?: AgentOptions;
+  /** BL58 (BL46): the semantic model's ticked row-level security roles, by column; sent only when one is ticked */
+  roles?: string[];
 }
 
 /** n185: a schedule as the engine takes it (pipeline_jobs.schedule_spec). */
@@ -383,6 +386,8 @@ export interface BuildCard {
   agent?: AgentCard;
   /** ED2: the semantic model's one line: what it reads */
   reads?: string;
+  /** BL58 (BL46, workload_api.role_card): the row-level security roles the model's dry run proposes, off by default */
+  roles?: RolesCard;
 }
 
 /** n180 (workload_api.refresh_new_model): planned in the dry run; refreshed, refreshing (still running when the wait

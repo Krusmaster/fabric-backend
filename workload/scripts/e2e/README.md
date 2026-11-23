@@ -50,6 +50,11 @@ page (results.json, `lazy`). It fails above 4 clicks. With `--before` it counts 
 The main path follows the five steps: the check runs on its own after Find keys, the defaults are ticked on Choose
 (Decide), and the button is Dry run.
 
+BL58 adds flow **27** at 390 px, keyboard only, on the `sap` scenario: with only the semantic model chosen, the dry run's
+model card lists the row-level security roles (BUKRS, MANDT) as tick boxes, unticked, each named by the role and described
+by its column, rule and tables; the dry run's request has no `roles`; Space ticks BUKRS, and **Dry run again** and Create
+send `roles: ["BUKRS"]` on the semantic_model output (`27-roles-phone.png`).
+
 A network failure is made in the browser (`page.route(...).abort()`). What the doubles cannot show: a data agent
 (the double has no route for it, so its card shows Try again), real Fabric ids (Look for leftovers expects GUIDs),
 Fabric's own frame (the iframe's width, theme, the picker's look). `tests/test_w13_workload_e2e.py` checks the scenarios
