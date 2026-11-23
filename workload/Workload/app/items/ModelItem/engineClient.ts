@@ -622,7 +622,7 @@ export function engineScope(
 
 export type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
-type Route = "review" | "check" | "build" | "schemas" | "pipeline-run" | "operation" | "product" | "health" | "access" | "drawio" | "verify" | "catalog" | "file" | "starter" | "analysis" | "run" | "sap-demo";
+type Route = "review" | "check" | "build" | "schemas" | "pipeline-run" | "operation" | "product" | "health" | "access" | "drawio" | "verify" | "catalog" | "file" | "starter" | "analysis" | "run" | "sap-demo" | "selfcheck";
 
 /** n197: send the request in the background (202 and an operation id) and read the operation until it ends; an engine
  * that answers at once (200, an older server, or no store for operations) is taken as it answers. */
@@ -1008,6 +1008,12 @@ export function file<T>(workloadClient: WorkloadClientAPI, body: object, fetchIm
  * generator notebook, a dry run first, then Create with the dry run's confirm. Never run by Krusgraph. */
 export function sapDemo<T>(workloadClient: WorkloadClientAPI, body: object, fetchImpl?: Fetch): Promise<T> {
   return callOnce<T>(workloadClient, "sap-demo", body, REQUEST_WAIT_MS, fetchImpl ?? ((u, i) => fetch(u, i)), false);
+}
+
+/** WB9: the pilot's self-check (POST /workload/v1/selfcheck, fabric_backend/workload_api.run_selfcheck): consent,
+ * capacity, workspace access and a lakehouse, read as the signed-in user. Read only. */
+export function selfcheck<T>(workloadClient: WorkloadClientAPI, body: object, fetchImpl?: Fetch): Promise<T> {
+  return callOnce<T>(workloadClient, "selfcheck", body, REQUEST_WAIT_MS, fetchImpl ?? ((u, i) => fetch(u, i)), false);
 }
 
 export function starter<T>(workloadClient: WorkloadClientAPI, body: object, fetchImpl?: Fetch): Promise<T> {

@@ -133,7 +133,7 @@ User and Krusgraph together, on a call, on test or sample data. On Path A the sa
 | 23 to 27 | Create | Choose Create | Each card shows what was created, and the steps left to do in Fabric |
 | 27 to 30 | Results | Open the new items in the workspace; reopen the Krusgraph Model item | The summary is kept in `outputs.json` and shown again |
 
-Write down what was unclear. Krusgraph keeps the notes without table contents.
+Write down what was unclear. Krusgraph keeps the notes without table contents. Krusgraph's own checklist for the day, with the self-check on the item's first screen, is `docs/PILOT-DAY.md`.
 
 ## What we ask of the customer
 
