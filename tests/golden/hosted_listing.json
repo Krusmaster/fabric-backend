@@ -4678,50 +4678,14 @@
     "destructive_hint": false,
     "open_world_hint": true,
     "read_only_hint": true,
-    "title": "Draft a Fabric semantic view (YAML, nothing written) (experimental)"
+    "title": "Draft a Fabric semantic view (experimental)"
    },
-   "description": "Drafts the plan as a Fabric semantic view (preview): one YAML file for the lakehouse folder Context/Semantic\nViews/<name>/ with datasets, the semantic model draft's active relationships (one column per side, the one side\ncounted unique) and row-count metrics in DAX. Composite-key links are listed under needs_key_column. Requires\nworkspace and source. Writes nothing to OneLake and publishes nothing. Errors: {error, kind, hint}.",
+   "description": "Drafts the plan as semantic view YAML for a lakehouse, writing nothing. Returns JSON with the file and the links\nthat do not fit. Errors: {error, kind, hint}.",
    "input_schema": {
     "properties": {
-     "confirmed": {
-      "anyOf": [
-       {
-        "items": {
-         "additionalProperties": true,
-         "type": "object"
-        },
-        "type": "array"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "default": null,
-      "description": "Relationships the user confirmed, added to the plan. Default none. Example: [{\"source\": \"orders\", \"source_cols\": [\"ship_to_id\"], \"target\": \"addresses\", \"target_cols\": [\"address_id\"]}].",
-      "title": "Confirmed"
-     },
-     "keys": {
-      "anyOf": [
-       {
-        "additionalProperties": {
-         "items": {
-          "type": "string"
-         },
-         "type": "array"
-        },
-        "type": "object"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "default": null,
-      "description": "Primary keys replacing the inferred ones. Default: inferred. Example: {\"order_items\": [\"order_id\", \"line_no\"]}.",
-      "title": "Keys"
-     },
      "name": {
       "default": "semantic_view",
-      "description": "Name of the semantic view: its folder under Context/Semantic Views and the generated model's name. Default \"semantic_view\". Example: \"shop_view\".",
+      "description": "View and folder name. Default \"semantic_view\".",
       "title": "Name",
       "type": "string"
      },
@@ -4760,7 +4724,7 @@
      },
      "validate": {
       "default": true,
-      "description": "true (default) counts keys and links with validate_plan; a relationship is in the view only when its one side was counted unique. false reads metadata only.",
+      "description": "Count keys and links. Default true.",
       "title": "Validate",
       "type": "boolean"
      },
@@ -4791,7 +4755,7 @@
     "title": "semantic_view_draftOutput",
     "type": "object"
    },
-   "title": "Draft a Fabric semantic view (YAML, nothing written) (experimental)"
+   "title": "Draft a Fabric semantic view (experimental)"
   },
   {
    "annotations": {
