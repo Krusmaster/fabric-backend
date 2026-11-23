@@ -33,16 +33,23 @@ function record(flow, ok, evidence) {
 // AA; each violation is kept once (rule and element), with the step it first appeared in. Serious and critical ones
 // fail the accessibility record at the end; moderate and minor are listed in results.json (a11y).
 const AXE = (() => { try { return fs.readFileSync(require.resolve("axe-core/axe.min.js", { paths: [path.resolve(__dirname, "../../Workload")] }), "utf8"); } catch { return null; } })();
+// Fluent UI's focus manager (Tabster) puts <i data-tabster-dummy tabindex=0 aria-hidden role=none> guards at the edges
+// of tab lists and toolbars on purpose, for arrow-key navigation; axe reports them as aria-hidden-focus. They are
+// left out of the scan and counted on their own (results.json a11y_excluded), not hidden.
+const AXE_EXCLUDE = "[data-tabster-dummy]";
 const livePages = new Set();
 const a11y = new Map();
+let currentFlow = "";
+let excluded = 0;
 async function scan(flow) {
   if (!AXE || BEFORE) return;
   for (const pg of [...livePages]) {
     if (pg.isClosed()) { livePages.delete(pg); continue; }
     try {
       if (!(await pg.evaluate(() => !!window.axe))) await pg.addScriptTag({ content: AXE });
-      const found = await pg.evaluate(async () => (await window.axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] }, resultTypes: ["violations"] }))
-        .violations.map((v) => ({ id: v.id, impact: v.impact, help: v.help, targets: v.nodes.map((n) => n.target.join(" ")).slice(0, 5) })));
+      excluded = Math.max(excluded, await pg.evaluate((sel) => document.querySelectorAll(sel).length, AXE_EXCLUDE));
+      const found = await pg.evaluate(async (sel) => (await window.axe.run({ exclude: [[sel]] }, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"] }, resultTypes: ["violations"] }))
+        .violations.map((v) => ({ id: v.id, impact: v.impact, help: v.help, targets: v.nodes.map((n) => n.target.join(" ")).slice(0, 5) })), AXE_EXCLUDE);
       const dark = await pg.evaluate(() => matchMedia("(prefers-color-scheme: dark)").matches);
       for (const v of found) for (const t of v.targets) {
         const key = `${v.id} ${t}`;
@@ -52,6 +59,7 @@ async function scan(flow) {
   }
 }
 async function step(flow, fn) {
+  currentFlow = flow;
   try {
     const ev = await fn();
     record(flow, true, ev || "");
@@ -75,6 +83,18 @@ async function main() {
   }
   const scenario = (name) => fetch(`${BASE}/e2e/scenario`, { method: "POST", body: JSON.stringify({ name }) });
   const browser = await chromium.launch();
+  {
+    // every page any flow opens is scanned too, also one closed inside its step (the phone, dark and frame flows)
+    const newContext = browser.newContext.bind(browser);
+    browser.newContext = async (o) => {
+      const c = await newContext(o);
+      const newPage = c.newPage.bind(c);
+      c.newPage = async () => { const pg = await newPage(); livePages.add(pg); return pg; };
+      const close = c.close.bind(c);
+      c.close = async () => { await scan(currentFlow); return close(); };
+      return c;
+    };
+  }
   const errors = [];
   let mainCtx;
   async function open(opts = {}) {
@@ -697,7 +717,7 @@ async function main() {
       AXE === null ? "axe-core is not installed (npm ci in workload/Workload)"
         : `${found.length} finding(s), ${bad.length} serious or critical${bad.length ? ": " + bad.slice(0, 4).map((v) => `${v.rule} at ${v.target} (${v.step})`).join(" | ") : ""}`);
   }
-  fs.writeFileSync(path.join(OUT, "results.json"), JSON.stringify({ before: BEFORE, at: new Date().toISOString(), lazy, results, a11y: found }, null, 1));
+  fs.writeFileSync(path.join(OUT, "results.json"), JSON.stringify({ before: BEFORE, at: new Date().toISOString(), lazy, results, a11y: found, a11y_excluded: { selector: AXE_EXCLUDE, why: "Fluent UI Tabster focus guards", most_on_one_page: excluded } }, null, 1));
   fs.rmSync(dist, { recursive: true, force: true });
   if (engineLog.trim()) fs.writeFileSync(path.join(OUT, "engine.log"), engineLog);
   process.exit(results.some((r) => r.result === "fail") ? 1 : 0);
