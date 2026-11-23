@@ -15,6 +15,22 @@ import type { ReviewFile } from "./ModelItemDefinition";
 import type { Grain } from "./nextSteps";
 import { ADVANCED } from "./advancedStages.generated";
 
+/** W1 (Gustav, 23 November 2026: "One row per orders"): a table's name as one of its rows, for a sentence. The same
+ * rule as advanced_stages.one_row_of; the fixture holds both to the same words. */
+const ONE_IRREGULAR: Record<string, string> = { people: "person", children: "child", men: "man", women: "woman", indices: "index", data: "data", staff: "staff" };
+
+export function oneRowOf(table: string): string {
+  const name = String(table ?? "");
+  const m = /^(.*?)([a-z]+)$/.exec(name);
+  if (!m || name !== name.toLowerCase()) return name;
+  let w = m[2];
+  if (w in ONE_IRREGULAR) w = ONE_IRREGULAR[w];
+  else if (w.endsWith("ies") && w.length > 4) w = w.slice(0, -3) + "y";
+  else if (/(sses|xes|ches|shes)$/.test(w)) w = w.slice(0, -2);
+  else if (w.endsWith("s") && !/(ss|us|is)$/.test(w)) w = w.slice(0, -1);
+  return w === m[2] ? name : (m[1] + w).replace(/_/g, " ");
+}
+
 export type Analysis = "forecast" | "segments" | "drivers";
 export type Stage = "features" | "model" | "predictions";
 
@@ -73,7 +89,7 @@ export function advValues(g: GrainIn, source: { name?: string; schema?: string }
   const stem = ident(g.parent);
   return {
     source: `${source.name || "the lakehouse"}${source.schema ? ` / ${source.schema}` : ""}`,
-    parent: g.parent, child: g.child,
+    parent: g.parent, parent_one: oneRowOf(g.parent), child: g.child,
     feature_table: ident(`${g.parent}_features`),
     order_key: [...g.parentColumns],
     ids,
@@ -139,7 +155,7 @@ export function advancedStages(g: GrainIn, source: { name?: string; schema?: str
   const gold = (t: unknown) => `${v.gold_schema}.${t}`;
   const recs: Omit<AnalysisPlan, "stages">[] = [{
     analysis: "forecast", title: ADVANCED.titles.forecast,
-    why: `One row per ${g.parent} with its date: the number of ${g.parent} per week is a series to forecast.`,
+    why: `One row per ${oneRowOf(g.parent)} with its date: the number of ${g.parent} per week is a series to forecast.`,
     model: !few, too_few: tooFew, gold_table: gold(v.forecast_table), model_name: v.forecast_model as string,
   }];
   if (cust) {
@@ -151,7 +167,7 @@ export function advancedStages(g: GrainIn, source: { name?: string; schema?: str
   }
   recs.push({
     analysis: "drivers", title: ADVANCED.titles.drivers,
-    why: `Which customers and which values of ${g.parent}'s text columns carry most orders and most value: descriptive, no model.`,
+    why: `Which customers and which values of the text columns of ${g.parent} carry most orders and most value: descriptive, no model.`,
     model: false, too_few: "", gold_table: gold(v.drivers_table), model_name: null,
   });
   const name = source.name || "lakehouse";

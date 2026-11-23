@@ -868,8 +868,10 @@ def _answer(rv: dict, note: str = NOTHING_CHANGED) -> dict:
 # names its tables, the rule that grouped them, its interface (the links that cross to another suggestion: it provides
 # the key, or it consumes another's key) and its evidence (the keys and the links inside it, each with its rule and the
 # check's verdict). The weekend's suggestion engine (W2) can extend this function; the editor only draws what it returns.
-SUGGEST_RULE = ("Tables joined by their keys and links, cut where the links are weakest (Leiden-style communities on the key "
-                "graph, domain_draft's method); a table whose key holds its parent's key stays with that parent.")
+# W1 (23 November 2026): the editor shows these words; the method's name (Leiden-style communities, domain_draft,
+# domains.propose_plan) is in the docs, not on the panel.
+SUGGEST_RULE = ("Tables joined by their keys and links, cut where the links are weakest; a table whose key holds its "
+                "parent's key stays with that parent.")
 
 
 def suggest_products(p, validation: dict | None = None) -> dict:
@@ -909,7 +911,7 @@ def suggest_products(p, validation: dict | None = None) -> dict:
                     "name_reason": d.get("name_reason", ""), "why": dict(d.get("reasons", {})), "interface": face,
                     "evidence": evidence})
     return {"products": out, "unassigned": [{"table": u["table"], "reason": u["reason"]} for u in prop["unassigned"]],
-            "checked": validation is not None, "from": "domain_draft's proposal (domains.propose_plan)",
+            "checked": validation is not None, "from": "domain_draft's proposal (domains.propose_plan)",   # W1: for the docs; the editor no longer shows it
             "note": ("Suggestions, not decisions: tick the ones to build. Each becomes a data product over this Model's outputs; "
                      "a Fabric domain itself needs a Fabric administrator.")}
 
@@ -1677,6 +1679,19 @@ ORDER BY s.SCHEMA_NAME
 """
 
 
+# W1 (Gustav's test in a real tenant, 23 November 2026): a lakehouse listed "_rsc", a Fabric system schema, as a choice.
+# Every name starting with "_" is Fabric's own; the SQL above leaves the others out, and this leaves them out of the
+# fallback query too. Only the list changes: a schema named in a request is planned as before.
+SYSTEM_SCHEMAS = ("sys", "information_schema", "queryinsights", "guest")
+
+
+def system_schema(name: str) -> bool:
+    """True for a schema Fabric or SQL keeps for itself: "_rsc" and any other name starting with "_", sys,
+    INFORMATION_SCHEMA, queryinsights, guest, and SQL Server's role schemas db_owner, db_datareader, ..."""
+    n = str(name or "").strip().lower()
+    return n.startswith("_") or n in SYSTEM_SCHEMAS or n.startswith("db_")
+
+
 def preselect(schemas: list[dict]) -> str | None:
     """The schema to preselect: the only one with tables; dbo when it is the only schema; else none (the person picks)."""
     with_tables = [x["schema"] for x in schemas if x["tables"] > 0]
@@ -1706,7 +1721,7 @@ def run_schemas(req: dict) -> dict:
     out = []
     for r in rows:
         r = {str(k).upper(): v for k, v in (r.items() if hasattr(r, "items") else zip(("TABLE_SCHEMA", "TABLE_COUNT"), r))}
-        if r.get("TABLE_SCHEMA"):
+        if r.get("TABLE_SCHEMA") and not system_schema(r["TABLE_SCHEMA"]):   # W1: _rsc and the other system schemas
             out.append({"schema": str(r["TABLE_SCHEMA"]), "tables": int(r.get("TABLE_COUNT") or 0)})
     chosen = preselect(out)
     with_tables = sum(1 for x in out if x["tables"])
@@ -1735,6 +1750,36 @@ REPORT_MODEL_WAIT_SECONDS = 260   # ED2: server.MODEL_DEFINITION_PAUSES_LONG (22
 def run_operation(req: dict) -> dict:
     """Placeholder: /operation is answered in the route itself (it needs the caller's identity)."""
     raise BadRequest("operation")
+
+
+# BL54 in the editor (W1, 23 November 2026): start_flow's dry run says which workspace roles it proposes and that a data
+# contract comes with the data product; the editor's Dry run step did not. The same function words the roles; the
+# contract line names no function (the editor's words).
+_ACCESS_OUTPUTS = {"silver_notebook": ["notebook"], "gold_views": ["notebook"]}
+
+
+def access_line(kinds) -> str:
+    """workspace_access.dry_run_line for the outputs of this build (an editor kind maps to its tool's outputs); never
+    blocks the dry run."""
+    from . import tenant_settings as ts, workspace_access as wa
+    outs: list[str] = []
+    for k in kinds:
+        for o in _ACCESS_OUTPUTS.get(k) or ts.TOOL_OUTPUTS.get((KINDS.get(k) or {}).get("tool", ""), []):
+            if o not in outs:
+                outs.append(o)
+    try:
+        return wa.dry_run_line(outs)
+    except Exception:  # noqa: BLE001 — a line about roles never blocks the dry run
+        return "Workspace roles and labels: could not propose them. Nothing is written."
+
+
+def _contract_words() -> str:
+    from .data_contract import API_VERSION
+    return (f"Data contract: an ODCS {API_VERSION} draft from the counted checks comes with the data product. "
+            "Nothing is written to Fabric.")
+
+
+CONTRACT_LINE = _contract_words()
 
 
 def run_build(req: dict) -> dict:
@@ -2364,7 +2409,10 @@ def _portal_steps(kind: str, a: dict, chosen: dict | None = None, built: dict | 
         return plain_steps(list(a.get("run") or []), chosen)
     if kind == "pipeline":                                         # n185: what Run once and Schedule did not do already
         res = a.get("result") or {}
-        ran = (res.get("run") or {}).get("status") in ("Running", "Succeeded")
+        run = res.get("run") or {}
+        # W1 (Gustav's Create of 23 November 2026): a run Fabric accepted (it has a run id) but whose first read did not
+        # answer (Unknown) was started all the same: no "Run the pipeline once" beside "follow the run"
+        ran = run.get("status") in ("Running", "Succeeded") or (run.get("status") == "Unknown" and bool(run.get("run_id")))
         scheduled = (res.get("schedule") or {}).get("status") == "Succeeded"
         if not ran and not scheduled:
             return [RUN_STEP, NO_SCHEDULE_LINE]
@@ -2742,6 +2790,23 @@ def _product(req: dict, rv: dict, p, cards: list[dict], dry_run: bool) -> dict:
             "from": "domain_draft's proposal for this plan: domains are proposed, not created (that needs a Fabric administrator)"}
 
 
+# W1 (Gustav's dry run of 23 November 2026): the data agent's card said "reads the silver tables in silver only ...,
+# otherwise the source tables", while the flow's box and its note said it reads the source tables directly. The card is
+# what the agent does (create_data_agent's layer answer: the layer's tables are selected when they are in the
+# lakehouse, the source's otherwise); the box and the note now say the same. Words only.
+_AGENT_LAYER = re.compile(r"^The agent reads the (silver tables|gold views) in ([A-Za-z0-9_]+) only\b")
+
+
+def agent_reads(card: dict, schema: str) -> str | None:
+    """The data agent's box line when its card reads a layer first ("reads the silver tables in silver when they are
+    filled; until then the source tables in shop"); None when it reads the source tables (the line stays as it was)."""
+    words = str(((card.get("agent") or {}).get("layer_words")) or ((card.get("answer") or {}).get("layer")) or "")
+    m = _AGENT_LAYER.match(words)
+    if not m:
+        return None
+    return f"reads the {m.group(1)} in {m.group(2)} when they are filled; until then the source tables in {schema}"
+
+
 def _flow(req: dict, p, chosen: dict, cards: list[dict], keys, confirmed) -> dict | None:
     """The data flow when the build has the silver notebook, the gold views or the pipeline (data_flow.py)."""
     from . import data_flow, server as S
@@ -2765,7 +2830,12 @@ def _flow(req: dict, p, chosen: dict, cards: list[dict], keys, confirmed) -> dic
         reads = f"reads the source tables in {req['schema']} (bronze) directly"
         if "gold_views" in chosen:                                 # n179: said plainly when gold views are built in the same run
             reads += ", not the gold views built in this run"
+        layer = agent_reads(c, req["schema"]) if c["output"] == "data_agent" else None
+        if layer:                                                  # W1: the agent's own card says what it reads; the box agrees
+            reads = layer
         it = {"output": c["output"], "label": c["label"], "name": c["name"], "reads": reads}
+        if layer:
+            it["layer_first"] = True
         if c["output"] == "semantic_model" and og:                 # DPM1: built on gold, a line from each gold view it reads
             it.update(reads=og["said"], on_gold=[f"{og['schema']}.{t}".lower() for t in og["kinds"]])
         if c["output"] == "semantic_model" and isinstance((c.get("answer") or {}).get("parts"), dict):
@@ -3245,6 +3315,10 @@ def _build_many(req, S, rv, keys, confirmed, dry_run, scopes, app_id, chosen, ou
             out["product"] = _product(req, rv, p, cards, dry_run)
         if req.get("products"):                                    # n222: the ticked suggestions
             out["products"] = _chosen_products(req, p, cards, dry_run)
+        if dry_run and not req.get("only"):                        # BL54 in the editor (W1): the start flow's two lines
+            out["access"] = access_line([c["output"] for c in cards])
+            if req.get("product") or req.get("products"):
+                out["contract"] = CONTRACT_LINE
         out["flow"] = None if req.get("only") else _flow(req, p, chosen, cards, keys, confirmed)   # n179: finish draws it
     refused = [c for c in cards if c.get("refusal") or (c.get("answer") or {}).get("error")]
     out["refused"] = len(refused)

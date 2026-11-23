@@ -164,15 +164,40 @@ async function main() {
       const shown = await p.locator(".krusgraph-outputs > section.krusgraph-output:visible").evaluateAll((els) => els.map((e) => e.getAttribute("aria-label")));
       expectTrue(JSON.stringify(shown) === JSON.stringify(["Pipeline", "Semantic model", "Data agent"]), `shown on Choose: ${shown.join(", ")}`);
     }
+    let suggested = "";
+    if (!BEFORE) {
+      // W1 (Gustav, 23 November 2026): the Suggested data products block, each part on its own line and as wide as the
+      // output cards above it
+      const fold = p.locator("details.kg-more-outputs");
+      await fold.locator(":scope > summary").click(); await settle(p, 400);
+      const panel = p.locator("section.krusgraph-suggested[aria-label='Suggested data products']");
+      await panel.scrollIntoViewIfNeeded();
+      const said = await panel.innerText();
+      for (const bad of [/products\d/, /[a-z]Grouped by/, /\)\.Suggestions/, /domain_draft|propose_plan|Leiden/]) expectTrue(!bad.test(said), `run-together or developer words: ${bad}`);
+      expectTrue((await panel.locator("h3").innerText()).trim() === "Suggested data products", "no heading");
+      const wide = await p.evaluate(() => ({
+        panel: Math.round(document.querySelector("section.krusgraph-suggested").getBoundingClientRect().width),
+        cards: Math.round(document.querySelector(".krusgraph-outputs").getBoundingClientRect().width),
+      }));
+      expectTrue(wide.panel <= wide.cards + 1, `the block (${wide.panel} px) is wider than the cards (${wide.cards} px)`);
+      suggested = `; Suggested data products ${wide.panel} px beside cards ${wide.cards} px, first lines: ${said.split("\n").filter(Boolean).slice(0, 3).join(" | ")}`;
+      await shot(p, "05b-suggested");
+      await fold.locator(":scope > summary").click(); await settle(p, 300);
+    }
     const snap = await p.locator("body").ariaSnapshot();
     const dup = /checkbox "Semantic model Semantic model"/.test(snap);
     if (!BEFORE) expectTrue(!dup, "checkbox name repeats the item type");
-    return `${await shot(p, "05-outputs")}; checkbox names read by a screen reader: ${snap.split("\n").filter((l) => l.includes("checkbox")).slice(0, 4).map((l) => l.trim()).join(" | ")}`;
+    return `${await shot(p, "05-outputs")}; checkbox names read by a screen reader: ${snap.split("\n").filter((l) => l.includes("checkbox")).slice(0, 4).map((l) => l.trim()).join(" | ")}${suggested}`;
   });
   await step("6 Preview (dry run of each output)", async () => {
     await button(p, BEFORE ? "Preview" : "Dry run", true).click(); await settle(p, 4000);
     const t = await text(p);
     expectTrue(t.includes("Nothing was created or changed in Fabric"), "no dry-run sentence");
+    if (!BEFORE) {
+      // W1: BL54's line on the workspace roles, and the data agent's box agrees with its card
+      expectTrue(t.includes("Workspace roles proposed:") && t.includes("Nothing is written."), "no workspace roles line");
+      expectTrue(!/once\.Krusgraph/.test(t), "the data agent card's sentences run together");
+    }
     return `${await shot(p, "06-preview")}; three outputs previewed, nothing written`;
   });
   await step(BEFORE ? "7 Create (semantic model, API for GraphQL, data agent)" : "7 Create (the pipeline with its notebooks, semantic model, data agent)", async () => {

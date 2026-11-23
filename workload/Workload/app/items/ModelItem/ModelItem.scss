@@ -776,3 +776,71 @@
 /* WB6 (F7): Onto on the first screen, in place of the kit's picture; full width, no extra indent, wraps at 390 px */
 .kg-empty-onto { width: 100%; text-align: left; }
 .kg-empty-onto .krusgraph-mascots { margin: 0 0 8px; padding: 0; }
+
+// W1 (Gustav's test, 23 November 2026): text parts on their own lines, and the Decide step's fold (the data product,
+// the suggested data products) as wide as the output cards above it (.krusgraph-outputs, 880 px)
+.kg-stack {
+  display: grid;
+  gap: var(--spacingVerticalXS);
+  min-width: 0;
+
+  > p {
+    margin: 0;
+  }
+}
+
+.kg-more-outputs {
+  display: grid;
+  gap: var(--spacingVerticalS);
+  max-width: 880px;
+  box-sizing: border-box;
+}
+
+.krusgraph-suggested {
+  display: grid;
+  gap: var(--spacingVerticalXS);
+  max-width: 880px;
+  box-sizing: border-box;
+  min-width: 0;
+  padding: var(--spacingVerticalS) var(--spacingHorizontalM);
+  border: 1px solid var(--colorNeutralStroke2);
+  border-radius: var(--borderRadiusMedium);
+  overflow-wrap: anywhere;
+
+  h3, p {
+    margin: 0;
+  }
+}
+
+.kg-suggested-list {
+  gap: var(--spacingVerticalM);
+}
+
+.kg-suggested-item {
+  display: grid;
+  gap: var(--spacingVerticalXXS);
+  min-width: 0;
+}
+
+@media (max-width: 600px) {
+  .kg-more-outputs,
+  .krusgraph-suggested {
+    max-width: none;
+  }
+}
+
+// W1 (Gustav's Data product step, 23 November 2026): "Advanced analyticsNotebooks ..." ran together, and the stages'
+// line ran past the panel's right edge: headings and sentences are blocks, and long words and lines wrap
+.kg-advanced,
+.kg-adv {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.kg-wrap-text {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  max-width: 100%;
+}

@@ -8,7 +8,7 @@ import { Body1, Caption1, Checkbox, Dropdown, Field, Input, Link, MessageBar, Me
 import { AgentOptions, BuildCard, JobsCard, PipelineJobs } from "./engineClient";
 import {
   LAYER_LABEL, TIME_ZONES, activityLines, defaultSchedule, exampleWords, runHeadline, scheduleProblems, scheduleWords, withPublish,
-  runPermissionLine,
+  noTablesYet, runPermissionLine,
 } from "./jobsWords";
 
 function Steps(props: { items?: string[]; label: string }) {
@@ -113,7 +113,7 @@ export function JobsPanel(props: { card: BuildCard }) {
   const run = j.run;
   const sched = j.schedule_result;
   return (
-    <div aria-label="Run and schedule">
+    <div className="kg-stack" aria-label="Run and schedule">
       {j.permission.granted === false && (j.run_once || j.schedule) && <JobsBlocked permission={j.permission} />}
       <ul className="krusgraph-list">
         {j.words.map((w) => (
@@ -161,10 +161,15 @@ export function AgentPanel(props: { card: BuildCard }) {
   const pf = a.copilot_preflight;
   const ew = exampleWords(a.examples);   // n209: a failure to connect reads "not checked yet", never invalid
   return (
-    <div aria-label="Data agent: layer and publishing">
-      <Body1>{a.selection?.words ?? a.layer_words}</Body1>
+    <div className="kg-stack" aria-label="Data agent: layer and publishing">
+      <Body1 as="p" block>{a.selection?.words ?? a.layer_words}</Body1>
+      {noTablesYet(props.card) && (
+        <MessageBar intent="warning" layout="multiline" data-w1="agent-no-tables">
+          <MessageBarBody>{noTablesYet(props.card)}</MessageBarBody>
+        </MessageBar>
+      )}
       {ew.lines.map((l) => (
-        <Caption1 key={l}>{l} </Caption1>
+        <Caption1 as="p" key={l} block>{l}</Caption1>
       ))}
       {ew.notChecked.length > 0 && (
         <ul className="krusgraph-list" aria-label="Examples not checked yet">
@@ -180,7 +185,7 @@ export function AgentPanel(props: { card: BuildCard }) {
           ))}
         </ul>
       )}
-      <Caption1>{a.where_examples}</Caption1>
+      <Caption1 as="p" block>{a.where_examples}</Caption1>
       <ul className="krusgraph-list">
         {(a.words ?? []).map((w) => (
           <li key={w}><Body1>{w}</Body1></li>
