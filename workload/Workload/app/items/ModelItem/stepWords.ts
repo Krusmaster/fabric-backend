@@ -58,4 +58,6 @@ export function stepLine(steps: FlowStep[]): string {
 }
 
 /** The empty state's one sentence, in the mascots' voice (Onto). */
+/** WB6 (F7): Onto's one plain sentence on the first screen, in place of the kit's check-mark picture. */
+export const ONTO_EMPTY = "I'm Onto. Show me a lakehouse and I'll find how its tables fit together, count it on the real rows, and build nothing until you say so.";
 export const FIRST_LINE = "Pick a lakehouse: I find its keys and links, prove them on the rows, and build only what you choose.";
