@@ -2764,7 +2764,7 @@
      "verdict": "holds for all 60 rows with a value"
     }
    ],
-   "summary": "6 of 6 keys unique, 7 of 7 relationships hold without orphans",
+   "summary": "Keys: 6 of 6 hold. Links: 7 of 7 hold. The plan also asks 1 open question.",
    "time_budget": {
     "counted": 13,
     "not_checked_time": 0,
@@ -3346,7 +3346,7 @@
      "verdict": "holds for all 40 rows with a value"
     }
    ],
-   "summary": "6 of 6 keys unique, 7 of 7 relationships hold without orphans",
+   "summary": "Keys: 6 of 6 hold. Links: 7 of 7 hold. The plan also asks 1 open question.",
    "time_budget": {
     "counted": 13,
     "not_checked_time": 0,
@@ -3756,7 +3756,7 @@
     }
    ],
    "note": "Counts over the whole tables at the moment of the call. They show the data agrees with the plan today; they do not prove the meaning, and new rows can change them.",
-   "summary": "6 of 6 keys unique, 7 of 7 relationships hold without orphans",
+   "summary": "Keys: 6 of 6 hold. Links: 7 of 7 hold. The plan also asks 1 open question.",
    "time_budget": {
     "counted": 13,
     "not_checked_time": 0,

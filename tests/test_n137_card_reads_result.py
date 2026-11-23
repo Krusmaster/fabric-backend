@@ -109,7 +109,7 @@ def _call(tool: str, args: dict) -> dict:
 
 def test_the_live_shop_answers(live_shop):
     v = json.loads(server.validate_plan(**SRC))
-    assert v["summary"] == "6 of 6 keys unique, 7 of 7 relationships hold without orphans"
+    assert v["summary"] == "Keys: 6 of 6 hold. Links: 7 of 7 hold. The plan also asks 1 open question."   # BL39: the one count
     assert not v.get("needs_attention") and not v.get("attention")         # an all-passed summary has neither
     assert v["totals"]["keys"]["passed"] + v["totals"]["relationships"]["passed"] == 13
     assert [s["tool"] for s in v["next_steps"]] == ["semantic_model_draft", "ontology_draft"]

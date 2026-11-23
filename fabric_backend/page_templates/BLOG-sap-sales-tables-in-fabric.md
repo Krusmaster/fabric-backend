@@ -114,7 +114,7 @@ LEFT JOIN sap_sd.VBAK AS k ON k.MANDT = p.MANDT AND k.VBELN = p.VBELN
 WHERE k.VBELN IS NULL;
 ```
 
-It returns 3. On the sample, `validate_plan` reported "12 of 12 keys unique, 15 of 19 relationships hold without orphans". The 12 keys are the eight standard tables above plus T001 and MAKT, from the SAP pack, and one for each of the two Z tables, which the rows gave (rule K6). The four relationships that do not hold are the one with the 3 items and the three name-based links of `ZSD_ORDER_EXT` above.
+It returns 3. On the sample, `validate_plan` reported "Keys: 12 of 12 hold. Links: 15 of 19 hold, 4 fail." The 12 keys are the eight standard tables above plus T001 and MAKT, from the SAP pack, and one for each of the two Z tables, which the rows gave (rule K6). The four relationships that do not hold are the one with the 3 items and the three name-based links of `ZSD_ORDER_EXT` above.
 
 ## Check your own tables
 
