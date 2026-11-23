@@ -58,7 +58,8 @@ def test_a_card_per_product_with_everything_a_catalog_entry_needs(shop):
     for k in ("description", "owner", "domain", "tags", "contract", "glossary", "evidence", "quality_rules"):
         assert c[k], k
     assert c["owner"] == "Data team" and a["products"][1]["owner"] == "not chosen yet"
-    assert len(c["description"]) <= cp.DESCRIPTION_MAX and "Owner: Data team." in c["description"]
+    # W3 (Gustav, 23 Nov 2026): the owner is the card's field, never in the description (a later change would leave it stale)
+    assert len(c["description"]) <= cp.DESCRIPTION_MAX and "Owner" not in c["description"] and "Data team" not in c["description"]
     assert c["evidence"]["line"] == ("4 of 4 keys unique, 0 orphan rows over 3 links inside customers, 1 link between "
                                      "customers and products and 1 link to tables in no data product, checked 17 Nov 2026")
     assert c["contract"]["yaml"].startswith("# ODCS v3.2.0") and c["contract"]["file"] == "contracts/customers.odcs.yaml"

@@ -89,8 +89,11 @@ import {
   readLastCreate, running, stepsTitle,
 } from "./createWords";
 import { MapData } from "./cardMap";
-import { MASCOT_COLOURS, MASCOT_CSS, MASCOT_GLAD, MASCOT_NAMES } from "./cardMap.generated";
-import { MascotFigure } from "./mascotFigure";
+import { MASCOT_CSS } from "./cardMap.generated";
+import { MascotSays } from "./mascotFigure";
+import { pipelineCheer } from "./cheer";
+import { CheerLine } from "./cheerView";
+import { AgentGuide } from "./CopilotStep";
 import { OntoWait } from "./OntoWait";
 import { VerifyButton } from "./verifyBuilt";
 import {
@@ -313,24 +316,8 @@ export function EmptyView(props: {
 
 // ------------------------------------------------------------------ the mascots (n173) -----------------------------
 
-/** One mascot with its bubble. n216: the figure is the 3D one from the film and the site (mascotFigure.tsx),
- * decorative (aria-hidden); the sentence is the bubble's text. Glad poses only when a check passed (MASCOT_GLAD). */
-export function MascotSays(props: { kind: MascotKind; text?: string; pose?: string; glad?: boolean; children?: React.ReactNode }) {
-  if (!props.text && !props.children) return null;
-  let pose = props.pose ?? "rest";
-  if (!props.glad && MASCOT_GLAD.includes(pose)) pose = "explain";
-  return (
-    <li className={`krusgraph-say krusgraph-say-${props.kind}${props.glad ? " glad" : ""}`} data-mascot={props.kind}
-      style={{ ["--kg-mascot" as string]: MASCOT_COLOURS[props.kind].fill }}>
-      <MascotFigure kind={props.kind} pose={pose} />
-      <div className="krusgraph-bubble">
-        <Caption1 className="krusgraph-who">{MASCOT_NAMES[props.kind]}</Caption1>
-        {props.text && <Body1>{props.text}</Body1>}
-        {props.children}
-      </div>
-    </li>
-  );
-}
+// W3: MascotSays lives in mascotFigure.tsx (the cheer line uses it too, without importing this file); kept exported here
+export { MascotSays };
 
 export function Mascots(props: { on: boolean; onToggle: () => void; children: React.ReactNode; plain: string[] }) {
   return (
@@ -1129,11 +1116,15 @@ export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["i
       {c.reads && <Body1 data-ed2="reads">{c.reads}</Body1>}
       {isApp(c) && <AppPanel card={c} saved={props.appChoices} onAppChoices={props.onAppChoices} record={props.appRecord} />}
       {c.output === "pipeline" && <JobsPanel card={c} />}
+      {/* W3: Onto cheers once per Create when the run this Create started succeeded */}
+      {c.output === "pipeline" && <CheerLine milestone="pipeline_succeeded" place="pipeline" text={pipelineCheer(c)} />}
       {c.output === "data_agent" && <AgentPanel card={c} />}
       {!c.dry_run && (c.output === "data_agent" || c.output === "semantic_model") && (
         <AfterRunActions card={c} run={props.run} selectTries={props.selectTries} onSelectTables={props.onSelectTables}
           onRefreshModel={props.onRefreshModel} busy={props.busy} />
       )}
+      {/* W3: Thinker's line without tables; once ready, Onto's cheer, Builder's advice and Make it available in Copilot */}
+      {c.output === "data_agent" && <AgentGuide card={c} selectTries={props.selectTries} run={props.run} />}
       {c.output === "semantic_model" && (
         <RolesPanel card={c} saved={props.roles} onRoles={c.dry_run ? props.onRoles : undefined} onDryRunAgain={props.onDryRunAgain} busy={props.busy} />
       )}

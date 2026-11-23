@@ -31,6 +31,8 @@ export interface CatalogDiffRow {
   item_id?: string;
   /** WB11: the item's Fabric type (Lakehouse, Notebook, GraphQLApi, ...), for its icon and its word */
   type?: string | null;
+  /** W3: the Krusgraph Model item itself (its own description) */
+  model_item?: boolean;
   /** "description", "tags", or for an optional row what would be written ("description and tags") */
   field: string;
   before: string | string[] | null;
@@ -57,6 +59,8 @@ export interface CatalogAnswer {
   handover: { requests: CatalogRequest[]; approvals: string[]; files: Record<string, string> };
   note: string;
   results?: { item: string; field: string; ok: boolean; status?: number; hint?: string }[];
+  /** W3: the workspace the items were written in (where Open the workspace goes) */
+  workspace?: string;
 }
 
 export const STEP_TITLE = "Publish to OneLake catalog";
@@ -107,7 +111,7 @@ export function canWrite(a: CatalogAnswer | undefined, checked: boolean): { ok: 
   if (!a) return { ok: false, why: "Prepare first: you see what would be written before anything is." };
   if (!a.confirm || writeCount(a) === 0) return { ok: false, why: "Nothing for you to write: the rest is in the handover files." };
   if (a.writable === false) return { ok: false, why: WRITING_OFF };
-  if (!checked) return { ok: false, why: "Tick that you checked the changes above." };
+  if (!checked) return { ok: false, why: "Tick that you checked the changes." };
   return { ok: true, why: "" };
 }
 
@@ -181,4 +185,54 @@ export function ownerProblem(value: string, people: OwnerPerson[] | null | undef
 /** The optional rows: items Krusgraph did not build, offered unticked. */
 export function optionalRows(a: CatalogAnswer | undefined): CatalogDiffRow[] {
   return (a?.diff ?? []).filter((r) => r.action === "optional");
+}
+
+// ------------------------------------------------------------------ W3: the write beside Prepare, and after it ------
+
+/** The anchor of the diff list, which "See the N changes" scrolls to. */
+export const DIFF_ID = "kg-catalog-diff";
+
+/** "See the 6 changes": the link above the box, so the changes are seen before writing. */
+export function seeChangesLabel(a: CatalogAnswer): string {
+  const n = writeCount(a);
+  return `See the ${n} change${n === 1 ? "" : "s"}`;
+}
+
+/** The short line above the box: what would be written as you, counted from the diff ("" when nothing is: the words
+ * beside the Write button say so, once). */
+export function gateSummary(a: CatalogAnswer): string {
+  const rows = a.diff.filter((r) => r.action === "write");
+  const desc = rows.filter((r) => r.field === "description").length;
+  const tags = rows.filter((r) => r.field === "tags").length;
+  if (!rows.length) return "";
+  const parts = [desc ? `${desc} description${desc === 1 ? "" : "s"}` : "", tags ? `tags on ${tags} item${tags === 1 ? "" : "s"}` : ""].filter(Boolean);
+  return `As you: ${parts.join(" and ")}, ${rows.some((r) => r.model_item) ? "this Krusgraph Model item's own description included, " : ""}` +
+    "each shown below with what is there now and what would be there.";
+}
+
+/**
+ * W3: where to look after a write. Microsoft documents no address that opens the OneLake catalog at an item (the only
+ * OneLake catalog address the docs cite is the admin's Govern page, docs/WORKLOAD-PACKAGE-UPDATES.md), so the button
+ * opens the workspace's item list, /groups/<workspace>/list (the address the engine's cards use, mcp_apps_build), and
+ * says to find it in OneLake catalog.
+ */
+export function catalogPlace(workspace: string | undefined, portal: string): { url: string; label: string; line: string } | undefined {
+  if (!workspace || !/^[0-9a-f-]{36}$/i.test(workspace)) return undefined;
+  return { url: `${portal}/groups/${workspace}/list`, label: "Open the workspace",
+    line: "Find it in OneLake catalog: in Fabric, choose OneLake catalog and search for the data product's name. No documented "
+      + "address opens the catalog at an item, so this button opens the workspace's list." };
+}
+
+/** The receipt under the cheer, compactly: what was written, then what was not and why. */
+export function receiptLines(results: CatalogAnswer["results"]): string[] {
+  const ok = (results ?? []).filter((r) => r.ok).map((r) => `${r.item} (${r.field})`);
+  const bad = (results ?? []).filter((r) => !r.ok).map((r) => `${r.item} (${r.field}${r.hint ? `: ${r.hint}` : ""})`);
+  return [ok.length ? `Written: ${ok.join(", ")}.` : "", bad.length ? `Not written: ${bad.join("; ")}.` : ""].filter(Boolean);
+}
+
+/** The line when not every change went through (no cheer then). */
+export function partialLine(results: CatalogAnswer["results"]): string {
+  const all = results ?? [];
+  const ok = all.filter((r) => r.ok).length;
+  return `${ok} of ${all.length} change${all.length === 1 ? "" : "s"} written. The rest are listed below with why; Prepare again shows what is there now.`;
 }

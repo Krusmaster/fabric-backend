@@ -1062,7 +1062,10 @@ def catalog_request(body) -> dict:
     confirm = body.get("confirm")
     if confirm is not None and (not isinstance(confirm, str) or len(confirm) > 40):
         raise BadRequest("'confirm' is the dry run's confirm value")
-    return {**req, "review": body["review"], "created_ids": ids, "owner": (owner or "").strip() or None,
+    item = body.get("item_id")                         # W3: the Krusgraph Model item, whose own description is written too
+    if item is not None and (not isinstance(item, str) or not _GUID.match(item)):
+        raise BadRequest("'item_id' is the Krusgraph Model item's id (a GUID)")
+    return {**req, "review": body["review"], "created_ids": ids, "owner": (owner or "").strip() or None, "item_id": (item or "").lower() or None,
             "dry_run": dry, "confirm": confirm, "include": sorted({i.lower() for i in include}),
             "target": target_request(body.get("target"))}       # ED3: the workspace the data product was built in
 
@@ -1103,15 +1106,19 @@ def run_catalog(req: dict) -> dict:
             listed = listed + [{**it, "workspace": source_ws} for it in io.items(get, source_ws) if it.get("id") == src.get("id")]
         except PermissionError:
             pass
-    chosen = io.pick(listed, src.get("id"), set(req["created_ids"]), req["schema"])
+    # W3: the Krusgraph Model item itself (Org.Krusgraph.Model or Krusgraph.Modeler.Model), found in the listing by its id
+    model = next((it for it in listed if req.get("item_id") and str(it.get("id", "")).lower() == req["item_id"]
+                  and life.MODEL_TYPES.match(str(it.get("type") or ""))), None)
+    chosen = [it for it in io.pick(listed, src.get("id"), set(req["created_ids"]), req["schema"]) if it is not model]
     tenant, readable = io.tenant_tags(get)
     on_items = list({t.get("id"): t for it in listed for t in it.get("tags") or [] if t.get("id")}.values())
     owners = {d["slug"]: req["owner"] for d in D.data_products(p)["domains"]} if req["owner"] else None   # ED3: one grouping
     out = cp.prepare(p, req["schema"], ws, chosen, source=req["source_name"], validation=validation,
                      checked_on=checked_at, owners=owners, created_ids=set(req["created_ids"]),
                      tenant_tags=tenant, tags_readable=readable, workspace_tags=on_items, include=set(req["include"]),
-                     source_id=src.get("id"))
+                     source_id=src.get("id"), model_item=model)
     out["writable"] = ws in cw.allowed_workspaces()
+    out["workspace"] = ws                              # W3: where "Open in OneLake catalog" goes (the workspace's list)
     out["left_out"] = left_out
     if req["dry_run"]:
         log("catalog", dry_run=True, products=len(out["products"]), writes=len(out["writes"]))
@@ -1246,6 +1253,87 @@ def run_starter(req: dict) -> dict:
     return {**out, "would": "created", "created": created,
             "words": f"Created the notebook {req['name']} in {where}, attached to {lh_name}{reads}.",
             "note": "Created as you; nothing was run."}
+
+
+# ------------------------------------------------------------------ W3: Make the data agent available in Copilot ------
+# POST /workload/v1/agent-publish {workspace, agent_id, name, dry_run, confirm}: the agent card's "Make it available in
+# Copilot" step (Gustav's run of 23 November 2026). agent_publish.py already knows Microsoft's requirements; this route
+# reuses it. A dry run by default, which only reads: the agent item (Items - Get Item), and the Microsoft 365 Copilot
+# preflight (capacity and region, the tenant settings, licences; agent_publish.copilot_preflight). It answers what is
+# needed and what would be done, and a confirm. With dry_run=false and that confirm, one call: Publish data agent
+# (agent_publish's Items_PublishDataAgent, Item.ReadWrite.All, the scope Create already uses). "Publish to Agent Store"
+# has no documented API, so it stays the person's step in Fabric, said plainly. Never retried, never sent without a click.
+
+def agent_publish_request(body) -> dict:
+    if not isinstance(body, dict):
+        raise BadRequest("the body must be a JSON object")
+    ws, agent = body.get("workspace"), body.get("agent_id")
+    if not isinstance(ws, str) or not _GUID.match(ws):
+        raise BadRequest("'workspace' is the data agent's workspace id (a GUID)")
+    if not isinstance(agent, str) or not _GUID.match(agent):
+        raise BadRequest("'agent_id' is the data agent's id (a GUID)")
+    name = _text(body, "name", None, 256)
+    source = body.get("source_name") or name
+    if not isinstance(source, str) or len(source) > 256:
+        raise BadRequest("'source_name' is a text of at most 256 characters")
+    dry = body.get("dry_run", True)
+    if not isinstance(dry, bool):
+        raise BadRequest("'dry_run' must be true or false")
+    confirm = body.get("confirm")
+    if confirm is not None and (not isinstance(confirm, str) or len(confirm) > 40):
+        raise BadRequest("'confirm' is the dry run's confirm value")
+    return {"workspace": ws.lower(), "agent_id": agent.lower(), "name": name.strip(), "source_name": source.strip(),
+            "dry_run": dry, "confirm": confirm}
+
+
+def agent_publish_confirm(workspace: str, agent_id: str, description: str) -> str:
+    text = json.dumps([workspace.lower(), agent_id.lower(), description], ensure_ascii=False)
+    return "agent-" + hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+
+
+def agent_publish_plan(name: str) -> list[dict]:
+    """What Make it available in Copilot does, in order: who does each step and how."""
+    from . import agent_publish
+    return [{"step": f"Publish {name} in Fabric, so people with access to the workspace can use it", "by": "Krusgraph, as you",
+             "how": "Publish data agent (POST .../dataAgents/{id}/staging/publish)", "scope": agent_publish.PUBLISH_SCOPE},
+            {"step": f"Make {name} available in Microsoft 365 Copilot", "by": "you, in Fabric", "how": agent_publish.COPILOT_STEP,
+             "scope": None}]
+
+
+def run_agent_publish(req: dict) -> dict:
+    from . import server as S, agent_publish
+    from .deploy import send
+    headers = S._headers(None)
+
+    def http(method, url, **kw):
+        return send(method, url, headers, write=method != "get", timeout=30, **kw)
+    ws, agent = req["workspace"], req["agent_id"]
+    r = http("get", f"{FABRIC_API}/v1/workspaces/{ws}/items/{agent}")
+    item = r.json() if getattr(r, "status_code", 0) < 400 else None
+    if not item or str(item.get("type") or "") != "DataAgent":
+        return {"error": f"Krusgraph could not read the data agent {req['name']} in this workspace.", "kind": "not_found",
+                "hint": "Open the agent in Fabric to check that it is still there. Nothing was published or changed."}
+    description = agent_publish.DESCRIPTION.format(source=req["source_name"])
+    confirm = agent_publish_confirm(ws, agent, description)
+    pre = agent_publish.copilot_preflight(http, ws, token_scopes())     # reads only, one each, never retried
+    name = item.get("displayName") or req["name"]
+    out = {"name": name, "workspace": ws, "agent_id": agent, "requirements": pre["requirements"], "missing": pre["missing"],
+           "unverified": pre["unverified"], "preflight_words": pre["words"], "plan": agent_publish_plan(name),
+           "copilot_step": agent_publish.COPILOT_STEP, "published": False}
+    if req["dry_run"]:
+        log("agent_publish_dry_run", missing=pre["missing"], unverified=pre["unverified"])
+        return {**out, "confirm": confirm, "note": NOTHING_CHANGED}
+    if req["confirm"] != confirm:
+        return {"error": "Send back the confirm value of the dry run, so what is published is what you saw.", "kind": "not_allowed",
+                "hint": "Nothing was published. Choose Make it available in Copilot again."}
+    got = http("post", f"{FABRIC_API}/v1/workspaces/{ws}/dataAgents/{agent}/staging/publish", json={"publishedDescription": description})
+    status = getattr(got, "status_code", 0)
+    log("agent_publish", state="published" if status < 400 else "refused", http=status, route="agent-publish")
+    if status >= 400:
+        return {"error": f"Fabric did not publish {name} (HTTP {status}); it stays a draft.", "kind": "fabric",
+                "hint": "Publishing needs read and write permission on the agent. Publish it in Fabric (Publish), or try again later."}
+    return {**out, "published": True, "words": f"Published {name} in Fabric: people with access to the workspace can use it.",
+            "note": "Published as you. Microsoft 365 Copilot is the last step, yours, in Fabric."}
 
 
 # ------------------------------------------------------------------ WB9: the pilot's self-check ------------------------
@@ -3760,6 +3848,8 @@ def routes(cfg, validator=None, obo=None) -> list:
             Route(f"{PREFIX}/verify", endpoint(verify_request, run_verify, "verify"), methods=["POST", "OPTIONS"]),   # n229
             Route(f"{PREFIX}/catalog", endpoint(catalog_request, run_catalog, "catalog", gate=licence), methods=["POST", "OPTIONS"]),   # CA1
             Route(f"{PREFIX}/starter", endpoint(starter_request, run_starter, "starter", gate=licence), methods=["POST", "OPTIONS"]),   # WB10
+            Route(f"{PREFIX}/agent-publish", endpoint(agent_publish_request, run_agent_publish, "agent-publish", gate=licence),
+                  methods=["POST", "OPTIONS"]),   # W3
             Route(f"{PREFIX}/sap-demo", endpoint(sap_demo_request, run_sap_demo, "sap-demo", gate=licence), methods=["POST", "OPTIONS"]),   # WB5
             Route(f"{PREFIX}/selfcheck", endpoint(selfcheck_request, run_selfcheck, "selfcheck"), methods=["POST", "OPTIONS"]),   # WB9
             Route(f"{PREFIX}/run", endpoint(run_item_request, run_item, "run"), methods=["POST", "OPTIONS"]),   # ED3: Run now

@@ -436,7 +436,7 @@ def route_writes(where: str, req: dict) -> bool:
 
 # WB7: the workload routes whose dry_run=false creates or changes items in Fabric, besides /build and /product retire.
 # Running an item Krusgraph made (/run) and reading (/check, /analysis, /verify) stay free: the licence is for creating.
-CREATE_ROUTES = ("starter", "sap-demo", "catalog")
+CREATE_ROUTES = ("starter", "sap-demo", "catalog", "agent-publish")   # W3: publishing the data agent
 
 
 def with_notice(text: str, notice: str | None) -> str:
