@@ -780,6 +780,28 @@ on introspection on the API, as each card says.
 <!-- figure:shot-model-flow -->
 <!-- /figure -->
 
+### Next steps with other workloads
+
+After a Create, and on the Data product page, the item shows **Next, with other Fabric workloads**. The suggestions are
+rules over what the check counted (rows, distinct values and orphans per key and link) and what this item already
+built; no AI. Before a key has passed the check, the panel only says to check against the rows first. Each card names
+the workload, gives one line of why it fits, and has one button, which starts with a dry run.
+
+| Workload | What the card suggests | What happens |
+| --- | --- | --- |
+| Data Science | A notebook at the proven grain, with an Experiment: for a header and its lines (order items over orders), it sums the lines per header first, so no total is counted twice | Dry run, then Create puts the notebook in this item's workspace; or download it. Krusgraph runs it only when you choose Run now, and trains no model |
+| Power BI | A semantic model and a report, or the report alone once the model exists | Built by the item |
+| Data agent | A data agent written from the proven keys and links | Built by the item, left unpublished unless you tick Publish |
+| Data Factory | Silver notebook, gold views and a pipeline | Built by the item, not run or scheduled unless you tick it |
+| Data Engineering | An API for GraphQL | Built by the item |
+| Fabric IQ | An ontology (preview), once two or more keys and one or more links are proven | Built by the item |
+| Apps | An App (preview) over a read-only connector | Built by the item, as an empty App item and one package command |
+
+What the item already built is not suggested again.
+
+<!-- figure:shot-model-next-steps -->
+<!-- /figure -->
+
 ### Add it to your Fabric
 
 Today: ask for the pilot. Your administrator sends us your tenant id, turns on the tenant setting for workloads not
