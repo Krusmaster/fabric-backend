@@ -211,6 +211,14 @@ the summary's `security_roles` lists the roles added, those not added and why (a
 model is left out), and the "fill this in" note. Without `roles` the model is exactly as before
 (`tests/test_bl43_model_roles.py`).
 
-Next: offer the candidates in the model dry run of the hosted tools and the workload item (`server.py`,
-`workload_api.py`), so a role is accepted like a key or a link before anything is written; then open one in Power BI
-Desktop on the SAP demo.
+**Done in round BL46 (23 November 2026):** the candidates are offered in the model dry run, off by default.
+`create_semantic_model`'s dry run lists them as `role_candidates`: per role its name, the column, the rule, the tables
+it filters (`filters`), why, whether it fits the model's `tables` filter and whether it is added. Names only; no row
+value is read or shown. Nothing is added unless the caller passes the roles they accept, by column: `roles=["BUKRS"]`
+on the tool, or `roles` on the workload build's semantic model output (`{"kind": "semantic_model", "name": ...,
+"roles": ["BUKRS"]}`), whose card shows the same list as `roles`. A name no rule proposes is refused with kind
+`bad_input` before anything is read, naming the roles proposed. A source with no candidate (the shop) answers exactly
+as before. A model on the gold views takes no role yet (refused in plain words). `tests/test_bl46_roles_dry_run.py`.
+
+Next: a tick box per role in the workload editor's model step (the engine takes `roles` already); roles on a model over
+the gold views; and open one in Power BI Desktop on the SAP demo.
