@@ -80,7 +80,7 @@ import { AgentChoices, AgentPanel, JobsPanel, PipelineChoices } from "./JobsView
 import { agentOf, jobsOf, scheduleProblems } from "./jobsWords";
 import { ICON_SIZE, KIND_TYPE, NOTICES, altBeside, itemIcon } from "./fabricIcons";
 import { TypeIcon, TypeName } from "./itemIcons";
-import { DEFAULT_BUILD, FIRST_LINE, PIPELINE_PARTS } from "./stepWords";
+import { ONTO_EMPTY, DEFAULT_BUILD, FIRST_LINE, PIPELINE_PARTS } from "./stepWords";
 import { ProofStrip } from "./NextStepsView";
 import {
   APP_STEPS_TITLE, CardState, FINISH_CSS, LastCreate, STATE_MARK, banner, cardState, itemTypeLabel, keepUpToDate, nextSteps,
@@ -137,14 +137,27 @@ export function Busy(props: { label?: string; wait?: Wait; mascotsOn?: boolean; 
   );
 }
 
+/** WB7: a Create refused for the licence (kind upgrade) gets the offer as a link, not only as text in the hint: no dead
+ * end. Only an https address is linked; the dry run stays one click away. */
+export function upgradeLink(error?: EngineError): string | undefined {
+  const url = error?.kind === "upgrade" ? error.upgrade_url : undefined;
+  return url && url.startsWith("https://") ? url : undefined;
+}
+
 export function ErrorBar({ error }: { error?: EngineError }) {
   if (!error) return null;
+  const offer = upgradeLink(error);
   return (
-    <MessageBar intent="error">
+    <MessageBar intent={offer ? "warning" : "error"}>
       <MessageBarBody>
         {error.error}
         {error.hint ? ` ${error.hint}` : ""}
       </MessageBarBody>
+      {offer && (
+        <MessageBarActions>
+          <Link href={offer} target="_blank" rel="noopener noreferrer">Subscribe in Microsoft Marketplace</Link>
+        </MessageBarActions>
+      )}
     </MessageBar>
   );
 }
@@ -226,10 +239,16 @@ export function EmptyView(props: {
     <ItemEditorEmptyView
       title="Choose a source"
       description={FIRST_LINE}
-      imageSrc="/assets/items/ModelItem/EditorEmpty.svg"
-      imageAlt=""
       customContent={
         <div className="krusgraph-empty-form">
+          {props.mascotsOn !== false && (
+            // WB6 (F7): Onto and one plain sentence instead of the kit's check-mark picture; the figure is decorative,
+            // the sentence is text. With the mascots off, the title and first line above say the same.
+            <section className="kg-empty-onto" aria-label="Onto">
+              <style>{MASCOT_CSS}</style>
+              <ul className="krusgraph-mascots"><MascotSays kind="onto" pose="explain" text={ONTO_EMPTY} /></ul>
+            </section>
+          )}
           <details className="kg-how">
             <summary><Caption1>What Krusgraph reads, and what it changes</Caption1></summary>
             <Caption1 as="p">{CHOOSE_SOURCE_WORDS}</Caption1>
