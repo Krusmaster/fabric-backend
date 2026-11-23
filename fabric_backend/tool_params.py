@@ -114,6 +114,9 @@ OntologyName = Annotated[str, _name("ontology item", "shop_ontology")]
 ModelDraftName = Annotated[str, _d('Name of the semantic model in the draft. Default "semantic_model". Example: '
                                    '"shop_model".')]
 ModelName = Annotated[str, _name("semantic model item", "shop_model")]
+ModelRoles = Annotated[list[str] | None, _d(
+    'Row-level security roles to add, by the column each filters on, from the dry run\'s role_candidates. Default none: '
+    'the roles are only listed, nothing is added. Example: ["BUKRS"].')]
 ReportModel = Annotated[str, _d('Semantic model the report is bound to, name or id (as create_semantic_model named it). '
                                 'Example: "shop_model".')]
 ReportName = Annotated[str, _d('Display name of the report; a report of this name in the workspace is left alone and the call '

@@ -205,6 +205,20 @@ is read with its three columns and no role is mistaken for a table.
 
 ## Next step
 
-Not wired into anything today (the smooth chain holds `server.py` and the model files until it is done). Next step,
-after the chain: offer these drafts in the model dry run (`semantic_model.draft`) and the review, so a role is
-accepted like a key or a link before anything is written; then open one in Power BI Desktop on the SAP demo.
+**Done in round BL43 (23 November 2026):** the model draft takes the roles on request. `semantic_model.draft(...,
+roles=["BUKRS"])` adds the role drafted here and the `security_user_map` table (with `ref table` in `model.tmdl`), and
+the summary's `security_roles` lists the roles added, those not added and why (a role whose tables are not all in the
+model is left out), and the "fill this in" note. Without `roles` the model is exactly as before
+(`tests/test_bl43_model_roles.py`).
+
+**Done in round BL46 (23 November 2026):** the candidates are offered in the model dry run, off by default.
+`create_semantic_model`'s dry run lists them as `role_candidates`: per role its name, the column, the rule, the tables
+it filters (`filters`), why, whether it fits the model's `tables` filter and whether it is added. Names only; no row
+value is read or shown. Nothing is added unless the caller passes the roles they accept, by column: `roles=["BUKRS"]`
+on the tool, or `roles` on the workload build's semantic model output (`{"kind": "semantic_model", "name": ...,
+"roles": ["BUKRS"]}`), whose card shows the same list as `roles`. A name no rule proposes is refused with kind
+`bad_input` before anything is read, naming the roles proposed. A source with no candidate (the shop) answers exactly
+as before. A model on the gold views takes no role yet (refused in plain words). `tests/test_bl46_roles_dry_run.py`.
+
+Next: a tick box per role in the workload editor's model step (the engine takes `roles` already); roles on a model over
+the gold views; and open one in Power BI Desktop on the SAP demo.

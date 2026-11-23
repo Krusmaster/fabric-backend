@@ -43,6 +43,7 @@ from . import evidence as _evidence
 from . import semantic_model as _semantic_model, paths as _paths, dictionary as _dictionary, dbt as _dbt, quality_suites as _quality, drift as _drift
 from . import views as _views, data_agent as _data_agent, app_starter as _app_starter, graphs as _graphs, readiness as _readiness
 from . import lineage as _lineage, compact as _compact, sap_pack as _sap_pack
+from . import security_roles as _security_roles                   # BL46: role candidates in the model dry run
 from . import coverage as _coverage
 from . import multi_schema as _multi_schema  # SM5: a plan over several schemas of one item
 from . import combine as _combine  # SM7: several sources in one data product, matched by rules with counts
@@ -2488,13 +2489,15 @@ def _silver_there(workspace: str, source: str, summary: dict, ctx) -> bool | Non
 def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.ModelName, schema: _p.Schema = "dbo", keys: _p.Keys = None,
                           confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, dry_run: _p.DryRun = True,
                           refresh: _p.RefreshOnce = False, check: _p.CreateCheck = "", silver_schema: _p.ReadSilverSchema = "",
-                          pipeline: _p.LayerPipeline = "", target_lakehouse: _p.TargetLakehouse = "", ctx: Context = None) -> str:
+                          pipeline: _p.LayerPipeline = "", target_lakehouse: _p.TargetLakehouse = "", roles: _p.ModelRoles = None,
+                          ctx: Context = None) -> str:
     """Creates a Fabric semantic model item from semantic_model_draft's TMDL (Direct Lake), or updates the item of that
     name in place. Requires workspace, source and name; SemanticModel.ReadWrite.All or Item.ReadWrite.All and
     Contributor on the workspace. Returns JSON with the parts and the REST call; with dry_run=false also the result,
     or kind consent. Changes Fabric only with dry_run=false: an update replaces the model's definition, so tables,
     relationships and measures added outside the plan leave it; no item is deleted. refresh=true refreshes the model
-    once after a create, and only refreshes a model that exists. Errors: {error, kind, hint}."""
+    once after a create, and only refreshes a model that exists. The dry run lists row-level security roles the names
+    suggest (role_candidates); one is added only when passed in roles. Errors: {error, kind, hint}."""
     if (check or "").strip():                                # n227: how a started create went; reads only
         return _create_status("create_semantic_model", workspace, name, check, ctx)
     combined = _combined_model(workspace, source, schema, name, dry_run, ctx)   # SM7: the match the person accepted
@@ -2504,6 +2507,10 @@ def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.M
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
     schema = p.schema.schema                                   # n175: the name the metadata returns
     check_tables(p.schema, tables)
+    accepted = _security_roles.accepted_columns(p, roles)     # BL46: an unknown role is refused before anything is read
+    if accepted and MODEL_ON_GOLD.get() and not tables:
+        raise _p_error("roles: this model reads the gold views, which a role is not drafted on yet; build the model "
+                             "without roles, or on the source tables (no gold views in the build).")
     read = _model_reads(workspace, source, schema, p, tables, ctx)          # n151: the calendar's range, whole-number quantities
     lay = _layers(info, silver_schema, "", pipeline, ctx, need=_combines(p, tables), which=("silver",))   # WB2 (#54): the dry run's and Create's
     info = {**info, "silver_schema": lay["silver"]}
@@ -2522,7 +2529,8 @@ def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.M
         draft = _semantic_model.draft_on_gold(p, ginfo, gspec, name, checked_validation(p), date_range=read["date_range"],
                                               whole_quantities=read["whole"], predictions=predictions)
     else:
-        draft = _semantic_model.draft(p, info, name, tables, date_range=read["date_range"], whole_quantities=read["whole"])
+        draft = _semantic_model.draft(p, info, name, tables, date_range=read["date_range"], whole_quantities=read["whole"],
+                                      roles=accepted or None)
     _model_layers(draft, lay)
     body = _semantic_model.envelope(draft["parts"], name, description=_marked(f"Created by Krusgraph from {source} ({schema})", p, schema))
     replaces = _model_replacement(_out_ws(info["workspace_id"]), name, draft["parts"], _headers(ctx))   # n221: where it is built
@@ -2549,6 +2557,10 @@ def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.M
                               "Open the model in the portal or Power BI Desktop and check the relationships README.generated.md lists as inactive."],
            "note": "Unit-tested against Microsoft's sample definitions. " + _tool_status.answer_note("create_semantic_model")
                    + " Without the permission the create answers kind=consent naming it, see docs/SCOPES.md."}
+    if (draft["summary"].get("reads") or {}).get("layer") != "gold":   # BL46: the role candidates, off by default
+        offered = _security_roles.offer(p, tables, (draft["summary"].get("security_roles") or {}).get("added"))
+        if offered["proposed"]:                                    # a source with none (the shop) answers as before
+            out["role_candidates"] = offered
     if refresh:                                                    # n229: one refresh, the fix for a model that shows no data
         out["refresh"] = {"planned": True, "said": (f"{name} exists: with dry_run=false it is refreshed once and its definition is left as it is."
                                                    if replaces else f"With dry_run=false {name} is refreshed once right after it is created."),
