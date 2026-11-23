@@ -15,7 +15,7 @@ Authentication, in order:
      "custom connection" model Lovable's Fabric connector uses: one principal, no per-user identity.
 The server stores nothing: no tokens beyond their lifetime, no data, no query results.
 
-Tools (all annotated for the Claude directory): forty-eight, from start to requirements_draft; docs page
+Tools (all annotated for the Claude directory): forty-nine, from start to semantic_view_draft; docs page
 /docs lists them. Around every tool: fair-use limits (limits.py), anonymous usage counts (usage.py) and the dormant paid-plan
 check (entitlements.py).
 """
@@ -102,7 +102,8 @@ mcp = MCPServer("fabric-backend", version=_package_version(), extensions=_mcp_ap
     "field names for query_graphql. Every inferred key or relationship carries the rule that produced it (K0-K5, R0-R5, "
     "or \"SAP pack\" for SAP tables such as VBAK/VBAP: the SAP pack is Krusgraph's list of known SAP keys and links; "
     "sap_pack_draft shows what it recognises and what is missing); ambiguous columns are reported, never guessed. "
-    "Drafts from the same plan create nothing: semantic_model_draft (TMDL, Direct Lake), ontology_draft, join_path (how "
+    "Drafts from the same plan create nothing: semantic_model_draft (TMDL, Direct Lake), semantic_view_draft (YAML for a "
+    "lakehouse's semantic view, preview), ontology_draft, join_path (how "
     "two tables connect, with the SQL), data_dictionary (hand-over documentation), dbt_schema, gold_views_draft, "
     "silver_notebook_draft, drift_monitor_draft, export_item_definitions (Fabric's Git format), analyze_schema (table "
     "roles, subject areas), suggest_relationships (candidate links counted against the data), plan_drift (what a re-run "
@@ -1831,6 +1832,35 @@ def semantic_model_draft(workspace: _p.Workspace, source: _p.Source, name: _p.Mo
             out["omitted"].append(biggest)
             del out["parts"][biggest]
             text = json.dumps(out, indent=2)
+    return text if len(text) <= MAX_RESULT_CHARS else _bounded(out, MAX_RESULT_CHARS, "Pass tables=[\"pattern*\"] to get a few tables at a time.")
+
+
+@mcp.tool(title="Draft a Fabric semantic view (experimental)", annotations=RO)
+@safe
+def semantic_view_draft(workspace: _p.Workspace, source: _p.Source, name: _p.ViewDraftName = "semantic_view", schema: _p.Schema = "dbo",
+                        tables: _p.TablesShown = None, validate: _p.ViewValidate = True,
+                        show_personal_data: _p.ShowPersonalData = False, ctx: Context = None) -> str:
+    """Drafts the plan as semantic view YAML for a lakehouse, writing nothing. Returns JSON with the file and the links
+    that do not fit. Errors: {error, kind, hint}."""
+    from . import semantic_view as _semantic_view
+    problem = _semantic_view.view_name_problem(name)
+    if problem:
+        from .infer import PlanInputError
+        raise PlanInputError(f"name: {problem}")
+    p, info = _source_inputs(workspace, source, schema, None, None, ctx)
+    checked = None
+    if validate:
+        _s, execute = _connected(workspace, source, p.schema.schema, ctx)
+        try:
+            checked = _evidence.validate(p, execute)
+        finally:
+            getattr(execute, "close", lambda: None)()
+    keep = _compact.match_tables(p.schema, tables)
+    tables = sorted(keep, key=str.lower) if keep is not None else None
+    out = _semantic_view.draft(p, info, name, tables, validation=checked, show_personal_data=show_personal_data)
+    out["note"] = (_tool_status.answer_note("semantic_view_draft") + " Upload the file to the view folder in the lakehouse and "
+                   "publish the view there; writing and publishing from Krusgraph are left for a later round.")
+    text = json.dumps(out, indent=2)
     return text if len(text) <= MAX_RESULT_CHARS else _bounded(out, MAX_RESULT_CHARS, "Pass tables=[\"pattern*\"] to get a few tables at a time.")
 
 

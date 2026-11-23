@@ -81,7 +81,7 @@ def filter_tools(tools: list, environ=None) -> list:
 # ------------------------------------------------------------------ the cards' last state -----------------------------
 
 # Where a card hands back to the living start card: the step of start that comes after the tool's answer.
-_AFTER_DRY_RUN = ("semantic_model_draft", "ontology_draft", "silver_notebook_draft", "gold_views_draft",
+_AFTER_DRY_RUN = ("semantic_model_draft", "semantic_view_draft", "ontology_draft", "silver_notebook_draft", "gold_views_draft",
                   "drift_monitor_draft", "export_item_definitions", "create_views", "create_silver_notebook",
                   "create_gold_views", "create_drift_monitor")
 _AFTER_CHECK = ("validate_plan", "review_plan", "requirements_draft", "compare_semantic_model", "plan_drift")

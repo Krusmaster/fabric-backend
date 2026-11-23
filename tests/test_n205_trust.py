@@ -134,7 +134,8 @@ def test_experimental_follows_the_short_status_the_site_uses():
                                                             "publish_catalog",            # CA1: unit tests only
                                                             "qlik_plan", "qlik_measures_draft",        # Q2: unit tests only
                                                             "qlik_reconcile_draft", "analysis_plan", "analysis_notebook_draft",
-                                                            "requirements_draft"}         # RQ1: unit tests only
+                                                            "requirements_draft",         # RQ1: unit tests only
+                                                            "semantic_view_draft"}        # BL64: unit tests only
     # create_pipeline created pipeline_shop live and it ran in Fabric (RAN_LIVE): created live, not a draft
     assert ts.short("create_pipeline") == "created live"
 

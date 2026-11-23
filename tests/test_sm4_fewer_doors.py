@@ -18,7 +18,8 @@ HIDDEN = {  # the tools that leave the default listing (docs/DIRECTORY-READINESS
     "compare_semantic_model", "plan_drift", "semantic_model_draft", "ontology_draft", "silver_notebook_draft",
     "gold_views_draft", "drift_monitor_draft", "export_item_definitions", "create_silver_notebook", "create_gold_views",
     "create_views", "create_drift_monitor", "analysis_plan", "analysis_notebook_draft", "app_starter", "app_readiness",
-    "answer_query_draft", "qlik_plan", "qlik_measures_draft", "qlik_reconcile_draft"}
+    "answer_query_draft", "qlik_plan", "qlik_measures_draft", "qlik_reconcile_draft",
+    "semantic_view_draft"}  # BL64
 
 
 def _names(monkeypatch, advanced: bool) -> list[str]:
@@ -29,10 +30,10 @@ def _names(monkeypatch, advanced: bool) -> list[str]:
     return [t.name for t in asyncio.run(server.mcp.list_tools())]
 
 
-def test_the_default_listing_has_at_most_16_tools_and_the_switch_lists_all_48(monkeypatch):
+def test_the_default_listing_has_at_most_16_tools_and_the_switch_lists_all_49(monkeypatch):
     default, every = _names(monkeypatch, False), _names(monkeypatch, True)
     assert len(default) <= 16 and set(default) == set(tool_listing.DEFAULT)
-    assert len(every) == 48 and set(default) < set(every)
+    assert len(every) == 49 and set(default) < set(every)
     assert set(every) - set(default) == HIDDEN
 
 
@@ -43,7 +44,7 @@ def test_the_plan_s_tools_and_the_newer_ones_are_placed_on_purpose(monkeypatch):
                  "requirements_draft", "verify_build", "lineage", "query_graphql", "describe_backend"):
         assert name in default, name
     for name in ("list_workspaces", "list_sources", "list_tables", "analyze_schema", "suggest_relationships",
-                 "join_path", "semantic_model_draft", "ontology_draft", "silver_notebook_draft", "gold_views_draft",
+                 "join_path", "semantic_model_draft", "semantic_view_draft", "ontology_draft", "silver_notebook_draft", "gold_views_draft",
                  "drift_monitor_draft", "export_item_definitions", "create_silver_notebook", "create_gold_views",
                  "create_views"):
         assert name not in default, name

@@ -142,7 +142,7 @@ def calls(schema, data: str) -> list[tuple[str, dict]]:
         ("plan_backend", ws), ("plan_backend", {**ws, "detail": "full"}), ("validate_plan", ws),
         ("validate_plan", {**ws, "detail": "full"}), ("review_plan", ws), ("sample_rows", {**ws, "table": a}),
         ("create_backend", {**ws, "name": "demo_api"}), ("rayfin_connector", ws), ("ontology_draft", ws),
-        ("create_ontology", {**ws, "name": "demo_ontology"}), ("semantic_model_draft", ws),
+        ("create_ontology", {**ws, "name": "demo_ontology"}), ("semantic_model_draft", ws), ("semantic_view_draft", ws),
         ("compare_semantic_model", {**ws, "tmdl": TMDL}), ("join_path", {**ws, "start": a, "end": b}),
         ("analyze_schema", ws), ("suggest_relationships", ws), ("data_dictionary", ws), ("dbt_schema", ws),
         ("dbt_schema", {**ws, "project": True}), ("domain_draft", ws), ("sap_pack_draft", ws),

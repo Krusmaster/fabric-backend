@@ -54,7 +54,7 @@ print(json.dumps({"tools": out, "ro_size": len(json.dumps({"tools": ro}, separat
 
 
 def _listing(module: str, env: dict, calls: tuple = ()) -> dict:
-    """SM4: every tool is listed here (KRUSGRAPH_ADVANCED_TOOLS=1), as the switches judge all 48; the default listing
+    """SM4: every tool is listed here (KRUSGRAPH_ADVANCED_TOOLS=1), as the switches judge all 49; the default listing
     of 16 is tests/test_sm4_fewer_doors.py's, and its read-only cap is below."""
     base = {k: v for k, v in os.environ.items() if k not in SETTINGS} | {"KRUSGRAPH_ADVANCED_TOOLS": "1"}
     run = subprocess.run([sys.executable, "-c", _LIST, module, *calls], env=base | env, cwd=ROOT,
@@ -84,7 +84,7 @@ def test_with_both_off_the_hosted_listing_is_unchanged(hosted):
     golden = json.loads((GOLDEN / "hosted_listing.json").read_text(encoding="utf-8"))["tools"]
     assert hosted["off"]["tools"] == golden and hosted["zero"]["tools"] == golden
     assert {t["name"] for t in golden} >= {"create_backend", "sample_rows"}  # the tool count is test_tool_count_texts.py's
-    assert hosted["off"]["ro_size"] <= 83_000                                # the read-only listing cap (n26; n229: verify_build; CSN2: csn_path; Q2: the Qlik tools; AP2: analysis_plan and analysis_notebook_draft, about 4 800 characters; WB2: silver_schema on three read tools, about 450; RQ1: requirements_draft, about 1 400)
+    assert hosted["off"]["ro_size"] <= 84_600                                # the read-only listing cap (n26; n229: verify_build; CSN2: csn_path; Q2: the Qlik tools; AP2: analysis_plan and analysis_notebook_draft, about 4 800 characters; WB2: silver_schema on three read tools, about 450; RQ1: requirements_draft, about 1 400; BL64: semantic_view_draft, about 1 600)
 
 
 def test_the_default_listing_s_read_only_cap_went_down():
@@ -101,7 +101,7 @@ def test_read_only_removes_exactly_the_creating_tools(hosted):
     assert {"create_backend", "create_views", "create_report", "create_semantic_model"} <= creating
     assert ro == off - creating and "sample_rows" in ro
     assert all(t["annotations"]["read_only_hint"] is True for t in hosted["ro"]["tools"])
-    assert hosted["ro"]["ro_size"] == hosted["off"]["ro_size"] <= 83_000    # the read tools are as they were
+    assert hosted["ro"]["ro_size"] == hosted["off"]["ro_size"] <= 84_600    # the read tools are as they were
     assert [t for t in hosted["ro"]["tools"]] == [t for t in hosted["off"]["tools"] if t["name"] in ro]
 
 
