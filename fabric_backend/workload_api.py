@@ -1201,6 +1201,84 @@ def run_starter(req: dict) -> dict:
             "note": "Created as you; nothing was run."}
 
 
+# ------------------------------------------------------------------ WB9: the pilot's self-check ------------------------
+# POST /workload/v1/selfcheck {workspace}: what a pilot user still lacks, one sentence each, read-only. Only documented
+# APIs: the delegated permissions on the signed-in user's token (token_scopes), Workspaces - List Workspaces (its
+# capacityId; learn.microsoft.com/rest/api/fabric/core/workspaces/list-workspaces) and Items - List Items. The tenant
+# setting "Users can see and work with additional workloads not validated by Microsoft" is in the admin portal and has no
+# documented read for a non-admin: the answer says so instead of guessing (docs/PILOT-DAY.md).
+
+SELFCHECK_SCOPES = (("Workspace.Read.All", "Workspace.ReadWrite.All"), ("Item.Read.All", "Item.ReadWrite.All"))
+SELFCHECK_TENANT = ("Not readable from here: the tenant setting \"Users can see and work with additional workloads not "
+                    "validated by Microsoft\" is in Fabric's admin portal, and no documented API reads it without a Fabric "
+                    "administrator. You can open this item, so it is on for you.")
+
+
+def selfcheck_request(body) -> dict:
+    if not isinstance(body, dict):
+        raise BadRequest("the body must be a JSON object")
+    ws = body.get("workspace")
+    if not isinstance(ws, str) or not _GUID.match(ws):
+        raise BadRequest("'workspace' is the workspace id (a GUID)")
+    return {"workspace": ws.lower()}
+
+
+def run_selfcheck(req: dict) -> dict:
+    import requests
+    from . import server as S
+    checks: list[dict] = []
+    scopes = token_scopes()
+    if scopes is None:
+        checks.append({"id": "consent", "state": "unknown", "words": "The permissions on your sign-in could not be read here; "
+                       "the first dry run says if one is missing."})
+    else:
+        missing = [alt[0] for alt in SELFCHECK_SCOPES if not set(alt) & scopes]
+        checks.append({"id": "consent", "state": "missing" if missing else "ok",
+                       "words": (f"Admin consent is missing for {', '.join(missing)}: an Entra administrator grants it once "
+                                 "(docs/PILOT-ONBOARDING.md, Path B step 4)." if missing else
+                                 "Your organisation has consented to the permissions Krusgraph needs to read.")})
+    headers = S._headers(None)
+    ws = None
+    try:
+        url = f"{FABRIC_API}/v1/workspaces"
+        while url and ws is None:
+            r = requests.get(url, headers=headers, timeout=30)
+            if r.status_code in (401, 403):
+                break
+            r.raise_for_status()
+            body = r.json()
+            ws = next((w for w in body.get("value", []) if str(w.get("id", "")).lower() == req["workspace"]), None)
+            url = body.get("continuationUri")
+    except requests.RequestException:
+        ws = None
+    if ws is None:
+        checks.append({"id": "workspace", "state": "missing", "words": "This workspace is not among the ones you can see: "
+                       "ask its admin for the Contributor role."})
+    else:
+        cap = ws.get("capacityId")
+        checks.append({"id": "capacity", "state": "ok" if cap else "missing",
+                       "words": ("The workspace is on a Fabric capacity." if cap else
+                                 "The workspace has no Fabric capacity: assign it to an F capacity or a trial "
+                                 "(Workspace settings -> License info). Power BI Pro alone is not enough.")})
+        try:
+            items = S._list_items(req["workspace"], headers)
+        except Exception:                                          # noqa: BLE001 — no access: said, not raised
+            items = None
+        if items is None:
+            checks.append({"id": "workspace", "state": "missing", "words": "The workspace's items could not be read: ask its "
+                           "admin for the Contributor role."})
+        else:
+            lakes = sum(1 for it in items if it.get("type") == "Lakehouse")
+            checks.append({"id": "workspace", "state": "ok", "words": "You can read this workspace's items. Whether you may "
+                           "create items shows at the first dry run (Contributor or higher)."})
+            checks.append({"id": "lakehouse", "state": "ok" if lakes else "missing",
+                           "words": (f"{lakes} lakehouse(s) here to pick as the source." if lakes else
+                                     "No lakehouse in this workspace yet: create one, or use Load SAP demo data after picking one.")})
+    checks.append({"id": "tenant_setting", "state": "unknown", "words": SELFCHECK_TENANT})
+    log("selfcheck", missing=sum(c["state"] == "missing" for c in checks))
+    return {"checks": checks, "ready": not any(c["state"] == "missing" for c in checks), "note": NOTHING_CHANGED}
+
+
 # ------------------------------------------------------------------ WB5: Load SAP demo data ---------------------------
 # POST /workload/v1/sap-demo: the next step "Load SAP demo data" for someone without SAP tables to try the SAP path on.
 # The sap_demo36 generator notebook (round AP2, fabric_backend/sap_demo36.py) is created, never run: a dry run first, then
@@ -3514,6 +3592,7 @@ def routes(cfg, validator=None, obo=None) -> list:
             Route(f"{PREFIX}/catalog", endpoint(catalog_request, run_catalog, "catalog", gate=licence), methods=["POST", "OPTIONS"]),   # CA1
             Route(f"{PREFIX}/starter", endpoint(starter_request, run_starter, "starter", gate=licence), methods=["POST", "OPTIONS"]),   # WB10
             Route(f"{PREFIX}/sap-demo", endpoint(sap_demo_request, run_sap_demo, "sap-demo", gate=licence), methods=["POST", "OPTIONS"]),   # WB5
+            Route(f"{PREFIX}/selfcheck", endpoint(selfcheck_request, run_selfcheck, "selfcheck"), methods=["POST", "OPTIONS"]),   # WB9
             Route(f"{PREFIX}/run", endpoint(run_item_request, run_item, "run"), methods=["POST", "OPTIONS"]),   # ED3: Run now
             Route(f"{PREFIX}/analysis", endpoint(analysis_request, run_analysis, "analysis"), methods=["POST", "OPTIONS"]),   # WB4
             Route(f"{PREFIX}/access", endpoint(access_request, None, "access"), methods=["POST", "OPTIONS"])]
