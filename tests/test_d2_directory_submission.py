@@ -95,7 +95,7 @@ def test_the_test_cases_use_synthetic_data_and_the_engines_numbers():
     rows = re.findall(r"^\| ([PN]\d) \|", PACK, re.M)
     assert rows == ["P1", "P2", "P3", "P4", "P5", "P6", "N1", "N2", "N3"]
     assert "6 of 6 keys unique and 7 of 7 relationships without orphans" in PACK
-    assert '"12 of 12 keys unique, 15 of 19 relationships hold without orphans"' in PACK      # checked in test_d2_explainers.py
+    assert '"Keys: 12 of 12 hold. Links: 15 of 19 hold, 4 fail."' in PACK                    # BL39      # checked in test_d2_explainers.py
 
 
 def _png_size(path: Path) -> tuple[int, int]:

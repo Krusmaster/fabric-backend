@@ -72,13 +72,13 @@ def test_turns_one_and_two_are_what_the_engine_answers_on_the_shop_data(client, 
     assert plan["keys"]["order_items"] == "order_id+line_no (K5)" and "order_items.order_id -> orders [R1]" in plan["relationships"]
     assert plan["keyless"] == ["audit_log"]
     assert any("orders.ship_to_id -> addresses [R5]" in r and "15 of 15" in r for r in plan["relationships"])
-    assert checks["summary"].startswith("Keys: 6 of 6 hold. Links: 7 of 7 hold.")        # BL39: counts.summary's sentence
+    assert checks["summary"] == "Keys: 6 of 6 hold. Links: 7 of 7 hold. The plan also asks 1 open question."        # BL39: counts.summary's sentence
 
     box = _box(client)
     answers = re.findall(r'<div class="session-answer">(.*?)</div>', box, re.S)
     assert answers[0].startswith('<p class="session-tool">plan_backend</p><p>' + head + ". <code>order_items</code> → <code>orders</code> on <code>order_id</code> "
                                  '<span class="session-rule">R1</span>; key <code>order_id, line_no</code> <span class="session-rule">K5</span>. No key: <code>audit_log</code>.')
-    assert "Keys: 6 of 6 hold. Links: 7 of 7 hold. <code>order_items</code> → <code>orders</code>: holds for all 134 rows with a value." in answers[1]
+    assert checks["summary"] + " <code>order_items</code> → <code>orders</code>: holds for all 134 rows with a value." in answers[1]
     head_text = re.search(r'<p class="session-head">(.*?)</p>', box).group(1)
     assert head_text == "A replay of Krusgraph's answers" and "Claude" not in head_text
     cap = re.search(r"<figcaption[^>]*>(.*?)</figcaption>", box, re.S).group(1)
