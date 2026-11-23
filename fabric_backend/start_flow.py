@@ -39,6 +39,7 @@ from __future__ import annotations
 import json
 
 TOOL = "start"
+LATEST = "latest"   # BL47 (#104): the card's read-only "is this card still the latest?" (server._start_latest)
 PROMPT = "start"
 PROMPT_TITLE = "Start Krusgraph"
 VAGUE = ("start", "start Krusgraph", "help", "what can you do", "check my data",

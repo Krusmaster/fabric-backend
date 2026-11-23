@@ -759,6 +759,8 @@ def start(workspace: _p.StartPick = "", source: _p.StartPick = "", schema: _p.St
     the rows and the doubled totals, counted), decide, a dry run of everything, then create after a second confirmation
     of the names. Returns JSON {step, path, actions: [{tool, arguments, say}],
     after}: each action is an existing tool; after is the next start call. Changes nothing. Errors: {error, kind, hint}."""
+    if (step or "").strip().lower() == _start_flow.LATEST:  # BL47 (#104): the card asks whether it is still the latest
+        return json.dumps(_start_latest(workspace, source, schema, bool(sample), ctx))
     plan = dict(plan) if isinstance(plan, dict) else {}
     kept = {"seq": 0}
     if not sample:                                         # WB15 (E, G): the shared state; the latest tap wins
@@ -795,6 +797,16 @@ def start(workspace: _p.StartPick = "", source: _p.StartPick = "", schema: _p.St
                             combine=combined)
     out["seq"] = kept.get("seq") or 0
     return json.dumps(out, indent=2)
+
+
+def _start_latest(workspace: str, source: str, schema: str, sample: bool, ctx) -> dict:
+    """BL47 (issue #104, second part): step "latest". Only reads the flow's newest sequence number and step
+    (flow_state.latest), so an older start card can fold to one line when the path has moved on in a newer card, also
+    where two cards cannot talk to each other. Records nothing, reads nothing from Fabric, names no row value."""
+    c = [(x or "").strip() for x in (workspace, source, schema)]
+    got = None if sample or not all(c) else _flow_state.latest(_flow_who(ctx), *c)
+    return {"latest": got, "changes_nothing": True,
+            "note": "Only for the start card: whether a newer card has moved the path on. Nothing was recorded."}
 
 
 def _start_targets(workspace: str, source: str, schema: str, step: str, sample: bool, ctx) -> dict | None:

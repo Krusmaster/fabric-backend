@@ -36,6 +36,18 @@ retries and keeps both; the record holds names and decisions only, under a hashe
 memory as before. Not run against Azure Table Storage itself; the store's Table Storage code is the one
 `tests/test_client_registration.py` covers.
 
-## Still open in issue #104
-The card-fold part (folding the earlier cards once the path moves on) changes the click-through and is for a later
-round. Issue #104 stays open until that is done.
+## The card fold (issue #104, second part, round BL47)
+A card that hands a step to the chat folds to "Moved on: step N" (WB15). When the user types instead and Claude opens a
+newer card, the older card learnt of it only over a BroadcastChannel, which two frames of one claude.ai conversation
+may not share. The card now also asks the start tool itself, read only: `start(workspace, source, schema,
+step="latest")` answers `{latest: {seq, step}}` from `flow_state.latest`. It takes no sequence number, records no
+decision, does not renew the time to live and reads nothing from Fabric. The card asks when its first answer is drawn
+(a reloaded conversation draws every old card again), when it comes back into view and when the page is shown again,
+at most once every 4 seconds, only on a host that runs tools from the card, and never while a call of its own runs; an
+answer that crossed one of its own calls is not used. When the path's number is newer than the one the card drew, it
+folds. Because the number lives in the shared store, the check gives the same answer on either replica.
+
+Limits: a card folds only for newer calls on the same workspace, source and schema (the flow's key); a newer card on
+another source does not fold it, except over the BroadcastChannel where the host allows one. The sample keeps no flow
+and is never checked. Not yet seen on the phone in claude.ai: `tests/test_bl47_card_fold.py` runs it in Chromium under
+the fake host.

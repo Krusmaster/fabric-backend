@@ -232,7 +232,8 @@ SapExport = Annotated[str, _d('"none" (default), or one export of the plan: "kru
 # Short on purpose: the read-only listing has a size cap (tests/test_tool_descriptions.py).
 
 StartPick = Annotated[str, _d('Chosen so far; "" if not yet.')]
-StartStep = Annotated[str, _d('Step to show: data, check, decide, dry_run, create or done (the answer\'s after names it).')]
+StartStep = Annotated[str, _d('Step to show: data, check, decide, dry_run, create or done (the answer\'s after names it). '
+                              '"latest" is the card\'s own read-only check.')]
 StartPlan = Annotated[dict | None, _d('{keys, confirmed, decisions} so far, as review_plan takes them.')]
 StartCreate = Annotated[list[str] | None, _d('Step create: dry-run item names the user asked to create.')]
 StartConfirm = Annotated[bool, _d('Step create: true only after the user said yes to exactly those names.')]

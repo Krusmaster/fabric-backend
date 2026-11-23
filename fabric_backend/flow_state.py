@@ -179,6 +179,28 @@ def state(who: str, workspace, source, schema) -> dict | None:
         return _view(f) if f else None
 
 
+def latest(who: str, workspace, source, schema) -> dict | None:
+    """BL47 (issue #104, second part): the flow's newest sequence number and the step last shown, {seq, step}, or None.
+    Only reads: no sequence number is taken and the flow's time to live is not renewed, so a card that asks "am I
+    still the latest?" never makes itself or another card look older."""
+    k = _key(who, workspace, source, schema)
+    if k is None:
+        return None
+    store = _shared()
+    if store is not None:
+        got = store.get("flow", _rk(k))
+        f = got[0] if got else None
+    else:
+        with _LOCK:
+            f = _FLOWS.get(k)
+            if f and time.monotonic() - f["at"] > TTL:
+                f = None
+            f = dict(f) if f else None
+    if not f:
+        return None
+    return {"seq": int(f.get("seq") or 0), "step": f.get("step")}
+
+
 def rejected(who: str, workspace, source, schema) -> set[str]:
     s = state(who, workspace, source, schema) or {}
     return {d["item"] for d in s.get("decisions") or [] if d["review"] == "rejected"}

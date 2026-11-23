@@ -15,6 +15,12 @@ What the card draws, all from the answer (start_flow.guide), never invented by t
   click and runs on the second, as n218's Create does;
 - "Next": the `start` call in `after`. Its answer replaces the card's content, so the card walks the path in place.
 
+BL47 (issue #104, second part): an older card folds to "Moved on: step N" also when the user typed and Claude opened
+the newer card. Before, it learnt of that only over a BroadcastChannel, which two frames of one claude.ai conversation
+may not share. Now it also asks the start tool, read only (`step="latest"`: the flow's newest sequence number from
+flow_state.latest, nothing recorded), when its first answer is drawn, when it comes back into view and when the page is
+shown again, and folds when the path's number is newer than the one it drew. A card's own taps never fold it.
+
 WB12 (Gustav's chat test in claude.ai, 18 November 2026, issues #66-#77), all drawn from the answer:
 - steps 1-3 list what the account can open as buttons (`kind: "choose"`, each calls start with the choice set), with a
   search box when there are more than eight, and a disabled button with its reason (a schema without tables);
@@ -252,6 +258,35 @@ __READ_JS__
     line.hidden = false;
     if (typeof reportSize === "function") reportSize();
   }
+  // BL47 (issue #104, second part): where two cards of one conversation cannot talk (no shared BroadcastChannel), a
+  // card asks the start tool, read only (step "latest": no sequence number taken, nothing recorded), whether a newer
+  // card has moved its path on, and folds as above when one has. It asks when its first answer is drawn (a reloaded
+  // conversation draws every old card again), when it comes back into view and when the page is shown again; at most
+  // once every CHECK_GAP ms, only on a host that runs tools from the card, never while a call of its own runs, and an
+  // answer that crossed a call of its own is not used.
+  var myFlow = null, checking = false, lastCheck = 0, ownCalls = 0, wasOut = false, CHECK_GAP = 4000;
+  function checkLatest() {
+    if (moved || busy || checking || !myFlow || !lastSeq || !canCallTools()) return;
+    var now = Date.now();
+    if (now - lastCheck < CHECK_GAP) return;
+    lastCheck = now; checking = true;
+    var calls = ownCalls, seen = lastSeq;
+    callTool("start", { workspace: myFlow.workspace, source: myFlow.source, schema: myFlow.schema, step: "latest" }, function () {}).then(function (r) {
+      checking = false;
+      var d = answerOf(r), l = isObj(d) && isObj(d.latest) ? d.latest : null;
+      if (l && typeof l.seq === "number" && l.seq > seen && seen === lastSeq && calls === ownCalls && !busy) moveOn();
+    }, function () { checking = false; });
+  }
+  function watchLatest() {
+    var m = document.getElementById("main");
+    if (window.IntersectionObserver && m) new IntersectionObserver(function (es) {
+      es.forEach(function (e) {
+        if (!e.isIntersecting) wasOut = true;
+        else if (wasOut) { wasOut = false; checkLatest(); }
+      });
+    }).observe(m);
+    document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") checkLatest(); });
+  }
   function setBusy(on) {
     Array.prototype.forEach.call(document.querySelectorAll("main button[data-start]"), function (x) {
       if (on) { x.setAttribute("data-was", x.disabled ? "1" : ""); x.disabled = true; }
@@ -278,7 +313,7 @@ __READ_JS__
     if (busy || moved) return;
     out.hidden = false; out.textContent = "";
     if (!canCallTools()) { if (b) b.disabled = true; handOff(ask, out, b); return; }
-    busy = true; setBusy(true);
+    busy = true; setBusy(true); ownCalls++;
     var wait = waitView(act || { label: b ? b.textContent : "" }); out.appendChild(wait.el);
     callTool("start", JSON.parse(JSON.stringify(args)), function () { wait.note(stillWaiting(ask)); }).then(function (r) {
       wait.stop(); busy = false; setBusy(false); out.textContent = ""; out.hidden = true; render(r);
@@ -488,8 +523,15 @@ __READ_JS__
     verdict.hidden = false;
     if (!d) { verdict.textContent = "The card could not read the answer; it is in the text of the tool result."; return; }
     if (readable(d.error)) { document.getElementById("coach").hidden = true; verdict.textContent = d.error + (readable(d.hint) ? " " + d.hint : ""); return; }
+    if ("latest" in d && !isObj(d.step)) {                    // BL47: the read-only check, drawn on its own
+      document.getElementById("coach").hidden = true;
+      verdict.textContent = "Only a check whether a newer card has moved the path on. Nothing was recorded."; return;
+    }
     var st = isObj(d.step) ? d.step : {};
     myStep = Number(st.n) || 0;
+    var ch = isObj(d.chosen) ? d.chosen : {};
+    myFlow = !d.sample && readable(ch.workspace) && readable(ch.source) && readable(ch.schema)
+      ? { workspace: String(ch.workspace), source: String(ch.source), schema: String(ch.schema) } : null;
     document.getElementById("title").textContent = (st.n ? "Step " + st.n + " of " + st.of + ": " + (readable(st.short) || st.title) : "Start Krusgraph")
       + (d.sample ? " (sample)" : "");
     var coached = drawCoach(d);
@@ -565,7 +607,7 @@ __READ_JS__
       return;
     }
     if (m.method === "ui/notifications/tool-input") input = (m.params && m.params.arguments) || {};
-    else if (m.method === "ui/notifications/tool-result") render(m.params);
+    else if (m.method === "ui/notifications/tool-result") { render(m.params); setTimeout(checkLatest, 1200); }
     else if (m.method === "ui/notifications/tool-cancelled") { document.getElementById("verdict").textContent = "The call was cancelled."; mascotsQuiet(); }
     else if (m.method === "ui/resource-teardown" && m.id != null) send({ jsonrpc: "2.0", id: m.id, result: {} });
     else if (m.method === "ping" && m.id != null) send({ jsonrpc: "2.0", id: m.id, result: {} });
@@ -581,6 +623,7 @@ __SIZE_JS__
     if (isObj(r) && isObj(r.hostContext) && isObj(r.hostContext.toolInfo) && isObj(r.hostContext.toolInfo.tool)) tool = r.hostContext.toolInfo.tool.name || "";
     notify("ui/notifications/initialized");
     watchSize();
+    watchLatest();
   }, function () { document.getElementById("verdict").textContent = "The host did not start the card; the answer is in the text of the tool result."; });
 })();
 </script>
