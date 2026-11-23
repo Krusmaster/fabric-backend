@@ -494,7 +494,8 @@ export function AdvancedAnalytics(props: { review: NextInput["review"]; source: 
   const stages = nextSteps({ review: props.review, created: props.created ?? [], source: props.source }).steps.find((s) => s.id === "ds-features");
   return (
     <section className="kg-advanced" id="kg-advanced-analytics" aria-labelledby="kg-advanced-title">
-      <Subtitle2 as="h2" id="kg-advanced-title">Advanced analytics</Subtitle2>
+      {/* tabIndex -1: Go to Advanced analytics moves the focus here (not in the Tab order) */}
+      <Subtitle2 as="h2" id="kg-advanced-title" tabIndex={-1}>Advanced analytics</Subtitle2>
       <Caption1>
         Notebooks Krusgraph writes by rules on this data product's proven keys and links, created in this item's workspace
         on the data product's lakehouse. No AI, and Krusgraph trains no model: the notebooks are yours to run.
