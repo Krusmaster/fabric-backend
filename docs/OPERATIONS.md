@@ -183,7 +183,7 @@ To keep all of them in Log Analytics (n39):
    ContainerAppConsoleLogs_CL
    | where TimeGenerated > ago(30d) and Log_s has "<the reference>"
    | project TimeGenerated, Log_s
-   | order by TimeGenerated asc
+   | order by ["TimeGenerated"] asc
    ```
 
    The table and column names are those of Container Apps' Log Analytics destination; if the workspace shows the
