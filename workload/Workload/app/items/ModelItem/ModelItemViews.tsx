@@ -37,7 +37,7 @@ import {
 import { ArrowRight24Regular, CheckmarkCircle20Filled, CheckmarkStarburst24Regular, ErrorCircle20Filled, Open24Regular, Warning20Filled } from "@fluentui/react-icons";
 import { ItemEditorEmptyView } from "../../components/ItemEditor";
 import { SelfCheck, SelfCheckAnswer } from "./SelfCheck";
-import { AppChoices, BuildCard, DataProduct, EngineError, JobsCard, ManyAnswer, OutputKind, SchemasAnswer } from "./engineClient";
+import { AppChoices, BuildCard, DataProduct, EngineError, JobsCard, ManyAnswer, OutputKind, PipelineRun, SchemasAnswer } from "./engineClient";
 import {
   AppApi, AppDesign, AppPackageRecord, AppPreflight, APP_BEFORE_CREATE, BUILT_APP_NOTE, BUILT_APP_UNKNOWN, CHART_TYPE_WORDS, EDIT_NOTE, EDIT_TITLE, GROUPS, PREVIEW_NOTE, apiLines, builtChoices,
   builtWithoutPackage, chartTypes, choiceLines, designLines, editHref, featureOff, isApp, movePage, optionsOf, packageHref,
@@ -78,6 +78,7 @@ import { ChosenProductsView } from "./SuggestedProductsView";
 import { progressLabel } from "./createRun";
 import { AgentChoices, AgentPanel, JobsPanel, PipelineChoices } from "./JobsViews";
 import { RolesPanel } from "./RolesView";
+import { AfterRunActions } from "./AfterRunActions";
 import { agentOf, jobsOf, portalSteps, scheduleProblems } from "./jobsWords";
 import { ICON_SIZE, KIND_TYPE, NOTICES, altBeside, itemIcon } from "./fabricIcons";
 import { TypeIcon, TypeName } from "./itemIcons";
@@ -798,6 +799,11 @@ export interface CardActions {
   roles?: string[];
   onRoles?: (roles: string[]) => void;
   onDryRunAgain?: () => void;
+  /** W2: the data agent's Select tables now (bounded by its tries) and the semantic model's Refresh now, after the run */
+  onSelectTables?: (card: BuildCard) => void;
+  selectTries?: number;
+  onRefreshModel?: (card: BuildCard) => void;
+  run?: PipelineRun;
 }
 
 /** n181: the App (Rayfin, preview): the preflight, the ticks, the pages, the read-only connector, the package. */
@@ -1124,6 +1130,10 @@ export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["i
       {isApp(c) && <AppPanel card={c} saved={props.appChoices} onAppChoices={props.onAppChoices} record={props.appRecord} />}
       {c.output === "pipeline" && <JobsPanel card={c} />}
       {c.output === "data_agent" && <AgentPanel card={c} />}
+      {!c.dry_run && (c.output === "data_agent" || c.output === "semantic_model") && (
+        <AfterRunActions card={c} run={props.run} selectTries={props.selectTries} onSelectTables={props.onSelectTables}
+          onRefreshModel={props.onRefreshModel} busy={props.busy} />
+      )}
       {c.output === "semantic_model" && (
         <RolesPanel card={c} saved={props.roles} onRoles={c.dry_run ? props.onRoles : undefined} onDryRunAgain={props.onDryRunAgain} busy={props.busy} />
       )}
@@ -1470,7 +1480,8 @@ export function ResultView(props: {
       {a ? (
         a.outputs.map((c) => (
           <OutputCard key={c.output} card={c} onOpen={props.onOpen} onUpdate={props.onUpdate} onNewName={props.onNewName} busy={props.busy}
-            onRetry={props.onRetry} shared={shared} {...appOf(props.outputs, c)} />
+            onRetry={props.onRetry} shared={shared} {...appOf(props.outputs, c)}
+            onSelectTables={props.onSelectTables} selectTries={props.selectTries} onRefreshModel={props.onRefreshModel} run={props.run} />
         ))
       ) : (
         <section>

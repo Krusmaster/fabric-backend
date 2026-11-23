@@ -367,7 +367,7 @@ def build_request(body) -> dict:
     if not isinstance(body.get("review"), dict):
         raise BadRequest("'review' (the item's review.json) is required: the build uses its decisions")
     flags = {}
-    for f in ("skip_built", "finish", "refresh_only"):                            # n179: Create one output per request, then the summary
+    for f in ("skip_built", "finish", "refresh_only", "select_tables"):           # n179: Create one output per request, then the summary
         v = body.get(f, False)
         if not isinstance(v, bool):
             raise BadRequest(f"'{f}' must be true or false (default false)")
@@ -381,6 +381,8 @@ def build_request(body) -> dict:
         flags["only"] = list(only)
     if flags["refresh_only"] and (dry_run or flags.get("only") != ["semantic_model"]):
         raise BadRequest("'refresh_only' refreshes the semantic model this Model built: only [semantic_model], dry_run false")
+    if flags["select_tables"] and (dry_run or flags.get("only") != ["data_agent"]):   # W2: the agent card's Select tables now
+        raise BadRequest("'select_tables' selects the data agent's tables again: only [data_agent], dry_run false")
     update = body.get("update")                                   # n180: Update of an output built from another plan
     if update is not None:
         if not isinstance(update, list) or any(k not in {c["kind"] for c in chosen} for k in update):
@@ -2685,8 +2687,12 @@ def _call_tool(S, kind: str, o: dict, chosen: dict, req: dict, keys, confirmed, 
     elif kind == "pipeline":
         jobs = o.get("jobs") or {}
         allowed = jobs_permission(token_scopes(), None)["granted"] is not False     # n185: without the scope, neither runs
+        mark = req.get("plan_mark")
         token = S.PIPELINE_JOBS.set({"wait": 0, "schedule_ids": list(req.get("schedule_ids") or []),
-                                     "plan": req.get("plan_mark")})       # n200: the health rows name this review's plan
+                                     "plan": mark,                        # n200: the health rows name this review's plan
+                                     # W2: the plan marker goes on before Run once starts ("modified after this run")
+                                     **({"before_run": lambda ws, items: mark_items(ws, S._headers(None), items, mark)}
+                                        if mark and not dry_run else {})})
         try:
             text = S.create_pipeline(name=o["name"], silver_name=chosen.get("silver_notebook", ""), gold_name=chosen.get("gold_views", ""),
                                      run_once=bool(jobs.get("run_once")) and allowed,
@@ -2699,7 +2705,13 @@ def _call_tool(S, kind: str, o: dict, chosen: dict, req: dict, keys, confirmed, 
     elif kind == "ontology":
         text = S.create_ontology(name=o["name"], **layers, **common)
     elif kind == "data_agent":                                     # n185: one layer; publishing is decided after (agent_card)
-        text = S.create_data_agent(name=o["name"], publish=False, layer=(o.get("agent") or {}).get("layer", "silver"), **layers, **common)
+        from . import data_agent as _da
+        waits = _da.AFTER_RUN_WAITS if agent_waits(req, dry_run) else ()
+        token = _da.TABLE_WAITS.set(waits)                         # W2: tables selected once the endpoint lists them
+        try:
+            text = S.create_data_agent(name=o["name"], publish=False, layer=(o.get("agent") or {}).get("layer", "silver"), **layers, **common)
+        finally:
+            _da.TABLE_WAITS.reset(token)
     elif kind == "rayfin_app":                                     # n181: preflight first, then the package (rayfin_app.py)
         from . import rayfin_app
         from .deploy import write_and_wait, find_item
@@ -2727,6 +2739,13 @@ def _call_tool(S, kind: str, o: dict, chosen: dict, req: dict, keys, confirmed, 
     else:
         raise BadRequest(kind)
     return json.loads(text)
+
+
+def agent_waits(req: dict, dry_run: bool) -> bool:
+    """W2: the agent's tables are waited for (data_agent.TABLE_WAITS) when this request comes after the pipeline's run
+    succeeded (the editor's after_run) or is the card's Select tables now; never in a dry run, never at Create itself
+    (the run has not written the tables yet)."""
+    return not dry_run and ((req.get("after_run") or {}).get("status") == "Succeeded" or bool(req.get("select_tables")))
 
 
 ROLES_HOW = ("Proposed, not added: tick a role to add it to the model (the build's semantic_model output takes it as roles, "
@@ -3284,7 +3303,8 @@ def _build_many(req, S, rv, keys, confirmed, dry_run, scopes, app_id, chosen, ou
                         c["plan"] = mark                           # n180: outputs.json keeps what it was built from
                         ours.add(c["id"])
                     card.pop("confirm_update", None)
-                    if card["created"]:
+                    marked = kind == "pipeline" and "marked_before_run" in (answer.get("result") or {})
+                    if card["created"] and not marked:            # W2: the pipeline's items were marked before its run
                         mark_items(workspace, headers, card["created"], mark)
                     card["portal_steps"] = _portal_steps(kind, answer, chosen, built, chosen_jobs(req))
                     if kind == "data_agent" and card.get("agent"):    # n185: the state outputs.json keeps; Copilot's portal step
@@ -4055,6 +4075,36 @@ def _health_target(req: dict, headers: dict) -> dict | None:
             "products": [{"name": req["product_name"], "plan_id": plan}]}
 
 
+# W2 (Gustav, 23 November 2026: "red, 7 failed in the latest run" after a run that succeeded). A check that fails the
+# run (keys, orphans, the gold views' rows and sums, a missing table) raises in the check notebook, so after a run that
+# succeeded the failures can only be checks that do not stop it: freshness, a source table not written for more than
+# FRESHNESS_FAIL_INTERVALS schedule intervals (one day each without a schedule). Gustav's demo source was written days
+# before, so each of its seven tables failed freshness. The pipeline now writes that as a warning when it has no schedule
+# (health.health_spec "scheduled"), and the words say which checks failed and on what.
+CHECK_WORDS = {"freshness": "the source table was last written longer ago than the schedule allows",
+               "key": "a key is not unique or has NULLs", "orphans": "references without their row",
+               "join_rows": "a gold view does not keep its fact table's rows", "join_sums": "a gold view changes a sum",
+               "row_count": "a table or view is missing", "drift": "the source no longer matches the plan",
+               "proven": "a proven rule broke", "quarantine": "rows were set aside"}
+
+
+def failed_checks(findings: list[dict], most: int = 3) -> str:
+    """The failed findings by check, in one line: "freshness 7 (shop.addresses, shop.audit_log, shop.categories and 4
+    more: the source table was last written longer ago than the schedule allows)". "" when no finding names its check."""
+    by: dict[str, list[str]] = {}
+    for f in findings:
+        if f.get("status") == "fail" and f.get("check"):
+            by.setdefault(str(f["check"]), []).append(str(f.get("object") or ""))
+    parts = []
+    for check, objs in by.items():
+        named = [o for o in objs if o]
+        shown = ", ".join(named[:most]) + (f" and {len(named) - most} more" if len(named) > most else "")
+        why = CHECK_WORDS.get(check, "")
+        inside = "; ".join(x for x in (shown, why) if x)
+        parts.append(f"{check} {len(objs)}" + (f" ({inside})" if inside else ""))
+    return "; ".join(parts)
+
+
 def _with_word(out: dict) -> dict:
     """n200: the one product's word at the top, as the Data product page reads it (word, words, checked_at)."""
     p = (out.get("products") or [{}])[0]
@@ -4063,6 +4113,9 @@ def _with_word(out: dict) -> dict:
     words = ("every check passed in the latest run" if p.get("health") == "green" else
              ", ".join(x for x in (f"{fails} failed" if fails else "", f"{warns} warning(s)" if warns else "") if x) + " in the latest run"
              if p.get("findings") else "the pipeline has not written a health row for this plan yet")
+    detail = failed_checks(p.get("findings") or [])
+    if detail:
+        words += f": {detail}"                                      # W2: which checks failed, never just a number
     # n225: the run and the plan the word comes from, so the page never shows an older run's result as current
     return {**out, "word": p.get("health"), "status": p.get("health"), "words": words, "checked_at": p.get("checked_at"),
             "run_id": p.get("run_id"), "plan_id": p.get("plan_id")}

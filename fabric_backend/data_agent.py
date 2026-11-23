@@ -39,12 +39,34 @@ writing them, apply reads each example's validationStatus (Valid, Invalid, Valid
 """
 from __future__ import annotations
 
+import contextvars
+import time
+
 from . import privacy
 from .evidence import qi
 from .infer import Plan, RULES
 from .paths import shortest_paths, sql_for
 
 MAX_FEWSHOTS = 10
+
+# W2 (Gustav's Create of 23 November 2026 in another workspace: the agent's data source was the build lakehouse, rightly,
+# yet its card said "selected 0 of 7 tables in silver (silver)" after the pipeline's run had succeeded, Fabric showed "No
+# tables selected yet", and the examples were "Invalid object name 'silver.order_items'"). The data source's schema tree
+# (Staging_ListDatasourceElements) and the examples' validation both go through the lakehouse's SQL analytics endpoint,
+# whose metadata sync finds new Delta tables some time after they are written ("SQL analytics endpoint metadata sync",
+# Learn, data-engineering/sql-analytics-endpoint-metadata-sync.md, ms.date 2026-11-09: "The SQL analytics endpoint
+# automatically detects the change and updates its SQL metadata via a background process"). At Create the tables do not
+# exist yet; right after the run they may not be listed yet. So the Model editor's call after the run (and its "Select
+# tables now") sets TABLE_WAITS: when the chosen layer's tables are not all in the tree, apply asks Fabric once to refresh
+# the endpoint's metadata (the same article: "Refresh with the REST API ... Refresh SQL analytics endpoint metadata",
+# POST /v1/workspaces/{ws}/sqlEndpoints/{id}/refreshMetadata; best effort, its failure is only reported) and reads the
+# tree again after each wait, at most len(TABLE_WAITS) more times. Never a loop without an end.
+TABLE_WAITS: contextvars.ContextVar[tuple] = contextvars.ContextVar("krusgraph_agent_table_waits", default=())
+AFTER_RUN_WAITS = (10, 20, 30)                                    # seconds; one minute in all, then the card says why
+METADATA_DOC = "https://learn.microsoft.com/fabric/data-engineering/sql-analytics-endpoint-metadata-sync#manual-refresh"
+# Krusgraph's own tables in a layer's schema (the silver notebook's quarantine; health has a schema of its own): never
+# selected for the agent, and deselected when Fabric shows them selected.
+OWN_TABLE_PREFIX = "krusgraph_"
 
 
 def personal(plan: Plan, show: bool = False) -> dict[tuple[str, str], dict]:
@@ -215,7 +237,8 @@ class RestError(Exception):
         self.what, self.status, self.body = what, status, body
 
 
-def apply(spec: dict, workspace: str, headers: dict, publish: bool = True, poll_seconds: int = 3, max_polls: int = 60) -> dict:
+def apply(spec: dict, workspace: str, headers: dict, publish: bool = True, poll_seconds: int = 3, max_polls: int = 60,
+          sleep=time.sleep) -> dict:
     """Create or update the agent from a draft. Idempotent: the agent, its data source and its few-shots are matched by
     name / item / question and updated in place; nothing is deleted. Returns a step log and the agent id."""
     import requests
@@ -253,6 +276,10 @@ def apply(spec: dict, workspace: str, headers: dict, publish: bool = True, poll_
     ds_id = ds.get("id")
     elements_url = f"{stage}/datasources/{ds_id}/elements"
     tree = _tree(requests, headers, elements_url)                    # n185: one walk, every table with its schema
+    waited = None
+    waits = tuple(TABLE_WAITS.get() or ())
+    if waits and tree is not None and missing_tables(preferred_layer(spec), tree):   # W2: the endpoint has not listed them yet
+        tree, waited = wait_for_tables(requests, headers, elements_url, spec, tree, waits, sleep)
     layer = choose_layer(spec, tree)
     use = layer or {"instructions": spec["instructions"], "datasource_instructions": spec["datasource_instructions"],
                     "datasource_description": spec.get("datasource_description"), "fewshots": spec["fewshots"]}
@@ -261,6 +288,12 @@ def apply(spec: dict, workspace: str, headers: dict, publish: bool = True, poll_
     _check(requests.patch(f"{stage}/datasources/{ds_id}", headers=headers, json={"instructions": use["datasource_instructions"], **({"description": use["datasource_description"]} if use.get("datasource_description") else {})}, timeout=60), "setting data source instructions")
     log.append("data source instructions set")
     selection = select_layer(requests, headers, elements_url, tree, spec, layer)
+    if waited:
+        selection["waited"] = waited
+        if selection.get("missing"):
+            selection["words"] += (f". The lakehouse's SQL analytics endpoint did not list them after {waited['attempts']} reading(s) "
+                                   f"over about {waited['seconds']} s (its metadata sync is behind the run's writes); "
+                                   "choose Select tables now on this card in a minute")
     log.append(selection["words"])
     topics = use.get("topics") if layer else spec.get("topics")
     log.append(write_topics(requests, headers, f"{stage}/datasources/{ds_id}/topics", topics or []))
@@ -338,6 +371,68 @@ def _tree(requests, headers: dict, url: str) -> list[dict] | None:
         return None
 
 
+def preferred_layer(spec: dict) -> dict | None:
+    """The layer the agent is meant to read: the draft's first (silver or gold before the source); None without layers."""
+    layers = spec.get("layers") or []
+    return layers[0] if layers else None
+
+
+def missing_tables(layer: dict | None, tree: list[dict] | None) -> list[str]:
+    """W2: the layer's tables the schema tree does not list (in its schema, of its kinds), in the layer's order."""
+    if not layer or tree is None or layer.get("layer") == "source":
+        return []
+    have = {e.get("displayName", "").lower() for e in tree
+            if e["schema"].lower() == layer["schema"].lower() and e.get("type") in layer["kinds"]}
+    return [t for t in layer["tables"] if t.lower() not in have]
+
+
+def refresh_sql_metadata(requests, headers: dict, spec: dict, poll_seconds: int = 3, max_polls: int = 10) -> dict:
+    """W2: ask Fabric once to sync the SQL analytics endpoint of the agent's lakehouse with its Delta tables (Learn,
+    sql-analytics-endpoint-metadata-sync.md, "Manual refresh"; the endpoint's id is the lakehouse's
+    properties.sqlEndpointProperties.id, deploy.sql_endpoint_id_for_lakehouse). Best effort: {status, ...} says how it
+    went and nothing is raised. Only a LakehouseTables data source has such an endpoint."""
+    from .deploy import FABRIC, wait_operation
+    ref = (spec.get("datasource") or {}).get("lakehouseReference") or {}
+    if (spec.get("datasource") or {}).get("type") != "LakehouseTables" or not ref.get("itemId") or not ref.get("workspaceId"):
+        return {"status": "not_asked", "why": "the data source is not a lakehouse"}
+    ws = ref["workspaceId"]
+    try:
+        r = requests.get(f"{FABRIC}/v1/workspaces/{ws}/lakehouses/{ref['itemId']}", headers=headers, timeout=30)
+        ep = ((_check(r, "reading the lakehouse").get("properties") or {}).get("sqlEndpointProperties") or {}).get("id")
+        if not ep:
+            return {"status": "not_asked", "why": "the lakehouse has no SQL analytics endpoint id yet"}
+        r = requests.post(f"{FABRIC}/v1/workspaces/{ws}/sqlEndpoints/{ep}/refreshMetadata", headers=headers, json={}, timeout=60)
+        if r.status_code >= 400:
+            return {"status": "refused", "http": r.status_code, "doc": METADATA_DOC}
+        op = (getattr(r, "headers", None) or {}).get("x-ms-operation-id")
+        if op and r.status_code == 202:
+            done = wait_operation(op, headers, poll_seconds, max_polls)
+            return {"status": str(done.get("status") or "Unknown").lower(), "doc": METADATA_DOC}
+        return {"status": "succeeded", "doc": METADATA_DOC}
+    except Exception as exc:  # noqa: BLE001 — the waits below still read the tree again
+        return {"status": "failed", "why": type(exc).__name__, "doc": METADATA_DOC}
+
+
+def wait_for_tables(requests, headers: dict, url: str, spec: dict, tree: list[dict], waits: tuple, sleep=time.sleep
+                    ) -> tuple[list[dict] | None, dict]:
+    """W2: the schema tree read again after each of `waits` (seconds) until the preferred layer's tables are all listed;
+    the endpoint's metadata refresh asked for once first. (tree, {attempts, seconds, refresh, missing}). Bounded by
+    `waits`: never more readings than it has entries, plus the first."""
+    want = preferred_layer(spec)
+    refresh = refresh_sql_metadata(requests, headers, spec)
+    attempts, seconds = 1, 0
+    for w in waits:
+        sleep(w)
+        seconds += w
+        attempts += 1
+        again = _tree(requests, headers, url)
+        if again is not None:
+            tree = again
+        if not missing_tables(want, tree):
+            break
+    return tree, {"attempts": attempts, "seconds": seconds, "refresh": refresh, "missing": missing_tables(want, tree)}
+
+
 def choose_layer(spec: dict, tree: list[dict] | None) -> dict | None:
     """The first of the draft's layers whose tables are all in the tree (silver before the source); None without layers."""
     layers = spec.get("layers") or []
@@ -364,7 +459,8 @@ def select_layer(requests, headers: dict, url: str, tree: list[dict] | None, spe
     want = {t.lower() for t in ((layer or {}).get("tables") or spec["tables_to_select"])}
     kinds = (layer or {}).get("kinds") or ("Table",)
     others = {lay["schema"].lower(): {t.lower() for t in lay["tables"]} for lay in spec.get("layers") or [] if lay["schema"].lower() != want_schema.lower()}
-    selected = deselected = 0
+    selected = deselected = own_off = 0
+    found: set[str] = set()
     for el in tree:
         sch, nm = el["schema"].lower(), el.get("displayName", "").lower()
         mine = sch == want_schema.lower() or not el["schema"]       # a tree without Schema nodes: one schema, matched by name
@@ -372,15 +468,24 @@ def select_layer(requests, headers: dict, url: str, tree: list[dict] | None, spe
             if not el.get("isSelected"):
                 _check(requests.patch(url, headers=headers, params={"id": el["id"]}, json={"isSelected": True}, timeout=60), "selecting a table")
             selected += 1
+            found.add(nm)
+        elif mine and nm.startswith(OWN_TABLE_PREFIX) and el.get("isSelected"):
+            # W2: Krusgraph's own table beside the layer's (silver.krusgraph_quarantine) is never one the agent reads
+            _check(requests.patch(url, headers=headers, params={"id": el["id"]}, json={"isSelected": False}, timeout=60), "deselecting a table")
+            own_off += 1
         elif sch in others and nm in others[sch] and el.get("isSelected"):
             _check(requests.patch(url, headers=headers, params={"id": el["id"]}, json={"isSelected": False}, timeout=60), "deselecting a table")
             deselected += 1
     still = [e for e in tree if e.get("isSelected") and e["schema"].lower() in others and e.get("displayName", "").lower() in others[e["schema"].lower()]]
     name = (layer or {}).get("layer", "source")
-    return {"layer": name, "schema": want_schema, "selected": selected, "deselected": deselected,
+    tables = (layer or {}).get("tables") or spec["tables_to_select"]
+    missing = [t for t in tables if t.lower() not in found]          # W2: not listed by the data source's tree (yet)
+    return {"layer": name, "schema": want_schema, "selected": selected, "deselected": deselected, "total": len(want),
+            "missing": missing, **({"own_deselected": own_off} if own_off else {}),
             "one_layer": selected == len(want) and not (still and deselected < len(still)),
             "words": f"selected {selected} of {len(want)} tables in {want_schema or 'the lakehouse'} ({name})"
-                     + (f"; deselected {deselected} of the same tables in other layers" if deselected else "")}
+                     + (f"; deselected {deselected} of the same tables in other layers" if deselected else "")
+                     + (f"; not listed yet: {', '.join(missing)}" if missing and selected < len(want) else "")}
 
 
 def example_status(requests, headers: dict, url: str, questions: list[str]) -> dict:

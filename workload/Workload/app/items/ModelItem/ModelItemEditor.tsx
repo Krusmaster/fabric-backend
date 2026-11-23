@@ -102,6 +102,7 @@ import {
   readDraft, recover, recoveredWords, resolve, revisionOf, stamp, writeDraft,
 } from "./autosave";
 import { SaveIndicator } from "./SaveIndicator";
+import { selectOnReopen, selectTablesExtra, selectTriesOf } from "./afterRun";
 import { CreatedItem, ItemCache, RemovedItem, ReviewFile } from "./ModelItemDefinition";
 import { CsnUpload } from "./csnUpload";
 import { SapDemoAnswer } from "./SapViews";
@@ -1039,6 +1040,60 @@ export function ModelItemEditor(props: PageProps) {
     }
   }
 
+  /** W2: the pipeline run this item knows last: the live card's, else the newest run outputs.json recorded. */
+  function currentRun(): engine.PipelineRun | undefined {
+    const live = cardsRef.current.find((c) => c.output === "pipeline")?.jobs?.run;
+    if (live) return live;
+    const rec = (defRef.current.outputs.pipeline_jobs?.runs ?? []).slice(-1)[0];
+    return rec ? { status: rec.status as engine.PipelineRun["status"], run_id: rec.run_id, started: rec.started } : undefined;
+  }
+
+  /** W2: the data agent's step again with its tables waited for and selected (the engine's bounded wait), once per click,
+   * at most MAX_SELECT_TRIES clicks. Nothing else is written. */
+  async function selectTables(card: engine.BuildCard) {
+    const d = defRef.current;
+    const outputs = readRun(d.outputs.create_run)?.outputs ?? toRequests(choices, d.outputs.created);
+    const o = outputs.find((x) => x.kind === "data_agent");
+    if (!o) return;
+    await update((x) => ({ ...x, outputs: { ...x.outputs,                     // counted first: a lost answer still counts
+      agent_tables: { tries: selectTriesOf(x.outputs.agent_tables) + 1, at: new Date().toISOString() } } }));
+    setUpdating(true);
+    replaceCard({ ...pendingCard(o, "running", card) });
+    try {
+      const a = await sendStep(o, d.outputs.created, outputs, sourceRequest(d), NOTHING_KNOWN, selectTablesExtra(currentRun()));
+      const got = a.outputs.find((c) => c.output === "data_agent");
+      replaceCard(got ? { ...got, status: "done" } : card);
+    } catch (e) {
+      replaceCard({ ...card, status: "done" });
+      setError(e instanceof engine.EngineCallError ? e.answer : { error: String((e as Error)?.message ?? e), kind: "unexpected" });
+    } finally {
+      setUpdating(false);
+    }
+    const at = new Date().toISOString();
+    await update((x) => ({ ...x, outputs: { ...x.outputs, last_create: lastCreateOf(cardsRef.current, metaRef.current?.displayName ?? "", at) } }));
+  }
+
+  /** W2: Refresh now on a semantic model this item built whose refresh failed or did not run: the same refresh_only step
+   * the run's success sends. */
+  async function refreshModel(card: engine.BuildCard) {
+    const d = defRef.current;
+    const outputs = readRun(d.outputs.create_run)?.outputs ?? toRequests(choices, d.outputs.created);
+    const o = outputs.find((x) => x.kind === "semantic_model");
+    if (!o) return;
+    setUpdating(true);
+    try {
+      const a = await sendStep(o, d.outputs.created, outputs, sourceRequest(d), NOTHING_KNOWN, { refresh_only: true });
+      const r = a.outputs[0]?.refresh;
+      if (r) replaceCard({ ...card, refresh: r });
+    } catch (e) {
+      replaceCard({ ...card, refresh: { status: "failed", reason: e instanceof engine.EngineCallError ? e.answer.error : String(e) } });
+    } finally {
+      setUpdating(false);
+    }
+    const at = new Date().toISOString();
+    await update((x) => ({ ...x, outputs: { ...x.outputs, last_create: lastCreateOf(cardsRef.current, metaRef.current?.displayName ?? "", at) } }));
+  }
+
   /** ED2: Fix and finish: only the outputs not built (failed, no answer, stopped, or waiting for one that failed), in
    * the build order, through the same createEach as Create, starting from what this item built (reused, never sent
    * again); a lakehouse the dry run planned is made by the first step that needs it. */
@@ -1090,6 +1145,10 @@ export function ModelItemEditor(props: PageProps) {
       cardsRef.current = cards;
       const thisRun = run ? cards.flatMap((c) => c.created ?? []) : loaded.outputs.created;
       setResult({ ...f, outputs: cards, product: f.product ? { ...f.product, items: markEarlier(f.product.items as engine.CreatedRef[], thisRun) } as engine.DataProduct : undefined });
+      // W2: the run succeeded while the item was closed (or the endpoint had not listed the tables yet): the agent's
+      // tables are selected again now, counted with the clicks so that reopening never loops
+      const agent = cards.find((c) => c.output === "data_agent");
+      if (selectOnReopen(agent, selectTriesOf(loaded.outputs.agent_tables), currentRun())) void selectTables(agent!);
     } catch (e) {
       setNotice(isBusy(e) ? BUSY_LINE : `The last Create's cards could not be read again (${e instanceof engine.EngineCallError ? e.answer.error : String(e)}); what was built is listed below.`);
     }
@@ -1458,6 +1517,10 @@ export function ModelItemEditor(props: PageProps) {
             onUpdate={updateCard}
             onNewName={newNameForCard}
             onRetry={retryCard}
+            onSelectTables={(c) => void selectTables(c)}
+            selectTries={selectTriesOf(def.outputs.agent_tables)}
+            onRefreshModel={(c) => void refreshModel(c)}
+            run={currentRun()}
             onCreateRest={() => void createRest()}
             onCleanUp={(ids) => void cleanUpEarlier(ids)}
             notice={notice}

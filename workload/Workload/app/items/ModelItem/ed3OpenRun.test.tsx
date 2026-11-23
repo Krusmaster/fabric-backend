@@ -27,7 +27,7 @@ const LH = "33333333-3333-3333-3333-333333333333";
 
 describe("Open in Fabric: the item's own page, per item type", () => {
   it.each([
-    ["Notebook", "synapsenotebooks"], ["DataPipeline", "pipelines"], ["Report", "reports"], ["SemanticModel", "semanticmodels"],
+    ["Notebook", "synapsenotebooks"], ["DataPipeline", "pipelines"], ["Report", "reports"], ["DataAgent", "aiskills"],
     ["Lakehouse", "lakehouses"], ["GraphQLApi", "graphql"], ["Ontology", "ontologies"],
   ])("%s opens /groups/<ws>/%s/<id>", (type, path) => {
     expect(fabricItemUrl({ id: NB, workspaceId: WS, type })).toBe(`${FABRIC_PORTAL}/groups/${WS}/${path}/${NB}`);

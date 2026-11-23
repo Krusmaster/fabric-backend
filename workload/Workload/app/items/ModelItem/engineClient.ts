@@ -266,7 +266,10 @@ export interface AgentCard {
   publish: boolean;
   copilot: boolean;
   where_examples: string;
-  selection?: { layer: string; schema: string; selected: number | null; deselected: number; one_layer: boolean; words: string };
+  selection?: { layer: string; schema: string; selected: number | null; deselected: number; one_layer: boolean; words: string;
+    /** W2: the layer's table count, the tables the data source's tree did not list (yet), and the bounded wait after the run */
+    total?: number; missing?: string[]; own_deselected?: number;
+    waited?: { attempts: number; seconds: number; missing: string[]; refresh?: { status: string; http?: number; why?: string; doc?: string } } };
   examples?: { status: string; count?: number; valid?: number; invalid?: number; validating?: number; invalid_examples?: { question: string; reason?: string }[];
     /** n197: not_checked: why (the run writes the tables) */
     words?: string; rechecked?: number;
@@ -883,7 +886,7 @@ export function buildOne(
     workloadClient,
     "build",
     { ...source, outputs, only: [output.kind], review: reviewFile, dry_run: false, product: null, created,
-      skip_built: !extra.after_run, ...extra },
+      skip_built: !(extra.after_run || extra.select_tables), ...extra },
     BUILD_WAIT_MS,
     fetchImpl,
     opts
@@ -899,6 +902,8 @@ export interface StepExtra {
   create_id?: string;
   pending?: PendingItem[];
   refresh_only?: boolean;
+  /** W2: the agent card's Select tables now: the agent's step again, its tables waited for (bounded) and selected */
+  select_tables?: boolean;
 }
 
 /** n197: an item a Create sent to Fabric, recorded before its answer (outputs.json pending). */
