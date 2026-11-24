@@ -89,6 +89,8 @@ export interface CreatedItem {
   attached?: string;
   /** n185: a data agent Krusgraph published in Fabric */
   published?: boolean;
+  /** W4: what a data agent reads (workload_api._created_ids): the layer first, and whether the source until it is filled */
+  reads?: { layer: "silver" | "gold" | "source"; schema: string; fallback?: boolean };
   /** n197: in the data product, an item an earlier Create of this item built */
   earlier?: boolean;
   /** n198: a leftover adopted on the Data product page: when and by whom */

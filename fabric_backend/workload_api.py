@@ -2720,7 +2720,13 @@ def _created_ids(kind: str, a: dict, chosen: dict, workspace: str, o: dict, req:
         return out
     if kind == "data_agent":
         rid = res.get("id") or res.get("agent_id")
-        return [{"type": typ, "id": rid, "name": o["name"], "workspace": workspace, "output": kind}] if res.get("status") == "Succeeded" and rid else []
+        if not (res.get("status") == "Succeeded" and rid):
+            return []
+        item = {"type": typ, "id": rid, "name": o["name"], "workspace": workspace, "output": kind}
+        lay = agent_layer({"answer": a})                           # W4: outputs.json keeps what the agent reads
+        item["reads"] = ({"layer": lay["layer"], "schema": lay["schema"], "fallback": lay["fallback"]} if lay else
+                         {"layer": "source", "schema": req["schema"]})
+        return [item]
     if res.get("status") == "Succeeded" and res.get("id"):
         return [{"type": typ, "id": res["id"], "name": o["name"], "workspace": workspace, "output": kind}]
     return []
@@ -2902,16 +2908,53 @@ def _product(req: dict, rv: dict, p, cards: list[dict], dry_run: bool) -> dict:
 # what the agent does (create_data_agent's layer answer: the layer's tables are selected when they are in the
 # lakehouse, the source's otherwise); the box and the note now say the same. Words only.
 _AGENT_LAYER = re.compile(r"^The agent reads the (silver tables|gold views) in ([A-Za-z0-9_]+) only\b")
+_AGENT_SOURCE = re.compile(r"^The agent reads the source tables in ")
 
 
-def agent_reads(card: dict, schema: str) -> str | None:
-    """The data agent's box line when its card reads a layer first ("reads the silver tables in silver when they are
-    filled; until then the source tables in shop"); None when it reads the source tables (the line stays as it was)."""
+# W4 (Gustav's tenant test, 24 November 2026): the Data product page and its flow still said the data agent reads the
+# source tables (bronze), although it selects the silver tables. The finish (no tool runs) and a card "already built,
+# skipped" carry no layer words, so the box fell back to the source. What the agent reads now comes from the recorded
+# build, in this order: the card's own words, the created item's `reads` (outputs.json), the request's layer choice.
+def agent_layer(card: dict, req: dict | None = None) -> dict | None:
+    """What the data agent reads first: {layer: silver|gold, schema, fallback: reads the source until then}, or None when
+    it reads the source tables."""
     words = str(((card.get("agent") or {}).get("layer_words")) or ((card.get("answer") or {}).get("layer")) or "")
     m = _AGENT_LAYER.match(words)
-    if not m:
+    if m:
+        return {"layer": m.group(1).split(" ")[0], "schema": m.group(2), "fallback": "otherwise the source tables" in words}
+    if _AGENT_SOURCE.match(words):
         return None
-    return f"reads the {m.group(1)} in {m.group(2)} when they are filled; until then the source tables in {schema}"
+    for c in card.get("created") or []:                            # recorded by _created_ids at Create
+        r = c.get("reads") if isinstance(c, dict) else None
+        if isinstance(r, dict) and r.get("layer") in ("silver", "gold", "source"):
+            return None if r["layer"] == "source" else {"layer": r["layer"], "schema": r.get("schema") or r["layer"],
+                                                        "fallback": bool(r.get("fallback"))}
+    if req is None:
+        return None
+    o = next((x for x in req.get("outputs") or [] if x.get("kind") == "data_agent"), None)
+    if o is None:
+        return None
+    layer = (o.get("agent") or {}).get("layer", "silver")          # the editor's default (_call_tool)
+    if layer not in ("silver", "gold"):
+        return None
+    from . import layer_schemas as _ls
+    schema = req.get(f"{layer}_schema") or (_ls.DEFAULT_SILVER if layer == "silver" else _ls.DEFAULT_GOLD)
+    target = str((req.get("target") or {}).get("workspace") or "").lower()   # n221: built in another workspace: no fallback
+    return {"layer": layer, "schema": schema, "fallback": not target or target == str(req.get("workspace") or "").lower()}
+
+
+def agent_layer_line(lay: dict, schema: str) -> str:
+    what = "silver tables" if lay["layer"] == "silver" else "gold views"
+    if lay.get("fallback"):
+        return f"reads the {what} in {lay['schema']} when they are filled; until then the source tables in {schema}"
+    return f"reads the {what} in {lay['schema']}, once they are filled; never the source tables"
+
+
+def agent_reads(card: dict, schema: str, req: dict | None = None) -> str | None:
+    """The data agent's box line when it reads a layer first ("reads the silver tables in silver when they are filled;
+    until then the source tables in shop"); None when it reads the source tables (the line stays as it was)."""
+    lay = agent_layer(card, req)
+    return agent_layer_line(lay, schema) if lay else None
 
 
 def _flow(req: dict, p, chosen: dict, cards: list[dict], keys, confirmed) -> dict | None:
@@ -2937,12 +2980,12 @@ def _flow(req: dict, p, chosen: dict, cards: list[dict], keys, confirmed) -> dic
         reads = f"reads the source tables in {req['schema']} (bronze) directly"
         if "gold_views" in chosen:                                 # n179: said plainly when gold views are built in the same run
             reads += ", not the gold views built in this run"
-        layer = agent_reads(c, req["schema"]) if c["output"] == "data_agent" else None
-        if layer:                                                  # W1: the agent's own card says what it reads; the box agrees
-            reads = layer
+        lay = agent_layer(c, req) if c["output"] == "data_agent" else None
+        if lay:                                                    # W1/W4: what the agent reads, from the recorded build
+            reads = agent_layer_line(lay, req["schema"])
         it = {"output": c["output"], "label": c["label"], "name": c["name"], "reads": reads}
-        if layer:
-            it["layer_first"] = True
+        if lay:
+            it.update(layer_first=lay["layer"], fallback=bool(lay.get("fallback")))
         if c["output"] == "semantic_model" and og:                 # DPM1: built on gold, a line from each gold view it reads
             it.update(reads=og["said"], on_gold=[f"{og['schema']}.{t}".lower() for t in og["kinds"]])
         if c["output"] == "semantic_model" and isinstance((c.get("answer") or {}).get("parts"), dict):
@@ -3925,9 +3968,9 @@ def run_verify(req: dict) -> dict:
     ws = next((c["workspace"] for c in req["created"] if _GUID.match(c.get("workspace") or "")), None)
     cross = bool(ws) and ws.lower() != str(req["workspace"]).lower()
     skip = {}
-    if cross and "pipeline" in items:                              # n221: silver and gold then live in a lakehouse of the build's workspace
-        skip["pipeline"] = ("this Model builds in another workspace than its source, and the verifier compares a pipeline and its "
-                            "notebooks only where the source is; open the pipeline's latest run instead")
+    # W4: a build in another workspace is verified there too: the pipeline's dry run is rebuilt for the lakehouse its
+    # notebooks are attached to (recorded at Create), else that workspace's first lakehouse by name, as Create's default
+    attached = next((c.get("attached") for c in reversed(req["created"]) if c.get("type") == "Notebook" and c.get("attached")), "")
     if not items:
         return _with_schema({"label": "A check by rules, not a review by AI.", "summary": "Nothing to verify yet: this Model has built "
                              "no semantic model, report, ontology, API, pipeline or App.", "lines": [], "counts": {"items": 0},
@@ -3941,7 +3984,8 @@ def run_verify(req: dict) -> dict:
             from . import budget
             with budget.call():
                 out = S._verify_built(req["workspace"], req["source"], items, req["schema"], keys, confirmed, None, None, skip=skip,
-                                      silver_schema=req.get("silver_schema") or "")
+                                      silver_schema=req.get("silver_schema") or "", build_lakehouse=attached if cross else "",
+                                      gold_schema=req.get("gold_schema") or "")
     finally:
         S.BUILD_IN.reset(build_in)
     out.pop("review_by_ai", None)                                  # the editor has no AI client beside it

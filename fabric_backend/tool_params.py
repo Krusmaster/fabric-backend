@@ -48,6 +48,7 @@ DryRun = Annotated[bool, _d(
 RefreshOnce = Annotated[bool, _d('true: refresh the model once (dry_run=false). Default false.')]
 VerifyItems = Annotated[dict[str, str], _d(
     'Built items by kind (semantic_model, report, ontology, api, pipeline, app). Example: {"report": "shop_report"}.')]
+VerifySourceWorkspace = Annotated[str, _d('Source workspace, if not `workspace`.')]
 CreateCheck = Annotated[str, _d('After a create answered started: its operation id, or "name". Reads how it went; creates nothing.')]
 ShowPersonalData = Annotated[bool, _d(
     'true includes columns named like personal data; false (default) masks or omits them.')]

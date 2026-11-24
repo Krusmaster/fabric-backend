@@ -66,6 +66,10 @@ except ImportError as e:  # pragma: no cover
 FABRIC_SCOPE = "https://api.fabric.microsoft.com/.default"
 SQL_SCOPE = "https://database.windows.net/.default"
 POWERBI_SCOPE = "https://analysis.windows.net/powerbi/api/.default"     # n229: refresh history, DAX queries, one refresh
+# W4 (Gustav's tenant test, 24 November 2026: the refresh history answered HTTP 401): the two Power BI reads ask for the
+# delegated permission they need by name, Dataset.Read.All, and fall back to .default (a consented
+# Dataset.ReadWrite.All reads too). Without either, verify_build answers kind consent naming Dataset.Read.All.
+POWERBI_READ_SCOPE = "https://analysis.windows.net/powerbi/api/Dataset.Read.All"
 POWERBI = "https://api.powerbi.com/v1.0/myorg"
 
 from .discovery import package_version as _package_version  # noqa: E402
@@ -258,7 +262,7 @@ class Auth:
         t = h.get("x-onelake-token") or h.get("X-OneLake-Token")
         return t.strip() if t else None
 
-    def powerbi(self, ctx: Context | None) -> str:
+    def powerbi(self, ctx: Context | None, read: bool = False) -> str:
         """n229: a token for the Power BI REST API (a model's refresh history and its DAX queries, verify_build; one
         refresh, create_semantic_model refresh=true). The workload's own exchange inside a workload request; in Entra
         mode the same on-behalf-of exchange as fabric() for the Power BI audience; else the request's bearer, or client
@@ -266,6 +270,12 @@ class Auth:
         if (w := _WORKLOAD_TOKENS.get()) is not None:
             return w.powerbi()
         if self.entra:
+            if read:                                       # W4: Dataset.Read.All by name, else what .default carries
+                from .entra import TokenError
+                try:
+                    return self._user_token(ctx, POWERBI_READ_SCOPE)
+                except TokenError:
+                    pass
             return self._user_token(ctx, POWERBI_SCOPE)
         tok = self._bearer(ctx)
         return tok if tok else self._client_credentials(POWERBI_SCOPE)
@@ -2880,9 +2890,11 @@ def _layer_words(spec: dict, layer: str) -> str:
         return (f"The agent reads the source tables in {spec['schema']} only."
                 + ("" if layer == "source" else f" The {layer} layer needs a lakehouse with schemas; this one has none."))
     first = spec["layers"][0]
-    return (f"The agent reads the {first['layer']} {'views' if first['layer'] == 'gold' else 'tables'} in {first['schema']} only "
-            f"({'gold views: one wide view per fact table' if first['layer'] == 'gold' else 'cleaned, keys and links held'}), "
-            f"when they are in the lakehouse; otherwise the source tables in {spec['schema']}. Never two layers at once.")
+    head = (f"The agent reads the {first['layer']} {'views' if first['layer'] == 'gold' else 'tables'} in {first['schema']} only "
+            f"({'gold views: one wide view per fact table' if first['layer'] == 'gold' else 'cleaned, keys and links held'}), ")
+    if not any(x.get("layer") == "source" for x in spec["layers"]):   # W4: a layer in another lakehouse has no fallback
+        return head + "once they are in the lakehouse; the source tables are not in that lakehouse, so it never reads them. Never two layers at once."
+    return head + f"when they are in the lakehouse; otherwise the source tables in {spec['schema']}. Never two layers at once."
 
 
 # DA2: what a person reads in the dry run and after Create (docs/DATA-AGENT-TOPICS-TEMPLATES.md)
@@ -4133,7 +4145,8 @@ VERIFY_ORDER = ("semantic_model", "report", "ontology", "api", "pipeline", "app"
 
 
 def _powerbi_headers(ctx) -> dict:
-    return {"Authorization": f"Bearer {auth.powerbi(ctx)}", "Content-Type": "application/json"}
+    """The two reads' headers (refresh history, DAX): a token asked for with Dataset.Read.All (W4)."""
+    return {"Authorization": f"Bearer {auth.powerbi(ctx, read=True)}", "Content-Type": "application/json"}
 
 
 def _powerbi_refreshes(workspace_id: str, model_id: str, ctx) -> list[dict]:
@@ -4212,8 +4225,55 @@ def _pipeline_schemas_from(lay: dict) -> str:
     return "as the notebooks' parameters set them"
 
 
+def _verify_model_basis(p, info: dict, workspace, source, schema, keys, confirmed, tables, name: str, actual: dict,
+                        silver_schema: str, gold_schema: str, pipeline: str, ctx) -> tuple[dict | None, str, str]:
+    """W4: (the dry run's draft, the sentence saying which dry run it is, a reason it could not be made). The model is
+    compared with what create_semantic_model's dry run said: on the gold views when the model in Fabric reads the gold
+    schema (verify_build.model_basis), built where Create builds them (another workspace's lakehouse included); else
+    on the plan's tables, as before."""
+    lay = _layers(info, silver_schema, gold_schema, pipeline, ctx, need=not (gold_schema or "").strip())
+    if _verify.model_basis(_verify.model_schemas(actual), lay["gold"]) == "gold":
+        tok = MODEL_ON_GOLD.set({"silver_schema": lay["silver"], "gold_schema": lay["gold"]})
+        try:
+            _, ginfo, gspec, refusal = _gold(workspace, source, schema, lay["silver"], lay["gold"], keys, confirmed, None, False, ctx)
+            if refusal:
+                return None, "", "its dry run on the gold views could not be made: " + str((json.loads(refusal) or {}).get("error"))
+            draft = _semantic_model.draft_on_gold(p, ginfo, gspec, name, checked_validation(p),
+                                                  predictions=_prediction_tables(ginfo, gspec["gold_schema"], ctx))
+        finally:
+            MODEL_ON_GOLD.reset(tok)
+        return draft, (f"Compared with the dry run of a build with gold views: the model on the gold views in "
+                       f"{ginfo['item_name']} ({gspec['gold_schema']}), as the model in Fabric reads them."), ""
+    return (_semantic_model.draft(p, info, name, tables),
+            f"Compared with the dry run on the plan's tables in {info.get('item_name')} ({schema}).", "")
+
+
 def _verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx, skip: dict | None = None,
-                  silver_schema: str = "") -> dict:
+                  silver_schema: str = "", source_workspace: str = "", build_lakehouse: str = "", gold_schema: str = "") -> dict:
+    """W4 (Gustav's tenant test, 24 November 2026: source in one workspace, the build in another): `workspace` is where
+    the items were built; `source_workspace`, when given and different, is where the source is read. The build's
+    workspace is then set as Create sets it (BUILD_IN), so the dry runs are rebuilt for a build in another workspace,
+    with silver and gold in `build_lakehouse` (else that workspace's first lakehouse by name, as Create's default)."""
+    src_ws = (source_workspace or "").strip() or workspace
+    build_tok = target_tok = None
+    if (source_workspace or "").strip() and BUILD_IN.get() is None:
+        headers = _headers(ctx)
+        built_in, read_in = _workspace_id(workspace, headers), _workspace_id(src_ws, headers)
+        if str(built_in).lower() != str(read_in).lower():
+            build_tok = BUILD_IN.set(str(built_in).lower())
+    if BUILD_IN.get() is not None and WRITE_TARGET.get() is None:
+        target_tok = WRITE_TARGET.set({"lakehouse": build_lakehouse.strip()} if (build_lakehouse or "").strip() else {})
+    try:
+        return _verify_built_in(src_ws, source, items, schema, keys, confirmed, tables, ctx, skip, silver_schema, gold_schema)
+    finally:
+        if target_tok is not None:
+            WRITE_TARGET.reset(target_tok)
+        if build_tok is not None:
+            BUILD_IN.reset(build_tok)
+
+
+def _verify_built_in(workspace, source, items, schema, keys, confirmed, tables, ctx, skip: dict | None, silver_schema: str,
+                     gold_schema: str) -> dict:
     from . import budget as _budget, model_compare as _mc
     from .infer import PlanInputError
     if not isinstance(items, dict) or not items:
@@ -4290,12 +4350,17 @@ def _verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx
                     lines.append(_verify.line(kind, shown, not_checked=skip[kind]))
                     continue
                 if kind == "semantic_model":
-                    draft = _semantic_model.draft(p, info, shown, tables)
-                    cmp = _verify.compare_model(draft["parts"], model_of(item), draft["summary"].get("combined_key_columns"))
+                    actual = model_of(item)
+                    draft, basis, refused = _verify_model_basis(p, info, workspace, source, schema, keys, confirmed, tables, shown,
+                                                                actual, silver_schema, gold_schema, items.get("pipeline", ""), ctx)
+                    if refused:
+                        lines.append(_verify.line(kind, shown, not_checked=refused))
+                        continue
+                    cmp = _verify.compare_model(draft["parts"], actual, draft["summary"].get("combined_key_columns"))
                     figs = doubles = None
                     if "report" not in items:                              # without a report the model's own measures are the figures
                         figs, doubles = figures_for(cmp["model"], None, item["id"])
-                    lines.append(_verify.line(kind, shown, cmp, figs=figs, doubles=doubles,
+                    lines.append(_verify.line(kind, shown, cmp, figs=figs, doubles=doubles, notes=[basis],
                                               state_check=_verify.model_state(state_of(lambda: _powerbi_refreshes(ws, item["id"], ctx)))))
                 elif kind == "report":
                     actual = _item_definition_parts(ws, "reports", item["id"], headers)
@@ -4330,7 +4395,8 @@ def _verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx
                     part = next(x for x in env["definition"]["parts"] if x.get("path") == "graphql-definition.json")
                     lines.append(_verify.line(kind, shown, _verify.compare_api(json.loads(_b64.b64decode(part["payload"])), actual)))
                 elif kind == "pipeline":
-                    if not lakehouse:
+                    cross = _cross(info)
+                    if not lakehouse and not cross:
                         lines.append(_verify.line(kind, shown, not_checked="the pipeline is built for a lakehouse source, and this source is not one"))
                         continue
                     content = json.loads(_item_definition_parts(ws, "dataPipelines", item["id"], headers).get("pipeline-content.json") or "{}")
@@ -4353,13 +4419,53 @@ def _verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx
                     from . import layer_schemas as _ls
                     set_by = _ls.from_notebooks(v for v in sources.values() if isinstance(v, str))
                     p_lay = _ls.resolve("", "", found=set_by, found_from=f"the parameters of {shown}'s notebooks")
-                    build = _pipeline_build(p, info, schema, p_lay["silver"], p_lay["gold"], tables, False, shown,
-                                            ran[0] if known else "", ran[1] if known else "")
-                    expected = _pipeline_content(build, {n["name"]: n["name"] for n in build["notebooks"]}, ws)
+                    # W4: the dry run as create_pipeline makes it: in a build in another workspace, silver and gold are
+                    # in a lakehouse there (_write_info, as Create chose it). When that lakehouse cannot be told, the
+                    # pipeline's activities are still compared (they name only the notebooks and the source), and the
+                    # notebooks' code is not checked, with the reason.
+                    binfo, ginfo, why_not = info, None, ""
+                    if cross:
+                        binfo, refusal = _write_info(info, "The pipeline's silver notebook", ctx)
+                        if not refusal:
+                            ginfo, refusal = _gold_info(binfo, "", ctx)
+                        if refusal:
+                            binfo, why_not = None, str((json.loads(refusal) or {}).get("error") or "the build's lakehouse could not be told")
+                    notes = []
+                    builds = []
+                    if binfo is not None:
+                        # W4: a build whose semantic model reads gold wrote the gold notebook with its dimension views
+                        # (W2); both dry runs are made, and the one the gold notebook in Fabric matches is the one compared
+                        for on_gold in (False, True):
+                            tok = MODEL_ON_GOLD.set({"silver_schema": p_lay["silver"], "gold_schema": p_lay["gold"]} if on_gold else None)
+                            try:
+                                builds.append(_pipeline_build(p, binfo, schema, p_lay["silver"], p_lay["gold"], tables, False, shown,
+                                                              ran[0] if known else "", ran[1] if known else "", gold_info=ginfo))
+                            finally:
+                                MODEL_ON_GOLD.reset(tok)
+                        gold_src = sources.get(builds[0]["notebooks"][1]["name"].lower())
+                        build = builds[0]
+                        if isinstance(gold_src, str) and _verify.compare_notebook(builds[0]["notebooks"][1]["content"], gold_src)["differences"] \
+                                and not _verify.compare_notebook(builds[1]["notebooks"][1]["content"], gold_src)["differences"]:
+                            build = builds[1]
+                            notes.append("The gold notebook is the one of a build whose semantic model reads gold (dimension views included).")
+                        expected = _pipeline_content(build, {n["name"]: n["name"] for n in build["notebooks"]}, ws)
+                    else:
+                        from . import pipeline as _pipeline_mod
+                        label = f"{info['item_name']}.{schema}"
+                        step_names = (ran[0] if known else f"silver_{schema}", ran[1] if known else f"gold_{schema}", f"{shown}_check")
+                        expected = _pipeline_mod.pipeline_content(*step_names, label, ids={n: n for n in step_names}, workspace_id=ws)
+                        build = None
                     cmp = _verify.compare_pipeline(expected, content, None, names, notebooks_known=known)
+                    if cross and binfo is not None and binfo.get("target"):
+                        notes.append(f"Built in another workspace than the source: silver and gold compared in the lakehouse "
+                                     f"{binfo['target'].get('lakehouse')}.")
                     lines.append(_verify.line(kind, shown, cmp, state_check=_verify.pipeline_state(state_of(lambda: _job_instances(ws, item["id"], headers))),
                                               notes=[f"Compared with silver tables in {p_lay['silver']} and gold views in {p_lay['gold']} "
-                                                     f"({_pipeline_schemas_from(p_lay)}) and no schedule in the check."]))
+                                                     f"({_pipeline_schemas_from(p_lay)}) and no schedule in the check."] + notes))
+                    if build is None:                                      # W4: the activities only; each notebook said
+                        for n in step_names:
+                            lines.append(_verify.line("notebook", n, not_checked=f"its dry run needs the build's lakehouse: {why_not}"))
+                        continue
                     for n in build["notebooks"]:                           # the three notebooks, each a line of its own
                         try:
                             src = sources.get(n["name"].lower())
@@ -4396,12 +4502,13 @@ def _verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx
 @safe
 def verify_build(workspace: _p.Workspace, source: _p.Source, items: _p.VerifyItems, schema: _p.Schema = "dbo", keys: _p.Keys = None,
                  confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, silver_schema: _p.ReadSilverSchema = "",
-                 ctx: Context = None) -> str:
-    """After a Create: verifies built items by rules, not by AI. Reads each back and compares it with its dry run,
-    counts a report's cards again from the rows with SQL, flags doubled totals and what was never refreshed or run.
-    Requires workspace, source and items. Returns JSON: one line per item (verified, differs, or not checked and
-    why), counts and the SQL. Changes nothing. Errors: {error, kind, hint}."""
-    return json.dumps(_verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx, silver_schema=silver_schema),
+                 source_workspace: _p.VerifySourceWorkspace = "", ctx: Context = None) -> str:
+    """After a Create: verifies built items by rules, not by AI: reads each back, compares it with its dry run, recounts
+    a report's cards from the rows with SQL, flags doubled totals and what never refreshed or ran. Requires
+    workspace, source and items. Returns JSON per item: verified, differs or not checked, and why. Changes nothing.
+    Errors: {error, kind, hint}."""
+    return json.dumps(_verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx, silver_schema=silver_schema,
+                                    source_workspace=source_workspace),
                       indent=2, default=str)
 
 

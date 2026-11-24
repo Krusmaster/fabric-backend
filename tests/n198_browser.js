@@ -55,7 +55,7 @@ const path = require("path");
           const texts = [...document.querySelectorAll(".kg-dp p, .kg-dp-why, .kg-dp-name, .kg-dp button, .kg-dp label, .kg-dp h2, .kg-dp h3")]
             .filter((e) => e.getBoundingClientRect().width > 0).map((e) => ratio(e));
           const buttons = [...document.querySelectorAll(".kg-dp button")].map((x) => x.getBoundingClientRect().height);
-          const focusable = [...document.querySelectorAll("button:not([disabled]), input:not([disabled])")].length;
+          const focusable = [...document.querySelectorAll("button:not([disabled]), input:not([disabled]), summary")].length;   // W4: a folded list's summary is a control
           const disabledDelete = [...document.querySelectorAll("button.kg-dp-danger")].filter((x) => /^Delete \d+ item/.test(x.textContent)).map((x) => x.disabled);
           return { scroll: document.documentElement.scrollWidth - W, wide, states, minText: Math.min(...texts), minButton: Math.min(...buttons, 99),
             focusable, disabledDelete };

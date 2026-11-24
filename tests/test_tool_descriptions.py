@@ -90,4 +90,6 @@ def test_read_only_listing_stays_small():
     # and confirmed left out): about 82 950 before, about 84 560 after
     # BL65: semantic_view_draft's silver (one short phrase), paid for by cutting its description and two parameter texts
     # (84 596 after; the cap is not raised)
-    assert size <= 84_600, f"read-only tools/list is {size} characters"
+    # 84 700 since W4: source_workspace on verify_build (a source in another workspace than the build; one short phrase),
+    # partly paid for by cutting verify_build's description: 84 682 after
+    assert size <= 84_700, f"read-only tools/list is {size} characters"

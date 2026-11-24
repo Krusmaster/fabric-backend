@@ -524,12 +524,16 @@ def test_the_editors_verify_route_reads_back_what_outputs_json_records(fabric):
     assert 'f"{PREFIX}/verify"' in open(W.__file__, encoding="utf-8").read()                         # the route is registered
 
 
-def test_a_build_in_another_workspace_leaves_the_pipeline_not_checked_and_says_why(fabric):
+def test_a_build_in_another_workspace_compares_the_pipeline_s_activities(fabric, monkeypatch):
+    """W4 (it was left not checked): the pipeline in the build's workspace is read and its activities compared with the
+    dry run; without a lakehouse there to rebuild the notebooks' dry run, each notebook says why it is not checked."""
     from fabric_backend import workload_api as W
     other = "99999999-9999-9999-9999-999999999999"
+    monkeypatch.setattr(server, "_list_items", lambda ws, headers: [])
     created = [{"type": "DataPipeline", "id": "aaaaaaaa-0000-0000-0000-0000000000ff", "name": "pipeline_shop",
                 "workspace": other, "output": "pipeline"}]
     fabric.items[4]["id"] = "aaaaaaaa-0000-0000-0000-0000000000ff"
     out = W.run_verify(W.verify_request({"workspace": WS, "source": INFO["item_id"], "source_name": "demo_lh", "schema": "shop",
                                          "review": _review(fabric.plan), "created": created}))
-    assert out["lines"][0]["state"] == "not checked" and "another workspace than its source" in out["lines"][0]["said"]
+    assert out["lines"][0]["item"] == "pipeline_shop" and out["lines"][0]["checked"] == {"steps": 3}
+    assert all(x["state"] == "not checked" and "build's lakehouse" in x["said"] for x in out["lines"][1:])

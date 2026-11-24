@@ -15,8 +15,10 @@ the SQL of the dry run's `views`), a pipeline step's activity (the dry run's pip
 relationships and measures (an excerpt of the dry run's TMDL). tests/test_workload_build.py compares them on the shop
 schema. `built` says whether this build creates the node: what is not part of it is drawn dashed.
 
-The model, the API, the ontology and the data agent read the source tables (bronze) directly: that is what their
-definitions bind to, so the flow draws them from the source, not from the gold views. DPM1: a semantic model built in
+The model, the API and the ontology read the source tables (bronze) directly: that is what their definitions bind to,
+so the flow draws them from the source, not from the gold views. W1/W4: the data agent reads one layer first (the silver
+tables by default, or the gold views), as the recorded build says; it is drawn from that layer, and from the source only
+while the layer is not filled and only when the source is in the same lakehouse. DPM1: a semantic model built in
 the same run as the gold views reads them (semantic_model.draft_on_gold): its card carries `on_gold` (the gold views it
 reads), the flow draws a line from each of them to the model, and the column is titled "Built on gold".
 """
@@ -39,6 +41,25 @@ FLOW_KINDS = ("silver_notebook", "gold_views", "pipeline")
 
 def _dot(target) -> str:
     return ".".join(x for x in target if x)
+
+
+def built_title(items: list[dict]) -> str:
+    """W4: the last column's title, from what its items read: "Built on gold" (DPM1), "Built on silver", "Built on the source,
+    silver and gold", "Built on the source" (also for no item). A report on a model reads
+    through the model, so it does not count."""
+    read = set()
+    for it in items:
+        if it.get("on_model"):
+            continue
+        if it.get("on_gold"):
+            read.add("gold")
+        elif it.get("layer_first"):
+            read.add(it["layer_first"] if it["layer_first"] in ("silver", "gold") else "silver")
+        else:
+            read.add("source")
+    if not read or read == {"source"}:
+        return COLUMNS[-1][1]
+    return "Built on " + _listed([w for x, w in (("source", "the source"), ("silver", "silver"), ("gold", "gold")) if x in read])
 
 
 def silver_nodes(spec: dict, built: bool) -> tuple[list[dict], list[dict]]:
@@ -177,9 +198,17 @@ def flow(p, info: dict, chosen: dict, *, silver_schema: str = "silver", gold_sch
             edges.append({"from": it["on_model"], "to": nid, "label": "on the model", "built": True})
         elif it.get("on_gold"):                                   # DPM1: a line from each gold view the item reads
             edges += [{"from": f"gold:{g}", "to": nid, "label": "built on gold", "built": True} for g in it["on_gold"]]
+        elif it.get("layer_first"):                               # W1/W4: an item that reads a layer first, the data agent
+            layer = it["layer_first"] if it["layer_first"] in ("silver", "gold") else "silver"
+            if it.get("fallback", True):
+                edges.append({"from": "bronze", "to": nid, "label": f"until {layer} is filled", "built": True})
+            if layer == "gold" and gold_spec is not None:
+                froms = [f"gold:{v['name']}" for v in gold_spec["views"]]
+            else:
+                froms = [n["id"] for n in sn] if layer == "silver" else []
+            edges += [{"from": x, "to": nid, "label": f"reads {layer}", "built": True} for x in froms]
         else:
-            edges.append({"from": "bronze", "to": nid, "label": "until silver is filled" if it.get("layer_first") else "reads the source tables",
-                          "built": True})
+            edges.append({"from": "bronze", "to": nid, "label": "reads the source tables", "built": True})
     # W1: an item that reads a layer first (the data agent on silver or gold) is not said to read the source directly
     on_source = [it for it in items or [] if not it.get("on_model") and not it.get("on_gold") and not it.get("layer_first")]
     if on_source and gold_spec and chosen.get("gold_views"):         # n179: the founder's live preview, 9 November 2026
@@ -192,7 +221,6 @@ def flow(p, info: dict, chosen: dict, *, silver_schema: str = "silver", gold_sch
             + (f", and {n_gold} gold view(s) join them" if n_gold else "")
             + (f", beside {n_dim} gold dimension view(s)" if n_dim else "")
             + ". Dashed boxes are not part of this build. Click a box to see its code.")
-    on_gold = any(it.get("on_gold") for it in items or [])
-    titles = [(c, "Built on gold" if c == "built" and on_gold else t) for c, t in COLUMNS]
+    titles = [(c, built_title(items or []) if c == "built" else t) for c, t in COLUMNS]
     return {"columns": [{"id": c, "title": t} for c, t in titles], "nodes": nodes, "edges": edges, "pipeline": pipe,
             "notes": notes, "said": said}

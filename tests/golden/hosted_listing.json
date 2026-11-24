@@ -5266,7 +5266,7 @@
     "read_only_hint": true,
     "title": "Verify what was built (by rules, no AI) (experimental)"
    },
-   "description": "After a Create: verifies built items by rules, not by AI. Reads each back and compares it with its dry run,\ncounts a report's cards again from the rows with SQL, flags doubled totals and what was never refreshed or run.\nRequires workspace, source and items. Returns JSON: one line per item (verified, differs, or not checked and\nwhy), counts and the SQL. Changes nothing. Errors: {error, kind, hint}.",
+   "description": "After a Create: verifies built items by rules, not by AI: reads each back, compares it with its dry run, recounts\na report's cards from the rows with SQL, flags doubled totals and what never refreshed or ran. Requires\nworkspace, source and items. Returns JSON per item: verified, differs or not checked, and why. Changes nothing.\nErrors: {error, kind, hint}.",
    "input_schema": {
     "properties": {
      "confirmed": {
@@ -5328,6 +5328,12 @@
      "source": {
       "description": "Lakehouse, warehouse or SQL database, name or id.",
       "title": "Source",
+      "type": "string"
+     },
+     "source_workspace": {
+      "default": "",
+      "description": "Source workspace, if not `workspace`.",
+      "title": "Source Workspace",
       "type": "string"
      },
      "tables": {

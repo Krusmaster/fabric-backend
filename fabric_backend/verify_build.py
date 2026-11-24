@@ -376,6 +376,26 @@ def pipeline_steps(content: dict, names: dict[str, str] | None = None) -> list[d
     return out
 
 
+_SCHEMA_NAME = re.compile(r"^\s*schemaName:\s*(\S+)\s*$", re.M)
+
+
+def model_schemas(parts: dict) -> set[str]:
+    """W4: the schemas a semantic model's Direct Lake partitions read (schemaName in its TMDL tables), lower case."""
+    return {m.group(1).strip("'\"").lower() for path, text in (parts or {}).items()
+            if str(path).startswith("definition/tables/") for m in _SCHEMA_NAME.finditer(str(text or ""))}
+
+
+def model_basis(actual_schemas: set[str], gold_schema: str) -> str:
+    """W4 (Gustav's tenant test, 24 November 2026): which dry run a semantic model is compared with, by rules. "gold":
+    the dry run of a build with gold views (DPM1: the model reads them), when every partition of the model in Fabric
+    reads the gold schema; "source" otherwise (the model on the plan's tables, or on silver). Only the choice between
+    the two dry runs is made from the item; what is compared (tables, relationships, measures) is the dry run's. Before,
+    a model built on gold was compared with the model on the source and read as "differs" for that alone."""
+    if actual_schemas and actual_schemas == {str(gold_schema or "").lower()}:
+        return "gold"
+    return "source"
+
+
 def compare_pipeline(expected: dict, actual: dict, expected_names: dict[str, str] | None = None,
                      actual_names: dict[str, str] | None = None, notebooks_known: bool = True) -> dict:
     """`expected_names` / `actual_names`: notebook id -> name on either side. With notebooks_known false the notebook a
@@ -613,11 +633,47 @@ def _why(e: BaseException) -> str:
 # app registration may not have yet; a 401/403 there says which one, so the person knows what to add in Entra.
 DATASET_SCOPES_HINT = ("the sign-in may lack the Power BI permission Dataset.Read.All or Dataset.ReadWrite.All; an "
                        "administrator adds it to the app registration in Microsoft Entra and grants consent")
+# W4 (Gustav's tenant test, 24 November 2026: a model's refresh history answered HTTP 401): the delegated Power BI
+# permission the two reads need, named in a kind=consent answer as the creating tools name theirs (docs/SCOPES.md).
+DATASET_READ_SCOPE = "Dataset.Read.All"
+CONSENT_STEPS = (
+    "Microsoft Entra admin centre (entra.microsoft.com) → App registrations → All applications → the Krusgraph MCP app "
+    "(the app registration the MCP server signs in with).",
+    "API permissions → Add a permission → Microsoft APIs → Power BI Service → Delegated permissions.",
+    "Tick Dataset.Read.All (under Dataset) → Add permissions.",
+    "Grant admin consent for your organisation (a Global Administrator, Application Administrator or Cloud Application "
+    "Administrator) → Yes. The status shows 'Granted'.",
+    "Sign in to the connector again (disconnect and connect), so the next token carries the permission; then call "
+    "verify_build again.")
+
+
+def _consent_failure(e: BaseException) -> bool:
+    """A Power BI read refused for a missing permission: HTTP 401/403, or the on-behalf-of exchange asking for consent."""
+    if _why(e).startswith(("HTTP 401", "HTTP 403")):
+        return True
+    text = str(e)
+    return "AADSTS65001" in text or "consent_required" in text
 
 
 def _why_dataset(e: BaseException) -> str:
     why = _why(e)
-    return f"{why}: {DATASET_SCOPES_HINT}" if why.startswith(("HTTP 401", "HTTP 403")) else why
+    return f"{why}: {DATASET_SCOPES_HINT}" if _consent_failure(e) else why
+
+
+def consent_answer(lines: list[dict]) -> dict | None:
+    """W4: {error, kind: consent, scope, hint, steps} when a Power BI read of this call was refused for a missing
+    permission (the refresh history, or a figure's DAX query); None otherwise. The other lines stand."""
+    hit = [ln["item"] for ln in lines if (ln.get("state_check") or {}).get("kind") == "consent"
+           or any(DATASET_SCOPES_HINT in str(f.get("model_not_read") or "") for f in ln.get("figures") or [])]
+    if not hit:
+        return None
+    return {"error": f"Power BI refused reading {', '.join(sorted(set(hit)))} (the refresh history or a figure): the sign-in does "
+                     f"not carry the delegated permission {DATASET_READ_SCOPE}.",
+            "kind": "consent", "scope": DATASET_READ_SCOPE,
+            "hint": f"The operator adds Power BI Service → {DATASET_READ_SCOPE} (delegated) to the Krusgraph MCP app's registration "
+                    "in Microsoft Entra and grants admin consent (docs/SCOPES.md); the steps are below. Everything else in this "
+                    "answer was checked without it.",
+            "steps": list(CONSENT_STEPS)}
 
 
 # ------------------------------------------------------------------ 3. doubled totals ---------------------------------
@@ -705,6 +761,7 @@ def model_state(refreshes) -> dict:
     """`refreshes`: the model's refresh history (Power BI: value of GET .../refreshes), newest first; or an exception."""
     if isinstance(refreshes, BaseException):
         return {"check": "refreshed", "state": NOT_CHECKED, "fix": REFRESH_FIX,
+                **({"kind": "consent", "scope": DATASET_READ_SCOPE} if _consent_failure(refreshes) else {}),   # W4
                 "said": f"Whether the model was ever refreshed was not read ({_why_dataset(refreshes)}). A new Direct Lake model shows no data "
                         "(\"Data refreshed: Invalid Date\", warning triangles) until it is refreshed once."}
     done = [r for r in refreshes or [] if str(r.get("status")) == "Completed"]
@@ -835,6 +892,9 @@ def result(lines: list[dict], time_budget: dict | None = None, expected_note: st
            "result_lines": [ln["said"] for ln in lines], "fixes": fixes, "sql": sql,
            "compared_with": expected_note or EXPECTED_FROM, "writes": "nothing: every call is a read",
            "review_by_ai": CLAUDE_INVITE}
+    consent = consent_answer(lines)                                  # W4: said as the creating tools say it
+    if consent:
+        out["consent"] = consent
     if time_budget:
         out["time_budget"] = time_budget
     return out
