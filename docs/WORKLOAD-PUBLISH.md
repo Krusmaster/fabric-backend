@@ -16,8 +16,8 @@ Where things stand on 10 November 2026:
 
 - `Org.Krusgraph` 1.0.937 runs in the company tenant (krusgraph.com, `d2fcf72a-9b80-451d-868b-8d47af30d8ae`, home
   region Sweden Central), with the Entra app `853a0cf0-7d35-42b7-b384-26178755a72a`.
-- Uploading `Krusgraph.Modeler.1.0.937.nupkg` fails with the name-registration error (step 1). A support ticket is being
-  raised. Nothing in the package or this repository works around it.
+- Uploading `Krusgraph.Modeler.1.0.937.nupkg` fails with the name-registration error (step 1). Support ticket
+  2611201420002110 is open (see the ticket log in step 1; 23 Nov: support asked for details and a remote session). Nothing in the package or this repository works around it.
 - The attestation page is written (step 6) and the Krusgraph.Modeler package points at it; it goes live with the next
   redeploy.
 
@@ -65,6 +65,17 @@ Support ticket text (Partner Center → Help + support → New request; or Fabri
 > it for us. We have not tried any other name.
 
 Write the ticket number and Microsoft's answer here when it comes.
+
+### Ticket log
+
+| Date | What happened |
+| --- | --- |
+| 20 Nov 2026 | Ticket **2611201420002110** opened. Microsoft's Power BI / Fabric support (Data Platform, Fabric BI) handles it. |
+| 23 Nov 2026 | Support restated the issue (validation fails before the "Confirm workload Name" dialog) and asked for: (1) the full **Show details** text of the upload error, preferably a screenshot; (2) whether this is internal or cross-tenant publishing; (3) confirmation of the prerequisites in Learn's [Publishing overview](https://learn.microsoft.com/en-us/fabric/extensibility-toolkit/publishing-overview); (4) two or three slots for a remote session to reproduce the upload and collect traces. Support's hours are 13:00-22:00 IST (08:30-17:30 CET). |
+| 23 Nov 2026 | Founder's answer sent: cross-tenant publishing (selected pilot tenants first, then a Marketplace offer); the failing step is the first upload in the publishing tenant; the prerequisites as in this step and step 2; time slots. The screenshot and the publisher-verification status of the Entra app (step 2) went as placeholders and still have to be sent. |
+| 23 Nov 2026, 11:00 CET | Remote session (Teams) with support. Support reproduced the failing upload and collected logs and screenshots. Support reviews them internally with its team and writes when it has an update or needs more. No change on our side was asked for. |
+
+Next: send support the error's **Show details** screenshot and the publisher-verification status, if not done; then wait for support's update and write here what it found and what changed.
 
 ## Step 2. Publisher verification of the Entra app (founder only)
 
