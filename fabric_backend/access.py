@@ -18,10 +18,11 @@ import html
 from dataclasses import dataclass
 
 # The date this table was last read against the code that requests the permissions.
-AS_OF = "7 November 2026"
+AS_OF = "24 November 2026"         # W7: read again when Dataset.Read.All (Power BI Service) was added
 ADDED = "28 October 2026"          # Notebook.ReadWrite.All, DataPipeline.ReadWrite.All, Item.ReadWrite.All (docs/SCOPES.md)
 
 GRAPH, FABRIC, SQL = "Microsoft Graph", "Fabric", "Azure SQL Database"
+POWERBI = "Power BI Service"       # W7: the name Entra's API permissions page shows for Dataset.Read.All
 RESOURCE_IDS = {GRAPH: "00000003-0000-0000-c000-000000000000", FABRIC: "00000009-0000-0000-c000-000000000000",
                 SQL: "022907d3-0f1b-48f7-badc-1ba6abab6d66"}
 
@@ -68,6 +69,27 @@ GRANTED = (
           "yes: SQL queries during the call (counts, up to 20 sample rows, and with `create_views` CREATE SCHEMA and "
           "CREATE OR ALTER VIEW); nothing is scheduled"),
 )
+
+# W7 (24 November 2026): on the hosted app since W4 (the Power BI reads of verify_build ask for it by name,
+# server.POWERBI_READ_SCOPE), but not part of GRANTED: GRANTED equals the deploy check's REQUIRED_SCOPES
+# (deploy/azure_containerapp.py, a protected path), and demanding it there is the maintainer's choice (docs/SCOPES.md).
+# The permission table on /it, /start, /privacy and docs/SCOPES.md shows it as a row all the same (table_grants()).
+DATASET_READ_SINCE = "24 November 2026"
+BEYOND_DEPLOY_CHECK = (
+    Grant(POWERBI, "Dataset.Read.All", DATASET_READ_SINCE,
+          "`verify_build` reads a semantic model's refresh history and runs its DAX figure queries (one `EVALUATE ROW(...)` "
+          "per report card), read-only; without it those lines say not checked",
+          "no: it only reads; no model is refreshed"),
+)
+RECONSENT = (f"`Dataset.Read.All` was added on {DATASET_READ_SINCE}. An organisation whose administrator gave admin consent "
+             "before that date has to grant admin consent again so that the new permission is included; until then "
+             "`verify_build` says not checked for the refresh history and the DAX figures, and everything else works as before.")
+
+
+def table_grants() -> tuple:
+    """The rows of the permission table: GRANTED, then the permissions beyond the deploy check (W7)."""
+    return GRANTED + BEYOND_DEPLOY_CHECK
+
 
 # n220: opt-in permissions. Not part of GRANTED (which equals the deploy check's REQUIRED_SCOPES): the deploy check demands
 # one only when its switch is on in deploy/krusgraph.json (OPTIONAL_SCOPES in deploy/azure_containerapp.py), and the server
@@ -164,17 +186,18 @@ def opt_in_md() -> str:
 def table_md() -> str:
     rows = [f"Delegated permissions of the hosted app, read from the code on {AS_OF}.", "",
             "| Permission | Granted | What the tools use it for | Runs or schedules anything? |", "| --- | --- | --- | --- |"]
-    rows += [f"| `{g.scope}` ({g.resource}) | {_since(g)} | {g.tools} | {g.runs} |" for g in GRANTED]
-    return "\n".join(rows) + "\n\n" + opt_in_md() + "\n\n" + not_requested_sentence() + "\n\n" + OFFLINE_ACCESS
+    rows += [f"| `{g.scope}` ({g.resource}) | {_since(g)} | {g.tools} | {g.runs} |" for g in table_grants()]
+    return "\n".join(rows) + "\n\n" + RECONSENT + "\n\n" + opt_in_md() + "\n\n" + not_requested_sentence() + "\n\n" + OFFLINE_ACCESS
 
 
 def table_html() -> str:
     rows = "".join(f"<tr><td><code>{g.scope}</code> ({g.resource})</td><td>{_since(g)}</td><td>{_html(g.tools)}</td>"
-                   f"<td>{_html(g.runs)}</td></tr>" for g in GRANTED)
+                   f"<td>{_html(g.runs)}</td></tr>" for g in table_grants())
     return (f'<p class="muted tiny">Delegated permissions of the hosted app, read from the code on {AS_OF}.</p>'
             '<div class="table-wrap" tabindex="0"><table class="it-scopes"><thead><tr><th>Permission</th><th>Granted</th>'
             '<th>What the tools use it for</th><th>Runs or schedules anything?</th></tr></thead>'
-            f'<tbody>{rows}</tbody></table></div><p class="muted tiny it-opt-in">{_html(opt_in_md())}</p>'
+            f'<tbody>{rows}</tbody></table></div><p class="muted tiny it-reconsent">{_html(RECONSENT)}</p>'
+            f'<p class="muted tiny it-opt-in">{_html(opt_in_md())}</p>'
             f'<p class="muted tiny">{_html(not_requested_sentence())}</p>'
             f'<p class="muted tiny">{_html(OFFLINE_ACCESS)}</p>')
 
@@ -189,7 +212,9 @@ def sentence() -> str:
             f"`Notebook.ReadWrite.All`, `DataPipeline.ReadWrite.All` and `Item.ReadWrite.All` were added on {ADDED}; the "
             "creating tools use them only on a call with `dry_run=false`. Nothing is run or scheduled with them. "
             "`DataPipeline.Execute.All` is opt-in (" + _opt_in_state(OPT_IN[0]) + "): with it, `create_pipeline` runs or "
-            "schedules the pipeline it made, only after a dry run and your confirmation. `Item.Execute.All` is not requested.")
+            "schedules the pipeline it made, only after a dry run and your confirmation. `Item.Execute.All` is not requested. "
+            f"Since {DATASET_READ_SINCE} the app also has `Dataset.Read.All` (Power BI Service, read-only), with which "
+            "`verify_build` reads a semantic model's refresh history and runs its DAX figure queries.")
 
 
 # ------------------------------------------------------------------ what is kept of a sign-in -------------------------

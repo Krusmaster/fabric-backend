@@ -12,7 +12,7 @@ repository root.
 Generated from `fabric_backend/access.py`, the same table as on /start, /it and /privacy; `tests/test_n146_one_source.py` keeps it equal to `deploy/azure_containerapp.py` `REQUIRED_SCOPES` and to this file.
 
 <!-- access:table -->
-Delegated permissions of the hosted app, read from the code on 7 November 2026.
+Delegated permissions of the hosted app, read from the code on 24 November 2026.
 
 | Permission | Granted | What the tools use it for | Runs or schedules anything? |
 | --- | --- | --- | --- |
@@ -25,6 +25,9 @@ Delegated permissions of the hosted app, read from the code on 7 November 2026.
 | `DataPipeline.ReadWrite.All` (Fabric) | since 28 October 2026 | `create_drift_monitor` and `create_pipeline` create or update a pipeline definition, only with `dry_run=false`; `lineage` with `runs` reads a pipeline's activities | no: a pipeline runs only when someone runs or schedules it in Fabric, or, with the opt-in `DataPipeline.Execute.All`, when you confirm Run once or Schedule; `create_drift_monitor` has `schedule=false` by default |
 | `Item.ReadWrite.All` (Fabric) | since 28 October 2026 | `create_semantic_model`, `create_ontology` and `create_data_agent` create or update one item, `create_report` creates one report, only with `dry_run=false`; `compare_semantic_model` and `lineage` read semantic model definitions | no: no model is refreshed and no item is run |
 | `user_impersonation` (Azure SQL Database) | before 28 October 2026 | reading table and column names from the SQL analytics endpoint; the counting queries of planning (rule R5) and of the checks (`validate_plan`, `suggest_relationships`, `data_dictionary` with `validate=true`); `sample_rows`; `create_views` creates a schema and views, only with `dry_run=false` | yes: SQL queries during the call (counts, up to 20 sample rows, and with `create_views` CREATE SCHEMA and CREATE OR ALTER VIEW); nothing is scheduled |
+| `Dataset.Read.All` (Power BI Service) | since 24 November 2026 | `verify_build` reads a semantic model's refresh history and runs its DAX figure queries (one `EVALUATE ROW(...)` per report card), read-only; without it those lines say not checked | no: it only reads; no model is refreshed |
+
+`Dataset.Read.All` was added on 24 November 2026. An organisation whose administrator gave admin consent before that date has to grant admin consent again so that the new permission is included; until then `verify_build` says not checked for the refresh history and the DAX figures, and everything else works as before.
 
 Opt-in: `DataPipeline.Execute.All` (Fabric), opt-in since 11 November 2026; off for this server until the operator turns on `pipeline_execute`. Used by `create_pipeline` with `run_once` or `schedule`: starts one run of the pipeline it made and reads the run's status, or adds (or updates its own) schedule, only after a dry run that shows it and your confirmation. Runs or schedules: yes: one run when you confirm Run once; a schedule when you confirm Schedule; nothing otherwise. Why: Fabric's Job Scheduler runs and schedules a pipeline only with `DataPipeline.Execute.All` or `Item.Execute.All`; Krusgraph asks for the narrower one, which runs pipelines and no other item type.
 
@@ -142,8 +145,12 @@ once, in the Microsoft Entra admin centre (Krusgraph changes nothing in Entra):
 4. Reconnect Krusgraph in Claude (Settings > Connectors > Krusgraph > Disconnect, then Connect), so the next token carries
    the permission; then call `verify_build` again.
 
-It is still not in `REQUIRED_SCOPES` (`deploy/azure_containerapp.py`, which would stop a deploy until it is granted);
-adding it there is the maintainer's choice after the step above.
+**W7 (24 November 2026).** The hosted app has `Dataset.Read.All` since 24 November 2026, and the table at the top
+(`access.BEYOND_DEPLOY_CHECK`) lists it with /it, /start and /privacy: read-only, nothing is run or scheduled with it. An
+organisation whose administrator consented before that date grants admin consent again
+(`https://login.microsoftonline.com/<tenant id>/adminconsent?client_id=<the app's client id>`, the client id /it shows),
+so that its approval includes the new permission. It is still not in `REQUIRED_SCOPES` (`deploy/azure_containerapp.py`,
+which would stop a deploy until it is granted); adding it there is the maintainer's choice after the step above.
 
 ## Reading an existing semantic model: why getDefinition (round n12)
 

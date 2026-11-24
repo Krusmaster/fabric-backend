@@ -1218,7 +1218,8 @@ def test_it_page_lists_the_app_permissions_the_deploy_check_requires(client):
     deploy = importlib.import_module("deploy.azure_containerapp")
     it = client.get("/it").text
     listed = set(re.findall(r"<tr><td><code>([\w.]+)</code>", it))
-    assert listed == set().union(*deploy.REQUIRED_SCOPES.values()), listed
+    # W7: plus Dataset.Read.All (Power BI Service, since 24 November 2026), on the app but not demanded by the deploy check
+    assert listed == set().union(*deploy.REQUIRED_SCOPES.values()) | {"Dataset.Read.All"}, listed
     for part in ("delegated", "Sweden Central", "are not uploaded", "Enterprise applications", "MIT licence", "docs/SCOPES.md", "@media print"):
         assert part in it or part in (ROOT / "fabric_backend/static/site.css").read_text(), part
     assert 'href="/privacy"' in it and 'href="/check"' in it

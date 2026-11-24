@@ -773,5 +773,23 @@
     show();
   });
 
+  /* ------------------------------------------------------------------ W7: the docs menu keeps its place */
+  // From 960 px the docs menu is sticky with its own scroll (site.css). A page opened from it used to show the menu from
+  // the top, so a link far down meant scrolling the menu again on every page (the founder, 24 November 2026). The menu now
+  // scrolls itself, and only itself, so that the current page's link is in view: its scrollTop changes, never the
+  // window's scroll, so a #hash still lands where it did. Nothing is stored. Under 960 px the menu is the closed
+  // "Docs menu" above the text, as before.
+  var docsMenu = document.querySelector('nav.docs-menu');
+  if (docsMenu && docsMenu.scrollHeight > docsMenu.clientHeight) {
+    var docsCur = docsMenu.querySelector('a[aria-current=page]');
+    if (docsCur) {
+      var dm = docsMenu.getBoundingClientRect(), da = docsCur.getBoundingClientRect();
+      // the part of the menu on screen: its own height, or less while the header still pushes its bottom off the screen
+      var dView = Math.min(docsMenu.clientHeight, window.innerHeight - Math.max(dm.top, 0));
+      var dTop = da.top - dm.top;
+      if (dTop < 0 || dTop + da.height > dView) docsMenu.scrollTop += dTop - Math.max(0, (dView - da.height) / 2);
+    }
+  }
+
   window.KrusGraph = { Graph: Graph, loadPlan: loadPlan };
 })();
