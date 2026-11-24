@@ -14,7 +14,8 @@ import { TypeName } from "./itemIcons";
 import { OutputsDefinition } from "./ModelItemDefinition";
 import {
   KEEPS_DATA, LeftoversAnswer, OWNER_WHY, OutOfDate, Person, ProductRow, RetireAnswer, STATE, StatusAnswer, healthWords, lastRunWords,
-  leftoverWords, otherPlanRows, outOfDateSummary, ownerWords, planOf, planWords, resultWords, rowsOf, summary, typedNameOk,
+  leftoverWords, otherPlanRows, outOfDateSummary, ownerWords, planOf, planWords, removedLabel, resultWords, rowsOf, splitRemoved, summary,
+  typedNameOk,
 } from "./productWords";
 import { SaveStatus, savedWords } from "./saveState";
 
@@ -50,7 +51,7 @@ box-sizing:border-box;max-width:960px;padding:16px;overflow-wrap:anywhere}
 .kg-dp button.kg-dp-small{padding:2px 10px}
 .kg-dp button.kg-dp-danger{border-color:var(--kg-bad);color:var(--kg-bad);background:var(--kg-bg)}
 .kg-dp button:disabled{opacity:.55;cursor:not-allowed}
-.kg-dp button:focus-visible,.kg-dp input:focus-visible,.kg-dp select:focus-visible{outline:2px solid var(--kg-focus);outline-offset:2px}
+.kg-dp button:focus-visible,.kg-dp input:focus-visible,.kg-dp select:focus-visible,.kg-dp summary:focus-visible{outline:2px solid var(--kg-focus);outline-offset:2px}
 .kg-dp label{display:inline-flex;gap:6px;align-items:center}
 .kg-dp .krusgraph-item-title{display:inline-flex;align-items:center;gap:6px;align-self:center}
 .kg-dp .krusgraph-item-icon{width:20px;height:20px;flex:none}
@@ -117,6 +118,7 @@ export function DataProductView(props: DataProductProps) {
   const plan = props.plan ?? planOf(props.outputs);
   const rows = rowsOf(props.outputs, props.status, plan);
   const others = otherPlanRows(props.outputs, props.status, plan);
+  const split = splitRemoved(rows);
   const saved = savedWords(props.saved);
   const [chosen, setChosen] = useState<string[]>(props.initialChosen ?? []);
   const [typed, setTyped] = useState(props.initialTyped ?? "");
@@ -178,7 +180,15 @@ export function DataProductView(props: DataProductProps) {
           <div className="kg-dp-actions"><button type="button" className="kg-dp-primary" onClick={() => props.onSaveAgain?.()} disabled={busy}>Save again</button></div>
         )}
         <p className="kg-dp-muted">{plan ? `Every item plan ${plan} built, from every Create of this item.` : "Every item this item's Creates built."}</p>
-        <ItemRows rows={rows} chosen={chosen} toggle={toggle} busy={busy} onOpen={props.onOpen} onFix={props.onFixAndFinish} />
+        <ItemRows rows={split.live} chosen={chosen} toggle={toggle} busy={busy} onOpen={props.onOpen} onFix={props.onFixAndFinish} />
+        {/* W4: what Retire deleted is folded away, closed by default; the live items stay at full weight above */}
+        {split.removed.length > 0 && (
+          <details data-removed="">
+            <summary>{removedLabel(split.removed.length)}</summary>
+            <p className="kg-dp-muted">Deleted from Fabric by Retire; kept here as a record of what this data product had.</p>
+            <ItemRows rows={split.removed} chosen={chosen} toggle={toggle} busy={busy} onOpen={props.onOpen} />
+          </details>
+        )}
         {others.length > 0 && (
           <details data-other-plans="">
             <summary>{others.length} item(s) this item built from another plan: not part of this data product</summary>

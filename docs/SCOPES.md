@@ -124,6 +124,27 @@ it could not read. To add them: the steps of the section above with `Dataset.Rea
 the refresh) in step 2. Unit-tested with the calls replaced by test doubles; none of the three has run against Power BI
 from the hosted server.
 
+**W4 (24 November 2026).** In the founder's tenant test, reading a semantic model's refresh history answered HTTP 401:
+the MCP app's registration has no Power BI dataset permission. The server now asks for the two reads' token with the
+delegated scope by name, `https://analysis.windows.net/powerbi/api/Dataset.Read.All` (`server.POWERBI_READ_SCOPE`), and
+falls back to `.default` when that is not consented (a consented `Dataset.ReadWrite.All` also reads). When Power BI still
+refuses (HTTP 401 or 403, or Entra asks for consent), `verify_build` answers `consent` = `{kind: "consent", scope:
+"Dataset.Read.All", error, hint, steps}` beside its lines, as the creating tools answer `kind consent`, and the model's
+`state_check` carries `kind: "consent"`; the lines that need no Power BI read are checked as before. The operator's step,
+once, in the Microsoft Entra admin centre (Krusgraph changes nothing in Entra):
+
+1. Entra admin centre (entra.microsoft.com) > App registrations > All applications > the Krusgraph MCP app (the app
+   registration the MCP server signs in with).
+2. API permissions > Add a permission > Microsoft APIs > **Power BI Service** > **Delegated permissions** > tick
+   **Dataset.Read.All** (under Dataset) > Add permissions.
+3. **Grant admin consent** for the organisation (a Global Administrator, Application Administrator or Cloud Application
+   Administrator) > Yes. The status column shows "Granted".
+4. Reconnect Krusgraph in Claude (Settings > Connectors > Krusgraph > Disconnect, then Connect), so the next token carries
+   the permission; then call `verify_build` again.
+
+It is still not in `REQUIRED_SCOPES` (`deploy/azure_containerapp.py`, which would stop a deploy until it is granted);
+adding it there is the maintainer's choice after the step above.
+
 ## Reading an existing semantic model: why getDefinition (round n12)
 
 `compare_semantic_model` needs a model's relationships with cardinality, direction and active state. The paths checked

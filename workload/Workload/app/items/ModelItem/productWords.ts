@@ -161,6 +161,16 @@ export function dayOf(iso: string | undefined): string {
   return Number.isNaN(d.getTime()) ? iso : d.toISOString().slice(0, 16).replace("T", " ") + " UTC";
 }
 
+/** W4 (Gustav's tenant test, 24 November 2026): items Retire deleted are a record, not part of the live list. Manage lists
+ * the live items at full weight and the removed ones folded under "Removed (n)", closed by default. */
+export function splitRemoved(rows: ProductRow[]): { live: ProductRow[]; removed: ProductRow[] } {
+  return { live: rows.filter((r) => r.state !== "removed"), removed: rows.filter((r) => r.state === "removed") };
+}
+
+export function removedLabel(n: number): string {
+  return `Removed (${n})`;
+}
+
 /** "3 built, 1 missing, 1 changed outside Krusgraph": the counts in words, in a fixed order. */
 export function summary(rows: ProductRow[]): string {
   const order: ItemState[] = ["built", "pending", "failed", "changed_outside", "missing", "removed"];
