@@ -1,0 +1,89 @@
+/* AP1: the guided chat at /app (guided_app.py, app.js). Only the site's tokens (site.css), so light and dark follow the
+   theme and the mascots keep their colours: Onto green, the Thinker violet, the Builder coral. One column, 16 px from the
+   edge on a phone; buttons are at least 44 px high; prefers-reduced-motion turns the small rise off. */
+.app-wrap { padding-top: 18px; padding-bottom: 40px }
+.app-chat {
+  max-width: 760px; margin: 0 auto; background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow); display: grid; grid-template-rows: auto auto auto;
+  overflow: hidden;
+}
+.app-note { padding: 24px }
+.app-head {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center;
+  padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--card-2);
+}
+.app-head h1 { font-size: 22px; line-height: 1.2; margin: 0; max-width: none }
+.app-head p { margin: 0 }
+.app-fig { display: inline-block; width: 48px; height: 48px; flex: none }
+.app-fig svg, .app-msg .app-face svg { width: 100%; height: 100% }
+.app-out { margin: 0 }
+
+.app-log { list-style: none; margin: 0; padding: 16px; display: grid; gap: 12px; align-content: start; min-height: 200px }
+.app-log > li { min-width: 0 }
+.app-you {
+  justify-self: end; max-width: 85%; background: var(--lav-soft); color: var(--lav-ink); font-weight: 700;
+  padding: 7px 14px; border-radius: 16px 16px 4px 16px; overflow-wrap: anywhere;
+}
+.app-msg { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 4px 8px; animation: app-rise .25s ease-out }
+@keyframes app-rise { from { transform: translateY(6px); opacity: .3 } }
+@media (prefers-reduced-motion: reduce) { .app-msg { animation: none } }
+.app-face { width: 44px; height: 44px }
+html[data-mascots="off"] .app-face, html[data-mascots="off"] .app-fig { visibility: hidden }
+.app-bub {
+  min-width: 0; background: var(--bg); border: 1px solid var(--line); border-radius: 4px 16px 16px 16px;
+  padding: 9px 13px; display: grid; gap: 8px;
+}
+.app-bub > * { margin: 0; min-width: 0 }
+.app-who { font-family: var(--font-head); font-weight: 600; font-size: 13px }
+.app-msg.onto .app-who { color: var(--onto-ink) }
+.app-msg.thinker .app-who { color: var(--thinker-ink) }
+.app-msg.builder .app-who { color: var(--builder-ink) }
+.app-msg.onto .app-bub { border-color: var(--onto) }
+.app-msg.thinker .app-bub { border-color: var(--thinker) }
+.app-msg.builder .app-bub { border-color: var(--builder) }
+.app-line { font-weight: 800; overflow-wrap: anywhere }
+.app-bub ul { margin: 0; padding-left: 20px }
+.app-bub .check-kpis { margin: 0; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)) }
+.app-bub .check-kpi-v { font-family: var(--font-head); font-weight: 600; font-size: 22px; line-height: 1.1 }
+.app-bub .check-kpi-l { font-size: 13px; color: var(--muted) }
+.app-bub details > summary { cursor: pointer; font-weight: 700; min-height: 32px }
+.app-table { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch }
+.app-table .check-list td, .app-table .check-list th { font-size: 13px }
+.app-table .bad { color: var(--coral-ink); font-weight: 700 }
+.app-table .ok { color: var(--sage-ink); font-weight: 700 }
+.app-busy::after { content: "…"; display: inline-block; animation: app-dots 1.2s steps(3, end) infinite; width: 1.2em; overflow: hidden; vertical-align: bottom }
+@keyframes app-dots { from { width: 0 } to { width: 1.2em } }
+@media (prefers-reduced-motion: reduce) { .app-busy::after { animation: none } }
+
+.app-input { padding: 12px 16px 16px; border-top: 1px solid var(--line); display: grid; gap: 10px; background: var(--card-2) }
+.app-input:empty { display: none }
+.app-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0 }
+.app-chips legend { font-size: 13px; font-weight: 700; color: var(--muted); padding: 0; margin-bottom: 6px }
+.app-chip {
+  font: inherit; font-weight: 700; font-size: 15px; color: var(--ink); background: var(--card);
+  border: 1.5px solid var(--line-strong); border-radius: 999px; padding: 8px 16px; min-height: 44px; cursor: pointer;
+  display: inline-flex; flex-direction: column; align-items: flex-start; justify-content: center; text-align: left;
+  max-width: 100%; overflow-wrap: anywhere;
+}
+.app-chip small { font-weight: 600; font-size: 12.5px; color: var(--muted) }
+.app-chip:hover { border-color: var(--onto-d) }
+.app-chip.primary { background: var(--onto-soft); border-color: var(--onto-d); color: var(--onto-ink) }
+.app-chip.suggested { border-color: var(--onto-d) }
+.app-chip[disabled] { cursor: not-allowed; opacity: .55 }
+.app-chip:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 999px }
+.app-type { display: flex; gap: 8px; flex-wrap: wrap; align-items: center }
+.app-type label { font-size: 13px; font-weight: 700; color: var(--muted); flex-basis: 100% }
+.app-type input {
+  font: inherit; flex: 1 1 180px; min-width: 0; min-height: 44px; padding: 8px 12px; border-radius: 12px;
+  border: 1.5px solid var(--line-strong); background: var(--card); color: var(--ink);
+}
+.app-type input:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px }
+@media (max-width: 480px) {
+  .app-wrap { padding-top: 10px }
+  .app-head { grid-template-columns: auto minmax(0, 1fr); padding: 10px 12px }
+  .app-head h1 { font-size: 19px }
+  .app-out { grid-column: 1 / -1; justify-self: start }
+  .app-log { padding: 12px }
+  .app-input { padding: 10px 12px 12px }
+  .app-bub .check-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+}

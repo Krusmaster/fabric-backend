@@ -111,14 +111,14 @@ def test_storage_list_matches_the_scripts():
 
 
 def test_every_cookie_the_service_sets_is_listed():
-    from fabric_backend import marketplace, registration_flow
+    from fabric_backend import guided_app, marketplace, registration_flow
     names = [registration_flow.CSRF_COOKIE, registration_flow.USER_COOKIE, registration_flow.FLOW_COOKIE,
-             marketplace.FLOW_COOKIE, marketplace.SESSION_COOKIE]
+             marketplace.FLOW_COOKIE, marketplace.SESSION_COOKIE, guided_app.FLOW_COOKIE, guided_app.SESSION_COOKIE]
     listed = " ".join(n for n, *_ in legal.STORAGE)
     for name in names:
         assert name in legal.COOKIE_PREFIXES and name in listed, name
     setters = [p.name for p in (ROOT / "fabric_backend").glob("*.py") if "set_cookie(" in p.read_text(encoding="utf-8")]
-    assert sorted(setters) == ["marketplace.py", "registration_flow.py"]
+    assert sorted(setters) == ["guided_app.py", "marketplace.py", "registration_flow.py"]
 
 
 def test_cookies_page_lists_everything_and_says_no_banner_is_needed(client):

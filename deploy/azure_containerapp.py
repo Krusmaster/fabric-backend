@@ -239,7 +239,9 @@ OPERATOR_FLAGS = {"mcp_apps": "KRUSGRAPH_MCP_APPS", "read_only": "KRUSGRAPH_READ
 # list of workspace ids where "Publish to OneLake catalog" may write (fabric_backend/catalog_publish/writes.py); it is set
 # by hand on the app, so a full run carries it over like a hand-set switch (the manifest replaces the whole list) and
 # --update keeps it. A key in deploy/krusgraph.json sets it; an empty value there leaves it out of a full run.
-OPERATOR_VALUES = {"catalog_write_workspaces": "KRUSGRAPH_CATALOG_WRITE_WORKSPACES"}
+# AP1: KRUSGRAPH_APP_TENANTS, the comma-separated tenant ids that may open the guided chat at /app (guided_app.py), is
+# set by hand on the app the same way and carried the same way; empty or missing, /app answers 404 for everyone.
+OPERATOR_VALUES = {"catalog_write_workspaces": "KRUSGRAPH_CATALOG_WRITE_WORKSPACES", "app_tenants": "KRUSGRAPH_APP_TENANTS"}
 
 
 def flag_on(variable: str, value) -> bool:

@@ -526,7 +526,11 @@ def _instrumented(fn, name: str):
 
 
 def _flow_who(ctx) -> str:
-    """WB15: who the guided path's shared state belongs to (flow_state.who_of)."""
+    """WB15: who the guided path's shared state belongs to (flow_state.who_of). AP1: inside the /app page's call the
+    session names the person (guided_app.SessionTokens.who); the workload's tokens carry no `who`, so nothing changes there."""
+    w = _WORKLOAD_TOKENS.get()
+    if w is not None and isinstance(getattr(w, "who", None), str) and w.who:
+        return w.who
     try:
         return _flow_state.who_of(_identity(ctx), Auth._bearer(ctx))
     except Exception:  # noqa: BLE001 - no identity: the local state
@@ -5567,6 +5571,11 @@ def build_app(host: str = "0.0.0.0"):
     layer = _registration.install(cfg, auth.validator)
     if layer is not None:
         app.router.routes.extend(layer.routes())
+
+    # AP1: the guided chat at /app (guided_app.py): Entra sign-in with this app, then the read-only half of the start
+    # path. Every /app route answers the site's 404 while KRUSGRAPH_APP_TENANTS is empty, and for any other tenant.
+    from . import guided_app as _guided_app
+    app.router.routes.extend(_guided_app.routes(cfg, auth.validator, auth.obo))
 
     inner = app
 

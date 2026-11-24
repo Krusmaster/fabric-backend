@@ -55,11 +55,16 @@ STORAGE = (
     ("__Host-kg_mp_flow, __Host-kg_mp_sub", COOKIE, "The pages under /marketplace, only during a purchase through "
      "Microsoft Marketplace (not switched on yet)", "Carries the sign-in and the subscription you are activating, and "
      "stops a forged activation", "10 minutes", "Yes, to this site only"),
+    ("__Host-kg_app_flow, __Host-kg_app", COOKIE, "A guided page open only to organisations Kruse Consulting AB has invited, "
+     "only when you sign in to it with Microsoft", "Ties Microsoft's answer to the sign-in you started, then keeps you signed "
+     "in; it holds a random session number, not your name, ids or a token", "10 minutes for the sign-in; at most 1 hour for "
+     "the session, or until you sign out", "Yes, to this site only"),
 )
 # the keys the site's own scripts write (static/*.js); the test compares them with the scripts
 SCRIPT_KEYS = ("theme", "krusgraph.mascots", "krusgraph.chat")
-# the cookie names the service sets (registration_flow.py, marketplace.py), as their prefixes
-COOKIE_PREFIXES = ("__Host-kg_flow_", "__Host-kg_csrf_", "__Host-kg_user", "__Host-kg_mp_flow", "__Host-kg_mp_sub")
+# the cookie names the service sets (registration_flow.py, marketplace.py, guided_app.py), as their prefixes
+COOKIE_PREFIXES = ("__Host-kg_flow_", "__Host-kg_csrf_", "__Host-kg_user", "__Host-kg_mp_flow", "__Host-kg_mp_sub",
+                   "__Host-kg_app_flow", "__Host-kg_app")
 
 
 def orgnr() -> str:
