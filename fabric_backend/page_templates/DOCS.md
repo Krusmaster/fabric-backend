@@ -557,6 +557,10 @@ synthetic sample: the suggestion, its data check and the decision that stays you
 
 ### SAP on Fabric
 
+<!-- figure:sap-film -->
+Film: [the SAP joining problem](/sap#sap-film), from SAP tables to a report, on a synthetic SAP-shaped example (AI-generated voice). More on [the SAP page](/sap).
+<!-- /figure -->
+
 SAP tables do not follow general naming rules: `VBAP.VBELN` is the order an item belongs to, `LIPS.VBELN` a delivery,
 `VBRP.VBELN` an invoice, and every key starts with the client `MANDT`. For these tables Krusgraph uses its SAP pack:
 declarative files with the keys and the order-to-cash relationships of `KNA1`, `KNVV`, `MARA`, `MAKT`, `TVKO`, `VBAK`,

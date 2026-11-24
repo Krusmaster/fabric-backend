@@ -113,7 +113,9 @@ def test_every_page_states_the_same_permissions(client, name):  # noqa: F811
 def test_the_permission_table_is_the_generated_one(client, path):  # noqa: F811
     page = client.get(path).text
     listed = re.findall(r"<tr><td><code>([\w.]+)</code> \(", page)
-    assert listed == access.scopes(), path
+    # W7: the table lists GRANTED (the deploy check's set) and then Dataset.Read.All (Power BI Service, since 24 November 2026)
+    assert listed == access.scopes() + ["Dataset.Read.All"], path
+    assert [g.scope for g in access.table_grants()] == listed
     assert f"read from the code on {access.AS_OF}" in page and "Runs or schedules anything?" in page
 
 

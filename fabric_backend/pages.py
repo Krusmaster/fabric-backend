@@ -520,6 +520,36 @@ def film_html(heading: bool = True, hero: bool = False) -> str:
     return f'<div class="film film-docs" id="film">\n  {video}\n</div>'
 
 
+# W7: the approved SAP film of /sap (n242: page_templates/sap.html, the files static/media/krusgraph-sap-to-report*),
+# also on the docs' "SAP on Fabric" page, where the founder looked for it (24 November 2026). The <video> is the same
+# element as on /sap (tests/test_w7_docs_sap_film.py compares the two); sap.html keeps its own copy because n242 holds it.
+SAP_FILM_MP4 = "/static/media/krusgraph-sap-to-report.mp4"
+SAP_FILM_POSTER = "/static/media/krusgraph-sap-to-report-poster.webp"
+SAP_FILM_VTT = "/static/media/krusgraph-sap-to-report.en.vtt"
+SAP_FILM_LABEL = "The SAP joining problem: a film on a synthetic, SAP-shaped example, AI-generated voice"
+
+
+def sap_film_video() -> str:
+    """The SAP film's <video>: native controls, playsinline, nothing loads before play, a poster, English captions on."""
+    return (f'<video controls playsinline preload="none" width="1920" height="1080" poster="{SAP_FILM_POSTER}"\n'
+            f'      aria-label="{SAP_FILM_LABEL}">\n'
+            f'      <source src="{SAP_FILM_MP4}" type="video/mp4">\n'
+            f'      <track kind="captions" srclang="en" label="English" src="{SAP_FILM_VTT}" default>\n'
+            f'      <p>Your browser cannot play this film. <a href="{SAP_FILM_MP4}">Download it as MP4</a>.</p>\n'
+            f'    </video>')
+
+
+def sap_film_docs_html() -> str:
+    """The SAP film on the docs' "SAP on Fabric" page, with the disclosure of /sap and a link to /sap."""
+    product = html.escape(_vars()["PRODUCT"])
+    return ('<div class="sap-film-docs" id="sap-film">\n'
+            f'  <figure class="sap-film-frame">\n    {sap_film_video()}\n  </figure>\n'
+            '  <p class="muted tiny sap-film-note">The SAP joining problem: from SAP tables to a report, shown on our '
+            f'SAP-shaped example, not data from an SAP system. Voice: AI-generated. {product} is independent and is not '
+            'affiliated with SAP or Microsoft. The keys and links behind it are on <a href="/sap">the SAP page</a>.</p>\n'
+            '</div>')
+
+
 def _md_to_html(md: str, figures: dict | None = None) -> str:
     """Just enough Markdown for these pages: headings (with ids), paragraphs, bold/italic, code, links, lists, pipe tables.
     n86b: the Markdown between `<!-- figure:NAME -->` and `<!-- /figure -->` is rendered as usual and handed to
@@ -1596,6 +1626,7 @@ def docs_page_html(path: str) -> str:
     from . import concepts
     figs = concepts.figures()
     figs["overview-film"] = lambda _rendered: film_html(heading=False)        # n157: the overview film at the top of /docs
+    figs["sap-film"] = lambda _rendered: sap_film_docs_html()                # W7: the SAP film of /sap on "SAP on Fabric"
     from . import claims
     figs["what-you-can-build"] = lambda _rendered: claims.section_html()     # n194: n190's grid, moved from the home page
     from . import offering
@@ -1646,7 +1677,7 @@ def docs_page_html(path: str) -> str:
 {otp}
 </div>{anchors}"""
     title = "{{PRODUCT}} — docs" if not pg["depth"] else f'{pg["title"]} — {{{{PRODUCT}}}} docs'
-    first = re.search(r"<p>(.*?)</p>", body, flags=re.S)
+    first = re.search(r"<p>(.*?)</p>", re.sub(r"<video\b.*?</video>", "", body, flags=re.S), flags=re.S)   # W7: not a film's fallback
     desc = re.sub(r"<[^>]+>", "", first.group(1)) if pg["depth"] and first else DOCS_DESC
     desc = html.unescape(desc) if len(desc) <= 220 else DOCS_DESC
     head = f'<script src="/static/docs.js?v={_vars()["ASSET_V"]}" defer></script>' if pg["depth"] == 0 else ""
