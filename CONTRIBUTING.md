@@ -9,7 +9,7 @@ commit and again after every `git pull`.
 1. `git pull --rebase` onto the latest `main`. Keep both sides of a conflict unless one is clearly obsolete; say which
    in the commit message.
 2. Run the whole suite: `python -m pytest -q`. Push only when it is green.
-3. Commit as the maintainer: `git -c user.name="Gustav Kruse" -c user.email="fagerstagustav@gmail.com" commit ...`.
+3. Commit as the maintainer: `git -c user.name="Krusmaster" -c user.email="44801570+Krusmaster@users.noreply.github.com" commit ...`.
    No co-author, session or "generated with" lines in commit messages or PR texts.
 
 ## What never goes into the repository
