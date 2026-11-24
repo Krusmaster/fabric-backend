@@ -13,12 +13,13 @@ const SIZES = [[375, 812], [768, 1024], [1280, 720], [1440, 900]];
   const measure = () => {
     const q = (s) => document.querySelector(s), box = (s) => q(s).getBoundingClientRect();
     const v = q('#film video'), h1 = box('h1'), ctas = box('.hero-ctas'), f = v.getBoundingClientRect();
+    const addr = q('#connect-address') ? box('#connect-address') : ctas;     // W6: the connector address sits under the buttons
     const b = q('.film-toggle'), fr = box('#film .film-frame'), card = box('.hero .session');
     const inView = (r) => r.top >= 0 && r.bottom <= innerHeight;
-    return { vh: innerHeight, h1InView: inView(h1), ctasInView: inView(ctas), ctasBottom: ctas.bottom, filmTop: f.top, filmHeight: f.height,
+    return { vh: innerHeight, h1InView: inView(h1), ctasInView: inView(ctas), addressInView: inView(addr), ctasBottom: ctas.bottom, filmTop: f.top, filmHeight: f.height,
              filmWidth: f.width, filmCentre: Math.abs((f.left + f.right) / 2 - innerWidth / 2),
              visibleFraction: Math.max(0, Math.min(innerHeight, f.bottom) - f.top) / f.height,
-             filmAfterButtons: f.top >= ctas.bottom, gapAfterButtons: f.top - ctas.bottom,
+             filmAfterButtons: f.top >= addr.bottom, gapAfterButtons: f.top - addr.bottom,
              paused: v.paused, muted: v.muted, loop: v.loop, playsinline: v.playsInline, preload: v.preload,
              autoplayAttr: v.hasAttribute('autoplay'), button: b && !b.hidden ? b.textContent.trim() : null,
              buttonVisible: !!b && !b.hidden && b.getBoundingClientRect().width > 0,

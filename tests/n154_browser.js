@@ -39,7 +39,7 @@ async function wins(page, n) {
       // the question is on screen: its turn and its text are opaque, and the typing clip (none on a phone) shows some of it
       const questionShown = op(turn) > 0.5 && op(text) > 0.5 && (!right || parseFloat(right[1]) < 95);
       const dots = [...document.querySelectorAll('.session-dots span')].map((d) => getComputedStyle(d).backgroundColor !== 'rgba(0, 0, 0, 0)');
-      return { at: Math.round(performance.now() - performance.getEntriesByType('navigation')[0].loadEventEnd), clip, questionShown, ctas: r('.hero-ctas'), session: r('figure.session'), head: r('.session-head'),
+      return { at: Math.round(performance.now() - performance.getEntriesByType('navigation')[0].loadEventEnd), clip, questionShown, ctas: r('.hero-ctas'), address: document.querySelector('#connect-address') ? r('#connect-address') : r('.hero-ctas'), session: r('figure.session'), head: r('.session-head'),
                sent: sent.getBoundingClientRect().toJSON(), sentOpacity: op(sent), answerOpacity: op(turn.querySelector('.session-answer')),
                turnsShown: shown, dots, film: r('#film'), h1: r('h1'),   // n196: the film between the buttons and the replay
                caption: document.querySelector('#session-cap').textContent.trim().slice(0, 40), inHero: !!document.querySelector('.hero figure.session') };
