@@ -90,7 +90,8 @@ def test_in_a_browser_the_hero_and_the_button_everywhere(site):
     for w in (375, 1280):
         h = r[f"hero{w}"]
         # n196: the film is directly under the buttons and the replay under the film; the chip and the points left
-        assert h["inHero"] and h["ctas"]["bottom"] <= h["film"]["top"] <= h["ctas"]["bottom"] + 40, h
+        # W6: the connector address sits between the buttons and the film
+        assert h["inHero"] and h["ctas"]["bottom"] <= h["address"]["top"] and h["address"]["bottom"] <= h["film"]["top"] <= h["address"]["bottom"] + 40, h
         assert h["film"]["bottom"] <= h["session"]["top"] <= h["film"]["bottom"] + 40, h
         # n165: turn 1 plays from 0 s: its question is typing at 0.5 s, its answer is in by 2.5 s, close under the heading
         assert 500 <= h["at"] < 1300 and h["turnsShown"] == 1 and h["questionShown"], h
