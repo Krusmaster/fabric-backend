@@ -4176,14 +4176,23 @@ def _powerbi_dax(workspace_id: str, model_id: str, query: str, ctx) -> list[dict
     return list(((first.get("tables") or [{}])[0]).get("rows") or [])
 
 
-def _verify_fix_steps(fixes: list[dict], args: dict, items: dict) -> list[dict]:
-    """The one action per state finding, as a next step a person can click: a sentence for the chat, nothing written."""
+def _verify_fix_steps(fixes: list[dict], args: dict, items: dict, build_workspace: str = "") -> list[dict]:
+    """The one action per state finding, as a next step a person can click: a sentence for the chat, nothing written.
+    W5: in a build in another workspace than the source (`build_workspace`), the step names the build's workspace,
+    where the item is: the creating tools build in the source's workspace, so the step is done in Fabric there."""
     common = {k: v for k, v in args.items() if v not in (None, "", [], {})}
     shown = lambda a: ", ".join(f"{k}={json.dumps(v, ensure_ascii=False)}" for k, v in a.items())
     out = []
     for f in fixes:
         step = {"label": f["label"], "who": "builder", "why": f["how"], "item": f["item"]}
-        if f.get("action") == "refresh_model":
+        if build_workspace and f.get("action") in ("refresh_model", "run_pipeline"):
+            what, button = (("semantic model", "Refresh now") if f["action"] == "refresh_model" else ("pipeline", "Run"))
+            step["workspace"] = build_workspace
+            step["ask"] = (f"{'Refresh' if f['action'] == 'refresh_model' else 'Run'} the {what} {f['item']} in the workspace "
+                           f"{build_workspace} once, after my confirmation: in Fabric, open {f['item']} in {build_workspace} and "
+                           f"choose {button}. It was built there from the source in {args.get('workspace')}; the creating tools "
+                           f"build in the source's workspace, so they are not the way to reach it.")
+        elif f.get("action") == "refresh_model":
             a = {**common, "name": f["item"], "refresh": True, "dry_run": False}
             step["ask"] = (f"Refresh the semantic model {f['item']} once (create_semantic_model with {shown(a)}), after my "
                            "confirmation. It only refreshes a model that exists.")
@@ -4248,12 +4257,81 @@ def _verify_model_basis(p, info: dict, workspace, source, schema, keys, confirme
             f"Compared with the dry run on the plan's tables in {info.get('item_name')} ({schema}).", "")
 
 
+# W5 (Gustav's tenant test, 24 November 2026, after W4): the Krusgraph Model's Create builds silver and the check on the
+# keys its row check passed (workload_api.checked_keys: silver removes duplicates on them, the check enforces them), and
+# verify_build rebuilt the dry run without that result, so those keys came out as guessed (not_enforced) and the silver
+# and check notebooks read as "differs" with nothing changed in Fabric. The dry run is now rebuilt on the same key checks:
+# those the Model that built the items recorded (its review.json), else the keys counted again against the rows (only
+# when the notebooks in Fabric match that), else the two notebooks are "not checked" (key validation unknown).
+KEYS_UNKNOWN = "key validation unknown"
+
+
+def _guessed_keys(p) -> dict:
+    """{table: key columns} of the plan's keys that silver removes rows on only after a key check (silver.CHECKED_KEY_RULES)."""
+    from .silver import CHECKED_KEY_RULES
+    return {t: list(cols) for t, (cols, rule) in p.keys.items() if cols and rule not in CHECKED_KEY_RULES}
+
+
+def _recorded_key_checks(listings: list[tuple[str, list[dict]]], built_ids: set[str], headers: dict, reading) -> dict | None:
+    """W5: the key checks of the Krusgraph Model whose outputs.json lists one of the built items: {"model", "keys"} with
+    keys as workload_api.checked_keys gives them from its review.json; None when no Model records these items. Reads
+    only (getDefinition of each Krusgraph Model in the build's and the source's workspace)."""
+    from . import product_life as _life, review as _review, workload_api as _wl
+    for ws, listed in listings:
+        for it in listed:
+            if not _life.MODEL_TYPES.match(str(it.get("type") or "")):
+                continue
+            reading(f"reading the Krusgraph Model {it.get('displayName')}")
+            try:
+                parts = _item_definition_parts(ws, "items", it["id"], headers)
+                outputs = json.loads(parts.get("outputs.json") or "{}")
+            except TimeLimit:
+                raise
+            except Exception:                                      # noqa: BLE001 - a Model not read records nothing here
+                continue
+            created = {str(c.get("id") or "").lower() for c in (outputs.get("created") or []) if isinstance(c, dict)}
+            if not created & built_ids or not parts.get("review.json"):
+                continue
+            try:
+                return {"model": it.get("displayName") or it["id"], "keys": _wl.checked_keys(_review.read(parts["review.json"]))}
+            except Exception:                                      # noqa: BLE001 - an unreadable review is no record
+                continue
+    return None
+
+
+def _recounted_keys(p, schema: str, execute, reading) -> dict:
+    """W5: the guessed keys counted again against the rows (unique, never NULL, rows > 0), as the Model's row check
+    counts them (evidence.key_sql); {table: checked_keys entry}. Reads counts only."""
+    from . import amounts as _amounts
+    from .evidence import key_sql
+    out = {}
+    dialect = _amounts.dialect_of(execute)
+    for t, cols in _guessed_keys(p).items():
+        reading(f"counting the key of {t}")
+        row = list(execute(key_sql(schema, t, cols, dialect)))[0]
+        n, nulls, distinct = (int(row.get(k) or 0) for k in ("n", "nulls", "distinct_keys"))
+        if n > 0 and nulls == 0 and distinct == n:
+            out[t] = {"columns": cols, "how": "rows", "checked_at": "", "rows": n, "distinct": distinct}
+    return out
+
+
+_CHECKED_ON = re.compile(r"(checked against the rows) on \d{1,2} [A-Z][a-z]+ \d{4}")
+
+
+def _without_check_date(source: str) -> str:
+    """W5: a notebook's text without the date of its key check (silver's key comment), for a dry run on keys counted now."""
+    return _CHECKED_ON.sub(r"\1", source)
+
+
 def _verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx, skip: dict | None = None,
-                  silver_schema: str = "", source_workspace: str = "", build_lakehouse: str = "", gold_schema: str = "") -> dict:
+                  silver_schema: str = "", source_workspace: str = "", build_lakehouse: str = "", gold_schema: str = "",
+                  key_checks: dict | None = None) -> dict:
     """W4 (Gustav's tenant test, 24 November 2026: source in one workspace, the build in another): `workspace` is where
     the items were built; `source_workspace`, when given and different, is where the source is read. The build's
     workspace is then set as Create sets it (BUILD_IN), so the dry runs are rebuilt for a build in another workspace,
-    with silver and gold in `build_lakehouse` (else that workspace's first lakehouse by name, as Create's default)."""
+    with silver and gold in `build_lakehouse` (else that workspace's first lakehouse by name, as Create's default).
+    W5: `key_checks` (the Model editor's review: workload_api.checked_keys) are the key checks the Create stood on; None
+    means they are looked up (_recorded_key_checks)."""
     src_ws = (source_workspace or "").strip() or workspace
     build_tok = target_tok = None
     if (source_workspace or "").strip() and BUILD_IN.get() is None:
@@ -4264,7 +4342,8 @@ def _verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx
     if BUILD_IN.get() is not None and WRITE_TARGET.get() is None:
         target_tok = WRITE_TARGET.set({"lakehouse": build_lakehouse.strip()} if (build_lakehouse or "").strip() else {})
     try:
-        return _verify_built_in(src_ws, source, items, schema, keys, confirmed, tables, ctx, skip, silver_schema, gold_schema)
+        return _verify_built_in(src_ws, source, items, schema, keys, confirmed, tables, ctx, skip, silver_schema, gold_schema,
+                                key_checks=key_checks, build_workspace=workspace if src_ws != workspace else "")
     finally:
         if target_tok is not None:
             WRITE_TARGET.reset(target_tok)
@@ -4273,7 +4352,7 @@ def _verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx
 
 
 def _verify_built_in(workspace, source, items, schema, keys, confirmed, tables, ctx, skip: dict | None, silver_schema: str,
-                     gold_schema: str) -> dict:
+                     gold_schema: str, key_checks: dict | None = None, build_workspace: str = "") -> dict:
     from . import budget as _budget, model_compare as _mc
     from .infer import PlanInputError
     if not isinstance(items, dict) or not items:
@@ -4326,6 +4405,31 @@ def _verify_built_in(workspace, source, items, schema, keys, confirmed, tables, 
             return read()
         except Exception as e:                                             # noqa: BLE001 - "not read", with the reason
             return e
+    # W5: the key checks the Create stood on: the caller's (the Model editor's review), else the ones the Model that built
+    # these items recorded; "unknown" leaves the recount to the pipeline's notebooks below
+    keys_basis = {"how": "plan", "said": "the plan's own keys (no key check recorded)"}
+    if key_checks is not None:
+        keys_basis = {"how": "recorded", "said": "the key checks of this Model's review"}
+    elif {"pipeline", "semantic_model"} & set(items) and _guessed_keys(p):
+        built_ids = {str(i["id"]).lower() for i in (find(k, n) for k, n in items.items()) if i}
+        listings = [(ws, listing)]
+        if str(info["workspace_id"]).lower() != str(ws).lower():           # the Model may sit beside the source
+            try:
+                listings.append((info["workspace_id"], _workspace_items(info["workspace_id"], headers)))
+            except Exception:                                              # noqa: BLE001 - not listed: not searched
+                pass
+        try:
+            got = _recorded_key_checks(listings, built_ids, headers, reading) if built_ids else None
+        except TimeLimit:
+            got = None
+        if got is not None:
+            key_checks = got["keys"]
+            keys_basis = {"how": "recorded", "said": f"the key checks the Krusgraph Model {got['model']} recorded at Create"}
+        else:
+            keys_basis = {"how": "unknown", "said": "the plan's own keys: no Krusgraph Model recorded the key checks Create used"}
+    if key_checks:
+        from dataclasses import replace as _replace
+        p = _replace(p, checked_keys={**(getattr(p, "checked_keys", None) or {}), **key_checks})
     lines, models = [], {}
 
     def model_of(item: dict) -> dict:
@@ -4431,23 +4535,59 @@ def _verify_built_in(workspace, source, items, schema, keys, confirmed, tables, 
                         if refusal:
                             binfo, why_not = None, str((json.loads(refusal) or {}).get("error") or "the build's lakehouse could not be told")
                     notes = []
-                    builds = []
-                    if binfo is not None:
+                    key_note, keys_unknown, compare_src = "", "", sources
+
+                    def pick(plan_):
                         # W4: a build whose semantic model reads gold wrote the gold notebook with its dimension views
                         # (W2); both dry runs are made, and the one the gold notebook in Fabric matches is the one compared
+                        builds = []
                         for on_gold in (False, True):
                             tok = MODEL_ON_GOLD.set({"silver_schema": p_lay["silver"], "gold_schema": p_lay["gold"]} if on_gold else None)
                             try:
-                                builds.append(_pipeline_build(p, binfo, schema, p_lay["silver"], p_lay["gold"], tables, False, shown,
+                                builds.append(_pipeline_build(plan_, binfo, schema, p_lay["silver"], p_lay["gold"], tables, False, shown,
                                                               ran[0] if known else "", ran[1] if known else "", gold_info=ginfo))
                             finally:
                                 MODEL_ON_GOLD.reset(tok)
                         gold_src = sources.get(builds[0]["notebooks"][1]["name"].lower())
-                        build = builds[0]
                         if isinstance(gold_src, str) and _verify.compare_notebook(builds[0]["notebooks"][1]["content"], gold_src)["differences"] \
                                 and not _verify.compare_notebook(builds[1]["notebooks"][1]["content"], gold_src)["differences"]:
-                            build = builds[1]
-                            notes.append("The gold notebook is the one of a build whose semantic model reads gold (dimension views included).")
+                            return builds[1], ["The gold notebook is the one of a build whose semantic model reads gold (dimension views included)."]
+                        return builds[0], []
+
+                    def keyed(b, srcs):
+                        """W5: the silver and check notebooks with their source in Fabric, when it was read."""
+                        return [(n, srcs[n["name"].lower()]) for n in (b["notebooks"][0], b["notebooks"][2])
+                                if isinstance(srcs.get(n["name"].lower()), str)]
+                    if binfo is not None:
+                        build, said = pick(p)
+                        notes += said
+                        if keys_basis["how"] == "recorded" and _guessed_keys(p):
+                            key_note = f"Keys as {keys_basis['said']}."
+                        elif keys_basis["how"] == "unknown" and any(_verify.enforces_fewer_keys(n["content"], src) for n, src in keyed(build, sources)):
+                            # W5: Fabric's notebooks enforce keys this dry run guessed: Create stood on a key check
+                            # nobody recorded here; the keys are counted again (read-only) and the dry run on them is
+                            # compared, without the dates of the checks
+                            try:
+                                counted = _recounted_keys(p, schema, execute, reading)
+                            except Exception as e:                         # noqa: BLE001 - said on the two lines
+                                counted, why = {}, ("the call's time budget ran out" if isinstance(e, TimeLimit) else _verify._why(e))
+                            else:
+                                why = "no key counted unique in the rows now" if not counted else ""
+                            if counted:
+                                from dataclasses import replace as _replace
+                                b2, said2 = pick(_replace(p, checked_keys={**(getattr(p, "checked_keys", None) or {}), **counted}))
+                                plain = {k: _without_check_date(v) if isinstance(v, str) else v for k, v in sources.items()}
+                                if not any(_verify.compare_notebook(n["content"], src)["differences"] for n, src in keyed(b2, plain)):
+                                    build, notes, compare_src = b2, list(said2), plain
+                                    key_note = (f"Keys counted again against the rows now ({len(counted)} unique and never NULL), "
+                                                "as no Krusgraph Model recorded the key checks Create used; the dates of the checks "
+                                                "are not compared.")
+                                else:
+                                    why = "the dry run on the keys counted again against the rows now does not match it either"
+                            if not key_note:
+                                keys_unknown = (f"{KEYS_UNKNOWN}: the notebook in Fabric enforces keys the plan only guessed, "
+                                                f"and no Krusgraph Model recorded the key checks Create used ({why}); run verify_build "
+                                                "from the Krusgraph Model that built it, or give the keys (keys=)")
                         expected = _pipeline_content(build, {n["name"]: n["name"] for n in build["notebooks"]}, ws)
                     else:
                         from . import pipeline as _pipeline_mod
@@ -4478,7 +4618,13 @@ def _verify_built_in(workspace, source, items, schema, keys, confirmed, tables, 
                                 src = _item_definition_parts(ws, "notebooks", nb["id"], headers).get("notebook-content.py") or ""
                             if isinstance(src, BaseException):
                                 raise src
-                            lines.append(_verify.line("notebook", n["name"], _verify.compare_notebook(n["content"], src)))
+                            src = compare_src.get(n["name"].lower(), src) if isinstance(compare_src.get(n["name"].lower()), str) else src
+                            is_keyed = n is build["notebooks"][0] or n is build["notebooks"][2]
+                            cmp = _verify.compare_notebook(n["content"], src)
+                            if is_keyed and keys_unknown and cmp["differences"]:         # W5: not "differs" on an unknown basis
+                                lines.append(_verify.line("notebook", n["name"], not_checked=keys_unknown))
+                                continue
+                            lines.append(_verify.line("notebook", n["name"], cmp, notes=[key_note] if is_keyed and key_note else None))
                         except Exception as e:                             # noqa: BLE001
                             lines.append(_verify.line("notebook", n["name"], not_checked=not_read(e)))
                 elif kind == "app":
@@ -4490,7 +4636,7 @@ def _verify_built_in(workspace, source, items, schema, keys, confirmed, tables, 
     out = _verify.result(lines, _budget.ran_out())
     args = {"workspace": workspace, "source": source, "schema": schema, "keys": keys, "confirmed": confirmed}
     if out["fixes"]:
-        out["next_steps"] = _verify_fix_steps(out["fixes"], args, items)
+        out["next_steps"] = _verify_fix_steps(out["fixes"], args, items, build_workspace)
     out["note"] = ("Unit-tested with Fabric's REST API and the SQL endpoint replaced by test doubles (identical definitions, one "
                    "differing relationship, a model never refreshed, a doubled total). " + _tool_status.answer_note("verify_build"))
     if _mcp_apps.enabled():                                        # the cards' rows; with the flag off the answer has none

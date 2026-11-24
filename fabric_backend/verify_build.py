@@ -455,6 +455,18 @@ def compare_notebook(expected: str, actual: str) -> dict:
     return {"differences": out, "checked": {"lines": len(e)}}
 
 
+def _guessed_marks(source: str) -> int:
+    """W5: the keys a pipeline notebook leaves unenforced as guessed: the check's "not_enforced" entries and silver's
+    not_checked_keys[...] lines (pipeline.NOT_ENFORCED, silver._table_cell)."""
+    return sum(1 for ln in _code_lines(source) if ln.lstrip().startswith(('"not_enforced":', "not_checked_keys[")))
+
+
+def enforces_fewer_keys(expected: str, actual: str) -> bool:
+    """W5: the notebook in Fabric enforces keys the dry run left as guessed: it was built on a key check (the Model's row
+    check, workload_api.checked_keys) the dry run did not have."""
+    return _guessed_marks(actual) < _guessed_marks(expected)
+
+
 # ------------------------------------------------------------------ 2. the figures ------------------------------------
 
 _DAX_T = r"('(?:[^']|'')+'|[A-Za-z_][A-Za-z0-9_]*)"
