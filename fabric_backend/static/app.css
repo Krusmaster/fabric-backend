@@ -1,4 +1,5 @@
-/* AP1: the guided chat at /app (guided_app.py, app.js). Only the site's tokens (site.css), so light and dark follow the
+/* AP1: the guided chat at /app (guided_app.py, app.js); AP2 adds the decision cards, the dry run's items, the confirm
+   dialog, Create's progress and the verify card (guided_build.py). Only the site's tokens (site.css), so light and dark follow the
    theme and the mascots keep their colours: Onto green, the Thinker violet, the Builder coral. One column, 16 px from the
    edge on a phone; buttons are at least 44 px high; prefers-reduced-motion turns the small rise off. */
 .app-wrap { padding-top: 18px; padding-bottom: 40px }
@@ -78,6 +79,54 @@ html[data-mascots="off"] .app-face, html[data-mascots="off"] .app-fig { visibili
   border: 1.5px solid var(--line-strong); background: var(--card); color: var(--ink);
 }
 .app-type input:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px }
+/* AP2 */
+.app-badge {
+  display: inline-block; font-size: 12.5px; font-weight: 700; border-radius: 999px; padding: 2px 10px;
+  background: var(--card-2); color: var(--ink); border: 1px solid var(--line); white-space: nowrap; justify-self: start;
+}
+.app-badge.create, .app-badge.mine, .app-badge.update { background: var(--sage-soft); color: var(--sage-ink); border-color: transparent }
+.app-badge.skip, .app-badge.wait, .app-badge.busy { background: var(--lav-soft); color: var(--lav-ink); border-color: transparent }
+.app-badge.choose, .app-badge.refuse, .app-badge.error, .app-badge.started, .app-badge.capacity {
+  background: var(--coral-soft); color: var(--coral-ink); border-color: transparent
+}
+.app-dec { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 6px; background: var(--card) }
+.app-dec > * { margin: 0 }
+.app-dec.decided { border-color: var(--sage-d) }
+.app-dec-q { font-weight: 700; overflow-wrap: anywhere }
+.app-dec-opts { display: flex; flex-wrap: wrap; gap: 8px }
+.app-dec-opts .app-chip { border-radius: 14px }
+.app-dec-opts .app-chip[aria-pressed="true"] { opacity: 1; background: var(--sage-soft); border-color: var(--sage-d); color: var(--sage-ink) }
+.app-decided { font-size: 14px }
+.app-target { overflow-wrap: anywhere }
+.app-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px }
+.app-bub ol.app-items { padding-left: 0 }
+.app-item { border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; display: grid; gap: 4px; background: var(--card); min-width: 0 }
+.app-item > * { margin: 0; min-width: 0 }
+.app-item-h { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline }
+.app-item-h strong { overflow-wrap: anywhere }
+.app-item .warn { color: var(--coral-ink); font-weight: 700 }
+.app-item a { font-weight: 700; display: inline-block; min-height: 32px; padding: 4px 0; overflow-wrap: anywhere }
+.app-links { list-style: none; margin: 0; padding: 0; display: grid; gap: 0 }
+.app-def {
+  max-height: 320px; overflow: auto; margin: 6px 0 0; padding: 8px; font: 12px/1.45 var(--mono, ui-monospace, monospace);
+  background: var(--bg); border: 1px solid var(--line); border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.app-def:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px }
+.app-status { font-weight: 700 }
+.app-verify-h { margin: 0; font-size: 17px; font-family: var(--font-head) }
+.app-msg.verify .app-bub { border-width: 2px }
+.app-dialog {
+  max-width: min(560px, calc(100vw - 32px)); width: 100%; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--card); color: var(--ink); padding: 18px; box-shadow: var(--shadow);
+}
+.app-dialog::backdrop { background: rgba(0, 0, 0, .45) }
+.app-dialog h2 { font-size: 20px; margin: 0 0 8px; max-width: none }
+.app-dialog h2:focus { outline: none }
+.app-dialog p { margin: 0 0 10px }
+.app-confirm-list { margin: 0 0 14px; padding-left: 22px; display: grid; gap: 6px }
+.app-confirm-list li { overflow-wrap: anywhere }
+.app-dialog-b { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end }
+
 @media (max-width: 480px) {
   .app-wrap { padding-top: 10px }
   .app-head { grid-template-columns: auto minmax(0, 1fr); padding: 10px 12px }

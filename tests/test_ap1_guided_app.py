@@ -6,7 +6,8 @@ to sign in; the sign-in is the authorization code flow with PKCE against the Kru
 gets one HttpOnly, Secure, SameSite=Lax session cookie, never a token. The page is noindex, absent from the sitemap,
 robots.txt, llms.txt and every page's navigation, and its HTML carries no token and no tenant id. The journey's read
 steps run the `start` tool's own engine with the session's on-behalf-of tokens (the synthetic SAP demo behind the
-doubles of tests/wb15_fake.py, no write possible), and the steps that write are refused.
+doubles of tests/wb15_fake.py, no write possible), and the steps that write are refused here (AP2: the dry run and
+Create have their own address, tests/test_ap2_guided_build.py).
 """
 from __future__ import annotations
 
@@ -255,7 +256,8 @@ def test_the_read_steps_run_the_start_engine_with_the_sessions_own_tokens(journe
     assert check["counts"]["tables"] == 17 and check["counts"]["hold"] == 40 and check["counts"]["checks"] == 41
     assert len(check["map"]["tables"]) == 17 and len(check["map"]["links"]) == 24
     assert any(r["state"] == "failed" and r["orphans"] == 1 for r in check["map"]["links"])     # the planted orphan
-    assert check["next"] == guided_app.NEXT_LINE and "buttons" not in check                  # AP1 stops before Decide
+    assert check["next"] == guided_app.NEXT_LINE                                             # AP2: Decide comes next
+    assert [b["label"] for b in check["buttons"]] == ["Next: Decide"]
     assert seen["sql"] and set(seen["sql"]) == {s.RecordingOBO.expected(token, SQL_SCOPE)}
     scopes = {sc for _, t, sc in a._obo.calls if t == s.TID}         # Fabric, SQL, and OneLake's read of CSN files
     assert {FABRIC_SCOPE, SQL_SCOPE} <= scopes <= {FABRIC_SCOPE, SQL_SCOPE, STORAGE_SCOPE}
@@ -268,13 +270,13 @@ def test_the_read_steps_run_the_start_engine_with_the_sessions_own_tokens(journe
     assert token not in text and s.TID not in text
 
 
-@pytest.mark.parametrize("step", ["decide", "dry_run", "create", "done", "latest"])
-def test_the_steps_that_decide_or_write_are_refused(journey, monkeypatch, step):
+@pytest.mark.parametrize("step", ["dry_run", "create", "done", "latest"])
+def test_the_steps_that_write_are_refused_here(journey, monkeypatch, step):
     c, _, _, _ = journey
     calls = []
     monkeypatch.setattr(server, "start", lambda **k: calls.append(k) or "{}")
     r = s.step(c, {"workspace": "demo", "source": "demo_lh", "schema": "dbo", "step": step, "create": ["x"], "confirm": True})
-    assert r.status_code == 400 and r.json()["kind"] == "not_yet" and calls == []
+    assert r.status_code == 400 and r.json()["kind"] == "wrong_step" and calls == []
 
 
 def test_only_the_names_and_a_read_step_reach_the_engine(journey, monkeypatch):
@@ -319,5 +321,6 @@ def test_the_view_keeps_only_what_the_page_draws():
     v = guided_app.view({"stage": "check", "who": "thinker", "say": "x", "counts": {"tables": 1, "secret": 2},
                          "after": {"label": "Next: Decide", "arguments": {"step": "decide"}},
                          "actions": [{"kind": "call", "label": "Dry run", "arguments": {"dry_run": True}}]})
-    assert v["counts"] == {"tables": 1} and "buttons" not in v and v["next"] == guided_app.NEXT_LINE
+    assert v["counts"] == {"tables": 1} and v["next"] == guided_app.NEXT_LINE
+    assert v["buttons"] == [{"label": "Next: Decide", "arguments": {"step": "decide"}, "primary": True}]
     assert guided_app.view({"error": "e", "kind": "no_access", "hint": "h", "trace": "t"}) == {"error": "e", "kind": "no_access", "hint": "h"}
