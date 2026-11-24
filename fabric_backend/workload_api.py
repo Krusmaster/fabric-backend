@@ -3985,7 +3985,8 @@ def run_verify(req: dict) -> dict:
             with budget.call():
                 out = S._verify_built(req["workspace"], req["source"], items, req["schema"], keys, confirmed, None, None, skip=skip,
                                       silver_schema=req.get("silver_schema") or "", build_lakehouse=attached if cross else "",
-                                      gold_schema=req.get("gold_schema") or "")
+                                      gold_schema=req.get("gold_schema") or "",
+                                      key_checks=checked_keys(rv))   # W5: the key checks Create stood on (run_build_many)
     finally:
         S.BUILD_IN.reset(build_in)
     out.pop("review_by_ai", None)                                  # the editor has no AI client beside it

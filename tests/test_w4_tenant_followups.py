@@ -154,7 +154,8 @@ def _line(out, name):
 
 def test_a_source_in_another_workspace_is_verified_where_the_items_were_built(elsewhere):
     out = _verify({"pipeline": "pipeline_shop"})
-    assert BUILD in elsewhere.seen and WS not in elsewhere.seen          # the items were listed in the build's workspace
+    assert elsewhere.seen[0] == BUILD                                    # the items were listed in the build's workspace
+    assert set(elsewhere.seen) <= {BUILD, WS}                            # W5: the source's only for a Krusgraph Model's record
     assert [x["item"] for x in out["lines"]] == ["pipeline_shop", "silver_shop", "gold_shop", "pipeline_shop_check"]
     assert {x["state"] for x in out["lines"]} == {"verified"}, out["result_lines"]
     assert any("in the lakehouse build_lh" in n for n in _line(out, "pipeline_shop")["notes"])
