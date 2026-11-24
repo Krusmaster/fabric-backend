@@ -667,7 +667,9 @@ MARKDOWN_TWINS = ("/docs", "/start", "/privacy", "/trust", "/security", "/lovabl
 
 # n55: one demo, on /check. The old addresses answer with a redirect so docs, the sitemap's old entries and shared
 # links still land: /demo on the guided demo, /explore on the map of the same example.
-REDIRECTS = {"/demo": "/check?example=sample&guide=1", "/explore": "/check?example=sample#check-map"}
+# W6: /connect is the short address to say aloud; it lands on step 3 of /start, "Add the connector in Claude", with the
+# connector address and its Copy button (site.js shows the step from #step-3). Not /mcp/connect, the MCP endpoint itself.
+REDIRECTS = {"/demo": "/check?example=sample&guide=1", "/explore": "/check?example=sample#check-map", "/connect": "/start#step-3"}
 
 MASCOT_PAGES_BY_SCRIPT = ()                 # pages whose mascots site.js draws without a placeholder in the HTML (none since n55)
 

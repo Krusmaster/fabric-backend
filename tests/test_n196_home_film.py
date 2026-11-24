@@ -57,7 +57,10 @@ def test_the_film_is_directly_under_the_headline_and_buttons(client):
     h1, ctas, film = hero.index("<h1>"), hero.index('class="ctas hero-ctas"'), hero.index('<div class="film film-hero" id="film">')
     assert h1 < ctas < film
     between = hero[ctas:film]
-    assert re.sub(r"\s+", "", re.sub(r"<a [^>]*>.*?</a>", "", between)) == 'class="ctashero-ctas"id="connect"></div>'   # only the buttons
+    # only the buttons, then (W6) the connector address with its Copy button and one line of how
+    buttons, address = between.split('<div class="hero-connect" id="connect-address">', 1)
+    assert re.sub(r"\s+", "", re.sub(r"<a [^>]*>.*?</a>", "", buttons)) == 'class="ctashero-ctas"id="connect"></div>'
+    assert 'data-copy="#connect-url"' in address and "<video" not in address and "<img" not in address
     assert hero.index('id="film"') < hero.index('<figure class="session"')                                            # the replay follows
     # the headline, the sentence and the buttons from n188/n194, unchanged
     assert "<h1>Why is your total twice what finance says?</h1>" in hero
@@ -238,8 +241,8 @@ def test_browser_film_in_the_first_viewport_under_the_buttons(browser):
     assert browser["errors"] == []
     assert len(browser["sizes"]) == 8
     for key, s in browser["sizes"].items():
-        assert s["h1InView"] and s["ctasInView"], key
-        assert s["filmAfterButtons"] and s["gapAfterButtons"] < 48, key                  # directly under the buttons
+        assert s["h1InView"] and s["ctasInView"] and s["addressInView"], key
+        assert s["filmAfterButtons"] and s["gapAfterButtons"] < 48, key                  # directly under the buttons and (W6) the address
         assert s["filmTop"] < s["vh"] - 100 and s["visibleFraction"] > 0.2, key       # the film starts in the first screen
         assert s["filmCentre"] < 2, key
         assert not s["overflow"], key
@@ -247,8 +250,10 @@ def test_browser_film_in_the_first_viewport_under_the_buttons(browser):
         assert s["muted"] and s["loop"] and s["playsinline"] and s["preload"] == "metadata" and not s["autoplayAttr"], key
         assert not s["paused"] and s["button"] == "Pause the film" and s["buttonVisible"], key
     for scheme in ("light", "dark"):
-        for w in ("1280", "1440"):                                                       # at least the top half without scrolling
-            assert browser["sizes"][f"{scheme} {w}"]["visibleFraction"] >= 0.5, (scheme, w)
+        # at least the top half without scrolling at 1440; W6 (the connector address under the buttons, about 65 px) leaves
+        # a little less than half at 1280 x 720
+        assert browser["sizes"][f"{scheme} 1440"]["visibleFraction"] >= 0.5, scheme
+        assert browser["sizes"][f"{scheme} 1280"]["visibleFraction"] >= 0.35, scheme
         assert browser["sizes"][f"{scheme} 1440"]["filmWidth"] > 1000                    # n203: wider than n196's 960 px
         assert browser["sizes"][f"{scheme} 375"]["filmWidth"] >= 330                     # the content width on a phone
     assert browser["sizes"]["light 1440"]["theme"] != browser["sizes"]["dark 1440"]["theme"]
