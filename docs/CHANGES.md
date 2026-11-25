@@ -2,8 +2,9 @@
 
 Status: **the contract, its drafts, its numbers, the proposal, applying it and undo** (round LFD2, 24 November 2026;
 rounds LFD3 to LFD7, 25 November 2026: the numbers, the diff, the read-only tool `propose_change` with the numbers
-counted, `apply_change` through Update, both behind `KRUSGRAPH_CHANGES`, off by default, and versions and undo; *The
-numbers*, *Proposing a change*, *Applying a change (LFD6)* and *Versions and undo (LFD7)* below).
+counted, `apply_change` through Update, both behind `KRUSGRAPH_CHANGES`, off by default, and versions and undo, and the diff card; *The
+numbers*, *Proposing a change*, *Applying a change (LFD6)*, *Versions and undo (LFD7)* and *The diff card (LFD8)*
+below).
 `fabric_backend/changes.py` is a module of pure functions with tests (`tests/test_lfd2_contract.py`); LFD3 applies a
 list of changes to the silver, gold and semantic model drafts (below, *Applying a list*; `tests/test_lfd3_apply.py`, and
 the silver notebook on a local PySpark 4.0.1 in `tests/test_spark_notebooks.py`); LFD4 counts the numbers before and
@@ -428,6 +429,43 @@ Scenario A6 on shop_lfd: after *remove test customers*, *add region* and *order 
 customers" is a revert of the first change. The drafts are those of the list of the other two, byte for byte; the silver
 notebook is v0's again, byte for byte (`silver.simulate`: 12 customers, 66 orders, 146 lines, as the source); the review file says v4 took
 the filter out; the diff shows the filter removed and its numbers, customers 12 → 10 read backwards.
+
+## The diff card (LFD8)
+
+Round LFD8 (25 November 2026) draws `propose_change`'s answer as an MCP app card (`fabric_backend/mcp_apps_change.py`).
+The card exists only with both `KRUSGRAPH_MCP_APPS=1` (every card's setting) and `KRUSGRAPH_CHANGES=1`; with either off
+there is no resource and no `_meta`, and every listing is as before. With both on, the default read-only listing stays
+under 23 500 characters (`tests/test_lfd8_card.py`). Like the other cards it loads nothing: no script, style, font or
+image from anywhere; the answer arrives from the host. The text answer every client gets is unchanged; the card's own
+part, `change_card`, is in the structured content only.
+
+| Answer | The card |
+| --- | --- |
+| `ok` | one sentence that says what the change does ("Adds the measure Order value per customer."), three closed folds, **Yes**, **No** and, when the list holds earlier changes, **Undo the last change** |
+| `question` | the question in a few words per kind (the contract's full question under Details) and one button per candidate. Each button proposes the change again with that candidate filled in. None is primary: a question chooses nothing |
+| `denied` | "Not allowed:" and the reason's first clause (the whole reason under Why), and a way back to Start Krusgraph. No Yes |
+| `replan` | the earlier changes need a link the plan does not hold; one button proposes again with the link confirmed |
+
+The folds are **Plan** (links, keys, filters, columns and measures added or taken out), **Items** (each item "update in
+place" with its summary and the unified diff under "Show the diff", or "unchanged") and **Numbers** (before → after with
+the difference, or "not counted yet" when the numbers layer is not counted, for the whole layer or one number; amounts
+with a space between thousands and a minus sign, as above: 56 834.70 → 51 296.70 (−5 538.00); counts as they are).
+
+- **Yes** is the only primary button. It asks the host to call `apply_change` (round LFD6) with the propose call's
+  arguments and the answer's `confirm` token, and only with that token. While `apply_change` is not both listed and
+  registered on the server, Yes is shown disabled with "Yes is not available yet." and calls nothing: the card never
+  shows a button to an unlisted tool. When `apply_change` is registered, the card sends only the arguments its input
+  schema names, plus `confirm`.
+- **No** calls nothing. The card says "Nothing changed." and offers the way back to Start.
+- **Undo** proposes a `revert` of the last earlier change: a new proposal with its own diff, nothing applied. It is hidden
+  when `changes.TYPES` does not hold `revert` (round LFD7 builds versions on it).
+- A host that runs no tool from a card gets the step in plain words in the chat ("Yes, apply this change.").
+
+Measured with `python tools/smooth_measure.py --change` in Chromium at 390 px, light and dark, on the synthetic shop_lfd
+sample (25 November 2026): at most 22 words outside the buttons with the folds closed (the limit is 25), one primary
+button on every ok answer and none on a question, a button to tap in every state, nothing wider than 390 px, and a
+text contrast of 17.2 (light) and 15.4 (dark). `tests/test_lfd8_card.py` clicks the card the same way (the wb15
+pattern, `tests/lfd8_card_click.js`): Yes, No, the choices, Undo and Plan again.
 
 ## What these rounds do not do
 
