@@ -1,9 +1,11 @@
 # Changing a data product: the change contract
 
-Status: **the contract only** (round LFD2, 24 November 2026). `fabric_backend/changes.py` is a module of pure functions
-with tests (`tests/test_lfd2_contract.py`). No tool uses it yet, nothing is applied by it, and nothing here has run
-against a Fabric workspace. The rounds that follow apply a change to the drafts, count its numbers and add the tools
-behind the switch `KRUSGRAPH_CHANGES`, which is off by default.
+Status: **the contract and its drafts** (round LFD2, 24 November 2026; round LFD3, 25 November 2026).
+`fabric_backend/changes.py` is a module of pure functions with tests (`tests/test_lfd2_contract.py`); LFD3 applies a
+list of changes to the silver, gold and semantic model drafts (below, *Applying a list*; `tests/test_lfd3_apply.py`, and
+the silver notebook on a local PySpark 4.0.1 in `tests/test_spark_notebooks.py`). No tool uses it yet, and nothing here
+has run against a Fabric workspace. The rounds that follow count a change's numbers and add the tools behind the switch
+`KRUSGRAPH_CHANGES`, which is off by default.
 
 ## What it is for
 
@@ -174,9 +176,42 @@ Three fixed rules, by the name only, as `privacy.py` judges:
 `delivery_instructions`, `system_id` and `override_price` pass. The rules are a list of words, so they miss what the
 list does not hold; they are one layer, and the contract having no free text is the other.
 
-## What this round does not do
+## Applying a list (LFD3)
+
+`changes.apply(changes, plan)` takes the list of changes of a data product, in order (each a change, or an `ok` answer
+of `validate`), validates every one against the current plan and answers one of:
+
+| Answer | Meaning |
+| --- | --- |
+| `ok` | `changes`: one entry per change, in the list's order, with its `id`, the normalised `change`, `resolved` and `notes`; a repeated change counts once and a `revert` takes out the change it names. `confirmed`: the confirmed relationships the list's links stand on |
+| `replan` | an `add_link` is not in the plan yet: `confirmed` holds the entries for `plan_backend`. Plan again with them and apply the same list to the new plan, where the link is a relationship and the changes that need it are accepted |
+| `denied`, `question` | `validate`'s answer for the entry at `at`; nothing applies |
+
+A change written against an earlier plan of the same tables (another `plan_id`, the same `schema_fingerprint`: the plan
+was made again, with a confirmed link, say) is checked again against the current plan by every rule. One written
+against other tables is denied as `stale_base`. Same list, same plan: the same answer and the same ids.
+
+The `ok` answer is what the drafts take, each as `changes=`; **an empty list gives every draft byte for byte as without
+one** (the golden files do not change):
+
+| Change | Draft | What it does |
+| --- | --- | --- |
+| `filter_rows` | silver notebook (`silver.spec(..., changes=)`, `silver.apply_changes`, `silver.simulate`) | after the table is read, `exclude_rows` leaves the rows `drop_where` holds for out of silver (a NULL never matches, so such a row stays); each table of the cascade then leaves out, with `follow_excluded`, the rows that point at them over the links `validate` resolved, in the order the notebook writes the tables. The rows go to `krusgraph_quarantine` with the change's id as the rule; the source tables are only read. A table outside the cascade checks its references against the parent's silver rows and the rows the change left out (`with_excluded`), so its rows stay, as the contract says |
+| `add_column` | gold views (`gold.spec(..., changes=)`, `gold.apply_changes`) | the view of the table (its fact view, or its dimension view with `dimensions=true`) joins the change's `via` path step by step and selects each column as `<from>_<column>`. A step the view already joins (the same link from the same table) is reused, so a column the view already carries is marked, not repeated; a new step is a `LEFT JOIN` with no rule in the WHERE, so no row is left out, and every step is many-to-one or one-to-one, so none is repeated. A name another column has gets `_via_<the first link's columns>` |
+| `add_measure` | semantic model (`semantic_model.draft(..., changes=)`, `draft_on_gold`) | one measure, after the suggested ones, on the first table its form names (or that of the measure it reads). The DAX is built from the form: `COUNTROWS('t')`, `DISTINCTCOUNT('t'[c])`, `SUM('t'[c])`, `[measure]` and `DIVIDE(numerator, denominator)`. A measure the model cannot hold (a table or measure not in it, a name taken) is not added, and the summary says why |
+| `add_link` | the plan | a confirmed relationship of the plan (`replan` above), which every draft follows like any other |
+
+The semantic model's summary and README have a section `changes` that says, per change, where it is drafted; a model
+on the source tables says that a `filter_rows` does not reach it, and one on gold that it does. On shop_lfd, scenario A
+(remove the test customers with their addresses, audit rows, orders and lines; region from addresses over
+`orders.ship_to_id`; order value per customer) gives 10 customers, 60 orders and 134 lines in silver, 60 rows in the
+gold view of orders with `addresses_region`, and the measure `DIVIDE([Order amount], DISTINCTCOUNT('orders'[customer_id]))`,
+which over those rows is 51 296.70 / 10 = 5 129.67 (LFD1's numbers).
+
+## What these rounds do not do
 
 - No tool: the tool listing is unchanged.
-- Nothing is applied, built or counted. `ok` means "allowed and unambiguous against this plan", nothing more.
+- Nothing is counted, and nothing is built in Fabric: the changes reach the drafts only. `ok` means "allowed and
+  unambiguous against this plan", nothing more.
 - No renaming of a copied column, no filter across tables, no measure with a filter: each is a later decision.
 - Relationships that are not key joins (`plan.extended`) are not used as paths.

@@ -592,13 +592,13 @@ def _prediction_tables(predictions, tables, kinds, keys, rels, gschema) -> dict:
 
 def draft_on_gold(plan: Plan, info: dict, gspec: dict, name: str = "semantic_model", validation: dict | None = None,
                   date_range: tuple[str, str] | None = None, whole_quantities=frozenset(), products: dict | None = None,
-                  predictions: list[dict] | None = None) -> dict:
+                  predictions: list[dict] | None = None, changes: dict | None = None) -> dict:
     """DPM1: the model over the gold views of `gspec`, grouped by data product. `info` is the source's (or the
-    lakehouse the gold views are in); its schema becomes the gold schema."""
+    lakehouse the gold views are in); its schema becomes the gold schema. LFD3: `changes` as in draft()."""
     g = gold_model(plan, gspec, validation, products, predictions)
     ginfo = {**info, "schema": g["schema"], "schemas_enabled": True}
     return draft(g["plan"], ginfo, name, validation=validation, date_range=date_range, whole_quantities=whole_quantities,
-                 combined=False, on_gold=g)
+                 combined=False, on_gold=g, **({"changes": changes} if changes else {}))
 
 
 def envelope(parts: dict[str, str], name: str, description: str = "") -> dict:
@@ -624,7 +624,8 @@ def envelope(parts: dict[str, str], name: str, description: str = "") -> dict:
 
 def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str] | None = None, validation: dict | None = None,
           date_range: tuple[str, str] | None = None, whole_quantities: set[tuple[str, str]] = frozenset(),
-          combined: bool | None = None, on_gold: dict | None = None, roles: list[str] | None = None) -> dict:
+          combined: bool | None = None, on_gold: dict | None = None, roles: list[str] | None = None,
+          changes: dict | None = None) -> dict:
     """info: item_name, item_kind, schema, sql_endpoint, sql_db, schemas_enabled (from server._source_inputs); returns
     {"parts": {path: content}, "summary": {...}}. `validation` (evidence.validate's answer): when it counted any of the
     model's links, the counts choose the active set (BL51, graphs.counted_active_set) and the summary's
@@ -641,7 +642,10 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
     name, the relationships between data products marked as interfaces, and the summary's `reads` says gold.
     BL43: `roles` (off by default): columns security_roles.candidates proposed, such as ["BUKRS"]. Each adds BL17's row-
     level role and the security_user_map table with its "fill this in" note; a role whose tables are not all in the model
-    is not added and the summary says why. Without `roles` the output is exactly as before."""
+    is not added and the summary says why. Without `roles` the output is exactly as before.
+    LFD3: `changes` (changes.apply's ok answer) adds each add_measure change as a measure whose DAX is built from the
+    contract's form (change_dax), never from text, and the summary's `changes` says what each change of the list does
+    here. Without it, or with an empty list, the output is exactly as before."""
     from . import combined_keys as _combined, graphs
     original = plan
     plan, carried = _combined.carry(original, tables) if combined is not False else (original, {})
@@ -726,6 +730,10 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
     adv = (on_gold or {}).get("advanced_analytics", {}).get("measures") or {}
     if adv:                                                       # AA1: one measure per prediction table, nothing suggested
         measures = [m for m in measures if m["table"] not in adv] + [{"table": t, **m} for t, m in adv.items()]
+    changed = None
+    if changes and changes.get("changes"):                         # LFD3: the change list's measures, after every suggested one
+        changed = _change_measures(changes, chosen, measures, "gold" if on_gold else "silver" if layer else "source")
+        measures += changed["measures"]
     by_table: dict[str, list[dict]] = {}
     for m in measures:
         by_table.setdefault(m["table"], []).append(m)
@@ -758,7 +766,8 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
         lines = [f"table {tmdl_name(t.name)}", f"\tlineageTag: {_tag(name, 'table', t.name)}",
                  f"\tsourceLineageTag: [{schema}].[{prefix}{t.name}]", ""]
         for m in by_table.get(t.name, []):
-            lines += [f"\t/// Suggested by Krusgraph: {m['why']}.", f"\tmeasure {tmdl_name(m['name'])} = {m['expression']}",
+            lines += [f"\t/// {m['said']}." if m.get("said") else f"\t/// Suggested by Krusgraph: {m['why']}.",
+                      f"\tmeasure {tmdl_name(m['name'])} = {m['expression']}",
                       f"\t\tformatString: {m['format']}"]
             if on_gold and t.name in on_gold["product_of"]:      # DPM1: the measure sits with its data product
                 lines.append(f"\t\tdisplayFolder: {_tmdl_text(on_gold['product_of'][t.name])}")
@@ -990,6 +999,10 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                "in a Fabric lakehouse and `expressions.tmdl` names its SQL analytics endpoint."]
     for path in [p for p, c in parts.items() if p.endswith(".tmdl") and not has_object(c)]:
         del parts[path]                 # the rule above, applied to every document (none is expected here; relationships is handled above)
+    if changed:                                                    # LFD3
+        readme += ["", "## Changes", "", "The change list (docs/CHANGES.md) as it applies to this model; each measure's DAX is built "
+                   "from the change's form, not from text.", ""]
+        readme += [f"- `{x['id']}` ({x['type']}): {x['said']}." for x in changed["summary"]]
     readme += ["", "## Files", ""] + [f"- `{p}`" for p in parts] + [""]
     parts["README.generated.md"] = "\n".join(readme)
     summary = {"tables": len(chosen), "roles": {t.name: role_of.get(t.name) for t in chosen},
@@ -1047,9 +1060,116 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
     if dup.keys() & names:                                         # n150: only when the rows showed one
         summary["keys_not_unique"] = [{"table": t, "columns": list(k["columns"]), "rows": k["rows"], "distinct": k["distinct"],
                                        "nulls": k["nulls"]} for t, k in dup.items() if t in names]
+    if changed:                                                    # LFD3
+        summary["changes"] = changed["summary"]
     if roles:                                                      # BL43: opt-in row-level security from BL17's drafts
         _add_roles(original, validation, roles, parts, summary)
     return {"parts": parts, "summary": summary}
+
+
+CHANGE_FORMATS = {"count": WHOLE, "distinct_count": WHOLE, "ratio": DECIMAL}
+
+
+def change_dax(measure: dict, column_of, measure_of) -> str:
+    """LFD3: the DAX of an add_measure change's canonical `measure`, built from its form and nothing else: count is
+    COUNTROWS('t'), distinct_count DISTINCTCOUNT('t'[c]), sum SUM('t'[c]), a measure by name [name], and ratio
+    DIVIDE(numerator, denominator), which gives BLANK where the denominator is 0. `column_of(table, column)` and
+    `measure_of(name)` give the model's own spelling, or raise LookupError with the reason."""
+    if "measure" in measure:
+        return "[" + _dax_column(measure_of(measure["measure"])) + "]"
+    form = measure["form"]
+    if form == "ratio":
+        return f"DIVIDE({change_dax(measure['numerator'], column_of, measure_of)}, {change_dax(measure['denominator'], column_of, measure_of)})"
+    if form == "count":
+        return f"COUNTROWS({_dax_table(column_of(measure['table'], None))})"
+    table = column_of(measure["table"], None)
+    ref = f"{_dax_table(table)}[{_dax_column(column_of(measure['table'], measure['column']))}]"
+    return f"DISTINCTCOUNT({ref})" if form == "distinct_count" else f"SUM({ref})"
+
+
+def _home(measure: dict, by_name: dict) -> str | None:
+    """The table a change's measure sits on: the first table its form names, else that of the first measure it reads."""
+    if "measure" in measure:
+        m = by_name.get(measure["measure"].casefold())
+        return m["table"] if m else None
+    if measure["form"] == "ratio":
+        for part in ("numerator", "denominator"):
+            if "measure" not in measure[part]:
+                return measure[part]["table"]
+        return _home(measure["numerator"], by_name) or _home(measure["denominator"], by_name)
+    return measure["table"]
+
+
+def _said_measure(measure: dict) -> str:
+    if "measure" in measure:
+        return f"the measure {measure['measure']}"
+    if measure["form"] == "ratio":
+        return f"{_said_measure(measure['numerator'])} divided by {_said_measure(measure['denominator'])}"
+    if measure["form"] == "count":
+        return f"the number of {measure['table']} rows"
+    return f"{'the number of distinct values of' if measure['form'] == 'distinct_count' else 'the sum of'} {measure['table']}.{measure['column']}"
+
+
+def _change_measures(applied: dict, chosen, measures: list[dict], reads: str) -> dict:
+    """LFD3: one measure per add_measure change of the list, in its order (a later one may read an earlier one), and per
+    change of the list what it does in this model."""
+    tables = {t.name: t for t in chosen}
+    by_name = {m["name"].casefold(): m for m in measures}
+    taken = set(by_name) | {t.name.casefold() for t in chosen} | {c.name.casefold() for t in chosen for c in t.columns}
+    added, summary = [], []
+
+    def column_of(table: str, column: str | None) -> str:
+        t = tables.get(table) or next((x for x in tables.values() if x.name.casefold() == table.casefold()), None)
+        if t is None:
+            raise LookupError(f"{table} is not a table of this model")
+        if column is None:
+            return t.name
+        c = next((x.name for x in t.columns if x.name == column), None) or next((x.name for x in t.columns if x.name.casefold() == column.casefold()), None)
+        if c is None:
+            raise LookupError(f"{t.name} in this model has no column {column}")
+        return c
+
+    def measure_of(name: str) -> str:
+        m = by_name.get(name.casefold())
+        if m is None:
+            raise LookupError(f"this model has no measure {name}")
+        return m["name"]
+    for x in applied["changes"]:
+        if x["type"] != "add_measure":
+            said = {"filter_rows": "drafted in the silver notebook, which leaves the rows out of the silver tables and so out of the gold "
+                                   "views; " + ("this model reads " + reads + ", so they are not in it" if reads != "source" else
+                                                "this model reads the source tables, where the rows stay: build it on gold "
+                                                "(draft_on_gold) to leave them out"),
+                    "add_column": "drafted in the gold views, which carry the column" + (
+                        "; this model reads them" if reads == "gold" else f"; this model reads {reads} and does not have it"),
+                    "add_link": "in the plan as a relationship, which the model relates on like any other"}[x["type"]]
+            summary.append({"id": x["id"], "type": x["type"], "said": said})
+            continue
+        c = x["change"]
+        try:
+            if c["name"].casefold() in taken:
+                raise LookupError(f"this model already has a measure, table or column named {c['name']}")
+            home = _home(c["measure"], by_name)
+            if home is None:
+                raise LookupError("the measure it reads is not in this model")
+            home = column_of(home, None)
+            expr = change_dax(c["measure"], column_of, measure_of)
+        except LookupError as e:
+            summary.append({"id": x["id"], "type": "add_measure", "name": c["name"], "not_added": str(e),
+                            "said": f"the measure {c['name']} is not added: {e}"})
+            continue
+        form = c["measure"].get("form", "ratio")
+        fmt = CHANGE_FORMATS.get(form) or number_format(data_type(next(
+            (col.data_type for col in tables[home].columns if col.name.casefold() == c["measure"]["column"].casefold()), "")))
+        why = f"{_said_measure(c['measure'])} ({form}, from the change contract)"
+        m = {"table": home, "name": c["name"], "expression": expr, "format": fmt, "why": why, "change": x["id"],
+             "said": f"Added by change {x['id']} (add_measure): {why}"}
+        added.append(m)
+        by_name[c["name"].casefold()] = m
+        taken.add(c["name"].casefold())
+        summary.append({"id": x["id"], "type": "add_measure", "name": c["name"], "table": home, "expression": expr,
+                        "said": f"the measure {tmdl_name(c['name'])} on {home} = {expr}"})
+    return {"measures": added, "summary": summary}
 
 
 def _add_roles(plan: Plan, validation: dict | None, columns: list[str], parts: dict[str, str], summary: dict) -> None:

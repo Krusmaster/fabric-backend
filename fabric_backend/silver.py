@@ -174,9 +174,11 @@ def _topological(names: list[str], edges: list[tuple[str, str]]) -> list[str]:
 
 
 def spec(plan: Plan, info: dict, silver_schema: str = "silver", order_by: dict | None = None, tables: list[str] | None = None,
-         show_personal_data: bool = False) -> dict:
+         show_personal_data: bool = False, changes: dict | None = None) -> dict:
     """The notebook's plan: per table the key and its rule, the ordering column and why, the references to check with
-    their rules, and the target. Raises PlanInputError for a schema or order_by that cannot work."""
+    their rules, and the target. Raises PlanInputError for a schema or order_by that cannot work. LFD3: `changes`
+    (changes.apply's ok answer) puts its filter_rows changes in as steps (apply_changes); without it, or with an empty
+    list, the spec is exactly what it was."""
     schema = info.get("schema") or plan.schema.schema
     schemas_enabled = bool(info.get("schemas_enabled", True))
     read_from = info.get("read_from")           # n201: a read-only source (a mirrored database), read through OneLake
@@ -252,13 +254,14 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", order_by: dict |
     personal: dict[str, list[str]] = {}
     for (t, c), _f in sorted(privacy.personal_columns(plan.schema, chosen).items()):
         personal.setdefault(t, []).append(c)
-    return {"source": {"item": info.get("item_name") or "", "item_id": info.get("item_id") or "", "workspace_id": info.get("workspace_id") or "",
+    out = {"source": {"item": info.get("item_name") or "", "item_id": info.get("item_id") or "", "workspace_id": info.get("workspace_id") or "",
                        "schema": schema, "schemas_enabled": schemas_enabled, "tables": sorted(names.values(), key=str.lower), "owner": owner,
                        **({"read_from": dict(read_from)} if read_from else {})},
             "silver_schema": silver_schema, "quarantine": target(QUARANTINE), "tables": out_tables,
             "personal": personal, "mask_personal_data": not show_personal_data,
             "not_checked": [{"table": a["table"], "column": a["column"], "why": "ambiguous: it could point at " + " or ".join(a["candidates"])}
                             for a in plan.ambiguous if a["table"] in chosen]}
+    return apply_changes(out, changes) if changes else out
 
 
 # ------------------------------------------------------------------ the notebook ---------------------------------
@@ -552,6 +555,159 @@ def apply_fixes(s: dict, suggestions: list[dict]) -> dict:
     return out
 
 
+# ------------------------------------------------------------------ LFD3: the change list's filters -----------------
+
+CHANGE_HELPERS = """
+
+# ---- LFD3: the steps of the change list (filter_rows) ----
+changed_out = {{}}     # (table, change id) -> the rows a change left out of that table, for the tables that follow it
+
+
+def _left_out(table, change, rows, reason):
+    changed_out[(table, change)] = rows if (table, change) not in changed_out else changed_out[(table, change)].unionByName(rows)
+    to_quarantine(rows, table, change, reason)
+
+
+def exclude_rows(df, condition, table, change, reason):
+    \"\"\"A change (filter_rows): the rows the condition holds for leave silver. They are kept in the quarantine table with
+    the change's id as the rule, and in changed_out for the tables in the change's cascade. The source is only read.\"\"\"
+    _left_out(table, change, df.filter(condition), reason)
+    return df.filter(~condition)
+
+
+def follow_excluded(df, columns, parent, parent_columns, table, change, reason):
+    \"\"\"The change's cascade: rows whose reference points at a row the change left out of the parent leave silver too.\"\"\"
+    gone = changed_out.get((parent, change))
+    if gone is None:
+        return df
+    keys = gone.select(*[col(c).alias(f"_krusgraph_p{{i}}") for i, c in enumerate(parent_columns)]).distinct()
+    on = None
+    for i, c in enumerate(columns):
+        match = col(c) == F.col(f"_krusgraph_p{{i}}")
+        on = match if on is None else (on & match)
+    _left_out(table, change, df.join(keys, on, "left_semi"), reason)
+    return df.join(keys, on, "left_anti")
+
+
+def with_excluded(parent_df, parent, changes, columns):
+    \"\"\"A table outside a change's cascade keeps its rows that point at rows the change left out: its reference check
+    reads the parent's silver rows and the rows the change took out of them.\"\"\"
+    out = parent_df.select(*[col(c) for c in columns])
+    for change in changes:
+        if (parent, change) in changed_out:
+            out = out.unionByName(changed_out[(parent, change)].select(*[col(c) for c in columns]))
+    return out
+"""
+
+
+def apply_changes(s: dict, applied: dict | None) -> dict:
+    """LFD3: the spec with the change list's filter_rows changes in it, as a new dict (changes.apply's ok answer). Per
+    change, the filtered table gets a step that leaves the rows drop_where holds for out of silver (`change_filters`), each
+    table of its cascade a step that leaves out the rows pointing at them, over the links validate resolved
+    (`change_cascade`), and a table outside the cascade that points at them checks its references against the parent's
+    silver rows and the rows the change left out (`also_excluded_by`), so its rows stay, as the contract says. The rows go
+    to the quarantine table with the change's id as the rule; the source tables are only read. Without filter_rows the
+    spec is returned as it is."""
+    import copy
+    from . import changes as _changes
+    filters = _changes.of_type(applied, "filter_rows")
+    if not filters:
+        return s
+    out = copy.deepcopy(s)
+    by = {t["table"]: t for t in out["tables"]}
+    listed = []
+    for f in filters:
+        c, cid = f["change"], f["id"]
+        entry = {"id": cid, "table": c["table"], "drop_where": c["drop_where"], "said": _changes.said(c["drop_where"]),
+                 "cascade": list(c.get("cascade", []))}
+        missing = [x for x in [c["table"], *entry["cascade"]] if x not in by]
+        if missing:
+            entry["not_in_notebook"] = missing
+        if c["table"] not in by:
+            entry["not_applied"] = f"{c['table']} is not one of this notebook's tables"
+            listed.append(entry)
+            continue
+        by[c["table"]].setdefault("change_filters", []).append({"id": cid, "drop_where": c["drop_where"], "said": entry["said"]})
+        for x in f["resolved"].get("cascade", []):
+            through = [{"columns": list(link["from"]["columns"]), "parent": link["to"]["table"], "parent_columns": list(link["to"]["columns"])}
+                       for link in x["through"] if link["to"]["table"] in by]
+            if x["table"] in by and through:
+                by[x["table"]].setdefault("change_cascade", []).append({"id": cid, "of": c["table"], "through": through})
+        gone = {c["table"], *entry["cascade"]}
+        for t in out["tables"]:
+            if t["table"] in gone:
+                continue
+            for chk in t["checks"]:
+                if chk["parent"] in gone and chk["parent"] in by and cid not in chk.get("also_excluded_by", []):
+                    chk.setdefault("also_excluded_by", []).append(cid)
+        listed.append(entry)
+    out["changes"] = listed
+    return out
+
+
+def _py_value(v) -> str:
+    return repr(v) if isinstance(v, bool) else _py_literal(v)
+
+
+def _spark_expr(p: dict) -> str:
+    for op, joined in (("any", " | "), ("all", " & ")):
+        if op in p:
+            return "(" + joined.join(_spark_expr(x) for x in p[op]) + ")"
+    c = f"col({_py(p['column'])})"
+    if p["op"] == "equals":
+        return f"({c} == F.lit({_py_value(p['value'])}))"
+    if p["op"] == "is_true":
+        return f'{c}.cast("boolean")'
+    return f'({c}.isNotNull() & (F.trim({c}.cast("string")) != ""))'
+
+
+def spark_condition(p: dict) -> str:
+    """A canonical drop_where as a PySpark column expression; a NULL never matches (the row stays), as changes.holds."""
+    return f"F.coalesce({_spark_expr(p)}, F.lit(False))"
+
+
+def _filter_reason(f: dict) -> str:
+    return f"change {f['id']} (filter_rows): {f['said']}"
+
+
+def _cascade_reason(cc: dict, link: dict) -> str:
+    return (f"change {cc['id']} (filter_rows on {cc['of']}, cascade): {', '.join(link['columns'])} points at a "
+            f"row of {link['parent']} the change left out")
+
+
+def _change_lines(t: dict) -> list[str]:
+    name, out = t["table"], []
+    for f in t.get("change_filters", []):
+        out.append(_comment(f"Change {f['id']} (filter_rows): rows where {f['said']} are left out of silver and kept in {QUARANTINE} "
+                            "with the change's id as the rule. The source table is only read; a NULL never matches, so such a row stays."))
+        out.append(f"df = exclude_rows(df, {spark_condition(f['drop_where'])}, {_py(name)}, {_py(f['id'])}, {_py(_filter_reason(f))})")
+    for cc in t.get("change_cascade", []):
+        for link in cc["through"]:
+            on = " and ".join(f"{name}.{a} = {link['parent']}.{b}" for a, b in zip(link["columns"], link["parent_columns"]))
+            out.append(_comment(f"Change {cc['id']} (filter_rows on {cc['of']}, cascade to {name}): rows that point at a row of {link['parent']} "
+                                f"the change left out ({on}) leave silver with it, to {QUARANTINE}."))
+            out.append(f"df = follow_excluded(df, {_py(link['columns'])}, {_py(link['parent'])}, {_py(link['parent_columns'])}, "
+                       f"{_py(name)}, {_py(cc['id'])}, {_py(_cascade_reason(cc, link))})")
+    return out
+
+
+def _changes_markdown(s: dict) -> str:
+    out = ["## Changes (drafts to review)", "",
+           "The change list (docs/CHANGES.md) applied to this notebook. Each filter_rows leaves rows out of the silver tables; "
+           f"they are kept in `{QUARANTINE}` with the change's id as the rule, and the source tables are never written. A table in "
+           "the change's cascade leaves out the rows that point at them; a table outside it keeps its rows.", ""]
+    for i, c in enumerate(s["changes"], 1):
+        line = f"{i}. `{c['id']}`: rows of `{c['table']}` where {c['said']}"
+        line += (f"; with them the rows of {', '.join(f'`{x}`' for x in c['cascade'])} that point at them." if c["cascade"]
+                 else "; no other table's rows go with them.")
+        out.append(line)
+        if c.get("not_applied"):
+            out.append(f"   Not applied: {c['not_applied']}.")
+        elif c.get("not_in_notebook"):
+            out.append(f"   Not in this notebook, so not filtered here: {', '.join(c['not_in_notebook'])}.")
+    return "\n".join(out)
+
+
 def _target_of(s: dict, table: str) -> list:
     return [s["silver_schema"], table] if s["source"]["schemas_enabled"] else [None, f"{s['silver_schema']}_{table}"]
 
@@ -643,7 +799,7 @@ def _ref_call(c: dict, parent: str, name: str, reason: str) -> str:
 def _table_cell(t: dict) -> str:
     name = t["table"]
     out = [_comment(f"---- {name} -> {'.'.join(x for x in t['target'] if x)} ----"), *_key_comment(t),
-           f"df = spark.read.table(source({_py(name)}))", f"read_counts[{_py(name)}] = df.count()"]
+           f"df = spark.read.table(source({_py(name)}))", f"read_counts[{_py(name)}] = df.count()", *_change_lines(t)]
     if t["key"] and t.get("fix_key"):                                    # n115: the duplicate key's fix suggestion
         out += [f"# n115 fix: validate_plan counted duplicate or NULL keys here. Exact copies: one stays; rows that share the key and",
                 "# differ: the latest by DUPLICATE_WINNER stays, and the decisions cell stopped the run if there are such rows and none is named.",
@@ -678,6 +834,10 @@ def _table_cell(t: dict) -> str:
         else:
             out.append(_comment(f"{c['parent']} is not part of this notebook: checked against its source table."))
             parent = f"spark.read.table(source({_py(c['parent'])}))"
+        if c.get("also_excluded_by"):                                    # LFD3: outside a change's cascade, the rows stay
+            out.append(_comment(f"Outside the cascade of {', '.join(c['also_excluded_by'])}: rows that point at a row of {c['parent']} the "
+                                "change left out stay, so the check also reads those rows."))
+            parent = f"with_excluded({parent}, {_py(c['parent'])}, {_py(c['also_excluded_by'])}, {_py(c['parent_columns'])})"
         out.append(f"df = {_ref_call(c, parent, name, reason)}")
     for m in t.get("moves", []):                                         # n115: a flat table's header amount
         out += _move_lines(t, m)
@@ -832,12 +992,13 @@ def cells(s: dict) -> list[tuple[str, str]]:
             "# (How do I connect to OneLake?, Microsoft Learn) and the silver tables are written to this notebook's default lakehouse,\n"
             "# in the workspace the Krusgraph Model builds in (Spark SQL writes in the default lakehouse's workspace). Nothing is\n"
             "# copied outside Fabric.")
-    setup = (SETUP + (FIX_HELPERS if fixed else "")).format(source_schema=_py(src["schema"] if src["schemas_enabled"] or rf else None),
+    changed = bool(s.get("changes"))                                     # LFD3: the change list's filters
+    setup = (SETUP + (FIX_HELPERS if fixed else "") + (CHANGE_HELPERS if changed else "")).format(source_schema=_py(src["schema"] if src["schemas_enabled"] or rf else None),
                          source_def=source_def,
                          schemas_enabled="True" if src["schemas_enabled"] else "False",
                          source_tables=_py(src["tables"]), writes=_py(writes), owner=_py(src["owner"]),
                          personal=_py_literal(s.get("personal", {})))
-    out = [("markdown", intro)] + ([("markdown", _fixes_markdown(s))] if fixed else [])
+    out = [("markdown", intro)] + ([("markdown", _fixes_markdown(s))] if fixed else []) + ([("markdown", _changes_markdown(s))] if changed else [])
     out.append(("parameters", params))
     if drift:                                                            # n200: before anything is written
         out.append(("code", _health.drift_cell(drift, f"{src['item'] or 'the lakehouse'}.{src['schema']}")))
@@ -894,6 +1055,9 @@ def steps(s: dict) -> list[dict]:
         else:
             entry["deduplicate_on"] = "no key (K3): rows kept as they are"
         entry["checks"] = [{"columns": c["columns"], "parent": c["parent"], "rule": c["rule"]} for c in t["checks"]]
+        if t.get("change_filters") or t.get("change_cascade"):            # LFD3
+            entry["changes"] = [{"change": f["id"], "leaves_out": f"rows where {f['said']}"} for f in t.get("change_filters", [])] + \
+                [{"change": c["id"], "leaves_out": f"rows that point at {c['of']} rows the change left out (cascade)"} for c in t.get("change_cascade", [])]
         if t.get("combined"):                                            # n226
             entry["combined_key_columns"] = [{"column": c["name"], "combines": c["columns"]} for c in t["combined"]]
         out.append(entry)
@@ -1000,6 +1164,32 @@ def _no_reference(row: dict, check: dict) -> bool:
     return False
 
 
+def _change_steps(t: dict, rows: list[dict], excluded: dict, quarantine: list[dict]) -> list[dict]:
+    """LFD3: the change list's steps of one table on rows in memory, as the notebook's exclude_rows and follow_excluded."""
+    from . import changes as _changes
+    name = t["table"]
+    for f in t.get("change_filters", []):
+        out = [r for r in rows if _changes.holds(f["drop_where"], r)]
+        excluded.setdefault((name, f["id"]), []).extend(out)
+        quarantine += [{"source_table": name, "rule": f["id"], "reason": _filter_reason(f), "row": r} for r in out]
+        rows = [r for r in rows if not _changes.holds(f["drop_where"], r)]
+    for cc in t.get("change_cascade", []):
+        for link in cc["through"]:
+            gone = excluded.get((link["parent"], cc["id"]))
+            if gone is None:
+                continue
+            keys = {tuple(p.get(x) for x in link["parent_columns"]) for p in gone}
+
+            def follows(r: dict, columns=tuple(link["columns"]), keys=keys) -> bool:   # a NULL reference points at nothing
+                ref = tuple(r.get(x) for x in columns)
+                return None not in ref and ref in keys
+            out = [r for r in rows if follows(r)]
+            excluded.setdefault((name, cc["id"]), []).extend(out)
+            quarantine += [{"source_table": name, "rule": cc["id"], "reason": _cascade_reason(cc, link), "row": r} for r in out]
+            rows = [r for r in rows if not follows(r)]
+    return rows
+
+
 def simulate(s: dict, data: dict[str, list[dict]], given: dict | None = None) -> dict:
     """Run the notebook's steps on rows in memory: {"silver": {table: rows}, "quarantine": [{source_table, rule, reason,
     row}]}. Ties without an ordering column are broken by a content hash like the notebook's, but not the same hash
@@ -1009,11 +1199,14 @@ def simulate(s: dict, data: dict[str, list[dict]], given: dict | None = None) ->
     silver: dict[str, list[dict]] = {}
     quarantine: list[dict] = []
     deduped: dict[str, list[dict]] = {}
+    excluded: dict[tuple[str, str], list[dict]] = {}                     # LFD3: as the notebook's changed_out
     chosen = decisions(s, data, given) if s.get("fixes") else {"DUPLICATE_WINNER": {}, "ORPHANS": {}}
     for t in s["tables"]:
         name = t["table"]
         rows = [dict(r) for r in data.get(name, [])]
         columns = list(rows[0].keys()) if rows else []
+        if t.get("change_filters") or t.get("change_cascade"):           # LFD3: as exclude_rows and follow_excluded
+            rows = _change_steps(t, rows, excluded, quarantine)
         if t["key"] and t.get("fix_key"):                                # n115: exact copies, then the named winner
             null_key = [r for r in rows if any(r.get(c) is None for c in t["key"])]
             quarantine += [{"source_table": name, "rule": t["key_rule"], "reason": f"the key ({', '.join(t['key'])}) is NULL", "row": r} for r in null_key]
@@ -1043,6 +1236,8 @@ def simulate(s: dict, data: dict[str, list[dict]], given: dict | None = None) ->
                 parent_rows = silver[c["parent"]]
             else:
                 parent_rows = data.get(c["parent"], [])
+            if c.get("also_excluded_by"):                                # LFD3: as with_excluded
+                parent_rows = list(parent_rows) + [r for x in c["also_excluded_by"] for r in excluded.get((c["parent"], x), [])]
             on = " and ".join(f"{name}.{a} = {c['parent']}.{b}" for a, b in zip(c["columns"], c["parent_columns"]))
             reason = f"{', '.join(c['columns'])} has no row in {c['parent']} ({on})"
             set_null = chosen["ORPHANS"].get(c.get("fix_id")) == "set_null"

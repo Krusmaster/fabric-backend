@@ -648,3 +648,48 @@ def test_wb1_sap_gold_keeps_one_row_per_silver_row_in_pyspark(tmp_path):
         assert all(v["rows_before"] == v["rows_after"] > 0 and all(x["holds"] for x in v["sums"]) for v in views.values())
     finally:
         spark.stop()
+
+
+def test_lfd3_the_change_lists_filter_runs_in_pyspark_as_simulated_and_gold_carries_the_region(tmp_path):
+    """LFD3: scenario A on shop_lfd. The silver notebook with filter_rows (test customers, with a cascade) leaves LFD1's
+    numbers in silver, agrees with silver.simulate table by table and in the quarantine, and leaves the source as it was;
+    with a cascade that leaves out addresses, the addresses keep every row. The gold view of orders, with add_column
+    region, has one row per silver order."""
+    pytest.importorskip("pyspark")
+    from fabric_backend import changes, gold, lfd_demo
+    spark = _spark(tmp_path, "krusgraph-lfd3-test")
+    try:
+        spark.sql("CREATE SCHEMA IF NOT EXISTS shop")
+        rows = lfd_demo.shop_rows()
+        for t, ddl in lfd_demo.SHOP_SCHEMAS.items():
+            spark.createDataFrame(rows[t], ddl).write.format("parquet").mode("overwrite").saveAsTable(f"shop.{t}")
+        data = {t: [dict(zip([c.split()[0] for c in ddl.split(", ")], r)) for r in rows[t]] for t, ddl in lfd_demo.SHOP_SCHEMAS.items()}
+        p = plan(lfd_demo._shop_schema("shop"), None, [{"source": "orders", "source_cols": ["ship_to_id"], "target": "addresses",
+                                                        "target_cols": ["address_id"]}])
+        c1 = {"type": "filter_rows", "table": "customers", "drop_where": {"column": "is_test", "op": "is_true"},
+              "cascade": ["addresses", "audit_log", "order_items", "orders"]}
+        c2 = {"type": "add_column", "table": "orders", "from": "addresses", "columns": ["region"]}
+        before = {t: spark.read.table(f"shop.{t}").count() for t in data}
+        for cascade, silver_schema in ((c1["cascade"], "silver"), (["order_items", "orders"], "silver_part")):
+            applied = changes.apply([{**c1, "cascade": cascade}, c2], p)
+            assert applied["result"] == "ok", applied
+            s = silver.spec(p, INFO, silver_schema=silver_schema, changes=applied)
+            _run_cells(spark, silver.cells(s), f'TABLE_FORMAT = "parquet"; SILVER_SCHEMA = "{silver_schema}"')
+            expected = silver.simulate(s, data)
+            for t in data:
+                assert spark.read.table(f"{silver_schema}.{t}").count() == len(expected["silver"][t]), (silver_schema, t)
+            q = spark.read.table(f"{silver_schema}.krusgraph_quarantine")
+            got = {(r["source_table"], r["rule"], r["reason"]): r["count"] for r in q.groupBy("source_table", "rule", "reason").count().collect()}
+            want: dict = {}
+            for x in expected["quarantine"]:
+                want[(x["source_table"], x["rule"], x["reason"])] = want.get((x["source_table"], x["rule"], x["reason"]), 0) + 1
+            assert got == want
+            assert {t: spark.read.table(f"shop.{t}").count() for t in data} == before                    # the source is unchanged
+        assert [spark.read.table(f"silver.{t}").count() for t in ("customers", "addresses", "orders", "order_items")] == [10, 17, 60, 134]
+        assert [spark.read.table(f"silver_part.{t}").count() for t in ("customers", "addresses", "orders", "order_items")] == [10, 19, 60, 134]
+        g = gold.spec(p, INFO, changes=changes.apply([c1, c2], p))
+        view = next(v for v in g["views"] if v["fact"] == "orders")
+        got = gold.run_select(view, g, lambda sql: [r.asDict() for r in spark.sql(sql).collect()])
+        assert len(got) == 60 == len({r["order_id"] for r in got}) and {r["addresses_region"] for r in got} == {"North", "South"}
+    finally:
+        spark.stop()

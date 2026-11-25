@@ -826,3 +826,160 @@ def validate(change, plan: Plan, *, counts: dict | None = None, applied=None, me
         return {"result": "denied", "kind": e.kind, "reason": e.reason}
     except _Ask as q:
         return {"result": "question", "kind": q.kind, "question": q.question, "candidates": q.candidates, "answer_with": q.answer_with}
+
+
+# ------------------------------------------------------------------ applying a list (LFD3) ----------------------------
+
+def holds(predicate: dict, row: dict) -> bool:
+    """Whether a canonical drop_where holds for a row in memory, as the silver notebook's condition does: a NULL never
+    matches (the row stays), is_true is true for true and a non-zero number, is_not_empty for a value that is not blank."""
+    for op, every in (("any", any), ("all", all)):
+        if op in predicate:
+            return every(holds(p, row) for p in predicate[op])
+    v = row.get(predicate["column"])
+    if v is None:
+        return False
+    if predicate["op"] == "equals":
+        want = predicate["value"]
+        return v == want and (isinstance(v, str) == isinstance(want, str))
+    if predicate["op"] == "is_true":
+        return v.strip().lower() in ("true", "t", "yes", "y", "1") if isinstance(v, str) else bool(v)
+    return str(v).strip() != ""
+
+
+def said(predicate: dict) -> str:
+    """A drop_where in words, for a comment or a quarantine reason: is_test is true, country equals 'XX'."""
+    for op, word in (("any", " or "), ("all", " and ")):
+        if op in predicate:
+            return "(" + word.join(said(p) for p in predicate[op]) + ")"
+    if predicate["op"] == "equals":
+        return f"{predicate['column']} equals {predicate['value']!r}"
+    return f"{predicate['column']} {'is true' if predicate['op'] == 'is_true' else 'is not empty'}"
+
+
+def _steps(plan: Plan, change: dict) -> list[dict]:
+    """The join steps of a normalised add_column, from its table to `from`, each with the plan's rule: `columns` on the
+    side already joined, `to_columns` on the table joined next (a step may follow a one-to-one link backwards)."""
+    node, out = change["table"], []
+    for link in change["via"]:
+        r = _Checker(plan, None, None, None).relationship(link)
+        forward = link["from"]["table"] == node
+        here, there = (link["from"], link["to"]) if forward else (link["to"], link["from"])
+        out.append({"from": node, "to": there["table"], "columns": list(here["columns"]), "to_columns": list(there["columns"]),
+                    "rule": r.rule if r is not None else "confirmed", "forward": forward})
+        node = there["table"]
+    return out
+
+
+def _rebased(change, mark: dict):
+    """A change written against an earlier plan of the same tables (another plan_id, the same schema fingerprint: the
+    plan was made again, with a confirmed link, say) is checked again against the current plan, by every rule; a change
+    written against other tables keeps its base and is denied as stale."""
+    if not isinstance(change, dict) or not isinstance(change.get("base"), dict):
+        return change
+    base = change["base"]
+    if base.get("schema_fingerprint") == mark["schema_fingerprint"]:
+        return {**change, "base": mark}
+    return change
+
+
+def apply(changes: list, plan: Plan, *, measures: list[str] | None = None) -> dict:
+    """The change list as input to the drafts (round LFD3): every change validated, in order, against the current plan.
+
+    A list entry is a change (as a client sends it, or the normalised `change` of an ok answer) or an ok answer of
+    `validate`. A revert takes out the change it names (by the id it was given or its id against this plan). An add_link
+    that the plan does not hold yet is not applied here: the answer is `replan`, with the `confirmed` entries for
+    plan_backend, and the same list is applied again to the new plan, where the link is a relationship and the changes that
+    need it are accepted. A change whose base is an earlier plan of the same tables (same schema fingerprint) is checked
+    again against this one; one written against other tables is denied as stale.
+
+    {"result": "ok", "plan", "changes": [{"id", "type", "change", "resolved", "notes", "position"}], "reverted", "confirmed"}
+        `changes` keeps the list's order, without reverted changes, repeats and reverts; `confirmed` is the plan's
+        confirmed entries the list's add_link changes stand on. This is what silver.apply_changes, gold.apply_changes and
+        semantic_model.draft(changes=...) take; an empty list gives drafts identical to those without changes.
+    {"result": "replan", "confirmed", "reason"}
+    {"result": "denied" | "question", "at", ...}: the answer of validate for the entry at index `at`; nothing applies."""
+    if not isinstance(changes, list):
+        return {"result": "denied", "at": None, "kind": "bad_request", "reason": "The change list must be a list."}
+    mark = plan_mark(plan)
+    entries = [c["change"] if isinstance(c, dict) and c.get("result") == "ok" and "change" in c else c for c in changes]
+    replan = []
+    for c in entries:                                                  # links first: a new link means a new plan
+        if not (isinstance(c, dict) and c.get("type") == "add_link"):
+            continue
+        try:
+            link = _Checker(plan, None, None, None).link(_link({"from": c.get("from"), "to": c.get("to")}, "add_link"))
+        except ChangeError:
+            continue                                                   # validated, and denied, below
+        if _Checker(plan, None, None, None).relationship(link) is None:
+            got = validate(_rebased(c, mark), plan)
+            if got["result"] != "ok":
+                return {**got, "at": entries.index(c)}
+            if got["resolved"]["confirmed"] not in replan:
+                replan.append(got["resolved"]["confirmed"])
+    if replan:
+        return {"result": "replan", "confirmed": replan,
+                "reason": f"{len(replan)} link(s) are not in the plan yet. Plan again with them in confirmed (plan_backend), then apply "
+                          "the same list to the new plan: the changes that need a link are checked against the plan that has it."}
+    kept: list[dict] = []
+    reverted: list[str] = []
+    extra = list(measures or [])
+    for i, raw in enumerate(entries):
+        c = _rebased(raw, mark)
+        if isinstance(c, dict) and c.get("type") == "add_link":
+            try:
+                canonical(c)
+                link = _Checker(plan, None, None, None).link(_link({"from": c.get("from"), "to": c.get("to")}, "add_link"))
+            except ChangeError:
+                return {**validate(c, plan), "at": i}
+            if c.get("base", mark) != mark:
+                return {**validate(c, plan), "at": i}                     # written against other tables: stale
+            r = _Checker(plan, None, None, None).relationship(link)
+            normalised = canonical({"type": "add_link", "base": mark, **link})
+            entry = {"id": change_id(normalised), "type": "add_link", "change": normalised, "position": i,
+                     "resolved": {"in_plan": {"source": r.source, "source_cols": list(r.source_cols), "target": r.target,
+                                              "target_cols": list(r.target_cols), "rule": r.rule}},
+                     "notes": [f"The link is a relationship of the plan (rule {r.rule}); the drafts follow it as the plan does."]}
+            given = _given_id(raw)
+        else:
+            applied = [x["id"] for x in kept] + [x["given"] for x in kept if x.get("given")]
+            got = validate(c, plan, applied=applied, measures=extra)
+            if got["result"] != "ok":
+                return {**got, "at": i}
+            if got["change"]["type"] == "revert":
+                target = got["change"]["change"]
+                kept = [x for x in kept if target not in (x["id"], x.get("given"))]
+                reverted.append(target)
+                continue
+            entry = {"id": got["id"], "type": got["change"]["type"], "change": got["change"], "resolved": got["resolved"],
+                     "notes": got["notes"], "position": i}
+            given = _given_id(raw)
+            if entry["type"] == "add_column":
+                entry["resolved"] = {**entry["resolved"], "steps": _steps(plan, got["change"])}
+            if entry["type"] == "add_measure":
+                extra.append(got["change"]["name"])
+        if any(x["id"] == entry["id"] for x in kept):
+            continue                                                   # the same change twice is one change
+        if given and given != entry["id"]:
+            entry["given"] = given
+        kept.append(entry)
+    confirmed = [x["resolved"]["in_plan"] for x in kept if x["type"] == "add_link" and x["resolved"]["in_plan"]["rule"] == "confirmed"]
+    return {"result": "ok", "plan": mark, "changes": [{k: v for k, v in x.items() if k != "given"} for x in kept],
+            "reverted": reverted, "confirmed": [{k: v for k, v in c.items() if k != "rule"} for c in confirmed]}
+
+
+def _given_id(raw) -> str | None:
+    try:
+        return change_id(raw)
+    except ChangeError:
+        return None
+
+
+def of_type(applied: dict | None, kind: str) -> list[dict]:
+    """The entries of an applied list (apply's ok answer) of one type, in the list's order; [] without a list."""
+    if not applied:
+        return []
+    if applied.get("result") != "ok":
+        raise ChangeError("bad_request", "The drafts take apply's ok answer; this list was not applied "
+                                         f"({applied.get('result')}): {applied.get('reason') or applied.get('question') or ''}".rstrip(": "))
+    return [x for x in applied["changes"] if x["type"] == kind]
