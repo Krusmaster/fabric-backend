@@ -1568,3 +1568,14 @@ def test_n148_header_sticky_on_mobile_and_anchors_clear_it():
     assert "scroll-margin-top:80px" in block and "h2[id]" in block
     js = (Path(__file__).parent.parent / "fabric_backend" / "static" / "site.js").read_text()
     assert "nav.addEventListener('click'" in js and "e.key === 'Escape' && nav.classList.contains('open')" in js
+
+
+def test_footer_links_to_instagram_and_tiktok(client):
+    """Every page's footer links to Krusgraph's own Instagram and TikTok, as icons with a visible name."""
+    for path in ("/", "/check", "/docs", "/pricing"):
+        footer = client.get(path).text.split('<footer class="site-footer">')[1]
+        social = re.search(r'<p class="footer-social">(.*?)</p>', footer, re.S).group(1)
+        assert 'href="https://www.instagram.com/krusgraph.mcp/"' in social
+        assert 'href="https://www.tiktok.com/@krusgraph"' in social
+        assert social.count('rel="noopener"') == 2 and social.count("<svg") == 2
+        assert "<span>Instagram</span>" in social and "<span>TikTok</span>" in social

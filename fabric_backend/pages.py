@@ -674,6 +674,13 @@ _LOGO = """<svg class="logo-mark" viewBox="0 0 40 40" aria-hidden="true" focusab
 _GITHUB_ICON = """<svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>"""
 
 
+# Krusgraph's own social accounts, shown as small monochrome icons in the footer.
+INSTAGRAM = "https://www.instagram.com/krusgraph.mcp/"
+TIKTOK = "https://www.tiktok.com/@krusgraph"
+_INSTAGRAM_ICON = """<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><rect x="2.5" y="2.5" width="19" height="19" rx="5.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4.3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.4" cy="6.6" r="1.3" fill="currentColor"/></svg>"""
+_TIKTOK_ICON = """<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>"""
+
+
 def site_url() -> str:
     """The public origin, e.g. https://krusgraph.com, taken from MCP_PUBLIC_URL."""
     return "https://" + _vars()["DOMAIN"]
@@ -819,6 +826,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
   <div class="wrap footer-grid">
     <div>
       <div class="brand small">{_LOGO}<span class="wordmark">{html.escape(v['PRODUCT_LOWER'])}</span></div>
+      <p class="footer-social"><a href="{INSTAGRAM}" rel="noopener" aria-label="Krusgraph on Instagram">{_INSTAGRAM_ICON}<span>Instagram</span></a><a href="{TIKTOK}" rel="noopener" aria-label="Krusgraph on TikTok">{_TIKTOK_ICON}<span>TikTok</span></a></p>
       <p class="muted">{html.escape(v['PRODUCT'])} by Kruse Consulting AB · Open source under the MIT licence.</p>
       <p class="muted tiny footer-company">{html.escape(v['COMPANY_LINE'])} · <a href="mailto:{html.escape(v['CONTACT'])}">{html.escape(v['CONTACT'])}</a></p>
       <p class="muted tiny footer-facts">{html.escape(v['BEHIND'])}.<br>{html.escape(v['BUILT'])}. <a href="/it">For your IT department</a>.</p>
