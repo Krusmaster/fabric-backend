@@ -454,40 +454,65 @@
       }
       parts.push(el('p', { cls: 'muted', text: v.note }));
       say('thinker', parts, 'verify');
-      offer('What now?', [{ label: 'Dry run again', act: dryRun }, { label: 'Start over', arguments: { step: 'workspace' } }]);
+      var next = [{ label: 'Dry run again', act: dryRun }, { label: 'Start over', arguments: { step: 'workspace' } }];
+      // AP3b: the proposed refresh only refreshes: the caretaker's preview, confirm dialog naming the model, one token
+      if (v.refresh && v.refresh.product) next.unshift({ label: v.refresh.label, hint: 'A preview first', primary: true,
+        act: function () { careDo({ product: { id: v.refresh.product } }, { act: 'refresh_model', label: v.refresh.label }); } });
+      offer('What now?', next);
     });
   }
 
   // ---------------------------------------------------------------- AP3: the caretaker -----------------------------
-  function careApi(body) {
+  // AP3b: no fetch waits forever. A report has a budget of 40 s on the server (guided_care.CARE_SECONDS); the page
+  // waits a little longer and then says so; every other care call gets CARE_WAIT_MS.
+  var REPORT_WAIT_MS = 50000;
+  var CARE_WAIT_MS = 90000;
+  function careApi(body, waitMs) {
+    var ms = waitMs || CARE_WAIT_MS;
+    var ctl = window.AbortController ? new AbortController() : null;
+    var timer = ctl ? setTimeout(function () { ctl.abort(); }, ms) : null;
     return fetch('/app/api/care', {
-      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      signal: ctl ? ctl.signal : undefined
     }).then(function (r) {
+      if (timer) clearTimeout(timer);
       if (r.status === 401) { window.location.assign('/app/login'); return new Promise(function () {}); }
       return r.json().catch(function () { return { error: 'The answer could not be read.' }; });
-    }).catch(function () { return { error: 'Krusgraph could not be reached.' }; });
+    }).catch(function (e) {
+      if (timer) clearTimeout(timer);
+      if (e && e.name === 'AbortError') {
+        return { error: 'Krusgraph did not answer within ' + Math.round(ms / 1000) + ' seconds, so the page stopped waiting. Nothing was changed.',
+          kind: 'timeout', hint: 'Read it again in a moment.' };
+      }
+      return { error: 'Krusgraph could not be reached.' };
+    });
   }
 
   var STATE_WORD = { ok: 'Fine', warn: 'Worth a look', bad: 'Needs a look', none: 'Nothing yet', unknown: 'Not read' };
   var care = { reports: [] };
 
-  function careSection(x) {
+  function careSection(x, again) {
     var sec = el('section', { cls: 'care-sec s-' + x.state, 'aria-label': x.title });
     sec.appendChild(el('div', { cls: 'care-sec-h' }, [el('h4', { text: x.title }), badge(STATE_WORD[x.state] || x.state, 'care-' + x.state)]));
     sec.appendChild(el('p', { cls: 'care-src muted tiny', text: (x.title_note ? x.title_note + ', ' : '') + x.source + '.' }));
     if ((x.lines || []).length) sec.appendChild(el('ul', null, x.lines.map(function (t) { return el('li', { text: t }); })));
     if (x.link) sec.appendChild(el('a', { href: x.link, target: '_blank', rel: 'noopener noreferrer', text: 'Open in Fabric' }));
+    if (x.again && again) {
+      var b = el('button', { type: 'button', cls: 'app-chip care-again', text: 'Read again' });
+      b.addEventListener('click', function () { if (!busy) again(); });
+      sec.appendChild(b);
+    }
     return sec;
   }
 
-  function careReport(v) {
+  function careReport(v, again) {
     var p = v.product || {};
     var card = el('article', { cls: 'care-card', 'aria-label': 'Since last time: ' + (p.name || '') }, [
       el('h3', { cls: 'care-name', text: p.name || '' }),
       el('p', { cls: 'muted tiny', text: 'From ' + (p.from || '') + '. Source: ' + (p.source || '') + '.' }),
       el('p', { cls: 'app-line', text: v.say || '' })
     ]);
-    (v.sections || []).forEach(function (x) { card.appendChild(careSection(x)); });
+    (v.sections || []).forEach(function (x) { card.appendChild(careSection(x, again)); });
     if ((v.actions || []).length) {
       card.appendChild(el('p', { cls: 'app-line', text: 'What I propose, by rules' }));
       card.appendChild(el('ol', { cls: 'care-acts' }, v.actions.map(function (a) {
@@ -503,25 +528,84 @@
       var list = (v && v.products) || [];
       if (v.error || !list.length) { run({}); return; }   // AP2b: show() greets once, unless the start tool already does
       say('onto', [LINES.since || 'Since last time.']);
-      care.reports = [];
-      careNext(list, 0);
+      care.reports = list.map(function () { return null; });
+      careAll(list);
     });
   }
 
-  function careNext(list, i) {
-    if (i >= list.length) { careOffer(); return; }
-    var p = list[i];
-    var reading = say('onto', [el('p', { cls: 'app-busy', text: 'Reading ' + p.name }) ]);
+  // AP3b: the products are read two at a time (each report reads its four parts at once on the server)
+  var CARE_PARALLEL = 2;
+  function careAll(list) {
+    var next = 0, left = list.length;
     setBusy(true);
-    careApi({ action: 'report', product: p.id }).then(function (v) {
-      setBusy(false);
+    function one() {
+      if (next >= list.length) return;
+      var i = next++;
+      careRead(list[i], null, function (v) {
+        care.reports[i] = v;
+        left -= 1;
+        if (left === 0) { setBusy(false); care.reports = care.reports.filter(Boolean); careOffer(); } else one();
+      });
+    }
+    for (var k = 0; k < Math.min(CARE_PARALLEL, list.length); k++) one();
+  }
+
+  // One product's report: a busy line that names the parts still being read, with a tick for each part done.
+  function careRead(p, li, done) {
+    var line = el('p', { cls: 'app-busy', text: 'Reading ' + p.name });
+    var parts = el('ul', { cls: 'care-parts', 'aria-label': 'Parts of the report' });
+    var holder = el('div', { cls: 'care-reading' }, [line, parts]);
+    if (li) li.querySelector('.app-bub').replaceChildren(el('span', { cls: 'app-who', text: NAMES.onto }), holder);
+    else li = say('onto', [holder]);
+    var finished = false;
+    function draw(ps) {
+      var todo = ps.filter(function (x) { return !x.done; }).map(function (x) { return x.part; });
+      line.textContent = 'Reading ' + p.name + (todo.length ? ': ' + todo.join(', ') : '');
+      parts.replaceChildren.apply(parts, ps.map(function (x) {
+        return el('li', { cls: x.done ? 'done' : '' }, [el('span', { 'aria-hidden': 'true', text: x.done ? '\u2713 ' : '\u2026 ' }),
+          x.part + (x.done ? ' (read)' : '')]);
+      }));
+    }
+    draw([{ part: 'pipeline runs' }, { part: 'the health check' }, { part: 'verify_build' }, { part: 'the source' }]);
+    function poll() {
+      if (finished) return;
+      careApi({ action: 'progress', product: p.id }, 8000).then(function (g) {
+        if (finished) return;
+        if (g && g.parts) draw(g.parts);
+        setTimeout(poll, 1500);
+      });
+    }
+    setTimeout(poll, 1000);
+    careApi({ action: 'report', product: p.id }, REPORT_WAIT_MS).then(function (v) {
+      finished = true;
+      var bub = li.querySelector('.app-bub');
       if (v.error) {
-        reading.querySelector('.app-busy').replaceWith(el('p', { text: p.name + ': ' + v.error + (v.hint ? ' ' + v.hint : '') }));
-      } else {
-        reading.querySelector('.app-busy').replaceWith(careReport(v));
-        care.reports.push(v);
+        bub.replaceChildren(el('span', { cls: 'app-who', text: NAMES.onto }),
+          el('p', { text: p.name + ': ' + v.error + (v.hint ? ' ' + v.hint : '') }), againButton(p, li));
+        done(null);
+        return;
       }
-      careNext(list, i + 1);
+      bub.replaceChildren(el('span', { cls: 'app-who', text: NAMES.onto }), careReport(v, function () { careAgain(p, li); }));
+      done(v);
+    });
+  }
+
+  function againButton(p, li) {
+    var b = el('button', { type: 'button', cls: 'app-chip care-again', text: 'Read again' });
+    b.addEventListener('click', function () { if (!busy) careAgain(p, li); });
+    return b;
+  }
+
+  // "Read again": this one product once more, in its own bubble; the others stay as they are.
+  function careAgain(p, li) {
+    setBusy(true);
+    careRead(p, li, function (v) {
+      setBusy(false);
+      var pid = (p && p.id) || '';
+      var kept = care.reports.filter(function (r) { return r && r.product && r.product.id !== pid; });
+      if (v) kept.push(v);
+      care.reports = kept;
+      careOffer();
     });
   }
 

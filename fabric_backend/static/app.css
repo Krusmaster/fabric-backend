@@ -137,13 +137,33 @@ html[data-mascots="off"] .app-face, html[data-mascots="off"] .app-fig { visibili
   .app-bub .check-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) }
 }
 /* AP3: the caretaker's "Since last time" report (guided_care.py) */
-.care-card { display: grid; gap: 8px; min-width: 0 }
-.care-card > * { margin: 0; min-width: 0 }
-.care-name { font-size: 17px; font-family: var(--font-head); margin: 0; overflow-wrap: anywhere }
-.care-sec { border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; display: grid; gap: 4px; background: var(--card); min-width: 0 }
-.care-sec > * { margin: 0; min-width: 0 }
-.care-sec ul { margin: 0; padding-left: 20px }
-.care-sec li { overflow-wrap: anywhere }
+/* AP3b (the founder's live run, 25 November 2026: a long "What was built, read back" ran over the next section): the
+   report and its sections are plain block flow, not grid rows, so a section is exactly as tall as its text, at any width,
+   on screen and when the page is printed or saved as a PDF; long words and ids wrap. */
+.care-card { display: block; min-width: 0; max-width: 100%; overflow-wrap: anywhere }
+.care-card > * { margin: 0 0 8px; min-width: 0 }
+.care-card > :last-child { margin-bottom: 0 }
+.care-name { font-size: 17px; font-family: var(--font-head); overflow-wrap: anywhere }
+.care-sec {
+  display: block; position: static; height: auto; min-height: 0; max-height: none; overflow: visible;
+  border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; background: var(--card); min-width: 0;
+  overflow-wrap: anywhere; word-break: break-word;
+}
+.care-sec > * { margin: 0 0 4px; min-width: 0 }
+.care-sec > :last-child { margin-bottom: 0 }
+.care-sec ul { margin: 0 0 4px; padding-left: 20px }
+.care-sec li { overflow-wrap: anywhere; word-break: break-word }
+.care-again { margin-top: 4px }
+.care-reading { display: block }
+.care-reading > * { margin: 0 0 4px }
+.care-parts { list-style: none; padding-left: 0; margin: 0; font-size: 14px; color: var(--muted) }
+.care-parts li.done { color: var(--sage-ink) }
+@media print {
+  .app-chat, .app-log, .app-msg, .app-bub { display: block; overflow: visible }
+  .app-msg .app-face { display: none }
+  .app-log > li { margin-bottom: 12px }
+  .care-sec { break-inside: auto }
+}
 .care-sec.s-bad { border-color: var(--coral) }
 .care-sec.s-ok { border-color: var(--sage-d) }
 .care-sec-h { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline }
