@@ -231,7 +231,7 @@ def test_numbers_counted_show_before_after_and_the_difference(schema, on):
     out, call = _propose(schema, A2, numbers=lambda *, before, after: change_numbers.count(after["applied"], after["plan"], execute))
     rows = {r["label"]: r for r in card.card(out, call)["numbers"]["rows"]}
     assert rows["customers rows"] == {"label": "customers rows", "before": "12", "after": "10", "difference": "-2"}
-    assert rows["Order amount"] == {"label": "Order amount", "before": "56834.70", "after": "51296.70", "difference": "-5538.00"}
+    assert rows["Order amount"] == {"label": "Order amount", "before": "56 834.70", "after": "51 296.70", "difference": "\u22125 538.00"}
     double = card.number_rows({"status": "counted", "counted": {"before": {"customers": 12}, "after": {"customers": 10}}})
     assert double["rows"] == [{"label": "customers", "before": "12", "after": "10", "difference": "-2"}]
     late = card.number_rows({"status": "counted", "counted": [{"what": "rows", "table": "orders", "state": "not counted (time)"}]})
@@ -303,7 +303,8 @@ def test_click_folds_open_the_plan_items_with_diffs_and_numbers(clicked):
     assert "1 measure: Order value per customer" in items
     assert "The numbers are not counted yet." in steps["fold:Numbers"]["text"]
     counted = clicked[("counted", "dark")]["steps"][-1]["text"]
-    assert "12 → 10" in counted and "(-5538.00)" in counted and "56834.70 → 51296.70" in counted
+    assert "12 → 10" in counted and "(\u22125 538.00)" in counted and "56 834.70 → 51 296.70" in counted
+    assert "(-2)" in counted                                                   # a count keeps its form
 
 
 def test_click_yes_calls_apply_change_only_with_the_token(clicked, schema):

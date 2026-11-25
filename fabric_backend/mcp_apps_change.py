@@ -147,7 +147,7 @@ def sentence(answer: dict) -> str:
         if _words(where) > 6:
             where = "the condition holds"
         n = len(c.get("cascade") or [])
-        s = f"Removes {c.get('table')} rows where {where}" + (f", and their rows in {n} tables" if n > 1 else
+        s = f"Removes rows from {c.get('table')} where {where}" + (f", and their rows in {n} tables" if n > 1 else
                                                                f", and their rows in {c['cascade'][0]}" if n else "") + "."
     elif t == "add_column":
         s = f"Adds {', '.join(c.get('columns') or [])} from {c.get('from')} to {c.get('table')}."
@@ -272,6 +272,16 @@ def _label(n: dict) -> str:
     return str(n.get("what") or n.get("item") or "number").replace("_", " ")
 
 
+def _amount(v):
+    """An amount (a decimal as text, change_numbers' form) with a space between thousands and a true minus sign, as
+    LFD4's docs write it: 56 834.70, −5 538.00. A count (a whole number) stays as it is."""
+    import re
+    if not isinstance(v, str) or not re.fullmatch(r"[+-]?\d+\.\d+", v):
+        return v
+    from .change_numbers import _spaced
+    return _spaced(v).replace("-", "\u2212", 1)
+
+
 def _difference(before, after, given=None) -> str:
     if given is not None:
         g = str(given)
@@ -299,8 +309,9 @@ def number_rows(layer: dict, change_id: str | None = None) -> dict:
         if not counted_ or before is None and after is None:
             rows.append({"label": label, "before": NOT_COUNTED, "after": "", "difference": ""})
         else:
-            rows.append({"label": label, "before": "" if before is None else str(before),
-                         "after": "" if after is None else str(after), "difference": _difference(before, after, diff)})
+            rows.append({"label": label, "before": "" if before is None else str(_amount(before)),
+                         "after": "" if after is None else str(_amount(after)),
+                         "difference": str(_amount(_difference(before, after, diff)))})
 
     def walk(x):
         if isinstance(x, list):
