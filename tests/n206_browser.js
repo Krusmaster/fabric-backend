@@ -3,6 +3,7 @@
 // between sections, and on a phone every button inside the page without overlapping another.
 // Usage: node tests/n206_browser.js <base url>
 const { chromium } = require('playwright');
+const { open } = require('./browser_nav');
 const base = process.argv[2];
 const SIZES = [[375, 812], [768, 1024], [1280, 720], [1440, 900]];
 (async () => {
@@ -13,7 +14,7 @@ const SIZES = [[375, 812], [768, 1024], [1280, 720], [1440, 900]];
     const page = await ctx.newPage();
     page.on('pageerror', (e) => out.errors.push(`${width}-${scheme}: ${e.message}`));
     page.on('console', (m) => { if (m.type() === 'error') out.errors.push(`${width}-${scheme}: ${m.text()}`); });
-    await page.goto(base + '/', { waitUntil: 'networkidle' });
+    await open(page, base + '/', '[data-page="home"]');
     out.sizes[`${width}-${scheme}`] = await page.evaluate((scheme) => {
       const W = document.documentElement.clientWidth;
       const main = document.querySelector('[data-page="home"]');

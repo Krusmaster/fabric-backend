@@ -8,6 +8,7 @@
 // in order.
 // Usage: node tests/n224_chat_flow_browser.js <base url>
 const { chromium } = require('playwright');
+const { open } = require('./browser_nav');
 const base = process.argv[2];
 const SIZES = [[375, 812], [768, 1024], [1280, 720], [1440, 900]];
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -29,7 +30,7 @@ async function click(page, label) {
     const page = await ctx.newPage();
     page.on('pageerror', (e) => out.errors.push(`${key}: ${e.message}`));
     page.on('console', (m) => { if (m.type() === 'error') out.errors.push(`${key}: ${m.text()}`); });
-    await page.goto(base + '/', { waitUntil: 'networkidle' });
+    await open(page, base + '/', '[data-page="home"]');
     const s = {};
     s.cardFlow = await page.evaluate(() => document.querySelectorAll('figure.session .session-flow, figure.session svg').length);
     await until(page, () => { const b = document.getElementById('kgcLaunch'); return b && !b.hidden; }, null, 'launch');

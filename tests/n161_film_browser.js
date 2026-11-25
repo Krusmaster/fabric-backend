@@ -2,6 +2,7 @@
 // the 16:9 one; on the home page and on /docs. preload="none" loads nothing until play, so the test asks the element to run
 // its source selection (load()) and reads currentSrc. Usage: node tests/n161_film_browser.js <base url> [chromium path].
 const { chromium } = require('playwright');
+const { settle } = require('./browser_nav');
 const base = process.argv[2], exe = process.argv[3];
 (async () => {
   const browser = await chromium.launch(exe ? { executablePath: exe } : {});
@@ -12,7 +13,7 @@ const base = process.argv[2], exe = process.argv[3];
       page.on('pageerror', (e) => out.errors.push(`${width} ${path}: ${e.message}`));
       const external = [];
       page.on('request', (r) => { if (!r.url().startsWith(base)) external.push(r.url()); });
-      await page.goto(base + path, { waitUntil: 'networkidle' });
+      await settle(page, base + path);
       out[`${width} ${path}`] = await page.evaluate(async () => {
         const v = document.querySelector('#film video'), r = v.getBoundingClientRect();
         // n163: does this browser honour media on a video's <source>? The Chromium of CI's Playwright (131) plays the
