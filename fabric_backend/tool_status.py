@@ -14,6 +14,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from .tool_listing import changes_on as _changes_on   # LFD5: KRUSGRAPH_CHANGES, off by default
+
 HOSTED, OPERATOR = "hosted", "operator"          # operator: needs a permission the hosted app does not ask for today
 READS, DRAFT, CREATES = "reads", "draft", "creates"
 
@@ -204,6 +206,11 @@ _RAW = {
     "semantic_view_draft": (HOSTED, DRAFT, "nothing (counting queries with validate=true)",
                             "unit tests on the synthetic samples (SQLite); not run against Fabric"),
 }
+# LFD5: the change-by-chat tool exists only with KRUSGRAPH_CHANGES=1 (off by default); off, it has no status, so no page,
+# listing or instruction names it.
+if _changes_on():
+    _RAW["propose_change"] = (HOSTED, READS, "nothing (plans and drafts; never writes to Fabric)",
+                              "unit tests on the synthetic shop_lfd sample (SQLite); not run against Fabric")
 STATUS: dict[str, ToolStatus] = {name: ToolStatus(*v, name=name) for name, v in _RAW.items()}
 
 
@@ -604,6 +611,8 @@ LOCAL_TOOLS = ("list_tables", "plan_backend", "validate_plan", "sample_rows", "j
                "semantic_model_draft", "ontology_draft", "silver_notebook_draft", "review_plan", "create_backend",
                "qlik_plan", "qlik_measures_draft", "qlik_reconcile_draft",       # Q2: the same three, the text stays local
                "analysis_plan", "analysis_notebook_draft")                      # AP2: the analysis pack, local first
+if _changes_on():
+    LOCAL_TOOLS += ("propose_change",)                                           # LFD5: with KRUSGRAPH_CHANGES=1 only
 
 # what is not a hosted tool: (name, status word, where, what it is)
 # n146, Gustav's decision of 7 November 2026: what ran against SQL Server 2022 in a container on 28 October 2026

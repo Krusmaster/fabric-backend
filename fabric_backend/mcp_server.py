@@ -744,6 +744,29 @@ def silver_notebook_draft(schema: str = "dbo", silver_schema: str = "silver", or
     return _compact.bounded(out, MAX_RESULT_CHARS)
 
 
+# LFD5: the change-by-chat tool, registered only with KRUSGRAPH_CHANGES=1 (off by default), as on the hosted server.
+from . import tool_listing as _tool_listing  # noqa: E402
+
+if _tool_listing.changes_on():
+    @_tool("Propose a change to a data product and show the diff (nothing changes)", RO)
+    @safe
+    def propose_change(change: dict, schema: str = "dbo", applied: list[dict] | None = None,
+                       keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None) -> str:
+        """Checks one change (docs/CHANGES.md: filter_rows, add_column, add_link, add_measure, revert) against the plan by
+        fixed rules and shows what it would change: a question or a denial, or the diff in three layers (plan; each
+        item, update in place or unchanged, with its unified diff; numbers) and a confirm value for a later
+        apply_change. `applied`: the changes applied so far, in order. Read-only: writes nothing."""
+        from . import change_diff as _change_diff
+        info = _source_info(schema)
+        if info["schemas_enabled"] is None:
+            info["schemas_enabled"] = schema.lower() != "dbo"
+        with _connection(schema) as execute:
+            p = _plan_on(execute, schema, keys, confirmed)
+            out = _change_diff.propose(change, p, info, applied, confirmed=confirmed,
+                                       replan=lambda links: _plan_on(execute, schema, keys, links))
+        return _change_diff.answer(out, MAX_RESULT_CHARS)
+
+
 @_tool("Which SAP analyses this data supports, by rules (read-only)", RO)
 @safe
 def analysis_plan(schema: str = "dbo", keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None,
