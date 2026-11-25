@@ -42,6 +42,7 @@ QUESTIONS = {
     "path": "add_column has several equally short join paths that repeat no row: which one",
     "link": "add_column has no join path that repeats no row: which link to add first",
     "link_direction": "add_link points from a key at a column that is not a key: whether it was meant the other way",
+    "revert_dependent": "a later change in the list stands on the change a revert takes out: whether to revert that one first",
 }
 DENIALS = {
     "bad_request": "the request is not shaped as the contract says",
@@ -70,6 +71,7 @@ DENIALS = {
     "not_additive": "a sum over a column that is not a number, or is a key or a reference",
     "unknown_measure": "a ratio names a measure that does not exist",
     "unknown_change": "revert names a change that was not applied",
+    "already_reverted": "revert names a change that an earlier revert already took out",
 }
 
 MAX_NAME = 128
@@ -403,9 +405,13 @@ def _safe_name(name: str) -> bool:
 
 
 class _Checker:
-    def __init__(self, plan: Plan, counts: dict | None, applied, measures):
+    def __init__(self, plan: Plan, counts: dict | None, applied, measures, reverted=None):
         self.plan, self.counts = plan, counts or {}
-        self.applied = None if applied is None else set(applied)
+        # applied: ids, or the entries of apply's answer ({"id", "type", "change", "resolved", "given"}), in the list's order
+        self.entries = [x for x in applied or [] if isinstance(x, dict) and isinstance(x.get("id"), str)]
+        self.applied = None if applied is None else {i for x in applied for i in (
+            (x.get("id"), x.get("given")) if isinstance(x, dict) else (x,)) if isinstance(i, str)}
+        self.reverted = {x for x in reverted or [] if isinstance(x, str)}
         self.personal = privacy.personal_columns(plan.schema)
         own = [m["name"] for m in amounts.order_amount_measures(plan)["measures"]]
         self.measures = {m.casefold(): m for m in [*own, *(measures or [])] if isinstance(m, str)}
@@ -790,14 +796,67 @@ class _Checker:
         return {"name": c["name"], "measure": measure}, {}
 
     def revert(self, c: dict) -> tuple[dict, dict]:
-        if self.applied is not None and c["change"] not in self.applied:
-            raise ChangeError("unknown_change", f"{c['change']} is not among the changes applied to this data product.")
+        target = c["change"]
+        if self.applied is not None and target not in self.applied:
+            if target in self.reverted:
+                raise ChangeError("already_reverted", f"{target} was already taken out by an earlier revert; the list holds it no more. "
+                                                      "To have it again, send the change itself.")
+            raise ChangeError("unknown_change", f"{target} is not among the changes applied to this data product"
+                                                + (" (a revert is undone by sending the change it took out again)." if self.applied else "."))
         if self.applied is None:
             self.notes.append("No list of applied changes was given: the id is well-formed, whether it was applied is not checked.")
-        return {"change": c["change"]}, {}
+            return {"change": target}, {}
+        at = next((i for i, x in enumerate(self.entries) if target in (x["id"], x.get("given"))), None)
+        if at is None:
+            self.notes.append("The applied changes were given as ids only: whether a later change stands on this one is not checked.")
+            return {"change": target}, {}
+        dependents = [d for d in (_depends(self.entries[at], x) for x in self.entries[at + 1:]) if d]
+        if dependents:
+            said = "; ".join(f"{d['change']} ({d['type']}): {d['why']}" for d in dependents[:MAX_CANDIDATES])
+            raise _Ask("revert_dependent", f"A later change stands on {target}: {said}. Revert "
+                       + ("it" if len(dependents) == 1 else "them, the last first,") + " before this one; nothing is taken out for you.",
+                       dependents[:MAX_CANDIDATES], "revert")
+        return {"change": target}, {"reverts": {"id": self.entries[at]["id"], "type": self.entries[at]["type"]}}
 
 
-def validate(change, plan: Plan, *, counts: dict | None = None, applied=None, measures: list[str] | None = None) -> dict:
+def _link_key(link: dict) -> tuple:
+    """A link in either direction, its column pairs in either case, as one value."""
+    a = (link["from"]["table"].lower(), tuple(c.lower() for c in link["from"]["columns"]))
+    b = (link["to"]["table"].lower(), tuple(c.lower() for c in link["to"]["columns"]))
+    return tuple(sorted((a, b)))
+
+
+def _measures_named(m: dict) -> set[str]:
+    if "measure" in m:
+        return {m["measure"].casefold()}
+    if m.get("form") == "ratio":
+        return _measures_named(m["numerator"]) | _measures_named(m["denominator"])
+    return set()
+
+
+def _depends(target: dict, later: dict) -> dict | None:
+    """Whether `later` (an entry after `target` in the list) stands on `target`, by the change types' own fields: an
+    add_column or a cascade that joins over the link an add_link confirmed, a ratio that names the measure an add_measure
+    added. A filter and a copied column stand on nothing a later change needs."""
+    t, c = target["change"], later["change"]
+    why = None
+    if target["type"] == "add_link":
+        link = _link_key(t)
+        if later["type"] == "add_column" and any(_link_key(x) == link for x in c.get("via", [])):
+            why = "its join path follows the link"
+        elif later["type"] == "filter_rows" and any(_link_key(x) == link for cc in (later.get("resolved") or {}).get("cascade", [])
+                                                   for x in cc.get("through", [])):
+            why = "its cascade follows the link"
+    elif target["type"] == "add_measure" and later["type"] == "add_measure":
+        if t["name"].casefold() in _measures_named(c["measure"]):
+            why = f"its ratio reads the measure {t['name']}"
+    if why is None:
+        return None
+    return {"change": later["id"], "type": later["type"], "why": why, "revert": {"type": "revert", "change": later["id"]}}
+
+
+def validate(change, plan: Plan, *, counts: dict | None = None, applied=None, measures: list[str] | None = None,
+             reverted: list[str] | None = None) -> dict:
     """One change against the current plan. The answer is one of:
 
     {"result": "ok", "id", "change", "resolved", "notes"}: `change` is the normalised change: canonical, names in the
@@ -809,8 +868,10 @@ def validate(change, plan: Plan, *, counts: dict | None = None, applied=None, me
     {"result": "denied", "kind", "reason"}: kind is a key of DENIALS.
 
     counts (optional, the caller's; nothing is read here): {"rows": {table: n}, "true": {table: {column: n}},
-    "cascade": {table: n}, "links": {link_id: {name: n}}}. applied: the ids of the changes applied so far, for revert.
-    measures: the names of the measures the data product has beyond those the plan itself gives (amounts.py)."""
+    "cascade": {table: n}, "links": {link_id: {name: n}}}. applied: the changes applied so far, for revert: their ids, or
+    the entries of apply's ok answer (then a revert whose change a later entry stands on is a question, revert_dependent).
+    reverted: the ids earlier reverts took out (a second revert of one is denied as already_reverted). measures: the
+    names of the measures the data product has beyond those the plan itself gives (amounts.py)."""
     try:
         c = canonical(change)
         mark = plan_mark(plan)
@@ -818,7 +879,7 @@ def validate(change, plan: Plan, *, counts: dict | None = None, applied=None, me
         if stale:
             raise ChangeError("stale_base", f"The change was written against another plan ({', '.join(stale)} differ(s)); the current "
                                             f"plan is {mark['plan_id']}. Read the plan again and send the change against it.")
-        checker = _Checker(plan, counts, applied, measures)
+        checker = _Checker(plan, counts, applied, measures, reverted)
         body, resolved = getattr(checker, c["type"])(c)
         normalised = canonical({"type": c["type"], "base": mark, **body})
         return {"result": "ok", "id": change_id(normalised), "change": normalised, "resolved": resolved, "notes": checker.notes}
@@ -904,9 +965,10 @@ def apply(changes: list, plan: Plan, *, measures: list[str] | None = None) -> di
     mark = plan_mark(plan)
     entries = [c["change"] if isinstance(c, dict) and c.get("result") == "ok" and "change" in c else c for c in changes]
     replan = []
-    for c in entries:                                                  # links first: a new link means a new plan
-        if not (isinstance(c, dict) and c.get("type") == "add_link"):
-            continue
+    undone = _undone(entries, plan)
+    for i, c in enumerate(entries):                                    # links first: a new link means a new plan
+        if not (isinstance(c, dict) and c.get("type") == "add_link") or i in undone:
+            continue                                                   # LFD7: a link a later revert takes out needs no plan
         try:
             link = _Checker(plan, None, None, None).link(_link({"from": c.get("from"), "to": c.get("to")}, "add_link"))
         except ChangeError:
@@ -923,6 +985,7 @@ def apply(changes: list, plan: Plan, *, measures: list[str] | None = None) -> di
                           "the same list to the new plan: the changes that need a link are checked against the plan that has it."}
     kept: list[dict] = []
     reverted: list[str] = []
+    gone_ids: set[str] = set()
     extra = list(measures or [])
     for i, raw in enumerate(entries):
         c = _rebased(raw, mark)
@@ -936,20 +999,33 @@ def apply(changes: list, plan: Plan, *, measures: list[str] | None = None) -> di
                 return {**validate(c, plan), "at": i}                     # written against other tables: stale
             r = _Checker(plan, None, None, None).relationship(link)
             normalised = canonical({"type": "add_link", "base": mark, **link})
+            if r is None:                                              # LFD7: in `undone`, taken out by a later revert
+                in_plan = {"source": link["from"]["table"], "source_cols": list(link["from"]["columns"]),
+                           "target": link["to"]["table"], "target_cols": list(link["to"]["columns"]), "rule": "confirmed"}
+                said = "The plan does not hold the link; a later revert in the list takes it out."
+            else:
+                in_plan = {"source": r.source, "source_cols": list(r.source_cols), "target": r.target,
+                           "target_cols": list(r.target_cols), "rule": r.rule}
+                said = f"The link is a relationship of the plan (rule {r.rule}); the drafts follow it as the plan does."
             entry = {"id": change_id(normalised), "type": "add_link", "change": normalised, "position": i,
-                     "resolved": {"in_plan": {"source": r.source, "source_cols": list(r.source_cols), "target": r.target,
-                                              "target_cols": list(r.target_cols), "rule": r.rule}},
-                     "notes": [f"The link is a relationship of the plan (rule {r.rule}); the drafts follow it as the plan does."]}
+                     "resolved": {"in_plan": in_plan}, "notes": [said]}
             given = _given_id(raw)
         else:
-            applied = [x["id"] for x in kept] + [x["given"] for x in kept if x.get("given")]
-            got = validate(c, plan, applied=applied, measures=extra)
+            got = validate(c, plan, applied=kept, measures=extra, reverted=sorted(gone_ids))
+            if got["result"] != "ok" and i in undone and c.get("type") != "revert":
+                # LFD7: a change a later revert takes out, which this plan no longer accepts (a column over a link the
+                # plan was made again without): kept as it was sent until its revert, and never drafted
+                kept.append({"id": _given_id(raw), "type": c["type"], "change": canonical(c), "resolved": {}, "position": i,
+                             "notes": [f"Not checked against this plan ({got.get('kind')}); a later revert in the list takes it out."]})
+                continue
             if got["result"] != "ok":
                 return {**got, "at": i}
             if got["change"]["type"] == "revert":
                 target = got["change"]["change"]
-                kept = [x for x in kept if target not in (x["id"], x.get("given"))]
+                gone = next(x for x in kept if target in (x["id"], x.get("given")))
+                kept = [x for x in kept if x is not gone]
                 reverted.append(target)
+                gone_ids |= {i for i in (target, gone["id"], gone.get("given")) if i}
                 continue
             entry = {"id": got["id"], "type": got["change"]["type"], "change": got["change"], "resolved": got["resolved"],
                      "notes": got["notes"], "position": i}
@@ -968,6 +1044,31 @@ def apply(changes: list, plan: Plan, *, measures: list[str] | None = None) -> di
             "reverted": reverted, "confirmed": [{k: v for k, v in c.items() if k != "rule"} for c in confirmed]}
 
 
+def _undone(entries: list, plan: Plan) -> set[int]:
+    """LFD7: the positions of the entries a later revert in the list takes out (by the id they were sent with, and for a
+    link also its id against this plan), and that are not sent again after that revert. The list does not stand on them:
+    a link among them asks for no new plan, and a change among them that this plan no longer accepts is not denied."""
+    mark = plan_mark(plan)
+    ids: dict[int, set[str]] = {}
+    for i, c in enumerate(entries):
+        if not isinstance(c, dict) or c.get("type") == "revert":
+            continue
+        try:
+            ids[i] = {change_id(c)}
+            if c.get("type") == "add_link":
+                link = _Checker(plan, None, None, None).link(_link({"from": c.get("from"), "to": c.get("to")}, "add_link"))
+                ids[i].add(change_id({"type": "add_link", "base": mark, **link}))
+        except ChangeError:
+            continue
+    reverts = [(i, c.get("change")) for i, c in enumerate(entries) if isinstance(c, dict) and c.get("type") == "revert"]
+    out = set()
+    for i, mine in ids.items():
+        last_sent = max(j for j, other in ids.items() if other & mine)
+        if i == last_sent and any(j > i and target in mine for j, target in reverts):
+            out |= {j for j, other in ids.items() if other & mine}
+    return out
+
+
 def _given_id(raw) -> str | None:
     try:
         return change_id(raw)
@@ -983,3 +1084,63 @@ def of_type(applied: dict | None, kind: str) -> list[dict]:
         raise ChangeError("bad_request", "The drafts take apply's ok answer; this list was not applied "
                                          f"({applied.get('result')}): {applied.get('reason') or applied.get('question') or ''}".rstrip(": "))
     return [x for x in applied["changes"] if x["type"] == kind]
+
+
+# ------------------------------------------------------------------ versions (LFD7) -----------------------------------
+
+_VERSION = re.compile(r"^v(0|[1-9][0-9]{0,5})$")
+
+
+def _entry_change(c):
+    return c["change"] if isinstance(c, dict) and c.get("result") == "ok" and "change" in c else c
+
+
+def version_id(changes: list) -> str:
+    """The id of a version: `ver-` and sixteen hexadecimal digits of the SHA-256 of the list's change ids in order (each
+    the id of its canonical form, so the id is the list's content). v0, the empty list, has the id of []."""
+    ids = [change_id(_entry_change(c)) for c in changes]
+    return "ver-" + hashlib.sha256(_dump(ids).encode("utf-8")).hexdigest()[:16]
+
+
+def versions(changes: list) -> list[dict]:
+    """The change list as versions: v0 (no changes), v1 (the first change), v2 (the first two) and so on. A version is the
+    list up to and including its change, reverts included, so a revert is a version of its own and never rewrites an
+    earlier one. Each: {"version": "vN", "id": version_id of the first N, "change": the Nth change's id or None, "type",
+    "reverts": the id a revert names}. Raises ChangeError for an entry the contract does not read."""
+    out = [{"version": "v0", "id": version_id([]), "change": None, "type": None}]
+    ids: list[str] = []
+    for c in changes:
+        c = canonical(_entry_change(c))
+        ids.append(change_id(c))
+        entry = {"version": f"v{len(ids)}", "id": "ver-" + hashlib.sha256(_dump(ids).encode("utf-8")).hexdigest()[:16],
+                 "change": ids[-1], "type": c["type"]}
+        if c["type"] == "revert":
+            entry["reverts"] = c["change"]
+        out.append(entry)
+    return out
+
+
+def version(changes: list, name: str) -> list:
+    """The list of a version by its name (v0, v1, ...): the first N entries. Raises ChangeError for another name."""
+    m = _VERSION.match(name) if isinstance(name, str) else None
+    if not m or int(m.group(1)) > len(changes):
+        raise ChangeError("bad_request", f"There is no version {name!r}: the list has v0 to v{len(changes)}.")
+    return list(changes[:int(m.group(1))])
+
+
+def since(previous: list, current: list) -> dict:
+    """What changed from one version of the list to another, by the changes' ids: {"previous", "previous_id", "current",
+    "current_id", "added": [{"id", "type", ("reverts")}], "reverted": [ids], "dropped": [ids], "later": bool}. `later` is
+    true when `current` continues `previous` (the usual case: a version and the one after it); otherwise the two lists
+    went apart and `dropped` holds the ids of `previous` that `current` does not have."""
+    old, new = versions(previous), versions(current)
+    n = 0
+    while n < min(len(old), len(new)) - 1 and old[n + 1]["change"] == new[n + 1]["change"]:
+        n += 1
+    later = n == len(old) - 1
+    have = {x["change"] for x in new[1:]}
+    added = [{"id": x["change"], "type": x["type"], **({"reverts": x["reverts"]} if x.get("reverts") else {})} for x in new[n + 1:]]
+    return {"previous": old[-1]["version"], "previous_id": old[-1]["id"], "current": new[-1]["version"], "current_id": new[-1]["id"],
+            "later": later, "added": added, "reverted": [x["reverts"] for x in added if x.get("reverts")],
+            "dropped": [] if later else [x["change"] for x in old[n + 1:] if x["change"] not in have]}
+

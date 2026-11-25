@@ -84,6 +84,8 @@ def read(raw) -> dict:
             raise ReviewFileError(f"An item in the review file is malformed: {str(it)[:120]}")
         if (it.get("check") or {}).get("status", "not_checked") not in CHECK:
             raise ReviewFileError(f"Item {it['id']} has an unknown check status.")
+    if "changes" in raw and not (isinstance(raw["changes"], dict) and isinstance(raw["changes"].get("list"), list)):
+        raise ReviewFileError("The review file's 'changes' field has no list of changes.")
     snap = raw["snapshot"]
     if not isinstance(snap.get("tables"), dict) or not isinstance(snap.get("relationships"), list):
         raise ReviewFileError("The review file's snapshot has no tables or relationships.")
@@ -155,13 +157,16 @@ def _tables_of(it: dict) -> list[str]:
 
 
 def build(plan: Plan, base: Plan, source: dict, *, decisions: list[dict] | None = None, checks: dict | None = None,
-          checked_at: str = "", previous: dict | None = None, tables: list[str] | None = None) -> dict:
+          checked_at: str = "", previous: dict | None = None, tables: list[str] | None = None,
+          changes: list | None = None) -> dict:
     """The review file for `plan` (made with the person's keys and confirmed) next to `base` (the rules alone).
 
     decisions: [{"item": "<id>", "review": "accepted|rejected|open|proposed", "reason": "..."}], the call's own; they win
     over the previous file's. checks: validate_plan's answer for this plan, run at `checked_at`. previous: an earlier
     review file (already read()), whose decisions and checks are carried where they still apply. tables: limit the
-    file to these tables and the relationships that touch them."""
+    file to these tables and the relationships that touch them. changes (LFD7): the data product's change list, in order,
+    reverts included (docs/CHANGES.md); the file carries it as `changes` (change_block). Without one, or with an empty
+    list, the file is what it was, byte for byte."""
     snap = _snapshot(plan)
     if tables is not None:
         keep = {t.lower() for t in tables}
@@ -263,7 +268,26 @@ def build(plan: Plan, base: Plan, source: dict, *, decisions: list[dict] | None 
                      "open": [{"id": x["id"], "kind": x["kind"], "state": x["state"], "reason": x["reason"]} for x in one["open"]],
                      "sentence": one["sentence"]}
     out["arguments"] = carried_arguments(out)
+    if changes:
+        out["changes"] = change_block(changes, previous.get("changes") or {"list": []} if previous else None)
     return out
+
+
+def change_block(changes: list, previous: dict | None = None) -> dict:
+    """LFD7: the change list as the review file carries it. {"version", "id", "list", "since_previous"}: `list` is every
+    entry in order, each with the version it made (v1, v2, ...), its id, type and canonical form; `version` and `id` are
+    the list's last version (changes.versions); `since_previous` (changes.since) says what changed since the previous
+    version: since the previous review file's list when there is a previous file (a file without a list is v0), else
+    since the version before the last."""
+    from . import changes as _changes
+    listed = [_changes.canonical(c["change"] if isinstance(c, dict) and c.get("result") == "ok" and "change" in c else c)
+              for c in changes]
+    vs = _changes.versions(listed)
+    before = [x["change"] for x in (previous or {}).get("list", []) if isinstance(x, dict) and "change" in x] \
+        if isinstance(previous, dict) else listed[:-1]
+    return {"version": vs[-1]["version"], "id": vs[-1]["id"],
+            "list": [{"version": v["version"], "id": v["change"], "type": v["type"], "change": c} for v, c in zip(vs[1:], listed)],
+            "since_previous": _changes.since(before, listed)}
 
 
 def _questions(plan: Plan, items: list[dict], snap: dict) -> list[dict]:
@@ -445,6 +469,15 @@ def markdown(review: dict) -> str:
         moved = {k: v for k, v in ch.items() if isinstance(v, list) and v}
         lines += ["", f"## Since `{sp['previous_plan_id']}`", ""]
         lines += [f"- {k.replace('_', ' ')}: {len(v)}" for k, v in moved.items()] or ["- No change in tables, columns, keys or relationships."]
+    ch = review.get("changes")
+    if ch:                                                            # LFD7: the change list and its versions
+        sp = ch["since_previous"]
+        lines += ["", f"## Changes ({ch['version']}, `{ch['id']}`)", ""]
+        lines += [f"{x['version']}. `{x['id']}` {x['type']}" + (f" of `{x['change']['change']}`" if x["type"] == "revert" else "")
+                  for x in ch["list"]]
+        lines += ["", f"Since {sp['previous']}: " + ("; ".join(
+            [f"{len(sp['added'])} added"] + ([f"{len(sp['reverted'])} reverted"] if sp["reverted"] else [])
+            + ([f"{len(sp['dropped'])} no longer in the list"] if sp["dropped"] else []))) + "."]
     lines += ["", "To reuse the decisions, pass this file back to `review_plan` as `previous`, or pass its `arguments` "
                   "(`keys`, `confirmed`) to the other tools.", ""]
     return "\n".join(lines)
