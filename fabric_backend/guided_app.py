@@ -68,7 +68,10 @@ TOKEN_RE = re.compile(r"[A-Za-z0-9_-]{16,128}")
 READ_STEPS = ("", "workspace", "source", "schema", "data", "check", "decide")
 BUTTON_STEPS = READ_STEPS + ("dry_run",)
 NEXT_LINE = "Next: decide what needs you, then a dry run of what would be built."
-NOTHING_WRITTEN = "Nothing was changed in Fabric: the check, Decide and the dry run only read."
+# AP2b (finding 5): /app writes after an explicit confirm, so the page says when it writes and what this session wrote.
+HEADER = "Nothing is written to Fabric until you confirm a Create."
+NOTHING_WRITTEN = ("Nothing has been written to Fabric in this session: the check, Decide and the dry run only read, "
+                   "and Create writes only the names you confirm.")
 REVIEWS = ("accepted", "rejected", "skipped")
 BUILD_ACTIONS = ("places", "lakehouses", "dry_run", "confirm", "create", "state", "verify")
 
@@ -165,21 +168,107 @@ class SessionTokens:
 
 # ------------------------------------------------------------------ fixed rules for typed text ----------------------
 
+MATCH_RULES = (lambda f, t: f == t, lambda f, t: f.startswith(t), lambda f, t: t in f)
+
+
+def _fold(text: str) -> str:
+    return " ".join(str(text or "").split()).casefold()
+
+
 def match_choice(text: str, names: list[str]) -> tuple[str | None, list[str]]:
     """A typed name against the names offered, by fixed rules in order: the same name (ignoring case and the spaces
     around it), else the one name that starts with the text, else the one name that contains it. (name, []) when one
     rule finds exactly one; (None, candidates) otherwise, so the page can say what matched. No guessing beyond that."""
-    t = " ".join(str(text or "").split()).casefold()
+    t = _fold(text)
     if not t:
         return None, []
     folded = [(n, n.casefold()) for n in names if isinstance(n, str) and n.strip()]
-    for rule in (lambda f: f == t, lambda f: f.startswith(t), lambda f: t in f):
-        hits = [n for n, f in folded if rule(f)]
+    for rule in MATCH_RULES:
+        hits = [n for n, f in folded if rule(f, t)]
         if len(hits) == 1:
             return hits[0], []
         if len(hits) > 1:
             return None, hits[:8]
     return None, []
+
+
+# AP2b (finding 4): the names this session has already been shown (workspaces, sources, schemas), so a typed name that
+# is not on screen can be found where it was listed before. Only names the start tool read for this session's own
+# steps; nothing is read from Fabric for it. Kept in memory per session, never longer than the session.
+SEEN = Store(MAX_SESSIONS)
+SEEN_PLACES = 200
+KIND = {0: "workspace", 1: "source", 2: "schema"}
+
+
+def _place(out: dict) -> tuple | None:
+    """Where the names of a choosing answer live: () for the workspaces, (ws,) for its sources, (ws, src) for schemas."""
+    c = out.get("chosen") or {}
+    stage = out.get("stage")
+    if stage == "workspace":
+        return ()
+    if stage == "source" and c.get("workspace"):
+        return (c["workspace"],)
+    if stage == "schema" and c.get("workspace") and c.get("source"):
+        return (c["workspace"], c["source"])
+    return None
+
+
+def remember(sid: str, out: dict) -> None:
+    """The names of one start answer: the choices on screen, and the names it chose itself ("demo › demo_lh › dbo ✓")."""
+    if not sid or not isinstance(out, dict) or out.get("error"):
+        return
+    st = SEEN.get(sid) or {}
+    place = _place(out)
+    names = [str(a.get("label")) for a in out.get("actions") or []
+             if isinstance(a, dict) and a.get("kind") == "choose" and a.get("label") and "+" not in str(a["label"])]
+    if place is not None and names:
+        st[place] = names[:60]
+    c = out.get("chosen") or {}
+    path = [c.get(k) for k in ("workspace", "source", "schema")]
+    for i, name in enumerate(path):
+        if not isinstance(name, str) or not name or "+" in name or not all(path[:i]):
+            break
+        here = tuple(path[:i])
+        if name not in st.get(here, []):
+            st[here] = (st.get(here) or []) + [name]
+    while len(st) > SEEN_PLACES:
+        del st[next(iter(st))]
+    SEEN.put(sid, st, time.time() + SESSION_TTL)
+
+
+def elsewhere(sid: str, text: str, here: tuple | None) -> list[dict]:
+    """A typed name among the names this session saw in other places, by match_choice's rules in order (the first rule
+    that finds any wins): at most three, each {kind, name, where, arguments}. [] when none."""
+    t = _fold(text)
+    st = SEEN.get(sid) if sid else None
+    if not t or not st:
+        return []
+    for rule in MATCH_RULES:
+        hits = [(place, n) for place, names in st.items() if place != here for n in names if rule(n.casefold(), t)]
+        if hits:
+            break
+    else:
+        return []
+    out = []
+    for place, n in hits[:3]:
+        keys = ("workspace", "source", "schema")[:len(place) + 1]
+        args = dict(zip(keys, (*place, n)))
+        if len(place) == 2:
+            args["step"] = "check"
+        out.append({"kind": KIND[len(place)], "name": n, "where": " › ".join(place), "arguments": args})
+    return out
+
+
+def elsewhere_words(text: str, hits: list[dict]) -> tuple[str, list[dict]]:
+    """The sentence and the chips for elsewhere()'s hits: "“shop” is in demo › demo_lh." and "Go to demo › demo_lh › shop"."""
+    said = []
+    for h in hits:
+        what = {"workspace": "a workspace", "source": "a source", "schema": "a schema"}[h["kind"]]
+        said.append(f"“{h['name']}” is {what} in {h['where']}" if h["where"] else f"“{h['name']}” is {what} of yours")
+    say = f"No name here matches “{text}”, but " + "; ".join(said) + "."
+    chips = [{"label": "Go to " + " › ".join(x for x in (h["where"], h["name"]) if x), "arguments": _args(h["arguments"]),
+              "primary": i == 0} for i, h in enumerate(hits)]
+    return say, [c for c in chips if c["arguments"] is not None]
 
 
 # ------------------------------------------------------------------ the start tool's answer, for the page ----------
@@ -239,6 +328,8 @@ def view(out: dict) -> dict:
         buttons.append({"label": "Change", "arguments": {"step": "workspace"}})
     if buttons:
         v["buttons"] = buttons
+    if stage == "schema" and v.get("choices"):
+        _schema_choices(v)
     if stage == "check":
         v["lines"] = [str(x) for x in out.get("lines") or []][:6]
         if isinstance(out.get("counts"), dict):
@@ -253,6 +344,7 @@ def view(out: dict) -> dict:
         rules = ((out.get("found") or {}).get("rules")) or []
         if rules:
             v["rules"] = [str(x) for x in rules][:10]
+        _table_count(v)
         v["next"] = NEXT_LINE
     if stage == "decide":                             # AP2: each decision as a card; the choices are the start tool's own
         from .guided_build import decisions_view
@@ -267,6 +359,87 @@ def view(out: dict) -> dict:
                 b["primary"] = False                  # secondary until each decision is answered or skipped
                 b["why"] = "Next leaves the open decision open."
     return v
+
+
+def _schema_choices(v: dict) -> None:
+    """AP2b (finding 2): the schema choices with the Model editor's rules (W1: workload_api.system_schema and
+    krusgraph_schema, the words of sourceWords.ts): system schemas left out, the source schemas first, Krusgraph's own
+    after them, labelled and never suggested. A combined chip ("dbo+gold+krusgraph+silver") that mixes Krusgraph's own
+    output with sources is not offered; the source schemas together are, under the start tool's own rule for that chip
+    (SM5: two to four schemas with tables, server._start_options). A schema is still planned by name if typed."""
+    from .multi_schema import SEP, parts
+    from .workload_api import OWN_SCHEMA_WORDS, krusgraph_schema, system_schema
+    src, own, combos = [], [], []
+    for ch in v["choices"]:
+        names = parts(ch["arguments"].get("schema") or ch["label"])
+        if not names or any(system_schema(n) for n in names):
+            continue
+        kinds = [krusgraph_schema(n) for n in names]
+        if len(names) > 1:
+            if not any(kinds):
+                combos.append(ch)
+            continue
+        if kinds[0]:
+            ch = {k: x for k, x in ch.items() if k != "selected"}
+            ch["hint"] = ", ".join(x for x in (ch.get("hint"), OWN_SCHEMA_WORDS[kinds[0]]) if x)
+            ch["own"] = kinds[0]
+            own.append(ch)
+        else:
+            src.append(ch)
+    full = [ch for ch in src if not ch.get("disabled")]
+    if own and not combos and 2 <= len(full) <= 4:
+        c = v.get("chosen") or {}
+        n = sum(int(w[0]) for w in (str(ch.get("hint") or "").split() for ch in full) if w and w[0].isdigit())
+        combos.append({"label": SEP.join(ch["label"] for ch in full), "hint": f"{n} tables, one plan",
+                       "arguments": {"workspace": c.get("workspace"), "source": c.get("source"),
+                                     "schema": SEP.join(ch["label"] for ch in full), "step": "check"}})
+    if own and len(full) == 1 and not any(ch.get("selected") for ch in src):
+        full[0]["selected"] = True                     # the one source schema with tables, suggested as the editor does
+        full[0]["hint"] = ", ".join(x for x in (full[0].get("hint"), "suggested") if x)
+    dropped = {str(b.get("arguments", {}).get("schema")) for b in own}
+    if any(str(b.get("arguments", {}).get("schema")) in dropped for b in v.get("buttons") or []):
+        v["buttons"] = [b for b in v["buttons"] if str(b.get("arguments", {}).get("schema")) not in dropped]
+        c = v.get("chosen") or {}
+        v["say"] = f"Which schema in {c.get('source')} shall I read?"        # not "I picked it": Krusgraph's own output
+    v["choices"] = src + combos + own
+    if own:
+        v["own_line"] = ("Listed last, as Krusgraph's own output: " + ", ".join(ch["label"] for ch in own)
+                         + ". Read one only to see what Krusgraph wrote.")
+
+
+def _table_count(v: dict) -> None:
+    """AP2b (finding 3): the check's tile said "13 tables read" while the map said 17: the start tool counts the tables
+    with a key (one review item each), the map lists every table read. The tiles and the sentence now count every
+    table the map has, and one line names the tables without a key and why."""
+    tables = (v.get("map") or {}).get("tables") or []
+    counts = v.get("counts") or {}
+    keyed = counts.get("tables")
+    if not tables or not isinstance(keyed, int) or len(tables) <= keyed:
+        return
+    total = len(tables)
+    bare = [str(t.get("name")) for t in tables if not t.get("key")]
+    counts["tables"], counts["keyed"] = total, keyed
+    head = f"{keyed} tables, "
+    if v.get("say", "").startswith(head):
+        v["say"] = f"{total} tables, " + v["say"][len(head):]
+    shown = ", ".join(bare[:8]) + (f" and {len(bare) - 8} more" if len(bare) > 8 else "")
+    n = len(bare) or total - keyed
+    one = n == 1
+    line = (f"{keyed} of the {total} tables have a key the rules could prove; {n} {'has' if one else 'have'} none"
+            + (f" ({shown})" if bare else "") + f", so no link can point at {'it' if one else 'them'} and no key of {'its' if one else 'theirs'} is "
+            "counted.")
+    v["lines"] = [line] + list(v.get("lines") or [])
+
+
+def closing_line(sid: str) -> str:
+    """AP2b (finding 5): the Builder's closing words after the check: what this session wrote to Fabric, or nothing."""
+    from .guided_build import BUILDS
+    made = [i for i in ((BUILDS.get(sid) or {}).get("created") or []) if isinstance(i, dict)] if sid else []
+    if not made:
+        return NOTHING_WRITTEN
+    names = ", ".join(str(i.get("name") or i.get("type") or "an item") for i in made[:6]) + (" and more" if len(made) > 6 else "")
+    return (f"In this session Create wrote {len(made)} {'item' if len(made) == 1 else 'items'} to Fabric, after your "
+            f"confirm: {names}. The check, Decide and the dry run only read.")
 
 
 def run_start(tokens: SessionTokens, args: dict) -> dict:
@@ -291,7 +464,7 @@ def page_html(name: str = "") -> str:
     <div class="app-head">
       <span class="app-fig" data-mascot="onto" data-pose="rest" data-label=""></span>
       <div class="app-title"><h1 id="app-h">Your data, step by step</h1>
-        <p class="muted tiny">{who}Nothing is changed in Fabric until you confirm the names after a dry run.</p></div>
+        <p class="muted tiny">{who}{HEADER}</p></div>
       <form method="post" action="{LOGOUT}" class="app-out"><button type="submit" class="btn ghost small">Sign out</button></form>
     </div>
     <ol class="app-log" id="app-log" role="log" aria-live="polite" aria-relevant="additions" aria-label="Conversation"></ol>
@@ -546,7 +719,9 @@ class App:
             args["step"] = step
         text = str(data.get("text") or "").strip()[:NAME_MAX]
         tokens = SessionTokens(self.obo, s["token"], s["tid"], s["who"])
+        sid = _digest(request.cookies.get(SESSION_COOKIE) or "")
         out = self.run(tokens, args)
+        remember(sid, out)
         tap = data.get("decide")
         if step == "decide" and tap is not None:              # AP2: one tap on a decision card
             if (not isinstance(tap, dict) or not isinstance(tap.get("item"), str) or len(tap["item"]) > 400
@@ -560,11 +735,14 @@ class App:
             out = self.run(tokens, again)                     # the start card's own button: recorded as a tap
             log("decided", review=tap["review"])
         if text:
-            out = self._typed(tokens, args, out, text)
+            out = self._typed(tokens, args, out, text, sid)
+            remember(sid, out)
         v = view(out) if not out.get("match") else {**view(out), "match": out["match"]}
         if v.get("decisions"):
             from .guided_build import remember_rules
-            remember_rules(_digest(request.cookies.get(SESSION_COOKIE) or ""), v["decisions"])
+            remember_rules(sid, v["decisions"])
+        if v.get("stage") == "check":
+            v["closing"] = closing_line(sid)
         return answer(v)
 
     def build(self, request, body: bytes):
@@ -634,15 +812,22 @@ class App:
             log("build_failed", action=act, error=type(exc).__name__, kind=got.get("kind"))
             return answer({k: str(got[k])[:400] for k in ("error", "kind", "hint") if got.get(k)})
 
-    def _typed(self, tokens, args: dict, out: dict, text: str) -> dict:
+    def _typed(self, tokens, args: dict, out: dict, text: str, sid: str = "") -> dict:
         """A typed name for the choice on screen: matched by fixed rules against the names start offered; one match
-        is taken like a tap on it, otherwise the same step comes back with what matched."""
+        is taken like a tap on it, otherwise the same step comes back with what matched. AP2b: when nothing here
+        matches, the names this session saw elsewhere are searched by the same rules, and where it is is said, with a
+        chip to go there (no Fabric read for it)."""
         offered = [a for a in out.get("actions") or [] if isinstance(a, dict) and a.get("kind") == "choose" and not a.get("disabled")]
         name, candidates = match_choice(text, [str(a.get("label") or "") for a in offered])
         if name is None:
-            say = (f"More than one name matches “{text}”: {', '.join(candidates)}. Tap the one you mean."
-                   if candidates else f"No name here matches “{text}”. Tap one of the names, or type part of it.")
-            return {**out, "match": {"text": text, "candidates": candidates, "say": say}}
+            go: list = []
+            if candidates:
+                say = f"More than one name matches “{text}”: {', '.join(candidates)}. Tap the one you mean."
+            else:
+                hits = elsewhere(sid, text, _place(out))
+                say, go = elsewhere_words(text, hits) if hits else (
+                    f"No name here matches “{text}”. Tap one of the names, or type part of it.", [])
+            return {**out, "match": {"text": text, "candidates": candidates, "say": say, **({"go": go} if go else {})}}
         hit = next(a for a in offered if a.get("label") == name)
         picked = _args(hit.get("arguments"))
         return self.run(tokens, picked) if picked is not None else out

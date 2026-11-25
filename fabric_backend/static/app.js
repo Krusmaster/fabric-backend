@@ -18,6 +18,7 @@
   var POSE = { onto: 'point', thinker: 'think', builder: 'explain' };
   var state = {};
   var busy = false;
+  var greeted = false;        // AP2b: one greeting: the start tool's own "Hi! ...", else the coach's line before it
   var target = null;          // AP2: where to build ({workspace, lakehouse}); null: the source's workspace
   var update = [];            // AP2: items the person chose to update in place (a dry run first)
 
@@ -134,7 +135,7 @@
     var keys = el('table', { cls: 'check-list' }, [el('caption', { text: 'Keys' }),
       el('thead', null, [el('tr', null, [el('th', { scope: 'col', text: 'Table' }), el('th', { scope: 'col', text: 'Key' }), el('th', { scope: 'col', text: 'Rule' })])])]);
     var kb = el('tbody');
-    tables.forEach(function (t) { kb.appendChild(el('tr', null, [el('td', { text: t.name }), el('td', { text: (t.key || []).join(' + ') }), el('td', { text: t.rule || '' })])); });
+    tables.forEach(function (t) { kb.appendChild(el('tr', null, [el('td', { text: t.name }), el('td', { text: (t.key || []).join(' + ') || 'no key' }), el('td', { text: t.rule || '' })])); });
     keys.appendChild(kb);
     var rel = el('table', { cls: 'check-list' }, [el('caption', { text: 'Links, counted against the rows' }),
       el('thead', null, [el('tr', null, ['From', 'To', 'Rule', 'Rows'].map(function (h) { return el('th', { scope: 'col', text: h }); }))])]);
@@ -154,6 +155,10 @@
   }
 
   function show(v, sent) {
+    if (!greeted) {
+      greeted = true;
+      if (!/^Hi\b/.test(v.say || '')) say('onto', [LINES.hello]);
+    }
     if (v.error) {
       say('thinker', [LINES.error || 'That did not work.', v.error, v.hint || ''], 'error');
       offer('What now?', [{ label: 'Try again', arguments: sent }, { label: 'Start over', arguments: {} }]);
@@ -171,7 +176,7 @@
       if (v.rules && v.rules.length) parts.push(el('details', null, [el('summary', { text: 'The rules behind the links' }),
         el('ul', null, v.rules.map(function (x) { return el('li', { text: x }); }))]));
       say('thinker', parts);
-      say('builder', [v.next || LINES.next, LINES.nothing]);
+      say('builder', [v.next || LINES.next, v.closing || LINES.nothing]);
       offer('What now?', (v.buttons || []).concat([{ label: 'Check another schema', arguments: { workspace: state.workspace, source: state.source, step: 'schema' } },
         { label: 'Start over', arguments: { step: 'workspace' } }]));
       return;
@@ -181,10 +186,11 @@
     } else {
       var p = [v.say];
       if (v.line) p.push(el('p', { cls: 'app-line', text: v.line }));
+      if (v.own_line) p.push(el('p', { cls: 'muted', text: v.own_line }));
       if (v.choices_error) p.push(v.choices_error);
       say(v.who, p);
     }
-    var buttons = (v.choices || []).concat(v.buttons || []);
+    var buttons = ((v.match && v.match.go) || []).concat(v.choices || [], v.buttons || []);
     if (!buttons.length) buttons = [{ label: 'Start over', arguments: { step: 'workspace' } }];
     var legend = v.stage === 'workspace' ? 'Choose a workspace' : v.stage === 'source' ? 'Choose a source' :
       v.stage === 'schema' ? 'Choose a schema' : 'Your answer';
@@ -469,7 +475,7 @@
 
   // mascots.js is deferred after this file: start once every deferred script has run, so the first bubble has its figure
   var begun = false;
-  function begin() { if (begun) return; begun = true; say('onto', [LINES.hello]); run({}); }
+  function begin() { if (begun) return; begun = true; run({}); }
   if (window.Mascots || document.readyState === 'complete') begin();
   else { document.addEventListener('DOMContentLoaded', begin); window.addEventListener('load', begin); }
 })();
