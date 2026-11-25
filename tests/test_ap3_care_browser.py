@@ -194,7 +194,8 @@ def test_update_in_place_opens_ap2s_dry_run_on_the_product(run):
     assert run["target"] == "build › build_lh"
     assert [i.split(" ")[0] for i in run["items"]] == ["demo_lh_silver", "demo_lh_gold", "demo_lh_pipeline", "demo_lh_model",
                                                        "demo_lh_report", "demo_lh_agent"]
-    assert sum(i.endswith("Update in place") for i in run["items"]) == 5 and run["items"][4].endswith("Already built")
+    # AP3b: the report, which verify_build read back as the dry run and Create never updates, says "Unchanged"
+    assert sum(i.endswith("Update in place") for i in run["items"]) == 5 and run["items"][4].endswith("Unchanged")
     assert run["createButton"].startswith("Create these 5 items")
     assert len(run["fabric"].created()) == run["made"]                              # nothing new was created
     assert run["fabric"].writes == [("POST", f"/v1/workspaces/{s2.BUILD_WS}/items/{run['pipeline']}/jobs/instances")]

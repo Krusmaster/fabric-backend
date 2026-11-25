@@ -3990,7 +3990,7 @@ def run_verify(req: dict) -> dict:
     for c in req["created"]:                                       # the latest item of each kind this Model built
         kind = VERIFY_KIND.get(c.get("output") or "")
         if kind and c.get("type") == V.TYPE_OF[kind]:              # a pipeline's Create also records its three notebooks
-            items[kind] = c["id"]
+            items[kind] = {"id": c["id"], "name": c["name"]}       # AP3b: looked up by id, said by name
             built.setdefault(kind, []).append(c["name"])
         elif c.get("output") == "data_agent" and c.get("type") == "DataAgent":
             built.setdefault("data_agent", []).append(c["name"])

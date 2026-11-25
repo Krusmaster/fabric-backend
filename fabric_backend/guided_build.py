@@ -219,6 +219,8 @@ def dry_run(tokens, sid: str, c: dict, target: dict | None, update: list[str], b
     token = token_of(c, kept, target, update, rv, out, basis)
     place = where(out, c)
     cards = [card(x) for x in out.get("outputs") or []]
+    if basis:
+        care_words(cards, basis)
     confirm = {x["output"]: x["confirm_update"] for x in out.get("outputs") or [] if x.get("confirm_update")}
     st["dry"] = {"token": token, "at": time.time(), "c": c, "target": target, "update": list(update), "rv": rv,
                  "confirm": confirm, "basis": basis, "items": [{"kind": x["kind"], "name": x["name"], "label": x["label"]}
@@ -240,6 +242,31 @@ def dry_run(tokens, sid: str, c: dict, target: dict | None, update: list[str], b
     if waiting:
         v["say"] += f" {len(waiting)} wait{'s' if len(waiting) == 1 else ''} for your choice: update in place or a new name."
     return v
+
+
+UNCHANGED = "Unchanged: verify_build read it back as the dry run, so Create leaves it as it is."
+WITH_PIPELINE = ("Written with the pipeline below: the pipeline's update writes its silver, gold and check notebooks, so "
+                 "this one is not written on its own.")
+
+
+def care_words(cards: list[dict], basis: dict) -> None:
+    """AP3b: an update in place of a data product (guided_care.basis) says the same as the report that proposed it. The
+    items the report's verify_build found different are the ones updated (basis update, guided_care.verdicts); an item
+    it read back as the dry run is "Unchanged"; a notebook the pipeline's update writes says so. Only the words and the
+    badge change: what Create writes is the dry run's decision, as before."""
+    v = (basis.get("verdicts") or {})
+    outs, items = v.get("outputs") or {}, v.get("items") or {}
+    upd = set(basis.get("update") or [])
+    for x in cards:
+        info = outs.get(x.get("kind")) or {}
+        if x["action"] == "update" and info.get("differs"):
+            x["words"] = (f"Create will update it in place: verify_build found {', '.join(info['differs'])} different from the "
+                          "dry run" + (", built by an earlier version of Krusgraph" if info.get("earlier") else "") + ".")
+        elif x["action"] == "skip":
+            if x.get("kind") in ("silver_notebook", "gold_views") and "pipeline" in upd:
+                x["badge"], x["words"] = "With the pipeline", WITH_PIPELINE
+            elif items.get(str(x.get("name") or "").lower()) == "same" or (info.get("state") == "same" and not info.get("differs")):
+                x["badge"], x["words"] = "Unchanged", UNCHANGED
 
 
 def places(tokens) -> dict:
@@ -414,10 +441,18 @@ def verify(tokens, sid: str) -> dict:
     if out.get("error"):
         return {k: str(out[k])[:400] for k in ("error", "kind", "hint") if out.get(k)}
     lines = verify_lines(out)
-    return {"stage": "verify", "who": "thinker", "title": CHECKED_BY, "label": str(out.get("label") or ""),
-            "summary": str(out.get("summary") or ""), "counts": out.get("counts") or {}, "lines": lines,
-            "next_steps": [{"label": s.get("label"), "why": s.get("why")} for s in out.get("next_steps") or []][:8],
-            "note": str(out.get("note") or "")}
+    v = {"stage": "verify", "who": "thinker", "title": CHECKED_BY, "label": str(out.get("label") or ""),
+         "summary": str(out.get("summary") or ""), "counts": out.get("counts") or {}, "lines": lines,
+         "next_steps": [{"label": s.get("label"), "why": s.get("why")} for s in out.get("next_steps") or []][:8],
+         "note": str(out.get("note") or "")}
+    if any(isinstance(f, dict) and f.get("action") == "refresh_model" for f in out.get("fixes") or []):
+        # AP3b (the founder, 25 November 2026): the proposed refresh as a button that only refreshes: the caretaker's
+        # preview, confirm dialog and single-use token (guided_care.refresh_offer); the definition is not written
+        from .guided_care import refresh_offer
+        got = refresh_offer(sid)
+        if got:
+            v["refresh"] = got
+    return v
 
 
 def verify_lines(out: dict) -> list[dict]:

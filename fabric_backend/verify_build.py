@@ -19,7 +19,9 @@ Four kinds of checks, each ending in one of three states (STATES), never in a gu
                       table and schema, relationship types and their ends
      API for GraphQL  types, fields, relationships with their cardinality, what can be written
      pipeline         the steps in order, what each waits for, the notebook each runs
-     notebook         the code, line by line (the metadata lines, which hold ids, are left out)
+     notebook         the code cells' sources, line by line (the markers, the metadata blocks, which hold ids, and the
+                      markdown are left out, as Fabric writes them its own way; AP3b); a notebook an earlier
+                      Krusgraph wrote is said to be one
 2. The figures. For each card of the report (or each measure of the model when there is no report) the same number is
    computed from the rows the model reads, with one SQL statement, and put beside the model's own number (a DAX query,
    when the caller can run one). A measure whose expression is not one of the forms the rules translate is "not
@@ -420,23 +422,77 @@ def compare_pipeline(expected: dict, actual: dict, expected_names: dict[str, str
     return {"differences": out, "checked": {"steps": len(exp)}}
 
 
+_MARKER = re.compile(r"^#\s*(?:MARKDOWN|CELL|PARAMETERS CELL|METADATA)\s*\*+\s*$")
+_FABRIC_HEADER = "# Fabric notebook source"
+
+
+def notebook_cells(source: str) -> list[dict]:
+    """The cells of a notebook-content.py, as Fabric and Krusgraph both write it: [{kind, lines}] with kind "code",
+    "parameters" or "markdown". The header line, every "# METADATA" block and its "# META" lines, and the cell markers
+    themselves are left out; a cell's lines keep their text without trailing spaces, blank lines dropped. AP3b (the
+    founder's live run of 25 November 2026): Fabric gives a notebook back with its own markers and metadata blocks, so
+    the code is compared cell source by cell source, never marker by marker."""
+    cells: list[dict] = []
+    cur: dict | None = None
+    for raw in str(source or "").replace("\r\n", "\n").splitlines():
+        head = raw.strip()
+        if head == _FABRIC_HEADER:
+            continue
+        if _MARKER.match(head):
+            word = head.lstrip("#").strip().split("*")[0].strip().upper()
+            if word == "METADATA":
+                cur = None                                         # the block's "# META" lines belong to no cell
+                continue
+            cur = {"kind": {"MARKDOWN": "markdown", "PARAMETERS CELL": "parameters"}.get(word, "code"), "lines": []}
+            cells.append(cur)
+            continue
+        if raw.lstrip().startswith("# META") or not head:
+            continue
+        if cur is None:                                            # text before any marker (a bare .py): one code cell
+            cur = {"kind": "code", "lines": []}
+            cells.append(cur)
+        cur["lines"].append(raw.rstrip())
+    return [c for c in cells if c["lines"]]
+
+
 def _code_lines(source: str) -> list[str]:
-    """The notebook's code lines, without blank lines, META lines and the text of MARKDOWN cells. LT1 (17 Nov 2026):
-    Fabric stores a markdown cell in its own form (a blank "#" line gone, the next line written again), so on the three
-    notebooks of a pipeline created that day every line after the first markdown cell was reported as different. The
-    markdown is the notebook's description, not what runs; the code cells are compared."""
-    out, markdown = [], False
-    for ln in str(source or "").splitlines():
-        head = ln.strip()
-        if head.startswith("# MARKDOWN *"):
-            markdown = True
-            continue
-        if head.startswith(("# CELL *", "# PARAMETERS CELL *", "# METADATA *")):
-            markdown = False
-        if markdown or not head or ln.lstrip().startswith("# META"):
-            continue
-        out.append(ln.rstrip())
-    return out
+    """The notebook's code lines: the code and parameters cells' sources one after the other, without the markdown
+    cells, the metadata blocks, the markers and blank lines. LT1 (17 Nov 2026): Fabric stores a markdown cell in its own
+    form, so the markdown (the notebook's description, not what runs) is not compared. AP3b: nor are the cell markers,
+    which Fabric writes in its own way; a cell split in two or two cells joined is the same code."""
+    return [ln for c in notebook_cells(source) if c["kind"] != "markdown" for ln in c["lines"]]
+
+
+_PARAM = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)\s*=")
+
+
+def _parameters(source: str) -> list[str]:
+    return [m.group(1) for c in notebook_cells(source) if c["kind"] == "parameters" for ln in c["lines"] if (m := _PARAM.match(ln))]
+
+
+def _description(source: str) -> set[str]:
+    """The markdown cells' text lines, as a set: Fabric rewrites a markdown cell's layout (LT1), not its words."""
+    return {x for c in notebook_cells(source) if c["kind"] == "markdown" for ln in c["lines"] if (x := " ".join(ln.lstrip("#").split()))}
+
+
+EARLIER_VERSION = "built by an earlier version of Krusgraph; Update the build in place brings it to the current dry run"
+
+
+def earlier_version(expected: str, actual: str) -> list[str]:
+    """AP3b: the signs, by rules, that a Krusgraph notebook in Fabric was written by an earlier Krusgraph rather than
+    changed by a person: its parameters cell lacks parameters the current one has (RUN_ID and the alert settings came
+    on 11 November 2026, n200), or its description (Krusgraph's own markdown, which a person rarely edits) is another
+    version's. Empty when neither holds; then a difference is only a difference."""
+    signs = []
+    exp_p, act_p = _parameters(expected), _parameters(actual)
+    missing = [x for x in exp_p if x not in act_p]
+    if act_p and missing and set(act_p) <= set(exp_p):
+        signs.append(f"its parameters cell lacks {', '.join(missing[:4])}{' and more' if len(missing) > 4 else ''}, which "
+                     "later versions add")
+    exp_d, act_d = _description(expected), _description(actual)
+    if act_d and exp_d and act_d != exp_d and any("krusgraph" in x.lower() for x in act_d):
+        signs.append("its description is the one an earlier version wrote")
+    return signs
 
 
 def compare_notebook(expected: str, actual: str) -> dict:
@@ -449,9 +505,15 @@ def compare_notebook(expected: str, actual: str) -> dict:
         ops = [op for op in difflib.SequenceMatcher(None, e, a, autojunk=False).get_opcodes() if op[0] != "equal"]
         differing = sum(max(i2 - i1, j2 - j1) for _, i1, i2, j1, j2 in ops)
         _, i1, _, j1, _ = ops[0]
-        out.append(_diff("code", f"The notebook's code differs from the dry run on {differing} line(s); the first is line {i1 + 1}"
-                                 + (f": {a[j1][:120]!r} in Fabric, {e[i1][:120]!r} in the dry run." if i1 < len(e) and j1 < len(a) else
-                                    f" (Fabric has {len(a)} lines, the dry run {len(e)}).")))
+        where = (f": {a[j1][:120]!r} in Fabric, {e[i1][:120]!r} in the dry run." if i1 < len(e) and j1 < len(a) else
+                 f" (Fabric has {len(a)} lines, the dry run {len(e)}).")
+        signs = earlier_version(expected, actual)
+        if signs:
+            out.append(_diff("code", f"The notebook was {EARLIER_VERSION} ({'; '.join(signs)}). Its code differs from the dry "
+                                     f"run on {differing} line(s); the first is code line {i1 + 1}" + where, earlier_version=True))
+        else:
+            out.append(_diff("code", f"The notebook's code differs from the dry run on {differing} line(s); the first is code "
+                                     f"line {i1 + 1}" + where))
     return {"differences": out, "checked": {"lines": len(e)}}
 
 
