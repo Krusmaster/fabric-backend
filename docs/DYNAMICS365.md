@@ -230,7 +230,12 @@ Dynamics 365 as two schemas of one lakehouse (`schema="sap+d365"`):
   stripping leading zeros. Link to Fabric's system columns (`Id`, `versionnumber`, ...) are never a match key. Once the
   person accepts a match, `create_ontology` drafts one shared ontology: Customer and Product shared, every other
   concept one entity type per source, relationships only where the plan proves them.
-- **Not built:** the gold in the pipeline (creating the shared ontology answers `not_yet`); Order and Invoice across
+- **Built in ON2:** the gold in the pipeline. With a match accepted, `create_pipeline` builds `gold.dim_customer`,
+  `gold.dim_product` and the re-keyed facts (one notebook, ambiguous rows kept apart), and `create_ontology` with
+  `dry_run=false` creates the shared ontology once that gold is in the lakehouse (`not_yet`, naming the pipeline,
+  until then); `verify_build` reads it back. Fake Fabric only ([SMOOTH/COMBINE-SOURCES.md](SMOOTH/COMBINE-SOURCES.md),
+  section 8).
+- **Not built:** the combined semantic model over this gold; Order and Invoice across
   sources (no rule matches them); the filtered lookups (`customerid`, `ownerid`) as relationships; lines and products
   related to the shared Product; the agent over both; Business Central counted on rows (names only in the tests).
 

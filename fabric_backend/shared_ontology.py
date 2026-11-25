@@ -24,7 +24,10 @@ the person accepts or rejects each match. This module turns that into one ontolo
 
 Nothing here reads rows or writes to Fabric: `draft` takes the counts combine.count made, `parts` writes the item
 definition. The server's `create_ontology` shows them as a dry run; creating the item waits until the pipeline builds
-the conformed gold it binds to (kind `not_yet`, as the combined semantic model). Not run against Fabric.
+the conformed gold it binds to (kind `not_yet` until then). ON2: the gold is combine.gold_sql with `apart` (ambiguous
+rows never merged, facts as Delta tables), built by the pipeline's shared gold notebook (shared_gold.py); once its
+tables are in the product lakehouse, `create_ontology` with dry_run=false creates this definition. Not run against
+Fabric.
 """
 from __future__ import annotations
 
@@ -121,7 +124,7 @@ def draft(plan, found: dict[str, dict], decisions, gold: str = GOLD) -> dict:
                 state = "rejected" if taken.get(best["id"]) == "rejected" else "open"
                 matches.append({"concept": name, **_match_record(best, state)})
         if c and c["to"]["table"] in per.values() and c["from"]["table"] in per.values():
-            dim = combine.model_schema(c, plan, fact_list if mk == "customer" else [], gold, mk).tables[f"dim_{mk}"]
+            dim = combine.model_schema(c, plan, fact_list if mk == "customer" else [], gold, mk, apart=True).tables[f"dim_{mk}"]
             sources = [_side(c, "to", f"master: each row is one {name}"),
                        _side(c, "from", f"matched to the master on {c['from']['column']} ({c['rule']})")]
             entities.append({
@@ -132,7 +135,7 @@ def draft(plan, found: dict[str, dict], decisions, gold: str = GOLD) -> dict:
                 "properties": [{"name": x.name, "type": prop_type(x.data_type)[1], "source_type": x.data_type} for x in dim.columns]})
             for s in sources:
                 owner[s["table"]] = shared_of[s["table"]] = name
-            gold_sql.update(combine.gold_sql(c, plan, fact_list if mk == "customer" else [], gold, concept=mk))
+            gold_sql.update(combine.gold_sql(c, plan, fact_list if mk == "customer" else [], gold, concept=mk, apart=True))
             continue
         for schema, table in per.items():
             e = entity_name(f"{schema}_{name}")

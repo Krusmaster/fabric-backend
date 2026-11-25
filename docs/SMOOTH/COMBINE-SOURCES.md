@@ -201,5 +201,46 @@ answers with one ontology instead of one per source:
 
 On the pair, with both matches accepted: 9 entity types (Customer and Product shared; SapOrder, D365Order, SapInvoice,
 D365Invoice, D365Opportunity, SapDelivery and D365Case from one source each) and 7 relationship types. The dry run
-writes nothing; `dry_run=false` answers `not_yet`, as the combined semantic model does, until the pipeline builds the
-gold the shared entity types bind to. A match not yet accepted is offered as a `start` action in the dry run.
+writes nothing; `dry_run=false` answers `not_yet` until the pipeline builds the gold the shared entity types bind to
+(section 8 builds it). A match not yet accepted is offered as a `start` action in the dry run.
+
+## 8. The shared gold and the shared ontology created (ON2, 25 November 2026)
+
+Built in `fabric_backend/shared_gold.py`, `combine.gold_sql(..., apart=True)` and the combined branches of
+`create_pipeline`, `create_ontology` and `verify_build` in `server.py`. Unit tests with a fake Fabric that records
+writes (`tests/test_on2_shared_gold.py`), and the gold SQL run on SQLite over the synthetic pair; **not run against
+Fabric**.
+
+With a match accepted on the path, the order is: Decide, then `create_pipeline`, run it once, then `create_ontology`,
+then `verify_build`. Each creating call is a dry run first, and changes Fabric only with `dry_run=false` after the
+person's yes; a run starts only with `run_once` and the `confirm_jobs` code of its dry run.
+
+- **The pipeline.** On a plan of several schemas with an accepted match, `create_pipeline` builds the shared gold
+  instead of the per-table silver and gold: one notebook (`<name>_shared_gold`) and a pipeline with one Notebook
+  activity, in the product lakehouse's workspace. The notebook runs the shared ontology's gold SQL in order
+  (`xref_customer`, `dim_customer`, the re-keyed facts, `xref_product`, `dim_product`), all as Delta tables (the facts
+  were views in section 4; the SQL analytics endpoint and the ontology's OneLake binding do not see a Spark view). It
+  stops before anything is created when `gold` is a source schema or a table of these names exists that it did not
+  create (the table property `krusgraph.gold`). Source tables are only read.
+- **Ambiguous rows apart.** The gold keeps every ambiguous row apart exactly as section 7 counts it: a row of either
+  side that is in more than one matching pair keeps its own key, with `ambiguous` true and `only_in` its own source;
+  only one-to-one pairs share a key. The notebook's last cell counts the xref again (matched, ambiguous, only in each
+  source), prints it beside the counts the person accepted, and fails the run when a source row has two keys, an
+  ambiguous row was merged or a key is more than one row of its dimension. SM7's combined model (section 4) still drafts
+  the earlier SQL, which joins an ambiguous row to its customer.
+- **Create.** `create_ontology` with `dry_run=false` reads the product lakehouse's `gold` schema on the SQL analytics
+  endpoint (the same connection that counts the matches). When every table and column the shared entity types bind is
+  there, it creates the shared ontology through the same create path as every ontology (POST, or updateDefinition of
+  an ontology of that name), with the dry run's definition. Otherwise it answers `not_yet`, lists what is missing and
+  names the step that comes first: `create_pipeline` with the same workspace, source and schema.
+- **Verify.** `verify_build` with `items={"ontology": name}` on the same path reads the created ontology back and
+  compares it with the shared dry run (entity types, keys, bindings, relationship types). The graph is still the
+  person's step in Fabric, as for every ontology.
+
+On the synthetic pair, run on SQLite: `gold.dim_customer` 9 rows (3 matched pairs, the 2 ambiguous accounts and SAP
+customer 13 each on their own, 1 only in Dynamics 365, 2 only in SAP), `gold.dim_product` 5 rows (2 matched, 1 only in
+Dynamics 365, 2 only in SAP), each fact with as many rows as its source table.
+
+Not built: the combined semantic model (SM7) still answers `not_yet`; its card and counts merge an ambiguous row, so
+moving it onto this gold is more than a small change. Not run against Fabric: the notebook, the pipeline and the
+ontology create are checked with a fake Fabric; Fabric's own Spark and ontology have not seen them.

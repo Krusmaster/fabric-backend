@@ -639,7 +639,7 @@ person has accepted a counted match ([SMOOTH/COMBINE-SOURCES.md](SMOOTH/COMBINE-
 | Entity type | When | Bound to | Records |
 | --- | --- | --- | --- |
 | Shared (`Customer`, `Product`) | the concept's match is accepted | `gold.dim_customer`, `gold.dim_product`, keyed on the conformed key | both source tables and their keys, the match's id, rule and counts (matched, ambiguous, only in each source) |
-| Single-source (`SapOrder`, `D365Order`, `D365Opportunity`, `SapDelivery`, ...) | the concept has no accepted match, or only one source has it | the source table in the product lakehouse, or the fact view re-keyed to `customer_key` | its one source table and key |
+| Single-source (`SapOrder`, `D365Order`, `D365Opportunity`, `SapDelivery`, ...) | the concept has no accepted match, or only one source has it | the source table in the product lakehouse, or the fact table re-keyed to `customer_key` (a view before ON2) | its one source table and key |
 
 A relationship type is written only when the plan proves it: a re-keyed fact to the shared Customer (its plan link to
 the party table plus the accepted match), or a single-column plan link inside one source. The rest is listed under
@@ -647,3 +647,11 @@ the party table plus the accepted match), or a single-column plan link inside on
 `schemaName` and its sources and match in its description. `create_ontology` shows it as a dry run; `dry_run=false`
 answers `not_yet` until the pipeline builds the gold it binds to. One namespace (`default`) as everywhere else
 (section 8.4, round 3).
+
+**ON2 (25 November 2026).** The pipeline builds that gold: `create_pipeline` on the same path writes one notebook that
+creates `gold.dim_customer`, `gold.dim_product` and the re-keyed facts as Delta tables, ambiguous rows kept apart
+(single-source entity types bind to their source tables, which are already there). `create_ontology` with
+`dry_run=false` reads the gold schema; when every bound table and column is there it creates the shared ontology by the
+usual create path, otherwise `not_yet` names the pipeline. `verify_build` compares the created ontology with the dry
+run. Fake Fabric that records writes, and the gold SQL on SQLite (`tests/test_on2_shared_gold.py`); **not run against
+Fabric** ([SMOOTH/COMBINE-SOURCES.md](SMOOTH/COMBINE-SOURCES.md), section 8).
