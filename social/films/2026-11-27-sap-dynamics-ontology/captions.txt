@@ -1,0 +1,35 @@
+2026-11-25, film round, v2 (one shared ontology). Post texts; scheduled by the founder for 27 November 2026, on condition that the shared ontology can be created by then (rounds ON1 and ON2).
+Files: krusgraph-sap-dynamics-ontology-9x16.mp4 (Reels, TikTok, Shorts), krusgraph-sap-dynamics-ontology-4x5.mp4 (feed), krusgraph-sap-dynamics-ontology-16x9.mp4 (YouTube), krusgraph-sap-dynamics-ontology-cover-9x16.jpg.
+Use only after round ON1 is merged and its docs say what these texts say (see script-v2.md). The texts make no claim that it ran live.
+
+=== (a) Instagram ===
+
+Your SAP and Dynamics data, in Microsoft Fabric?
+
+Krusgraph matches what is the same in both, such as customers and products, and counts each match on your rows. From that it builds one shared Fabric IQ ontology (preview) over SAP and Dynamics 365. It shows you a dry run first: nothing is created without your yes.
+
+Synthetic example. Krusgraph is independent and not affiliated with SAP or Microsoft.
+
+#MicrosoftFabric #FabricIQ #SAP #Dynamics365 #Ontology #DataEngineering
+
+krusgraph.com (link in bio)
+
+=== (b) TikTok ===
+
+SAP and Dynamics data in Fabric? Krusgraph matches what is the same in both, counted on your rows, and builds one shared Fabric IQ ontology. Dry run first, nothing created without your yes.
+
+Synthetic example. Not affiliated with SAP or Microsoft.
+
+#MicrosoftFabric #FabricIQ #SAP #Dynamics365 #DataEngineering
+
+krusgraph.com (link in bio)
+
+=== (c) YouTube ===
+
+Title: SAP and Dynamics 365 in Microsoft Fabric: one shared Fabric IQ ontology
+
+Your SAP and Dynamics data, in Microsoft Fabric? Krusgraph matches what is the same in both sources, such as customers and products, by rules with counts on your rows, with no guessing. It then builds one shared Fabric IQ ontology (preview) over both. Every create starts as a dry run; nothing is created in Fabric without your yes.
+
+Synthetic example. Krusgraph is independent and not affiliated with SAP or Microsoft.
+
+krusgraph.com
