@@ -304,8 +304,7 @@ was written; when it is too long, the largest unified diffs leave it first, and 
 On shop_lfd (`tests/test_lfd5_propose.py`): *remove test customers* asks for the column, then the cascade, then changes
 the silver notebook only (and the model's README); *add region* is ok where the plan counted `orders.ship_to_id` (R5),
 and where it did not, asks for the link, plans again with it and changes the silver, check and gold notebooks and the
-model; *order value per customer* changes the semantic model only (and, since LFD7, the list in the silver notebook's
-parameters cell). The pipeline's definition names its three notebooks
+model; *order value per customer* changes the semantic model only. The pipeline's definition names its three notebooks
 and none of these changes it.
 
 ## Versions and undo (LFD7)
@@ -345,14 +344,16 @@ a link that a later revert takes out asks for no new plan.
 otherwise since the version before the last. The Markdown report gets a section *Changes*. Without a list, or with an empty
 one, the file and the report are byte for byte what they were.
 
-**The silver notebook** carries the applied list in its parameters cell, after a comment, as one line
-`CHANGE_LIST = "<JSON>"`: each change's id and normalised form, in order, without the reverted changes and the reverts (so
-v0 + c1 + c2 − c2 and v0 + c1 write the same line). The run does not use it. `silver.read_changes(definition)` reads it
-back from the notebook's text or its item definition (Get Notebook Definition's parts, base64): the basis for "what is
-built" when a later round applies a list. Every entry's id is checked against its change, so a list edited by hand is not
-read as one Krusgraph wrote. An empty list writes no line: the notebook, and every golden file, is as before. Because the
-notebook carries the whole list, a change of any type now updates the silver notebook's parameters cell; its steps change
-only for a `filter_rows` (the LFD3 and LFD5 tests compare the steps without that line).
+**The notebooks** each carry the changes they apply, in their parameters cell, after a comment, as one line
+`CHANGE_LIST = "<JSON>"` (each change's id and normalised form, in the list's order): the silver notebook its
+`filter_rows`, the gold views notebook its `add_column`. Reverted changes and the reverts are not in it, so v0 + c1 + c2 −
+c2 and v0 + c1 write the same line. The run does not use it. `silver.read_changes(definition)` and
+`gold.read_changes(definition)` (both `changes.read_notebook_list`) read it back from the notebook's text or its item
+definition (Get Notebook Definition's parts, base64): the basis for "what is built" when a later round applies a list.
+Every entry's id is checked against its change, so a list edited by hand is not read as one Krusgraph wrote. A notebook
+whose list holds no change of its type writes no line and is byte for byte as before: an `add_measure` changes neither
+notebook (it needs no pipeline run), an empty list changes no golden file. The whole list, every type, is the review
+file's `changes`.
 
 **propose_change** takes a revert like any change. The plan layer lists the filters, columns and measures it takes out
 (`filters_removed`, …) and `reverted` (`{"id", "type"}`); the revert of a confirmed `add_link` plans again without the link
@@ -363,7 +364,7 @@ numbers from that change's after back to its before. A question or a denial pass
 
 Scenario A6 on shop_lfd: after *remove test customers*, *add region* and *order value per customer*, "undo remove test
 customers" is a revert of the first change. The drafts are those of the list of the other two, byte for byte; the silver
-steps are v0's again (`silver.simulate`: 12 customers, 66 orders, 146 lines, as the source); the review file says v4 took
+notebook is v0's again, byte for byte (`silver.simulate`: 12 customers, 66 orders, 146 lines, as the source); the review file says v4 took
 the filter out; the diff shows the filter removed and its numbers, customers 12 → 10 read backwards.
 
 ## What these rounds do not do

@@ -256,7 +256,8 @@ def apply_changes(s: dict, applied: dict | None) -> dict:
     is reused, so a column the view already carries is not repeated; a new step is a LEFT JOIN with no rule in the WHERE,
     so no row is left out, and every step is many-to-one (or a one-to-one link), which validate checked, so no row is
     repeated. A name another column already has gets `_via_<the first link's columns>`. Without add_column the spec is
-    returned as it is."""
+    returned as it is. LFD7: the add_column changes are also kept as `change_list`, which the parameters cell carries as
+    CHANGE_LIST and read_changes reads back."""
     import copy
     from . import changes as _changes
     adds = _changes.of_type(applied, "add_column")
@@ -304,7 +305,15 @@ def apply_changes(s: dict, applied: dict | None) -> dict:
             entry["not_applied"] = f"{c['table']} has no gold view here (a fact table gets one; a dimension table with dimensions=true)"
         listed.append(entry)
     out["changes"] = listed
+    out["change_list"] = [{"id": a["id"], "change": a["change"]} for a in adds]
     return out
+
+
+def read_changes(definition) -> list[dict]:
+    """LFD7: the add_column changes a gold views notebook applies, read back from the CHANGE_LIST line of its parameters
+    cell (changes.read_notebook_list). [{"id", "change"}] in order; [] for a notebook without one."""
+    from . import changes as _changes
+    return _changes.read_notebook_list(definition)
 
 
 def _dimension_views(plan: Plan, roles: dict, gold_schema: str, taken: set[str], inside: set[str] | None, flagged: dict,
@@ -480,6 +489,9 @@ def cells(s: dict) -> list[tuple[str, str]]:
     lh = s.get("silver_lakehouse")                     # SM6: the silver tables are in another lakehouse of this workspace
     if lh:
         params += f"\nSILVER_LAKEHOUSE = {_py_literal(lh)}   # the lakehouse of the silver tables; the gold views go to this notebook's"
+    if s.get("change_list"):                           # LFD7: the add_column changes this notebook applies
+        from . import changes as _changes
+        params += "\n" + _changes.notebook_list_params(s["change_list"], "gold.read_changes")
     reads = sorted({t for v in all_views(s) for t in v["tables"]}, key=str.lower)
     setup = SETUP.format(source_schema=_py_literal(s["source"]["schema"]), owner=_py_literal(s["owner"]),
                          source_tables=_py_literal(s["source"]["tables"]), silver_tables=_py_literal(reads),

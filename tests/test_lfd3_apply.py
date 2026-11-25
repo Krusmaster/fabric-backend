@@ -50,12 +50,6 @@ def drafts(p, applied=None, dimensions=False):
             "gold_notebook": gold.notebook_source(g), "tmdl": model["parts"], "tmdl_on_gold": on_gold["parts"]}
 
 
-def steps_only(notebook_text: str) -> str:
-    """LFD7: the silver notebook without the change list its parameters cell carries (CHANGE_LIST and its comment)."""
-    drop = (*silver.CHANGE_LIST_COMMENT.splitlines(), "CHANGE_LIST = ")
-    return "\n".join(x for x in notebook_text.split("\n") if not x.startswith(drop))
-
-
 def silver_db(sim: dict, p) -> callable:
     """SQLite with silver.simulate's tables in an attached `silver` schema, columns in the plan's order."""
     con = sqlite3.connect(":memory:")
@@ -94,7 +88,7 @@ def test_an_empty_list_gives_the_same_simulation(shop):
 def test_a_list_without_a_change_of_a_drafts_type_leaves_that_draft_as_it_is(shop):
     p, _ = shop
     only_measure = changes.apply([C3], p)
-    assert steps_only(drafts(p, only_measure)["silver_notebook"]) == drafts(p)["silver_notebook"]   # LFD7: the list only
+    assert drafts(p, only_measure)["silver_notebook"] == drafts(p)["silver_notebook"]
     assert drafts(p, only_measure)["gold_notebook"] == drafts(p)["gold_notebook"]
     only_filter = changes.apply([C1], p)
     assert drafts(p, only_filter)["gold_notebook"] == drafts(p)["gold_notebook"]
@@ -322,7 +316,7 @@ def test_revert_takes_a_change_out_of_the_list(shop):
     ids = [x["id"] for x in changes.apply(SCENARIO_A, p)["changes"]]
     a = changes.apply([*SCENARIO_A, {"type": "revert", "change": ids[0]}], p)
     assert [x["id"] for x in a["changes"]] == ids[1:] and a["reverted"] == [ids[0]]
-    assert steps_only(drafts(p, a)["silver_notebook"]) == drafts(p)["silver_notebook"]           # LFD7: the list only
+    assert drafts(p, a)["silver_notebook"] == drafts(p)["silver_notebook"]
     denied = changes.apply([C3, {"type": "revert", "change": ids[0]}], p)
     assert denied["result"] == "denied" and denied["kind"] == "unknown_change" and denied["at"] == 1
 

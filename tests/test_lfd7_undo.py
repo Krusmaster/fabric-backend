@@ -4,7 +4,9 @@ The change list is versions v0 (no changes), v1, v2 ..., each with an id of its 
 names an earlier change: of an unknown id or of one already reverted it is denied, and when a later change stands on the
 reverted one it is a question naming that change. v0 + c1 + c2 - c2 gives every draft byte for byte as v0 + c1. The
 review file carries the list as `changes` with `since_previous`; the silver notebook carries it in its parameters cell
-(CHANGE_LIST), and silver.read_changes reads it back. An empty list gives today's review file and notebook byte for byte.
+(CHANGE_LIST): the silver notebook its filter_rows, the gold views notebook its add_column, and silver.read_changes and
+gold.read_changes read them back; a change of another type leaves the notebook as it is. An empty list gives today's
+review file and notebooks byte for byte.
 Scenario A6 on the synthetic shop_lfd sample: undo "remove test customers", and the drafts are the earlier version's.
 No network, no model: SQLite over fabric_backend/lfd_demo.py."""
 from __future__ import annotations
@@ -235,27 +237,36 @@ def test_the_review_file_carries_the_list_and_what_changed_since_the_previous_ve
 
 # ------------------------------------------------------------------ the list in the silver notebook --------------------
 
-def test_the_silver_notebook_carries_the_applied_list_and_it_is_read_back(shop):
+def test_each_notebook_carries_the_changes_it_applies_and_they_are_read_back(shop):
     p, _, _ = shop
-    a2 = ids_of(p, [A2])[0]
+    a2, a3, _ = ids_of(p, [A2, A3, A4])
     applied = changes.apply([A2, A3, A4], p)
     text = silver.notebook_source(silver.spec(p, INFO, changes=applied))
     params = next(body for kind, body in notebook.parse(text) if kind == "parameters")
     assert sum(1 for x in params.splitlines() if x.startswith("CHANGE_LIST = ")) == 1
     back = silver.read_changes(text)
-    assert back == [{"id": x["id"], "change": x["change"]} for x in applied["changes"]]
+    assert back == [{"id": x["id"], "change": x["change"]} for x in applied["changes"] if x["type"] == "filter_rows"]
+    assert [x["id"] for x in back] == [a2]
     # from the item definition, as Get Notebook Definition gives it
     env = notebook.envelope("silver_shop", text)
     assert silver.read_changes(env) == back == silver.read_changes({"parts": env["definition"]["parts"]})
-    # the basis for what is built: the list read back gives the same list and the same notebook again
-    again = changes.apply([x["change"] for x in back], p)
-    assert [x["id"] for x in again["changes"]] == [x["id"] for x in applied["changes"]]
+    # the gold views notebook carries its add_column, in its own parameters cell
+    gold_text = gold.notebook_source(gold.spec(p, INFO, changes=applied))
+    assert [x["id"] for x in gold.read_changes(gold_text)] == [a3]
+    # what is built: the lists read back give the same notebooks again
+    again = changes.apply([x["change"] for x in back + gold.read_changes(gold_text)], p)
     assert silver.notebook_source(silver.spec(p, INFO, changes=again)) == text
-    # what is read back is the applied list, without the reverted change and the revert
-    undone = silver.notebook_source(silver.spec(p, INFO, changes=changes.apply([A2, A3, A4, revert(a2)], p)))
-    assert [x["id"] for x in silver.read_changes(undone)] == ids_of(p, [A3, A4])
-    # the notebook's code still compiles; the list is a string the run does not use
-    for kind, body in notebook.parse(text):
+    assert gold.notebook_source(gold.spec(p, INFO, changes=again)) == gold_text
+    # a change of another type leaves a notebook as it is: the measure touches neither, the filter not gold
+    assert silver.notebook_source(silver.spec(p, INFO, changes=changes.apply([A3, A4], p))) == silver.notebook_source(silver.spec(p, INFO))
+    assert gold.notebook_source(gold.spec(p, INFO, changes=changes.apply([A2, A4], p))) == gold.notebook_source(gold.spec(p, INFO))
+    assert gold.read_changes(gold.notebook_source(gold.spec(p, INFO))) == []
+    # a reverted change is no longer read back
+    undone = changes.apply([A2, A3, A4, revert(a2), revert(a3)], p)
+    assert silver.read_changes(silver.notebook_source(silver.spec(p, INFO, changes=undone))) == []
+    assert gold.read_changes(gold.notebook_source(gold.spec(p, INFO, changes=undone))) == []
+    # the notebooks' code still compiles; the list is a string the run does not use
+    for kind, body in notebook.parse(text) + notebook.parse(gold_text):
         if kind != "markdown":
             compile(body, "<cell>", "exec")
 
@@ -343,9 +354,9 @@ def test_a6_undo_remove_test_customers_and_the_drafts_return_to_the_earlier_vers
     assert undone["result"] == "ok" and [x["id"] for x in undone["changes"]] == [a3, a4] and undone["reverted"] == [a2]
     assert drafts(p, undone) == drafts(p, changes.apply([A3, A4], p))
     assert drafts(p, undone) != drafts(p, with_filter)
-    # the silver steps are v0's again: only the list in the parameters cell says which changes stand
+    # the silver notebook is v0's again, byte for byte: it applies no change and carries no list
     s = silver.spec(p, INFO, changes=undone)
-    assert "change_filters" not in repr(s) and [x["id"] for x in silver.read_changes(silver.notebook_source(s))] == [a3, a4]
+    assert silver.notebook_source(s) == silver.notebook_source(silver.spec(p, INFO)) and silver.read_changes(silver.notebook_source(s)) == []
     rows = silver.simulate(s, data)
     filtered = silver.simulate(silver.spec(p, INFO, changes=with_filter), data)
     count = {t: len(rows["silver"][t]) for t in ("customers", "orders", "order_items")}

@@ -157,9 +157,6 @@ def _silver_said(b: dict, a: dict, kept: set[str], was: set[str]) -> list[str]:
     out = [f"1 filter step on {c['table']} and its {_n(len(c['cascade']), 'dependent')}" if c["cascade"]
            else f"1 filter step on {c['table']}" for c in a["silver"].get("changes", []) if c["id"] not in old]
     out += [f"the filter step on {c['table']} taken out" for c in b["silver"].get("changes", []) if c["id"] not in new]
-    listed = [x["id"] for x in a["silver"].get("change_list", [])]
-    if not out and listed != [x["id"] for x in b["silver"].get("change_list", [])]:       # LFD7: the list it carries
-        out.append(f"the change list in the parameters cell (CHANGE_LIST): {_n(len(listed), 'change')}")
     return out
 
 
