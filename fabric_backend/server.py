@@ -2238,6 +2238,10 @@ def _change_proposal(workspace: str, source: str, change, schema: str, applied, 
                                    replan=lambda links: _source_inputs(workspace, source, schema, None, links, ctx)[0])
     finally:
         close()
+    if sides and ((out.get("diff") or {}).get("numbers") or {}).get("reverts"):
+        # LFD9: for a revert the numbers layer calls the counter with the two sides the other way round (LFD7), so the
+        # sides seen there are put back: `after` is the list without the reverted change, as apply_change writes it.
+        sides = {"before": sides["after"], "after": sides["before"]}
     return out, p, info, sides
 
 
@@ -2485,7 +2489,8 @@ def _apply_change(workspace: str, source: str, change, schema: str = "dbo", appl
     else:
         conn = _connected(workspace, source, schema, ctx)[1]
         try:
-            numbers = _ca.numbers_after_run(diff["numbers"].get("counted"), after.get("targets") or {}, conn)
+            numbers = _ca.numbers_after_run(diff["numbers"].get("counted"), after.get("targets") or {}, conn,
+                                            reverts=diff["numbers"].get("reverts"))
         finally:
             getattr(conn, "close", lambda: None)()
     answer.update(result="ok", written=written, results=results,

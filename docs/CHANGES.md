@@ -3,7 +3,7 @@
 Status: **the contract, its drafts, its numbers, the proposal, applying it and undo** (round LFD2, 24 November 2026;
 rounds LFD3 to LFD7, 25 November 2026: the numbers, the diff, the read-only tool `propose_change` with the numbers
 counted, `apply_change` through Update, both behind `KRUSGRAPH_CHANGES`, off by default, and versions and undo, and the diff card; *The
-numbers*, *Proposing a change*, *Applying a change (LFD6)*, *Versions and undo (LFD7)* and *The diff card (LFD8)*
+numbers*, *Proposing a change*, *Applying a change (LFD6)*, *Versions and undo (LFD7)*, *The diff card (LFD8)* and *The demo end to end (LFD9)*
 below).
 `fabric_backend/changes.py` is a module of pure functions with tests (`tests/test_lfd2_contract.py`); LFD3 applies a
 list of changes to the silver, gold and semantic model drafts (below, *Applying a list*; `tests/test_lfd3_apply.py`, and
@@ -466,6 +466,52 @@ sample (25 November 2026): at most 22 words outside the buttons with the folds c
 button on every ok answer and none on a question, a button to tap in every state, nothing wider than 390 px, and a
 text contrast of 17.2 (light) and 15.4 (dark). `tests/test_lfd8_card.py` clicks the card the same way (the wb15
 pattern, `tests/lfd8_card_click.js`): Yes, No, the choices, Undo and Plan again.
+
+## The demo end to end (LFD9)
+
+Round LFD9 (25 November 2026) runs the whole demo in one go, locally: `fabric_backend/change_demo.py` builds the data
+product with `create_pipeline` and `create_semantic_model` (a dry run, then `dry_run=false`) and sends every change
+through `server._propose_change` and `server._apply_change`, the functions behind the two tools, against an in-memory
+Fabric (the seams of `tests/test_lfd6_apply.py`; a pipeline run writes the silver tables with `silver.simulate` on the
+notebook's own change list). R5 is off there, so A3 asks for the link. `tests/test_lfd9_demo_e2e.py` asserts every
+number of `docs/SAMPLE-LFD.md` at its step, opens no socket, and runs scenarios A and B in about 6 seconds (asserted
+under a minute).
+
+| Step | What happens |
+| --- | --- |
+| Build | dry runs write nothing; then `silver_shop`, `gold_shop`, `pipeline_shop_check`, `pipeline_shop`, `shop_model` |
+| A2 | the column question, the cascade question, then customers 12 → 10, orders 66 → 60, lines 146 → 134, 56 834.70 → 51 296.70; Yes writes `silver_shop`, runs, refreshes; silver holds 10, 60, 134 |
+| A3 | the link question; the link applied (silver, check and gold notebooks and the model); then region: 60 → 60 rows, 2 values, 51 296.70 before and after the join; Yes writes `gold_shop` |
+| A4 | 5 129.67 (4 736.23 on the source); Yes writes `shop_model` and refreshes, no run |
+| A6 | the revert of the filter; Yes writes `silver_shop`, runs, refreshes; silver holds 12, 66, 146 and 56 834.70 again |
+| B | `sap_vbrk` 3 → 1, `sap_vbrp` 4 → 2, 600.00 → 400.00, `sap_vbak` 4 and 950.00 untouched; Yes writes `silver_sap` |
+
+`krusgraph demo change` (and `--sap` for B) prints the same run as the chat shows it; `docs/demo/CHANGE-BY-CHAT.md` is
+the script for recording, and `docs/LIVE-TEST.md`, "Change by chat (LFD) live run", the checklist for the demo tenant.
+
+Running the whole demo found four things, fixed in this round:
+
+- **Applying a revert wrote nothing.** For a revert the numbers layer calls the counter with the sides the other way
+  round (LFD7), and `server._change_proposal` kept those sides, so `apply_change` took the list *with* the reverted
+  change as "after": the silver notebook was "already as the change makes it" and was not written, and `applied_next`
+  held the reverted change. The sides are now put back before `apply_change` uses them.
+- **The check after a run compared untouched tables.** `change_apply.numbers_after_run` compared every counted table,
+  also those a filter leaves untouched, which the silver notebook can still change (on sap_lfd it sets aside the planted
+  orphan item of `sap_vbap`: 6 rows against 7). It now compares only the tables the filter changes, and for a revert the
+  rows the revert brings back (the undone change's "before").
+- **The card's plan line for a new link** read "orders. → addresses": the plan layer's links carry `columns`, not
+  `source_cols`. **A positive difference** read "+ 393.44". Both fixed in `mcp_apps_change.py`.
+
+Found and not changed:
+
+- A change's id names the plan it was checked on (`base`), so after an `add_link` plans again, the earlier changes have
+  new ids. An undo must name the id from the latest answer's `changes`, not the one the first answer gave; the card's
+  Undo button already does.
+- The model `create_semantic_model` builds reads the source tables, so a filter never reaches it: after A2 the report
+  still shows 12 customers, and the measure of A4 shows 4 736.23 there, not 5 129.67. The numbers in the card are the
+  ones to show.
+- The card shows a revert's numbers as the undone change had them (12 → 10); only the answer's text says they are read
+  back.
 
 ## What these rounds do not do
 

@@ -55,6 +55,7 @@ runtime dependencies; `argparse` does the job), and session files (nothing is st
 | `analysis` | `analysis_plan.recommend` (`analysis_plan`, round AP2) | yes |
 | `skill` | prints SKILL.md | no source |
 | `demo faults` | `shop_faults.check` and `receipt.build`: five planted faults, what was found, the SQL that proves it (round BL21, `docs/demo/PLANTED-FAULTS-WALK.md`) | no source: builds the synthetic sample in memory |
+| `demo change` | `create_pipeline`, `create_semantic_model`, `propose_change` and `apply_change`'s functions: scenario A on shop_lfd (`--sap`: B on sap_lfd) step by step as the chat shows it (round LFD9, `docs/demo/CHANGE-BY-CHAT.md`) | no source: the synthetic sample and an in-memory Fabric (`change_demo.py`); nothing leaves the process |
 
 Sources: `--sample sap|sap36|shop` (in the package), `--folder DIR` (CSV/xlsx, one table each), `--columns FILE`
 (an INFORMATION_SCHEMA.COLUMNS export, names only), `--odbc-from-env` (the connection string in `FABRIC_ODBC`, the

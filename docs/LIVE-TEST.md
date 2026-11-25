@@ -414,6 +414,106 @@ Nothing was written to the workspace. The notebooks have still not run in Fabric
    `DRY_RUN = False`), then `analysis_plan` with `schema="sap_demo36"`. The unit tests expect A7, A8, A3 and A4 ready.
 3. Then `analysis_notebook_draft` for A7, import its `notebook-content.py` in Fabric and run it.
 
+## Change by chat (LFD) live run
+
+*Written by round LFD9, 25 November 2026. Not run yet.* For the maintainer, in the demo workspace `demo`, synthetic data
+only. The script for the recording is [demo/CHANGE-BY-CHAT.md](demo/CHANGE-BY-CHAT.md); every step and number below is
+what `krusgraph demo change` gives against an in-memory Fabric (`tests/test_lfd9_demo_e2e.py`). Nothing in rounds
+LFD1–LFD9 has run against Fabric before this checklist. No workspace or tenant id is written here.
+
+**1. Switch the setting on, for the demo only.** `propose_change` and `apply_change` exist only with
+`KRUSGRAPH_CHANGES=1`; the card needs `KRUSGRAPH_MCP_APPS=1` as well. The hosted server is shared, so every signed-in
+user sees the two tools while the setting is on: choose a quiet hour and switch it off right after. Note first
+whether `KRUSGRAPH_MCP_APPS` is already on (`az containerapp show`), so step 7 puts it back as it was.
+
+```bash
+az containerapp update -n krusgraph -g rg-krusgraph --set-env-vars KRUSGRAPH_CHANGES=1 KRUSGRAPH_MCP_APPS=1
+```
+
+The tools are registered when the server starts, so wait for the new revision. Reconnect the connector in Claude and
+check that it lists `propose_change` and `apply_change`. From reading `deploy/azure_containerapp.py` (not tried): a
+deploy with `--update`, and the automatic deploy, keep a variable set by hand; a full run without `--update` drops
+`KRUSGRAPH_CHANGES`, which is not among its operator settings.
+
+**2. Load the samples.** There is no loader for `shop_lfd` or `sap_lfd` in a lakehouse: `seed.seed()` writes the
+shop, the mill and the SAP samples, not these two. The minimal steps, written from `seed.py`'s own pattern and not run:
+create a lakehouse `lfd_lh` with *Lakehouse schemas* in `demo`, attach a notebook to it, and run
+
+```python
+%pip install git+https://github.com/Krusmaster/fabric-backend
+from decimal import Decimal
+from fabric_backend import lfd_demo, sap_demo
+
+spark.sql("CREATE SCHEMA IF NOT EXISTS shop_lfd")
+shop = lfd_demo.shop_rows(True)
+for name, ddl in lfd_demo.SHOP_SCHEMAS.items():
+    spark.createDataFrame(shop[name], ddl).write.mode("overwrite").option("overwriteSchema", "true") \
+        .saveAsTable(f"shop_lfd.{name}")
+
+spark.sql("CREATE SCHEMA IF NOT EXISTS sap_lfd")
+for name, (cols, kinds, rows) in lfd_demo.sap_tables().items():
+    ddl = ", ".join(f"`{c}` {k.upper()}" for c, k in zip(cols, kinds))
+    data = [tuple(Decimal(str(v)) if k.startswith("decimal") and v is not None else v for v, k in zip(r, kinds))
+            for r in rows]
+    spark.createDataFrame(data, ddl).write.mode("overwrite").option("overwriteSchema", "true") \
+        .saveAsTable(f"sap_lfd.{sap_demo.PREFIX}{name.lower()}")
+```
+
+Expected: 7 tables in `shop_lfd` (12 customers, 66 orders, 146 order lines) and 17 in `sap_lfd` (3 rows in
+`sap_vbrk`). A new lakehouse and the schema names `shop_lfd` and `sap_lfd` keep the items apart from the earlier
+`shop` builds in `demo`: the items are found by name (`silver_<schema>`, `gold_<schema>`, `pipeline_<schema>_check`,
+`pipeline_<schema>`, `<schema>_model`).
+
+**3. Build first.** In Claude: *"Create the pipeline pipeline_shop_lfd for lfd_lh, schema shop_lfd. Dry run first."*,
+then create it, run it once, and *"Create the semantic model shop_lfd_model for lfd_lh, schema shop_lfd."*, dry run,
+then create. Use exactly these two names; `apply_change` finds only the names the diff gives. Expected: `silver_shop_lfd`,
+`gold_shop_lfd`, `pipeline_shop_lfd_check`, `pipeline_shop_lfd` and `shop_lfd_model` in `demo`.
+
+**4. Run A2 to A6** as the script says. Fill in Result and Date.
+
+| # | Step | Expected | Result | Date |
+| --- | --- | --- | --- | --- |
+| L1 | A2 *"Remove the test customers."* | two questions (the column `is_test`, then the 4 tables that point at customers), then the card: customers 12 → 10, addresses 19 → 17, orders 66 → 60, order lines 146 → 134, order amount 56 834.70 → 51 296.70 (−5 538.00); pipeline run needed | | |
+| L2 | A2 Yes | `silver_shop_lfd` written, one run of `pipeline_shop_lfd`, one refresh; definition verified; numbers verified after the run: silver holds 10 customers, 60 orders, 134 lines | | |
+| L3 | A3 *"Add region from addresses to orders."* | if the plan counted `orders.ship_to_id` (R5, 60 of 60): the card at once, `gold_shop_lfd` updated; otherwise the link question first, then the link applied (silver, check and gold notebooks and the model), then the column | | |
+| L4 | A3 Yes | `gold_shop_lfd` written, one run, one refresh; `gold.orders` has `addresses_region`, 2 values, 60 rows; order amount 51 296.70 before and after the join | | |
+| L5 | A4 *"Add a measure: order value per customer."* | `shop_lfd_model` only, 5 129.67 (4 736.23 on the source); no run | | |
+| L6 | A4 Yes | the model written and refreshed once; no pipeline run; the measure is in the model | | |
+| L7 | A6 *"Undo removing the test customers."* | *Takes out the filter on customers.*; the undone change's numbers, 12 → 10, read back | | |
+| L8 | A6 Yes | `silver_shop_lfd` written, one run, one refresh; silver holds 12 customers, 66 orders and 146 lines again; region and the measure stay | | |
+| L9 | B on `sap_lfd` (build as in step 3 with `pipeline_sap_lfd` and `sap_lfd_model`), *"Leave out cancelled billing documents and their cancellations."* | `sap_vbrk` 3 → 1, `sap_vbrp` 4 → 2, `sap_vbrk.NETWR` 600.00 → 400.00; `sap_vbak` 4 rows and 950.00 untouched; Yes writes `silver_sap_lfd`, runs, refreshes | | |
+
+**5. The points not verified yet** (docs/CHANGES.md). Note what happens at each:
+
+- **The real updateDefinition.** The fake Fabric takes any definition. Fabric may answer 202 and finish later, or
+  refuse a part. After each Yes, open the item in Fabric and check the change is there (the filter step in the silver
+  notebook, `addresses_region` in the gold notebook, the measure in the model). `verify_build` reads them back too.
+- **The 30-second run wait.** `apply_change` reads the run for 30 seconds. A Fabric pipeline run takes longer, so
+  expect "numbers not checked" and "refresh not run" on L2, L4 and L8. Then refresh the model by hand after the run, or
+  call `apply_change` again with the same list (it writes nothing the second time) or `verify_build`.
+- **Refresh and Direct Lake framing after a new gold column.** After L4, check that `addresses_region` reaches the
+  model's view of gold, and that a refresh (framing) shows it. The model that `create_semantic_model` builds reads the
+  source tables, not gold, so it shows neither the new column nor the filter: the report keeps 12 customers and
+  4 736.23 per customer. Do not show the report as proof of A2 or A4.
+- **Items under other names.** Items built under other names, by the Model editor (a model on gold), or in another
+  lakehouse are not written: `apply_change` answers `not_built` or `items_differ` and writes nothing. Note it if a
+  step answers that instead of writing. Do not try it on the earlier `shop` builds in `demo`: those items carry
+  Krusgraph's marker and could be written.
+
+**6. What to record.** The Claude window at 390 px and at desktop width, light and dark: each card closed, then the
+Numbers fold open; the Yes answer for L2, L4, L6 and L8; one Fabric screen of the silver notebook's filter step.
+Cut at each pipeline run (A2, A3, A6). Write down the build id from `/healthz`, the date, and every row above.
+
+**7. Switch it off.**
+
+```bash
+az containerapp update -n krusgraph -g rg-krusgraph --remove-env-vars KRUSGRAPH_CHANGES
+```
+
+Remove `KRUSGRAPH_MCP_APPS` the same way only if it was off before the demo (note it in step 1). Check that the
+connector lists neither `propose_change` nor `apply_change` (16 tools by default). The items in `lfd_lh` and `demo`
+stay; nothing deletes them.
+
 ## Databricks
 
 For a trial workspace of your own (Databricks Free Edition or a trial account), from the **local** stdio server with

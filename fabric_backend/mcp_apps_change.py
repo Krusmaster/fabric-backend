@@ -115,7 +115,8 @@ def _cols(c: dict) -> str:
 def _link(x: dict) -> str:
     if "from" in x and isinstance(x["from"], dict):
         return f"{x['from']['table']}.{_cols(x['from'])} → {x['to']['table']}"
-    return f"{x.get('source')}.{'+'.join(x.get('source_cols') or [])} → {x.get('target')}"
+    cols = x.get("source_cols") or x.get("columns") or []           # a plan's relationship, or drift's snapshot of one
+    return f"{x.get('source')}.{'+'.join(cols)} → {x.get('target')}"
 
 
 def sentence(answer: dict) -> str:
@@ -279,6 +280,8 @@ def _amount(v):
     if not isinstance(v, str) or not re.fullmatch(r"[+-]?\d+\.\d+", v):
         return v
     from .change_numbers import _spaced
+    if v.startswith("+"):                                            # a difference: the sign stays next to the digits
+        return "+" + _spaced(v[1:])
     return _spaced(v).replace("-", "\u2212", 1)
 
 
