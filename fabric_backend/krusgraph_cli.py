@@ -9,6 +9,9 @@
   krusgraph skill                              the agent instructions (SKILL.md) this command ships with
   krusgraph demo faults                        the shop with five planted faults: what was planted, what Krusgraph
                                                found and the receipt SQL that proves it (BL21, docs/demo/PLANTED-FAULTS-WALK.md)
+  krusgraph demo change [--sap]                the change-by-chat demo, scenario A on shop_lfd (B on sap_lfd with --sap),
+                                               step by step as the chat shows it, against an in-memory Fabric
+                                               (LFD9, docs/demo/CHANGE-BY-CHAT.md)
 
 The structure follows HKUDS/CLI-Anything's harness conventions (read as documentation, no code copied): every command
 answers JSON (`--json`, the default when stdout is not a terminal) or text for a person (`--human`), introspection
@@ -313,7 +316,9 @@ def cmd_skill(a) -> dict:
 
 # ------------------------------------------------------------------ demo (BL21) ----------------------------------------
 
-DEMOS = {"faults": "the synthetic shop with five planted faults (fabric_backend/shop_faults.py, docs/PLANTED-FAULTS.md)"}
+DEMOS = {"faults": "the synthetic shop with five planted faults (fabric_backend/shop_faults.py, docs/PLANTED-FAULTS.md)",
+         "change": "change by chat: scenario A on shop_lfd, or B on sap_lfd with --sap, through propose_change and "
+                   "apply_change against an in-memory Fabric (fabric_backend/change_demo.py, docs/demo/CHANGE-BY-CHAT.md)"}
 
 
 def _receipt_item(item: str) -> str:
@@ -337,7 +342,10 @@ def cmd_demo(a) -> dict:
     """BL21 (backlog C-37, C-38): build shop_faults locally in SQLite, run the plan and validate_plan's counting checks,
     and per planted fault print what was planted, what Krusgraph said and the receipt SQL that counted it. What
     Krusgraph "found" is the tool's own answer (shop_faults.check's flagged items, receipt.build's rows), never an
-    expected text: a fault the checks do not find is printed as "not found yet". Read-only, offline."""
+    expected text: a fault the checks do not find is printed as "not found yet". Read-only, offline.
+    LFD9: `demo change` runs the change-by-chat scenario instead (cmd_demo_change)."""
+    if a.demo == "change":
+        return cmd_demo_change(a)
     from . import receipt, shop_faults
     from .infer import plan as make_plan
     r = shop_faults.check()
@@ -375,7 +383,18 @@ def cmd_demo(a) -> dict:
     }
 
 
+def cmd_demo_change(a) -> dict:
+    """LFD9: scenario A on shop_lfd (B on sap_lfd with --sap) through the functions behind propose_change and
+    apply_change, against change_demo's in-memory Fabric: no network, no tenant, nothing written outside this process.
+    The answers are the tools' own; the text is what the chat shows of them."""
+    from . import change_demo
+    result = change_demo.run("sap_lfd" if getattr(a, "sap", False) else "shop_lfd")
+    return {"demo": "change", "about": DEMOS["change"], **change_demo.summary(result), "chat": change_demo.lines(result)}
+
+
 def _human_demo(r: dict) -> list[str]:
+    if r.get("demo") == "change":
+        return list(r["chat"])
     lines = [f"krusgraph demo {r['demo']}: {r['about']}", f"validate_plan: {r['summary']}",
              f"{r['found']} of {r['planted']} planted faults found, {r['not_found_yet']} not found yet", ""]
     for f in r["faults"]:
@@ -480,8 +499,10 @@ COMMANDS = {
 # Listed apart from COMMANDS so SKILL.md's command list (tests/test_cl1_cli.py pins it to COMMANDS) is unchanged.
 EXTRA_COMMANDS = {
     "demo": {"fn": cmd_demo, "source": False,
-             "help": "a demo on synthetic data: 'faults' finds the five planted faults with their receipt SQL (BL21)",
-             "examples": ["krusgraph demo faults --human", "krusgraph demo faults --json > faults.json"]},
+             "help": "a demo on synthetic data: 'faults' finds the five planted faults with their receipt SQL (BL21); "
+                     "'change' runs the change-by-chat scenario against an in-memory Fabric (LFD9)",
+             "examples": ["krusgraph demo faults --human", "krusgraph demo faults --json > faults.json",
+                          "krusgraph demo change --human", "krusgraph demo change --sap --human"]},
 }
 
 
@@ -530,6 +551,7 @@ def build_parser() -> argparse.ArgumentParser:
                                 "and are counted like any other (never a URL)")
         if name == "demo":
             s.add_argument("demo", choices=sorted(DEMOS), help="which demo: " + "; ".join(f"{k}: {v}" for k, v in DEMOS.items()))
+            s.add_argument("--sap", action="store_true", help="demo change only: scenario B on sap_lfd instead of A on shop_lfd")
         if name == "relationships":
             s.add_argument("--mermaid", action="store_true", help="add the diagram in Mermaid")
         s.set_defaults(command=name)

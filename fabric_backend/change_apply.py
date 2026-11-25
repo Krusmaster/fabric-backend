@@ -130,23 +130,43 @@ def _quote(name: str) -> str:
     return "[" + str(name).replace("]", "]]") + "]"
 
 
-def numbers_after_run(counted: dict | None, targets: dict, execute) -> dict:
-    """After a run that succeeded: the rows of each silver table a filter changed, counted (SELECT COUNT_BIG(*)) and
+def numbers_after_run(counted: dict | None, targets: dict, execute, reverts: dict | None = None) -> dict:
+    """After a run that succeeded: the rows of each silver table a filter changes, counted (SELECT COUNT_BIG(*)) and
     compared with the numbers layer's "after" for the last change that counted that table. Only counts; a table
-    the numbers layer did not count, or a statement that fails, is not checked, with the reason."""
+    the numbers layer did not count, or a statement that fails, is not checked, with the reason.
+
+    LFD9: for a revert (`reverts`, the numbers layer's {"id", "type"}) the layer counted the list with the reverted change
+    in it, so a table that change counted is compared with its "before", the rows the revert brings back; a later filter
+    on the same table was counted with the reverted one in place, so that table is not checked, with the reason."""
     if not isinstance(counted, dict) or not counted.get("changes"):
         return {"state": NOT_CHECKED, "said": "the numbers layer counted nothing to compare with", "rows": []}
+    back_id = (reverts or {}).get("id")
     last: dict[str, int] = {}
+    brought_back: set[str] = set()
+    unsure: set[str] = set()
     for c in counted["changes"]:
         if c.get("type") != "filter_rows":
             continue
+        back = back_id is not None and c.get("id") == back_id
         for n in c.get("numbers") or []:
-            if n.get("what") == "rows" and isinstance(n.get("after"), int):
-                last[n["table"]] = n["after"]
+            if n.get("what") != "rows" or n.get("untouched"):   # LFD9: only the tables the filter changes; an
+                continue                                          # untouched one the silver notebook may check for orphans
+            side = n.get("before") if back else n.get("after")
+            if not isinstance(side, int):
+                continue
+            if back:
+                brought_back.add(n["table"])
+            elif n["table"] in brought_back:
+                unsure.add(n["table"])
+            last[n["table"]] = side
     if not last:
         return {"state": NOT_CHECKED, "said": "no filter in the list: no row count of a silver table to compare", "rows": []}
     rows = []
     for table, want in sorted(last.items()):
+        if table in unsure:
+            rows.append({"table": table, "state": NOT_CHECKED, "said": "a later filter on this table was counted with the "
+                                                                       "reverted change in place"})
+            continue
         target = targets.get(table)
         if not target:
             rows.append({"table": table, "state": NOT_CHECKED, "said": "the silver notebook writes no table for it"})
