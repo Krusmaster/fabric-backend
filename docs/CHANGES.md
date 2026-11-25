@@ -2,8 +2,9 @@
 
 Status: **the contract, its drafts, its numbers, the proposal, applying it and undo** (round LFD2, 24 November 2026;
 rounds LFD3 to LFD7, 25 November 2026: the numbers, the diff, the read-only tool `propose_change` with the numbers
-counted, `apply_change` through Update, both behind `KRUSGRAPH_CHANGES`, off by default, and versions and undo; *The
-numbers*, *Proposing a change*, *Applying a change (LFD6)* and *Versions and undo (LFD7)* below).
+counted, `apply_change` through Update, both behind `KRUSGRAPH_CHANGES`, off by default, and versions and undo, and the diff card; *The
+numbers*, *Proposing a change*, *Applying a change (LFD6)*, *Versions and undo (LFD7)* and *The diff card (LFD8)*
+below).
 `fabric_backend/changes.py` is a module of pure functions with tests (`tests/test_lfd2_contract.py`); LFD3 applies a
 list of changes to the silver, gold and semantic model drafts (below, *Applying a list*; `tests/test_lfd3_apply.py`, and
 the silver notebook on a local PySpark 4.0.1 in `tests/test_spark_notebooks.py`); LFD4 counts the numbers before and
