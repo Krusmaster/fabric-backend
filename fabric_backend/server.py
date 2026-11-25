@@ -2207,6 +2207,27 @@ def plan_drift(workspace: _p.Workspace, source: _p.Source, api: _p.DriftApi, sch
     return json.dumps(out, indent=2)
 
 
+# LFD5: the change-by-chat tool, registered only with KRUSGRAPH_CHANGES=1 (off by default; tool_listing.changes_on). Read-only:
+# it plans, validates the change by the contract's rules (changes.py) and drafts the items before and after
+# (change_diff.py); it never writes to Fabric. The confirm it returns is for a later apply_change (round LFD6).
+def _propose_change(workspace: str, source: str, change, schema: str = "dbo", applied=None, confirmed=None, ctx=None) -> str:
+    from . import change_diff as _change_diff
+    p, info = _source_inputs(workspace, source, schema, None, confirmed, ctx)
+    out = _change_diff.propose(change, p, info, applied, confirmed=confirmed,
+                               replan=lambda links: _source_inputs(workspace, source, schema, None, links, ctx)[0])
+    return _change_diff.answer(out, MAX_RESULT_CHARS)
+
+
+if _tool_listing.changes_on():
+    @mcp.tool(title="Propose a change and show its diff", annotations=RO)
+    @safe
+    def propose_change(workspace: _p.Workspace, source: _p.Source, change: _p.Change, schema: _p.Schema = "dbo",
+                       applied: _p.AppliedChanges = None, confirmed: _p.Confirmed = None, ctx: Context = None) -> str:
+        """Checks one change to a data product by rules. Answers a question, a denial, or the diff (plan, items with
+        unified diffs, numbers) and a confirm value. Writes nothing. Errors: {error, kind, hint}."""
+        return _propose_change(workspace, source, change, schema, applied, confirmed, ctx)
+
+
 DRIFT_SECONDS = 40         # n218: below the client's own tool timeout, so the answer arrives instead of a silent cancel
 
 

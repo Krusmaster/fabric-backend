@@ -268,3 +268,6 @@ AgentRequirements = Annotated[str | None, _d('Requirements list; answerable ones
 ViewDraftName = Annotated[str, _d('View and folder name.')]
 ViewValidate = Annotated[bool, _d('Count keys and links.')]
 ViewSilver = Annotated[bool, _d('true: silver\'s combined keys.')]
+# LFD5: propose_change, with KRUSGRAPH_CHANGES=1 only (docs/CHANGES.md). Short: it is listed by default when on.
+Change = Annotated[dict, _d('One change (docs/CHANGES.md). Example: {"type": "filter_rows", "table": "customers"}.')]
+AppliedChanges = Annotated[list[dict] | None, _d('Changes applied so far, in order. Default none.')]

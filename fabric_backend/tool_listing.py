@@ -24,6 +24,7 @@ import re
 _NAMED = re.compile(r"\(([a-z]+(?:_[a-z]+)+)\b")      # "Label (create_pipeline with ...)": the tool a sentence names
 
 ADVANCED = "KRUSGRAPH_ADVANCED_TOOLS"
+CHANGES = "KRUSGRAPH_CHANGES"          # LFD5: the change-by-chat tools (propose_change), off by default
 _ON = {"1", "true", "yes", "on"}
 
 # The default listing, in the guided path's order (16 tools).
@@ -33,6 +34,21 @@ DEFAULT = (
     "create_pipeline", "create_semantic_model", "create_data_agent", "create_report", "create_backend", "create_ontology",
     "publish_catalog", "verify_build", "lineage", "describe_backend", "query_graphql",
 )
+
+# LFD5: with KRUSGRAPH_CHANGES=1 (an operator setting, off by default) the change tools are registered and listed after
+# the default ones; off, they are not registered at all and every listing is as before.
+CHANGE_TOOLS = ("propose_change",)
+
+
+def changes_on(environ=None) -> bool:
+    """KRUSGRAPH_CHANGES: the change-by-chat tools (docs/CHANGES.md). Read at import for registration."""
+    return (environ if environ is not None else os.environ).get(CHANGES, "").strip().lower() in _ON
+
+
+def default_names(environ=None) -> tuple[str, ...]:
+    """The default listing under the current settings: DEFAULT, and the change tools when KRUSGRAPH_CHANGES is on."""
+    return DEFAULT + (CHANGE_TOOLS if changes_on(environ) else ())
+
 
 # A draft and the creating tool whose dry run shows the same thing (the draft takes no name; the dry run does).
 ALIAS = {
@@ -54,7 +70,8 @@ CLAUSE = (f"{ADVANCED}=1 lists every tool; by default the listing holds the guid
 def sentence() -> str:
     """The instructions' sentence on the listing: a fact about what tools/list holds, never a request to the model.
     The same text whatever the setting, so the instructions do not depend on where the server runs."""
-    return (f"By default tools/list holds {len(DEFAULT)} tools: " + ", ".join(DEFAULT) + ". The other tools named here "
+    names = default_names()
+    return (f"By default tools/list holds {len(names)} tools: " + ", ".join(names) + ". The other tools named here "
             f"are registered and answer when called by name; the operator setting {ADVANCED}=1 lists them all. The "
             "drafts show what their creating tool's dry run shows.")
 
@@ -65,7 +82,7 @@ def advanced(environ=None) -> bool:
 
 def listed(name: str, environ=None) -> bool:
     """True when `name` is in tools/list under the current setting."""
-    return advanced(environ) or name in DEFAULT
+    return advanced(environ) or name in default_names(environ)
 
 
 def hidden(names, environ=None) -> list[str]:
