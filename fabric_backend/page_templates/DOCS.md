@@ -79,10 +79,24 @@ has its own identity and access settings; see [App access](#app-access) before y
 **Open source.** MIT-licensed. Use the hosted service or run it yourself ([locally](/local), or in your own Azure
 subscription with `deploy/krusgraph.sh`).
 
+**In eight points.** [Why choose {{PRODUCT}}](/docs/why-krusgraph): one line each, with the page that backs it.
+
 **When {{PRODUCT}} is not the right tool:** if your data isn't in Fabric yet, if you're building a transactional app
 that needs its own database, or if you need row-level security defined in the API itself. Fabric's API for GraphQL has
 no row-level security of its own; it applies what the source enforces for the identity that queries it (see
 [App access](#app-access)), and {{PRODUCT}} does not create security policies.
+
+## Why choose {{PRODUCT}}
+
+Eight points, each in one line with the page that backs it. They say what {{PRODUCT}} does today; where a part is a
+pilot, experimental or planned, the line says so.
+
+{{WHY_POINTS}}
+
+What these points do not say: nothing here claims a speed, a saving or a price, because none is measured or set; the
+numbers that are measured, keys and relationships found, missed and wrong on schemas whose answers are known, are on
+[the scores page](/scores). {{PRODUCT}} itself calls no AI model, but your MCP client's model reads its answers, and a
+data agent it creates answers with Fabric's own model ([Where it runs](/docs/concepts/where-it-runs)).
 
 ## Get started
 

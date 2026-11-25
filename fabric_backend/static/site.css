@@ -1749,3 +1749,13 @@ a.chip:hover{text-decoration:underline}
 .hs-svg .hs-miss{fill:var(--coral-ink)}
 .hs-cap{margin-top:10px}
 .hs-cap summary{cursor:pointer;font-weight:700}
+/* W8: "Why Krusgraph" on the home page, eight points with one evidence link each (why.py) */
+.why-lede{margin:0 0 18px;max-width:60ch}
+.why-list{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.why-list li{background:var(--card);border:1px solid var(--line);border-radius:var(--radius-s);padding:18px;display:flex;flex-direction:column;min-width:0}
+.why-list h3{font-size:17px;margin:0 0 6px}
+.why-list p{margin:0 0 10px;font-size:15px}
+.why-list .why-ev{margin:auto 0 0}
+.why-more{margin:16px 0 0;font-weight:600}
+@media (max-width:1000px){.why-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:600px){.why-list{grid-template-columns:1fr}}

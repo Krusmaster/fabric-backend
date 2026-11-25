@@ -1104,7 +1104,13 @@ def _home_vars() -> dict[str, str]:
     # four-products diagram (HOME_OFFERING) says. hub_html stays for anyone who needs it.
     return {"HOME_BEFORE_AFTER": before_after_html(),
             "HOME_FILM": film_html(hero=True),                                    # n157; n196: under the headline
-            "HOME_OFFERING": _offering().diagram_html()}                         # n177
+            "HOME_OFFERING": _offering().diagram_html(),                         # n177
+            "HOME_WHY": _why().home_html()}                                      # W8: the eight points, one line each
+
+
+def _why():
+    from . import why
+    return why
 
 
 def _offering():
@@ -1348,6 +1354,8 @@ def docs_md() -> str:
     md = _read("DOCS.md").replace("{{WHICH_KRUSGRAPH}}", _offering().decide_md())   # n188: first on the docs start page
     from . import claims                                                     # n194: What you can build (n190's grid)
     md = md.replace("{{CLAIMS_INTRO}}", claims.INTRO).replace("{{CLAIMS_TABLE}}", claims.markdown())
+    from . import why                                                        # W8: /docs/why-krusgraph, one source with the home page
+    md = md.replace("{{WHY_POINTS}}", why.markdown())
     md = _conditional(_access(md, markdown=True).replace("{{RULES_TABLE}}", _rules_table()), _vars())
     return _fill(concepts.fill(_tool_statuses(md)), escape=False)          # n86b: the Concepts pages' examples and statuses
 
@@ -1548,8 +1556,8 @@ def _with_toc(rendered: str) -> str:
 # rendered, so every line of it is on exactly one page and /docs.md is the same text as before. The intro and "Why" are
 # /docs itself (the overview); each other "##" section is a group page (its heading and the lines before its first "###")
 # and each "###" a page under it. The menu labels of the groups are below; the rest of the menu is the headings.
-DOCS_GROUPS = ["Overview", "Get started", "Concepts", "Explore and check", "Build from a plan", "Krusgraph for Fabric", "Reference",
-               "Hosting and permissions"]
+DOCS_GROUPS = ["Overview", "Why Krusgraph", "Get started", "Concepts", "Explore and check", "Build from a plan", "Krusgraph for Fabric", "Reference",
+               "Hosting and permissions"]                                  # W8: the eight points, second in the menu
 # n188: "Which Krusgraph should I use?" is the docs menu's first entry (DOCS_FIRST), above the docs' own pages
 DOCS_FIRST = ("/choose", "Which Krusgraph should I use?")
 DOCS_MORE = [("/getting-started", "Getting started for a pilot"), ("/start", "The set-up guide"), ("/it", "For your IT department"), ("/lovable", "Use with Lovable")]
