@@ -348,7 +348,7 @@ one, the file and the report are byte for byte what they were.
 `CHANGE_LIST = "<JSON>"` (each change's id and normalised form, in the list's order): the silver notebook its
 `filter_rows`, the gold views notebook its `add_column`. Reverted changes and the reverts are not in it, so v0 + c1 + c2 −
 c2 and v0 + c1 write the same line. The run does not use it. `silver.read_changes(definition)` and
-`gold.read_changes(definition)` (both `changes.read_notebook_list`) read it back from the notebook's text or its item
+`gold.read_changes(definition)` (both `silver.read_notebook_list`) read it back from the notebook's text or its item
 definition (Get Notebook Definition's parts, base64): the basis for "what is built" when a later round applies a list.
 Every entry's id is checked against its change, so a list edited by hand is not read as one Krusgraph wrote. A notebook
 whose list holds no change of its type writes no line and is byte for byte as before: an `add_measure` changes neither

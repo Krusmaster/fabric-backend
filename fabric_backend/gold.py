@@ -311,9 +311,9 @@ def apply_changes(s: dict, applied: dict | None) -> dict:
 
 def read_changes(definition) -> list[dict]:
     """LFD7: the add_column changes a gold views notebook applies, read back from the CHANGE_LIST line of its parameters
-    cell (changes.read_notebook_list). [{"id", "change"}] in order; [] for a notebook without one."""
-    from . import changes as _changes
-    return _changes.read_notebook_list(definition)
+    cell (silver.read_notebook_list). [{"id", "change"}] in order; [] for a notebook without one."""
+    from .silver import read_notebook_list
+    return read_notebook_list(definition)
 
 
 def _dimension_views(plan: Plan, roles: dict, gold_schema: str, taken: set[str], inside: set[str] | None, flagged: dict,
@@ -490,8 +490,8 @@ def cells(s: dict) -> list[tuple[str, str]]:
     if lh:
         params += f"\nSILVER_LAKEHOUSE = {_py_literal(lh)}   # the lakehouse of the silver tables; the gold views go to this notebook's"
     if s.get("change_list"):                           # LFD7: the add_column changes this notebook applies
-        from . import changes as _changes
-        params += "\n" + _changes.notebook_list_params(s["change_list"], "gold.read_changes")
+        from .silver import notebook_list_params
+        params += "\n" + notebook_list_params(s["change_list"], "gold.read_changes")
     reads = sorted({t for v in all_views(s) for t in v["tables"]}, key=str.lower)
     setup = SETUP.format(source_schema=_py_literal(s["source"]["schema"]), owner=_py_literal(s["owner"]),
                          source_tables=_py_literal(s["source"]["tables"]), silver_tables=_py_literal(reads),

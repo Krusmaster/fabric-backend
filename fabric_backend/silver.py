@@ -650,12 +650,62 @@ def apply_changes(s: dict, applied: dict | None) -> dict:
     return out
 
 
+# ------------------------------------------------------------------ the list a notebook carries (LFD7) ----------------
+
+NOTEBOOK_LIST = "CHANGE_LIST = "
+
+
+def notebook_list_params(entries: list[dict], reader: str) -> str:
+    """The lines a notebook's parameters cell gets for the changes it applies: a comment and CHANGE_LIST, the entries
+    ([{"id", "change"}]) as one JSON string. The run does not use it; `reader` names the function that reads it back."""
+    text = json.dumps(entries, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return ("# The changes this notebook applies (docs/CHANGES.md), as JSON: each change's id and its normalised form, in the\n"
+            f"# list's order. Krusgraph reads them back ({reader}) to know what is built; the run does not use them.\n"
+            f"{NOTEBOOK_LIST}{_py_literal(text)}")
+
+
+def read_notebook_list(definition) -> list[dict]:
+    """The CHANGE_LIST of a notebook's parameters cell, read back from the notebook-content.py text or the item definition
+    ({"definition": {"parts": [...]}} or {"parts": [...]}, as Get Notebook Definition and notebook.envelope give it, the
+    payload in base64). [{"id", "change"}] in order; [] without one. Each entry's change is checked against the contract
+    and its id against the change, so a list edited by hand is not read as one Krusgraph wrote. Raises ChangeError."""
+    import ast
+    import base64
+    from .changes import ChangeError, canonical, change_id
+    text = definition
+    if isinstance(definition, dict):
+        parts = (definition.get("definition") or definition).get("parts") or []
+        part = next((x for x in parts if isinstance(x, dict) and str(x.get("path", "")).endswith(".py")), None)
+        if part is None:
+            raise ChangeError("bad_request", "The notebook definition has no notebook-content.py part.")
+        text = base64.b64decode(part.get("payload") or "").decode("utf-8")
+    if not isinstance(text, str):
+        raise ChangeError("bad_request", "A notebook definition is its notebook-content.py text or the item definition.")
+    lines = [x for kind, body in _nb.parse(text) if kind == "parameters" for x in body.splitlines() if x.startswith(NOTEBOOK_LIST)]
+    if not lines:
+        return []
+    try:
+        listed = json.loads(ast.literal_eval(lines[0][len(NOTEBOOK_LIST):]))
+    except (ValueError, SyntaxError, TypeError) as e:
+        raise ChangeError("bad_request", f"CHANGE_LIST in the parameters cell cannot be read ({type(e).__name__}).") from None
+    if not isinstance(listed, list):
+        raise ChangeError("bad_request", "CHANGE_LIST in the parameters cell is not a list.")
+    out = []
+    for x in listed:
+        if not isinstance(x, dict) or set(x) != {"id", "change"}:
+            raise ChangeError("bad_request", "An entry of CHANGE_LIST is not {id, change}.")
+        if change_id(x["change"]) != x["id"]:
+            raise ChangeError("bad_request", f"The entry {str(x['id'])[:40]!r} of CHANGE_LIST does not match its change: "
+                                             "the list was edited after Krusgraph wrote it.")
+        out.append({"id": x["id"], "change": canonical(x["change"])})
+    return out
+
+
 def read_changes(definition) -> list[dict]:
     """LFD7: the filter_rows changes a silver notebook applies, read back from the CHANGE_LIST line of its parameters cell
-    (changes.read_notebook_list: the notebook-content.py text or the item definition). [{"id", "change"}] in the list's
+    (read_notebook_list: the notebook-content.py text or the item definition). [{"id", "change"}] in the list's
     order; [] for a notebook without one. The whole list, every type, is the review file's `changes`."""
-    from . import changes as _changes
-    return _changes.read_notebook_list(definition)
+    return read_notebook_list(definition)
 
 
 def _py_value(v) -> str:
@@ -981,8 +1031,7 @@ def cells(s: dict) -> list[tuple[str, str]]:
     if fixed:                                                            # n115: the decisions the fix suggestions need
         params += "\n" + _fix_parameters(s)
     if s.get("change_list"):                                             # LFD7: the list this notebook was built from
-        from . import changes as _changes
-        params += "\n" + _changes.notebook_list_params(s["change_list"], "silver.read_changes")
+        params += "\n" + notebook_list_params(s["change_list"], "silver.read_changes")
     drift = s.get("drift")                                               # n200: only the pipeline's silver notebook
     if drift:
         from . import health as _health
