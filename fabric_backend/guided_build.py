@@ -27,6 +27,10 @@ the signed-in person's own on-behalf-of tokens (guided_app.SessionTokens, throug
   permission is said as kind consent; nothing is ever deleted.
 - Verify: workload_api.run_verify, verify_build's rules on what this session created (W4/W5: across workspaces when
   the build is in another workspace than the source's), with its next steps. Checked by rules, not by AI.
+- AP3 (guided_care.py): "Update the build in place" of a data product the person built is this same dry run, Create and
+  verify, on a basis: that product's review as `previous` (review_plan re-plans the source with its decisions carried
+  over), the items it built (so they are this build's own and are updated in place) and their names. The basis is
+  looked up on the server by the product's id; the page never sends a plan, a review or an item id.
 
 What is kept: per session, in memory, next to the session itself (guided_app.SESSIONS): the last dry run (its token,
 inputs and review file) and the items this session created (the workload keeps those in outputs.json; here they let a
@@ -69,11 +73,23 @@ def _state(sid: str) -> dict:
         return st
 
 
-def outputs(source: str, schema: str) -> list[dict]:
-    """The items a dry run shows, named as the start path names them (start_flow.base_name): <stem>_silver, ..."""
+def outputs(source: str, schema: str, names: dict | None = None) -> list[dict]:
+    """The items a dry run shows, named as the start path names them (start_flow.base_name): <stem>_silver, ...; AP3:
+    an update in place keeps the names the data product's items have (`names`, {kind: name})."""
     from .start_flow import base_name
     stem = base_name(source, schema)
-    return [{"kind": k, "name": f"{stem}_{suffix}"[:123]} for k, suffix in OUTPUTS]
+    return [{"kind": k, "name": str((names or {}).get(k) or f"{stem}_{suffix}")[:123]} for k, suffix in OUTPUTS]
+
+
+def _ours(st: dict, basis: dict | None, *more: list) -> list[dict]:
+    """The items this build may update: this session's, AP3's data product's (basis) and any given; each id once."""
+    seen, out = set(), []
+    for c in [*(basis or {}).get("created", []), *st["created"], *[x for m in more for x in m]]:
+        key = str(c.get("id") or "").lower()
+        if key and key not in seen:
+            seen.add(key)
+            out.append(c)
+    return out
 
 
 def chosen(data: dict) -> dict | None:
@@ -89,19 +105,20 @@ def flow(tokens, c: dict) -> dict:
     return flow_state.state(tokens.who, c["workspace"], c["source"], c["schema"]) or {}
 
 
-def review(c: dict, kept: dict) -> dict:
-    """review_plan's file with the person's decisions, the check counted: the start path's own (server._review_file)."""
+def review(c: dict, kept: dict, previous: dict | None = None) -> dict:
+    """review_plan's file with the person's decisions, the check counted: the start path's own (server._review_file).
+    AP3: with `previous` (a data product's review) its decisions, keys and confirmed links carry over to the new plan."""
     from . import server
     return server._review_file(c["workspace"], c["source"], c["schema"], None, kept.get("confirmed"),
-                               kept.get("decisions"), None, True, None, 60, None)
+                               kept.get("decisions"), previous, True, None, 60, None)
 
 
 def _request(c: dict, rv: dict, target: dict | None, update: list[str], confirm: dict, *, dry_run: bool,
-             created: list[dict], only: list[str] | None = None, model: str | None = None) -> dict:
+             created: list[dict], only: list[str] | None = None, model: str | None = None, names: dict | None = None) -> dict:
     """The workload's build request (workload_api.build_request: its checks, its shape)."""
     from . import server, workload_api as W
     ws_id = server._workspace_id(c["workspace"], server._headers(None))
-    outs = outputs(c["source"], c["schema"])
+    outs = outputs(c["source"], c["schema"], names)
     if model:
         outs = [{**o, "model": model} if o["kind"] == "report" else o for o in outs]
     body = {"workspace": ws_id, "source": c["source"], "source_name": c["source"], "schema": c["schema"], "review": rv,
@@ -114,11 +131,12 @@ def _request(c: dict, rv: dict, target: dict | None, update: list[str], confirm:
     return W.build_request({k: v for k, v in body.items() if v is not None})
 
 
-def token_of(c: dict, kept: dict, target: dict | None, update: list[str], rv: dict, out: dict) -> str:
-    """What the dry run showed, as a digest: the inputs, the plan and each item's name, action and update confirmation."""
+def token_of(c: dict, kept: dict, target: dict | None, update: list[str], rv: dict, out: dict, basis: dict | None = None) -> str:
+    """What the dry run showed, as a digest: the inputs, the plan and each item's name, action and update confirmation
+    (AP3: and the data product it updates)."""
     cards = [[x.get("output"), x.get("name"), x.get("type"), x.get("would"), (x.get("decision") or {}).get("action"),
               x.get("confirm_update")] for x in out.get("outputs") or []]
-    raw = json.dumps([c, kept.get("decisions"), kept.get("confirmed"), target, sorted(update), rv.get("plan_id"),
+    raw = json.dumps([c, *([basis["key"]] if basis else []), kept.get("decisions"), kept.get("confirmed"), target, sorted(update), rv.get("plan_id"),
                       rv.get("schema_fingerprint"), (out.get("build_in") or {}).get("workspace_id"),
                       (out.get("target") or {}).get("lakehouse"), (out.get("lakehouse") or {}).get("name"), cards],
                      sort_keys=True, default=str)
@@ -185,23 +203,25 @@ def card(x: dict, workspace_id: str | None = None) -> dict:
     return out
 
 
-def dry_run(tokens, sid: str, c: dict, target: dict | None, update: list[str]) -> dict:
-    """The dry run, kept for this session with its token. Writes nothing."""
+def dry_run(tokens, sid: str, c: dict, target: dict | None, update: list[str], basis: dict | None = None) -> dict:
+    """The dry run, kept for this session with its token. Writes nothing. AP3: `basis` (guided_care.basis) makes it the
+    update in place of a data product the person built."""
     from . import server, workload_api as W
     from .start_flow import _decided_line
     st = _state(sid)
     with server.workload_tokens(tokens):
         kept = flow(tokens, c)
-        rv = review(c, kept)
-        out = W.run_build_many(_request(c, rv, target, update, {}, dry_run=True, created=list(st["created"])))
+        rv = review(c, kept, (basis or {}).get("previous"))
+        out = W.run_build_many(_request(c, rv, target, update, {}, dry_run=True, created=_ours(st, basis),
+                                        names=(basis or {}).get("names")))
     if out.get("error"):
         return {k: str(out[k])[:400] for k in ("error", "kind", "hint") if out.get(k)}
-    token = token_of(c, kept, target, update, rv, out)
+    token = token_of(c, kept, target, update, rv, out, basis)
     place = where(out, c)
     cards = [card(x) for x in out.get("outputs") or []]
     confirm = {x["output"]: x["confirm_update"] for x in out.get("outputs") or [] if x.get("confirm_update")}
     st["dry"] = {"token": token, "at": time.time(), "c": c, "target": target, "update": list(update), "rv": rv,
-                 "confirm": confirm, "items": [{"kind": x["kind"], "name": x["name"], "label": x["label"]}
+                 "confirm": confirm, "basis": basis, "items": [{"kind": x["kind"], "name": x["name"], "label": x["label"]}
                                                for x in cards if x["action"] in WRITES]}
     st.pop("run", None)
     from .guided_app import log
@@ -285,19 +305,20 @@ def confirm(tokens, sid: str, token: str, names: list[str]) -> dict:
         return {"error": "The names you confirmed are not the ones the dry run would write; nothing was written.",
                 "kind": "bad_request", "hint": "Confirm the list the dry run shows."}
     st.pop("dry", None)                                      # one Create per dry run: the token is used now
-    c, target, update = dry["c"], dry["target"], dry["update"]
+    c, target, update, basis = dry["c"], dry["target"], dry["update"], dry.get("basis")
     with server.workload_tokens(tokens):
         kept = flow(tokens, c)
-        rv = review(c, kept)
-        again = W.run_build_many(_request(c, rv, target, update, {}, dry_run=True, created=list(st["created"])))
-    if again.get("error") or token_of(c, kept, target, update, rv, again) != token:
+        rv = review(c, kept, (basis or {}).get("previous"))
+        again = W.run_build_many(_request(c, rv, target, update, {}, dry_run=True, created=_ours(st, basis),
+                                          names=(basis or {}).get("names")))
+    if again.get("error") or token_of(c, kept, target, update, rv, again, basis) != token:
         from .guided_app import log
         log("create_refused", reason="stale")
         return {"error": STALE, "kind": "stale",
                 "hint": "A decision, the plan or the items in the workspace changed. Run the dry run again and read it."}
     run = {"id": secrets.token_urlsafe(16), "c": c, "target": target, "update": update, "rv": rv,
            "confirm": {x["output"]: x["confirm_update"] for x in again.get("outputs") or [] if x.get("confirm_update")},
-           "todo": [x["kind"] for x in dry["items"]], "started": {}, "done": {}, "created": [],
+           "todo": [x["kind"] for x in dry["items"]], "started": {}, "done": {}, "created": [], "basis": basis,
            "workspace_id": (again.get("build_in") or {}).get("workspace_id")}
     st["run"] = run
     from .guided_app import log
@@ -320,14 +341,16 @@ def create_item(tokens, sid: str, run_id: str, kind: str, owner: str) -> dict:
                 "hint": "Create writes the items in the order the dry run showed, each once."}
     run["started"][kind] = time.time()
     model = None
+    basis = run.get("basis")
+    names = (basis or {}).get("names")
     if kind == "report":                                    # the report binds to the model this Create made (its id), else
-        name = next(o["name"] for o in outputs(run["c"]["source"], run["c"]["schema"]) if o["kind"] == "semantic_model")
-        model = next((i["id"] for i in list(run["created"]) + list(st["created"])          # the one built before, by name
+        name = next(o["name"] for o in outputs(run["c"]["source"], run["c"]["schema"], names) if o["kind"] == "semantic_model")
+        model = next((i["id"] for i in list(run["created"]) + _ours(st, basis)           # the one built before, by name
                       if i.get("type") == "SemanticModel" and i.get("name") == name), None) or name
     with server.workload_tokens(tokens):
         req = _request(run["c"], run["rv"], run["target"], [k for k in run["update"] if k == kind],
                        {k: v for k, v in run["confirm"].items() if k == kind}, dry_run=False,
-                       created=list(st["created"]) + list(run["created"]), only=[kind], model=model)
+                       created=_ours(st, basis, run["created"]), only=[kind], model=model, names=names)
 
     def work():
         with server.workload_tokens(tokens):
@@ -382,13 +405,23 @@ def verify(tokens, sid: str) -> dict:
     if not run or not st["created"]:
         return {"error": "Nothing was created here yet, so there is nothing to verify.", "kind": "not_found"}
     c = run["c"]
+    made = _ours(st, run.get("basis"))                      # AP3: an update in place verifies the whole data product
     with server.workload_tokens(tokens):
         ws_id = server._workspace_id(c["workspace"], server._headers(None))
         req = W.verify_request({"workspace": ws_id, "source": c["source"], "source_name": c["source"], "schema": c["schema"],
-                                "review": run["rv"], "created": st["created"]})
+                                "review": run["rv"], "created": made})
         out = W.run_verify(req)
     if out.get("error"):
         return {k: str(out[k])[:400] for k in ("error", "kind", "hint") if out.get(k)}
+    lines = verify_lines(out)
+    return {"stage": "verify", "who": "thinker", "title": CHECKED_BY, "label": str(out.get("label") or ""),
+            "summary": str(out.get("summary") or ""), "counts": out.get("counts") or {}, "lines": lines,
+            "next_steps": [{"label": s.get("label"), "why": s.get("why")} for s in out.get("next_steps") or []][:8],
+            "note": str(out.get("note") or "")}
+
+
+def verify_lines(out: dict) -> list[dict]:
+    """verify_build's lines as the page draws them (AP2's card and AP3's report): item, kind, state, said, figures."""
     lines = []
     for x in out.get("lines") or []:
         if not isinstance(x, dict):
@@ -396,10 +429,7 @@ def verify(tokens, sid: str) -> dict:
         said = [str(f.get("said")) for f in x.get("figures") or [] if isinstance(f, dict) and f.get("said")][:4]
         lines.append({"item": x.get("item"), "kind": x.get("kind"), "state": x.get("state") or x.get("verdict") or "",
                       "said": str(x.get("said") or x.get("summary") or ""), "figures": said})
-    return {"stage": "verify", "who": "thinker", "title": CHECKED_BY, "label": str(out.get("label") or ""),
-            "summary": str(out.get("summary") or ""), "counts": out.get("counts") or {}, "lines": lines,
-            "next_steps": [{"label": s.get("label"), "why": s.get("why")} for s in out.get("next_steps") or []][:8],
-            "note": str(out.get("note") or "")}
+    return lines
 
 
 # ------------------------------------------------------------------ Decide: the start tool's own buttons ------------
