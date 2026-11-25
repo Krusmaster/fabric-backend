@@ -796,13 +796,17 @@ def _combine_check(out: dict, combine: dict | None, c: dict) -> None:
     """Check: the proposed match's counts as the first line, and the open decision counted in "N needs you"."""
     if not isinstance(combine, dict):
         return
+    from .multi_schema import parts                       # AP2b: the schemas by name, as many as there are
     if combine.get("error"):
-        out.setdefault("lines", []).insert(0, "The two sources' customers could not be counted, so nothing is combined.")
+        names = parts(c.get("schema"))
+        out.setdefault("lines", []).insert(0, f"The customers of the {len(names)} schemas ({_and(names)}) could not be "
+                                              "counted, so nothing is combined.")
         out["combine_error"] = str(combine["error"])[:200]
         return
     prop = combine.get("proposed")
     if not prop:
-        out.setdefault("lines", []).insert(0, "No rule pairs the two sources' customers, so each is built apart.")
+        out.setdefault("lines", []).insert(0, f"No rule pairs the customers of {_and(combine.get('sources') or parts(c.get('schema')))}, "
+                                              "so each is built apart.")
         return
     out.setdefault("lines", []).insert(0, prop["line"])
     out["match"] = {k: prop[k] for k in ("id", "rule", "line", "counts", "customers")}
@@ -812,6 +816,12 @@ def _combine_check(out: dict, combine: dict | None, c: dict) -> None:
         out["counts"]["open_decisions"] = n
         head = str(out.get("say") or "").rsplit(", ", 1)[0]
         out["say"] = f"{head}, {n} {'needs' if n == 1 else 'need'} you."
+
+
+def _and(names) -> str:
+    """'a and b', 'a, b and c'."""
+    names = [str(n) for n in names]
+    return " and ".join(names) if len(names) < 3 else ", ".join(names[:-1]) + " and " + names[-1]
 
 
 def _combine_decide(out: dict, actions: list, combine: dict | None, c: dict) -> None:

@@ -1782,6 +1782,26 @@ def system_schema(name: str) -> bool:
     return n.startswith("_") or n in SYSTEM_SCHEMAS or n.startswith("db_")
 
 
+# AP2b: the editor's rule for Krusgraph's own schemas (krusgraphSchema and OWN_WORDS in
+# workload/Workload/app/items/ModelItem/sourceWords.ts, W1), for the server's lists (the guided chat at /app). The same
+# two patterns and the same words; tests/test_ap2b_schemas.py reads them out of sourceWords.ts and fails when they part.
+OWN_SCHEMA_WRITTEN = re.compile(r"^krusgraph_[a-z0-9_]+$")
+OWN_SCHEMA_LOOKS = re.compile(r"^[a-z][a-z0-9_]*_(silver|gold)$")
+OWN_SCHEMA_WORDS = {"written": "written by Krusgraph", "looks": "looks like Krusgraph output"}
+
+
+def krusgraph_schema(name: str) -> str | None:
+    """"written" for krusgraph and krusgraph_* (only Krusgraph uses the name); "looks" for silver, gold and
+    <name>_silver / <name>_gold (what a build names its layers, but another tool's medallion layers may be named so too);
+    None for any other schema."""
+    n = str(name or "").strip().lower()
+    if n == "krusgraph" or OWN_SCHEMA_WRITTEN.match(n):
+        return "written"
+    if n in ("silver", "gold") or OWN_SCHEMA_LOOKS.match(n):
+        return "looks"
+    return None
+
+
 def preselect(schemas: list[dict]) -> str | None:
     """The schema to preselect: the only one with tables; dbo when it is the only schema; else none (the person picks)."""
     with_tables = [x["schema"] for x in schemas if x["tables"] > 0]
