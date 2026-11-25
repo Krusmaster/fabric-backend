@@ -6,6 +6,7 @@
 // Prints one JSON object. No request leaves the base URL (checked).
 const { chromium, devices } = require('playwright');
 const fs = require('fs');
+const { open } = require('./browser_nav');
 
 async function site(base) {
   const browser = await chromium.launch();
@@ -19,7 +20,7 @@ async function site(base) {
   {
     const ctx = await browser.newContext({ ...devices['Pixel 7'] });
     const page = await ctx.newPage(); watch(page, 'film');
-    await page.goto(base + '/', { waitUntil: 'networkidle' });
+    await open(page, base + '/', '#film video');
     await page.evaluate(() => {                        // a real tap starts full screen: the browser asks for a user gesture
       const b = document.createElement('button'); b.id = 'fs'; b.textContent = 'fs';
       b.style.cssText = 'position:fixed;top:0;left:0;z-index:99999';
@@ -55,7 +56,7 @@ async function site(base) {
   for (const [path, w] of [['/choose', 1280], ['/choose', 375], ['/', 1280], ['/', 375]]) {
     for (const scheme of ['light', 'dark']) {
       const page = await browser.newPage({ viewport: { width: w, height: 900 }, colorScheme: scheme }); watch(page, `${path}@${w}`);
-      await page.goto(base + path, { waitUntil: 'networkidle' });
+      await open(page, base + path, '#offering');
       const d = await page.evaluate(() => {
         const box = document.getElementById('offering'), ways = [...box.querySelectorAll('.off-way-a')];
         const rects = ways.map((a) => a.getBoundingClientRect());
@@ -101,7 +102,7 @@ async function site(base) {
   // every link the diagram has answers 200
   {
     const page = await browser.newPage(); watch(page, 'links');
-    await page.goto(base + '/choose', { waitUntil: 'networkidle' });
+    await open(page, base + '/choose', '#offering');
     out.linkStatus = await page.evaluate(async () => {
       const hrefs = [...new Set([...document.querySelectorAll('#offering a, .decide a, .choose-table a')].map((a) => a.getAttribute('href')))];
       const r = {};
@@ -120,13 +121,13 @@ async function site(base) {
   // 3. /start: "Use it in Fabric" next to Claude and the other agents; the docs' screenshots load
   {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } }); watch(page, 'start');
-    await page.goto(base + '/start', { waitUntil: 'networkidle' });
+    await open(page, base + '/start', '.start-paths .path-card');
     out.start = await page.evaluate(() => ({
       paths: [...document.querySelectorAll('.start-paths .path-card h2')].map((h) => h.textContent),
       fabricHref: document.querySelector('.path-fabric').getAttribute('href'),
       short: !!document.querySelector('#which .decide'),
     }));
-    await page.goto(base + '/docs/krusgraph-for-fabric/what-the-krusgraph-model-item-does', { waitUntil: 'networkidle' });
+    await open(page, base + '/docs/krusgraph-for-fabric/what-the-krusgraph-model-item-does', 'figure.shot img');
     out.shots = await page.evaluate(async () => {
       const imgs = [...document.querySelectorAll('figure.shot img')];
       await Promise.all(imgs.map((i) => i.decode().catch(() => null)));
@@ -138,7 +139,7 @@ async function site(base) {
   // 4. /check: linked tables sit close; the interface line says so; the dashed "?" says what it is on hover
   {
     const page = await browser.newPage({ viewport: { width: 1280, height: 1000 } }); watch(page, 'check');
-    await page.goto(base + '/check?example=sample', { waitUntil: 'networkidle' });
+    await open(page, base + '/check?example=sample', '#check-map');
     await page.waitForSelector('#check-map svg .m-sug', { timeout: 120000 });
     await page.waitForTimeout(800);
     out.map = await page.evaluate(() => {

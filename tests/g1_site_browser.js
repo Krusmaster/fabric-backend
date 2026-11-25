@@ -7,6 +7,7 @@
 //  - the footer's cookie panel opens from the keyboard, shows a focus outline, and lists what is stored.
 // An equivalent of axe-core's checks for these rules, with no new dependency (axe-core itself ran in the audit).
 const { chromium } = require('playwright');
+const { settle } = require('./browser_nav');
 const base = process.argv[2];
 const pages = JSON.parse(process.argv[3]);
 const executablePath = process.argv[4];
@@ -68,7 +69,7 @@ function inPage() {
         const page = await ctx.newPage();
         const where = `${path} @${width} ${scheme}`;
         page.on('request', r => { const u = new URL(r.url()); if (u.protocol.startsWith('http') && !['127.0.0.1', 'localhost'].includes(u.hostname)) problems.push({ rule: 'third-party', where, url: r.url() }); });
-        await page.goto(base + path, { waitUntil: 'networkidle' });
+        await settle(page, base + path);
         const stored = await page.evaluate(() => ({ local: Object.keys(localStorage), session: Object.keys(sessionStorage) }));
         const cookies = await ctx.cookies();
         if (stored.local.length || stored.session.length || cookies.length) problems.push({ rule: 'stored-before-consent', where, stored, cookies: cookies.map(c => c.name) });

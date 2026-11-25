@@ -4,6 +4,7 @@
 // "Other clients"; each copy button pressed with the keyboard and the clipboard read back; Escape closes. n91: then Tab on
 // to the hub, which has no Connect button: its node is a link to /start, opened with Enter. (n206: the hub left the home page.)
 const { chromium } = require('playwright');
+const { open } = require('./browser_nav');
 const base = process.argv[2];
 const exe = process.argv[3];
 (async () => {
@@ -14,7 +15,7 @@ const exe = process.argv[3];
     const page = await ctx.newPage();
     page.on('pageerror', e => out.errors.push(`${width}: pageerror ${e.message}`));
     page.on('console', m => { if (m.type() === 'error') out.errors.push(`${width}: console ${m.text()}`); });
-    await page.goto(base + '/start#step-3', { waitUntil: 'networkidle' });
+    await open(page, base + '/start#step-3', '.connect-start summary');
     const r = {};
     // Tab from the top of the page until the chooser's button has the focus
     let tabs = 0;
@@ -79,12 +80,12 @@ const exe = process.argv[3];
     await page.keyboard.press('Escape');
     r.afterEscape2 = await page.evaluate(() => ({ open: document.querySelector('details.connect-start').open, focus: document.activeElement === document.querySelector('.connect-start summary') }));
     // n206: the hub left the home page (its node was n91's link to /start); the home page has no chooser of its own
-    await page.goto(base + '/', { waitUntil: 'networkidle' });
+    await open(page, base + '/', '[data-page="home"]');
     r.homeHubs = await page.evaluate(() => document.querySelectorAll('.hub').length);
     r.homeChoosers = await page.evaluate(() => document.querySelectorAll('details[data-connect]').length);
     out[width] = r;
     // /consent/done after a granted consent: the next step, and its copy button
-    await page.goto(base + '/consent/done?admin_consent=True', { waitUntil: 'networkidle' });
+    await open(page, base + '/consent/done?admin_consent=True', '#next');
     const q = await page.$('[data-copy-text]');
     await q.focus(); await page.keyboard.press('Enter'); await page.waitForTimeout(80);
     out['consent' + width] = { clip: await page.evaluate(() => navigator.clipboard.readText()), wide: await page.evaluate(() => document.documentElement.scrollWidth),

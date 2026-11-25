@@ -2,6 +2,7 @@
 // Usage: node tests/browser_check.js <base url> [chromium path]
 // Prints one JSON object: { errors: [...], facts: {...} }. Every check is a fact the Python test asserts on.
 const { chromium } = require('playwright');
+const { settle, reloadSettled } = require('./browser_nav');
 const base = process.argv[2];
 const exe = process.argv[3];
 const pages = ['/', '/start', '/support', '/partners', '/partners/workspace', '/docs', '/privacy', '/lovable', '/mascots', '/use-cases', '/use-cases/build'];
@@ -25,7 +26,7 @@ const pages = ['/', '/start', '/support', '/partners', '/partners/workspace', '/
     const ctx = await browser.newContext({ viewport: { width, height: 900 }, colorScheme: scheme });
     for (const path of pages) {
       const page = await ctx.newPage(); const label = `${path}@${vname}`; watch(page, label);
-      await page.goto(base + path, { waitUntil: 'networkidle' });
+      await settle(page, base + path);
       const sw = await page.evaluate(() => document.documentElement.scrollWidth);
       if (sw > width) errors.push(`${label}: horizontal overflow ${sw} > ${width}`);
       const fonts = await page.evaluate(() => Promise.all([document.fonts.check('600 20px Fredoka'), document.fonts.check('400 16px Nunito')]));
@@ -88,10 +89,10 @@ const pages = ['/', '/start', '/support', '/partners', '/partners/workspace', '/
   // n55: the mascot toggle on /use-cases (it was tried on /explore, now a redirect to /check)
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const page = await ctx.newPage(); watch(page, '/use-cases mascots');
-  await page.goto(base + '/use-cases', { waitUntil: 'networkidle' });
+  await settle(page, base + '/use-cases');
   // mascot toggle persists
   await page.click('[data-mascot-toggle]');
-  await page.reload({ waitUntil: 'networkidle' });
+  await reloadSettled(page);
   facts.mascotsAfterReload = await page.evaluate(() => document.documentElement.getAttribute('data-mascots'));
   await page.click('[data-mascot-toggle]');
   facts.mascotsAfterToggleBack = await page.evaluate(() => document.documentElement.getAttribute('data-mascots'));
@@ -99,14 +100,14 @@ const pages = ['/', '/start', '/support', '/partners', '/partners/workspace', '/
   // n55: the theme button: the system's choice first, a click (and Enter) switches, the choice survives a reload
   const tc = await browser.newContext({ viewport: { width: 375, height: 800 }, colorScheme: 'light' });
   const tp = await tc.newPage(); watch(tp, '/ theme');
-  await tp.goto(base + '/', { waitUntil: 'networkidle' });
+  await settle(tp, base + '/');
   const themeState = () => tp.evaluate(() => ({ theme: document.documentElement.dataset.theme || null,
     pressed: document.querySelector('[data-theme-toggle]').getAttribute('aria-pressed'),
     bg: getComputedStyle(document.body).backgroundColor, meta: document.querySelector('meta[name=theme-color]').content }));
   facts.themeFirst = await themeState();
   await tp.click('[data-theme-toggle]');
   facts.themeAfterClick = await themeState();
-  await tp.reload({ waitUntil: 'networkidle' });
+  await reloadSettled(tp);
   facts.themeAfterReload = await themeState();
   await tp.focus('[data-theme-toggle]'); await tp.keyboard.press('Enter');
   facts.themeAfterEnter = await themeState();
@@ -115,17 +116,17 @@ const pages = ['/', '/start', '/support', '/partners', '/partners/workspace', '/
   const hp = await hc.newPage(); watch(hp, '/ focus');
   // n59: the maps on /use-cases with reduced motion: drawn at once, nothing animates in
   const ucp = await hc.newPage(); watch(ucp, '/use-cases maps reduced motion');
-  await ucp.goto(base + '/use-cases', { waitUntil: 'networkidle' });
+  await settle(ucp, base + '/use-cases');
   facts.ucMapMotion = await ucp.evaluate(() => ({ drawn: document.querySelectorAll('.uc-map .m-edge').length,
     moving: [...document.querySelectorAll('.uc-map *')].filter(el => { const cs = getComputedStyle(el); return cs.animationName && cs.animationName !== 'none'; }).length }));
   // the build cards (on /use-cases/build since n59) with reduced motion: no transition or animation anywhere in the section
   const bp = await hc.newPage(); watch(bp, '/use-cases reduced motion');
-  await bp.goto(base + '/use-cases/build', { waitUntil: 'networkidle' });
+  await settle(bp, base + '/use-cases/build');
   facts.buildMotion = await bp.evaluate(() => [...document.querySelectorAll('#build, #build *')].filter(el => {
     const cs = getComputedStyle(el); return parseFloat(cs.transitionDuration) > 0 || (cs.animationName && cs.animationName !== 'none');
   }).length);
   // a visible focus ring on the start page's CTAs
-  await hp.goto(base + '/', { waitUntil: 'networkidle' });
+  await settle(hp, base + '/');
   await hp.focus('.hero .ctas a');
   facts.ctaFocusOutline = await hp.evaluate(() => getComputedStyle(document.activeElement).outlineStyle);
   await hc.close();
@@ -134,7 +135,7 @@ const pages = ['/', '/start', '/support', '/partners', '/partners/workspace', '/
   for (const [w, h] of [[375, 667], [1280, 800]]) {
     const ec = await browser.newContext({ viewport: { width: w, height: h } });
     const ep = await ec.newPage(); watch(ep, `/ entry@${w}x${h}`);
-    await ep.goto(base + '/', { waitUntil: 'networkidle' });
+    await settle(ep, base + '/');
     facts[`homeEntry@${w}x${h}`] = await ep.evaluate(() => document.getElementById('demo').getBoundingClientRect().height / window.innerHeight);
     await ec.close();
   }
@@ -150,7 +151,7 @@ const pages = ['/', '/start', '/support', '/partners', '/partners/workspace', '/
   // /docs: the groups and the 'on this page' list; /use-cases: an industry's details open by keyboard
   const dc = await browser.newContext({ viewport: { width: 375, height: 900 } });
   const dp = await dc.newPage(); watch(dp, '/use-cases details');
-  await dp.goto(base + '/use-cases', { waitUntil: 'networkidle' });
+  await settle(dp, base + '/use-cases');
   facts.useCaseTasks = await dp.locator('.uc-task').count();
   // n59: a finding under a map is marked on it by keyboard, as on /check, and unmarked by a second Enter
   await dp.focus('#try-retail [data-finding]'); await dp.keyboard.press('Enter');
@@ -165,7 +166,7 @@ const pages = ['/', '/start', '/support', '/partners', '/partners/workspace', '/
   const sp = await sc.newPage(); watch(sp, '/example/sales-planning');
   const api = async (q) => (await sp.request.get(base + '/example/sales-planning/result.json?' + q)).json();
   const firstTile = async () => parseInt((await sp.textContent('#sp-tiles .sp-tile-value')).replace(/\D/g, ''), 10);
-  await sp.goto(base + '/example/sales-planning', { waitUntil: 'networkidle' });
+  await settle(sp, base + '/example/sales-planning');
   facts.salesScopeHiddenFirst = await sp.isHidden('#scope');
   await sp.fill('#sp-q', 'What will our margin be next quarter?'); await sp.click('#sp-ask button[type=submit]');
   facts.salesOtherQuestion = await sp.textContent('#sp-ask-note');
@@ -196,7 +197,7 @@ const pages = ['/', '/start', '/support', '/partners', '/partners/workspace', '/
   await sp.click('#sp-save');
   const saved = sp.url();
   const sp2 = await sc.newPage(); watch(sp2, '/example/sales-planning reopened');
-  await sp2.goto(saved, { waitUntil: 'networkidle' });
+  await settle(sp2, saved);
   facts.salesReopened = await sp2.isVisible('#sp-reopened') && await sp2.textContent('#sp-reopened');
   facts.salesReopenedTotal = parseInt((await sp2.textContent('#sp-tiles .sp-tile-value')).replace(/\D/g, ''), 10);
   facts.salesSavedList = await sp2.textContent('#sp-saved');
@@ -206,7 +207,7 @@ const pages = ['/', '/start', '/support', '/partners', '/partners/workspace', '/
   for (const [w, touch] of [[375, true], [1280, false]]) {
     const tc = await browser.newContext({ viewport: { width: w, height: 900 }, hasTouch: touch, isMobile: touch });
     const tp = await tc.newPage(); watch(tp, '/ session@' + w);
-    await tp.goto(base + '/', { waitUntil: 'networkidle' });
+    await settle(tp, base + '/');
     const state = () => tp.evaluate(() => getComputedStyle(document.querySelector('.session-turn')).animationPlayState);
     if (touch) await tp.tap('.session-head'); else await tp.click('.session-head');
     await tp.waitForTimeout(100);
@@ -226,7 +227,7 @@ const pages = ['/', '/start', '/support', '/partners', '/partners/workspace', '/
   // builder on /mascots: failure keeps its status, no celebrate pose
   const m = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
   const mp = await m.newPage(); watch(mp, '/mascots builder');
-  await mp.goto(base + '/mascots', { waitUntil: 'networkidle' });
+  await settle(mp, base + '/mascots');
   const poses = [];
   await mp.exposeFunction('notePose', p => poses.push(p));
   await mp.evaluate(() => { const s = document.querySelector('#m-build svg'); new MutationObserver(() => window.notePose(s.getAttribute('data-pose'))).observe(s, { attributes: true }); });

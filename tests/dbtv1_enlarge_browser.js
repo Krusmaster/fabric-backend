@@ -5,6 +5,7 @@
 // inside the window, Esc and Back each close it and gives the focus back to the button. Every picture has its button.
 // Usage: node tests/dbtv1_enlarge_browser.js <base url>
 const { chromium } = require('playwright');
+const { open } = require('./browser_nav');
 const base = process.argv[2];
 const RUNS = [[390, 844, 'light'], [390, 844, 'dark'], [1280, 800, 'light']];
 const STEPS = ['scan', 'no', 'model', 'flow', 'ontology', 'domains', 'fixes', 'dbt'];
@@ -25,7 +26,7 @@ async function until(page, fn, arg, what) {
     const page = await ctx.newPage();
     page.on('pageerror', (e) => out.errors.push(`${key}: ${e.message}`));
     page.on('console', (m) => { if (m.type() === 'error') out.errors.push(`${key}: ${m.text()}`); });
-    await page.goto(base + '/', { waitUntil: 'networkidle' });
+    await open(page, base + '/', '[data-page="home"]');
     // under 560 px a restored chat waits for its button; a click opens it with the stored steps
     await until(page, () => { const b = document.getElementById('kgcLaunch'); return b && (!b.hidden || document.querySelector('.kgc-log .kgf')); }, null, 'launch');
     if (await page.evaluate(() => !document.querySelector('.kgc-log .kgf'))) await page.click('#kgcLaunch');
