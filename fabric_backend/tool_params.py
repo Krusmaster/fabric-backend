@@ -271,3 +271,5 @@ ViewSilver = Annotated[bool, _d('true: silver\'s combined keys.')]
 # LFD5: propose_change, with KRUSGRAPH_CHANGES=1 only (docs/CHANGES.md). Short: it is listed by default when on.
 Change = Annotated[dict, _d('One change (docs/CHANGES.md). Example: {"type": "filter_rows", "table": "customers"}.')]
 AppliedChanges = Annotated[list[dict] | None, _d('Changes applied so far, in order. Default none.')]
+# LFD6: apply_change, with KRUSGRAPH_CHANGES=1 only.
+ChangeConfirm = Annotated[str, _d('With dry_run=false: the confirm (upd-…) propose_change returned.')]

@@ -756,15 +756,16 @@ if _tool_listing.changes_on():
         fixed rules and shows what it would change: a question or a denial, or the diff in three layers (plan; each
         item, update in place or unchanged, with its unified diff; numbers) and a confirm value for a later
         apply_change. `applied`: the changes applied so far, in order. Read-only: writes nothing."""
-        from . import change_diff as _change_diff
+        from . import change_apply as _change_apply, change_diff as _change_diff
         info = _source_info(schema)
         if info["schemas_enabled"] is None:
             info["schemas_enabled"] = schema.lower() != "dbo"
         with _connection(schema) as execute:
             p = _plan_on(execute, schema, keys, confirmed)
-            out = _change_diff.propose(change, p, info, applied, confirmed=confirmed,
-                                       replan=lambda links: _plan_on(execute, schema, keys, links))
-        return _change_diff.answer(out, MAX_RESULT_CHARS)
+            out = _change_diff.propose(change, p, info, applied, confirmed=confirmed,       # LFD6: the numbers, counted
+                                       replan=lambda links: _plan_on(execute, schema, keys, links),
+                                       numbers=_change_apply.numbers(execute))
+        return _change_apply.answer(out, MAX_RESULT_CHARS)
 
 
 @_tool("Which SAP analyses this data supports, by rules (read-only)", RO)
