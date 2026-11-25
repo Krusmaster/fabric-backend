@@ -170,6 +170,13 @@ def structured(fn, name: str | None = None):
             extra.update(words.extras(name, answer, stash, call))
         except Exception:                                            # noqa: BLE001 - the card falls back to the answer's text
             pass
+        if name == "propose_change" and isinstance(answer, dict):      # LFD8: the diff card (mcp_apps_change)
+            from . import mcp_apps_change
+            try:
+                extra.update(mcp_apps_change.extras(answer, call))
+            except Exception:                                        # noqa: BLE001 - the answer stands without the card's part
+                pass
+            return call_result(out, extra or None)
         lead = ctext = None
         if isinstance(answer, dict) and name not in STRUCTURED:      # n227: every other tool gets its kg_card, nothing else
             from . import mcp_apps_next as _nxt, next_rules          # WB13 (#91): a draft on the path gets its next steps
@@ -239,6 +246,10 @@ def registration(name: str, on: bool | None = None) -> dict:
     structured_output=False (no derived {"result": string} output schema, which would not describe the answer)."""
     if not (enabled() if on is None else on):
         return {}
+    if name == "propose_change":                             # LFD8: the diff card, with KRUSGRAPH_CHANGES on too
+        from . import mcp_apps_change, tool_listing
+        meta = mcp_apps_change.tool_meta(on=tool_listing.changes_on())
+        return {"structured_output": False, **({"meta": meta} if meta else {})}
     if name not in STRUCTURED:                               # n227: every tool's answer carries kg_card for a card that ran it
         return {"structured_output": False}
     if name == "start":                                      # n219: its own card, mcp_apps_start
@@ -267,6 +278,8 @@ def extensions(on: bool | None = None) -> list:
     mcp_apps_build.add_to(apps)
     from . import mcp_apps_start                             # n219: Start Krusgraph's card, same flag
     mcp_apps_start.add_to(apps)
+    from . import mcp_apps_change                            # LFD8: the diff card, only with KRUSGRAPH_CHANGES on too
+    mcp_apps_change.add_to(apps)
     return [apps]
 
 

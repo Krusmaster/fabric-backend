@@ -303,10 +303,46 @@ and where it did not, asks for the link, plans again with it and changes the sil
 model; *order value per customer* changes the semantic model only. The pipeline's definition names its three notebooks
 and none of these changes it.
 
+## The diff card (LFD8)
+
+Round LFD8 (25 November 2026) draws `propose_change`'s answer as an MCP app card (`fabric_backend/mcp_apps_change.py`).
+The card exists only with both `KRUSGRAPH_MCP_APPS=1` (every card's setting) and `KRUSGRAPH_CHANGES=1`; with either off
+there is no resource and no `_meta`, and every listing is as before. With both on, the default read-only listing stays
+under 23 500 characters (`tests/test_lfd8_card.py`). Like the other cards it loads nothing: no script, style, font or
+image from anywhere; the answer arrives from the host. The text answer every client gets is unchanged; the card's own
+part, `change_card`, is in the structured content only.
+
+| Answer | The card |
+| --- | --- |
+| `ok` | one sentence that says what the change does ("Adds the measure Order value per customer."), three closed folds, **Yes**, **No** and, when the list holds earlier changes, **Undo the last change** |
+| `question` | the question in a few words per kind (the contract's full question under Details) and one button per candidate. Each button proposes the change again with that candidate filled in. None is primary: a question chooses nothing |
+| `denied` | "Not allowed:" and the reason's first clause (the whole reason under Why), and a way back to Start Krusgraph. No Yes |
+| `replan` | the earlier changes need a link the plan does not hold; one button proposes again with the link confirmed |
+
+The folds are **Plan** (links, keys, filters, columns and measures added or taken out), **Items** (each item "update in
+place" with its summary and the unified diff under "Show the diff", or "unchanged") and **Numbers** (before → after with
+the difference, or "not counted yet" when the numbers layer is not counted, for the whole layer or one number).
+
+- **Yes** is the only primary button. It asks the host to call `apply_change` (round LFD6) with the propose call's
+  arguments and the answer's `confirm` token, and only with that token. While `apply_change` is not both listed and
+  registered on the server, Yes is shown disabled with "Yes is not available yet." and calls nothing: the card never
+  shows a button to an unlisted tool. When `apply_change` is registered, the card sends only the arguments its input
+  schema names, plus `confirm`.
+- **No** calls nothing. The card says "Nothing changed." and offers the way back to Start.
+- **Undo** proposes a `revert` of the last earlier change: a new proposal with its own diff, nothing applied. It is hidden
+  when `changes.TYPES` does not hold `revert` (round LFD7 builds versions on it).
+- A host that runs no tool from a card gets the step in plain words in the chat ("Yes, apply this change.").
+
+Measured with `python tools/smooth_measure.py --change` in Chromium at 390 px, light and dark, on the synthetic shop_lfd
+sample (25 November 2026): at most 21 words outside the buttons with the folds closed (the limit is 25), one primary
+button on every ok answer and none on a question, a button to tap in every state, nothing wider than 390 px, and a
+text contrast of 17.2 (light) and 15.4 (dark). `tests/test_lfd8_card.py` clicks the card the same way (the wb15
+pattern, `tests/lfd8_card_click.js`): Yes, No, the choices, Undo and Plan again.
+
 ## What these rounds do not do
 
 - No tool unless `KRUSGRAPH_CHANGES=1`, and then only `propose_change`, which writes nothing: with the setting off the
-  tool listing is unchanged. `apply_change` is a later round.
+  tool listing is unchanged. `apply_change` is a later round; the diff card's Yes waits for it.
 - Nothing is built in Fabric: the changes reach the drafts, and their numbers are counted on the source. `ok` means
   "allowed and unambiguous against this plan", nothing more.
 - No renaming of a copied column, no filter across tables, no measure with a filter: each is a later decision.
