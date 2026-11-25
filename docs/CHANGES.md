@@ -1,11 +1,12 @@
 # Changing a data product: the change contract
 
-Status: **the contract and its drafts** (round LFD2, 24 November 2026; round LFD3, 25 November 2026).
-`fabric_backend/changes.py` is a module of pure functions with tests (`tests/test_lfd2_contract.py`); LFD3 applies a
+Status: **the contract, its drafts and its numbers** (round LFD2, 24 November 2026; rounds LFD3 and LFD4, 25 November
+2026). `fabric_backend/changes.py` is a module of pure functions with tests (`tests/test_lfd2_contract.py`); LFD3 applies a
 list of changes to the silver, gold and semantic model drafts (below, *Applying a list*; `tests/test_lfd3_apply.py`, and
-the silver notebook on a local PySpark 4.0.1 in `tests/test_spark_notebooks.py`). No tool uses it yet, and nothing here
-has run against a Fabric workspace. The rounds that follow count a change's numbers and add the tools behind the switch
-`KRUSGRAPH_CHANGES`, which is off by default.
+the silver notebook on a local PySpark 4.0.1 in `tests/test_spark_notebooks.py`); LFD4 counts the numbers before and
+after each change on the rows (below, *The numbers*; `fabric_backend/change_numbers.py`, `tests/test_lfd4_numbers.py`,
+on SQLite over the synthetic samples). No tool uses it yet, and nothing here has run against a Fabric workspace. The
+round that follows adds the tools behind the switch `KRUSGRAPH_CHANGES`, which is off by default.
 
 ## What it is for
 
@@ -208,10 +209,56 @@ on the source tables says that a `filter_rows` does not reach it, and one on gol
 gold view of orders with `addresses_region`, and the measure `DIVIDE([Order amount], DISTINCTCOUNT('orders'[customer_id]))`,
 which over those rows is 51 296.70 / 10 = 5 129.67 (LFD1's numbers).
 
+## The numbers (LFD4)
+
+`change_numbers.count(applied, plan, execute)` takes `apply`'s `ok` answer and counts, for every change of the list, the
+numbers before it (the changes before it in the list applied) and after it (it applied too). Krusgraph runs no model:
+every number is the answer of a SELECT statement over the source, and the answer carries that statement next to the
+number (`before_sql`, `after_sql`, or `sql` for a measure) and once more as a receipt row (`receipt`, the format of
+`receipt.build`; `change_numbers.markdown` writes it as `krusgraph-receipt.md`). `statements(applied, plan)` gives the
+statements without running them.
+
+| Change | What is counted |
+| --- | --- |
+| `filter_rows` | the rows of the filtered table and of each table in the cascade, before and after, with the distinct values of each single-column reference; the sum of every amount that reads those tables (the quantity × price measures and line amounts of `amounts.order_amount_measures`, and the header amounts, each summed once over its own table; a price is not summed), before and after, with the difference and its share. The other amounts, and the tables that point in from outside the cascade, are counted once and said to be untouched |
+| `add_column` | the rows of the table's view before and after the join path (`LEFT JOIN`s to rows in the same state): they must be equal. Per new column, the rows without a value and the number of distinct values. **The doubling check**: every amount on the table, or on a line table that points at it, is summed before and after the join; the sums must be equal, and `doubled` says whether one differs |
+| `add_measure` | the measure's value in the list's state (a ratio is its numerator and its denominator, each counted, divided as DAX's `DIVIDE`: blank on 0), its value on the source as it is when a filter comes before it, and the plan's other measures, unchanged |
+| `add_link` | nothing: it changes no row, and `validate_plan` counts the link |
+
+A filter's "after" is counted on the source as the silver notebook does it: a row goes when `drop_where` holds for it (a
+NULL never matches), a row of a cascade table when it points, over the links `validate` resolved, at a row that goes.
+With several filters a row stays when none of them leaves it out. `tests/test_lfd4_numbers.py` checks that the counts are
+the row counts `silver.simulate` leaves.
+
+`count_path(change, plan, execute, applied=...)` counts an `add_column`'s path as it was written, also one that
+`validate` denied as `fan_out`, so the denial can show its numbers.
+
+On the samples (`tests/test_lfd4_numbers.py`; the numbers are LFD1's, `docs/SAMPLE-LFD.md`):
+
+| Scenario | Numbers |
+| --- | --- |
+| A, shop_lfd: remove the test customers (cascade to addresses, audit rows, orders and lines) | customers 12 → 10, orders 66 → 60, lines 146 → 134, order amount 56 834.70 → 51 296.70 (−5 538.00, 9.7 %) |
+| A: region from addresses over `orders.ship_to_id` | the orders view 60 → 60 rows, region missing on 0 of 60, 2 distinct values; order amount over the view 51 296.70 before and after the join |
+| A: order value per customer | 5 129.67 (4 736.23 on the source with the test customers); the order amount unchanged |
+| A, denied: region over orders → customers → addresses | 60 → 103 rows and 51 296.70 → 93 842.80: the join repeats every order once per address of its customer |
+| B, sap_lfd: billing documents without the cancelled one and its cancellation (cascade to the items) | documents 3 → 1, items 4 → 2, billed (`VBRK.NETWR`) 600.00 → 400.00; the orders untouched, 4 rows and 950.00 |
+
+Rules that hold for every answer:
+
+- Only SELECT statements, written through `dialects.py` (T-SQL for Fabric, SQLite for the tests, Databricks); names come
+  from the plan, a value only from the change's own `drop_where`.
+- Counts and sums, never a row value: a distinct count is a number, not the values. With `KRUSGRAPH_NO_ROW_VALUES=1` a
+  sum over fewer than three rows is hidden and only its count is shown.
+- One time budget per call (`budget.py`): a statement not reached in time is "not counted (time)", with no number; one
+  that fails is "not counted: <reason>". Nothing is guessed.
+
+`verify_build.measure_sql` translates the ratio form too, `DIVIDE(a, b)` with each part one of the other forms or a
+`[measure]` in one of them, so `verify_build` counts a measure an `add_measure` drafted.
+
 ## What these rounds do not do
 
 - No tool: the tool listing is unchanged.
-- Nothing is counted, and nothing is built in Fabric: the changes reach the drafts only. `ok` means "allowed and
-  unambiguous against this plan", nothing more.
+- Nothing is built in Fabric: the changes reach the drafts, and their numbers are counted on the source. `ok` means
+  "allowed and unambiguous against this plan", nothing more.
 - No renaming of a copied column, no filter across tables, no measure with a filter: each is a later decision.
 - Relationships that are not key joins (`plan.extended`) are not used as paths.

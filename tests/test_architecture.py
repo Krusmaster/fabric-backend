@@ -15,9 +15,9 @@ PKG = Path(__file__).parent.parent / "fabric_backend"
 
 # The engine: inference, validation as counting queries, join paths, the graph, drift, dictionary, dbt, privacy rules,
 # the question-to-SQL drafts, the silver and gold logic, the SQL dialects, the answer shaping, the review file, the
-# weekly sales view and its tested forecast, the change contract (LFD2).
+# weekly sales view and its tested forecast, the change contract (LFD2), the numbers of a change (LFD4).
 ENGINE = ("schema", "infer", "evidence", "paths", "graphs", "drift", "dictionary", "dbt", "privacy", "compact", "answers",
-          "silver", "gold", "dialects", "review", "planning", "changes")
+          "silver", "gold", "dialects", "review", "planning", "changes", "change_numbers")
 
 # No engine module imports these, at the top or inside a function.
 IO_LIBRARIES = {"requests", "pyodbc", "sqlite3", "subprocess", "socket", "http", "urllib.request", "notebookutils",

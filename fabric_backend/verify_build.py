@@ -476,7 +476,10 @@ _SUM = re.compile(rf"^\s*SUM\s*\(\s*{_DAX_T}\s*{_DAX_C}\s*\)\s*$", re.I)
 _DISTINCT = re.compile(rf"^\s*DISTINCTCOUNT\s*\(\s*{_DAX_T}\s*{_DAX_C}\s*\)\s*$", re.I)
 _SUMX_PRICE = re.compile(rf"^\s*SUMX\s*\(\s*{_DAX_T}\s*,\s*{_DAX_T}\s*{_DAX_C}\s*\*\s*RELATED\s*\(\s*{_DAX_T}\s*{_DAX_C}\s*\)\s*\)\s*$", re.I)
 _SUMX_RELATED = re.compile(rf"^\s*SUMX\s*\(\s*{_DAX_T}\s*,\s*RELATED\s*\(\s*{_DAX_T}\s*{_DAX_C}\s*\)\s*\)\s*$", re.I)
-FORMS = "COUNTROWS(table), SUM(table[column]), DISTINCTCOUNT(table[column]) and SUMX(lines, lines[quantity] * RELATED(table[price]))"
+_DIVIDE = re.compile(r"^\s*DIVIDE\s*\((.*)\)\s*$", re.I | re.S)
+_MEASURE_REF = re.compile(rf"^\s*{_DAX_C}\s*$")
+FORMS = ("COUNTROWS(table), SUM(table[column]), DISTINCTCOUNT(table[column]), SUMX(lines, lines[quantity] * RELATED(table[price])) "
+         "and DIVIDE(a, b) of those or of [measure] (LFD4)")
 
 
 def _t(name: str) -> str:
@@ -508,10 +511,76 @@ def _col(t: dict, column: str) -> str | None:
     return (c.get("source_column") or c["name"]) if c else None
 
 
+def _split_args(text: str) -> list[str] | None:
+    """The arguments of a DAX call at the top level (commas inside parentheses, brackets or quotes stay), or None."""
+    out, depth, cur, quote = [], 0, "", None
+    for ch in text:
+        if quote:
+            cur += ch
+            if ch == quote:
+                quote = None
+            continue
+        if ch in "'\"":
+            quote = ch
+        elif ch == "[":
+            quote = "]"
+        elif ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+            if depth < 0:
+                return None
+        elif ch == "," and depth == 0:
+            out.append(cur.strip())
+            cur = ""
+            continue
+        cur += ch
+    out.append(cur.strip())
+    return out if depth == 0 and not quote else None
+
+
+def _measure_expression(model: dict, name: str) -> str | None:
+    return next((m.get("expression") or "" for t in model["tables"].values() for n, m in (t.get("measures") or {}).items()
+                 if n.lower() == name.lower()), None)
+
+
+def _ratio_sql(model: dict, expr: str, default_schema: str) -> dict | None:
+    """LFD4: DIVIDE(numerator, denominator), each one of the other forms or a [measure] of the model in one of them. The
+    SQL divides the two numbers as DAX's DIVIDE does: NULL (BLANK) where the denominator is 0 or empty. A ratio of a
+    ratio is not a form (docs/CHANGES.md), so it is not translated either."""
+    m = _DIVIDE.match(expr)
+    if not m:
+        return None
+    args = _split_args(m.group(1))
+    if not args or len(args) != 2:
+        return {"why": "DIVIDE is translated with exactly two arguments, a numerator and a denominator"}
+    parts = []
+    for a in args:
+        ref = _MEASURE_REF.match(a)
+        if ref:
+            inner = _measure_expression(model, _c(ref.group(1)))
+            if inner is None:
+                return {"why": f"[{_c(ref.group(1))}] is not a measure of the model"}
+            a = _norm_expr(inner)
+        if _DIVIDE.match(a):
+            return {"why": "a ratio of a ratio is not one of the forms the rules translate"}
+        q = measure_sql(model, a, default_schema)
+        if "sql" not in q:
+            return {"why": f"a part of the ratio is not translated: {q['why']}"}
+        parts.append(q)
+    num, den = parts
+    return {"sql": (f"SELECT CASE WHEN d.v IS NULL OR d.v = 0 THEN NULL ELSE 1.0 * n.v / d.v END AS v "
+                    f"FROM ({num['sql']}) AS n CROSS JOIN ({den['sql']}) AS d"),
+            "table": num.get("table"), "ratio": True, "numerator": num["sql"], "denominator": den["sql"]}
+
+
 def measure_sql(model: dict, expression: str, default_schema: str = "dbo") -> dict:
     """{sql} that computes a measure's number from the rows its table reads, or {why} when the rules do not translate
-    the expression. T-SQL; the SQLite double of the tests rewrites COUNT_BIG."""
+    the expression. T-SQL; the SQLite double of the tests rewrites COUNT_BIG. LFD4 adds the ratio form DIVIDE(a, b)."""
     expr = _norm_expr(expression)
+    ratio = _ratio_sql(model, expr, default_schema)
+    if ratio is not None:
+        return ratio
     m = _COUNTROWS.match(expr)
     if m:
         src = _source_of(model, _t(m.group(1)))
