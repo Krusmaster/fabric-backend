@@ -378,7 +378,7 @@ def test_update_in_place_is_ap2s_dry_run_on_the_products_basis(app, monkeypatch)
                                                "demo_lh_report", "demo_lh_agent"]
     assert [(x["name"], x["badge"]) for x in v["items"]] == [
         ("demo_lh_silver", "Update in place"), ("demo_lh_gold", "Update in place"), ("demo_lh_pipeline", "Update in place"),
-        ("demo_lh_model", "Update in place"), ("demo_lh_report", "Already built"), ("demo_lh_agent", "Update in place")]
+        ("demo_lh_model", "Update in place"), ("demo_lh_report", "Unchanged"), ("demo_lh_agent", "Update in place")]   # AP3b
     assert len(fabric.created()) == count and fabric.writes == writes              # the dry run writes nothing
     got = build(c, {"action": "confirm", "token": v["token"], "names": [x["name"] for x in v["creates"]]}).json()
     for it in got["items"]:

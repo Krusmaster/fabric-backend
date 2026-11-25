@@ -81,7 +81,7 @@ NOTHING_WRITTEN = ("Nothing has been written to Fabric in this session: the chec
                    "and Create writes only the names you confirm.")
 REVIEWS = ("accepted", "rejected", "skipped")
 BUILD_ACTIONS = ("places", "lakehouses", "dry_run", "confirm", "create", "state", "verify")
-CARE_ACTIONS = ("products", "report", "recheck", "preview", "confirm", "state")
+CARE_ACTIONS = ("products", "report", "recheck", "preview", "confirm", "state", "progress")
 
 
 def allowed_tenants() -> frozenset[str]:
@@ -811,6 +811,8 @@ class App:
                     basis = care_basis(sid, data["product"])
                     if basis is None:
                         return answer({"error": "That data product is not one found for this sign-in.", "kind": "not_found"}, 400)
+                    if basis.get("update") is not None:          # AP3b: the report's rule, kept on the server, decides
+                        update = list(basis["update"])
                 try:
                     target = B.target_of(tokens, c, data.get("target"))
                 except ValueError as e:
@@ -837,7 +839,8 @@ class App:
           recheck {product}                        its keys and links counted against the rows again (reads only)
           preview {product, act}                   what a writing fix would do, and its token (writes nothing)
           confirm {token, names}                   the confirm dialog's yes: the preview's token and its item's name
-          state {operation_id}                     how a refresh is going"""
+          state {operation_id}                     how a refresh is going
+          progress {product}                       which parts of a report being read are done (AP3b; memory only)"""
         from starlette.responses import JSONResponse
         nostore = {"Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow"}
 
@@ -850,14 +853,15 @@ class App:
         s = self.session(request)
         if s is None:
             return answer({"error": "Sign in first.", "kind": "sign_in", "login": LOGIN}, 401)
-        if self._limited(self.care_limit, _digest(s["token"])[:24]):
-            return answer({"error": "Too many requests at once. Wait a minute.", "kind": "rate_limited"}, 429)
         try:
             data = json.loads(body[:MAX_BODY]) if len(body) <= MAX_BODY else None
         except ValueError:
             data = None
         if not isinstance(data, dict) or data.get("action") not in CARE_ACTIONS:
             return answer({"error": "The request is not readable.", "kind": "bad_request"}, 400)
+        # AP3b: "progress" reads this session's memory only (which parts of a report are read), so the page may ask often
+        if data["action"] != "progress" and self._limited(self.care_limit, _digest(s["token"])[:24]):
+            return answer({"error": "Too many requests at once. Wait a minute.", "kind": "rate_limited"}, 429)
         from . import guided_care as C
         from .errors import explain
         sid = _digest(request.cookies.get(SESSION_COOKIE) or "")
@@ -869,6 +873,8 @@ class App:
                 return answer({"products": C.find_products(tokens, sid)})
             if act == "report":
                 return answer(C.report(tokens, sid, data.get("product")))
+            if act == "progress":
+                return answer(C.progress(sid, data.get("product")))
             if act == "recheck":
                 return answer(C.recheck(tokens, sid, data.get("product")))
             if act == "preview":

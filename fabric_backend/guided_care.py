@@ -59,6 +59,10 @@ MAX_MODELS = 12                   # Model definitions read
 MAX_PRODUCTS = 6                  # data products reported
 MAX_ACTIONS = 3
 LINE_MAX = 300                    # characters of one line of Fabric's own text
+VERIFY_LINE_MAX = 600             # characters of one verify_build line in the report (the page lets a long one wrap)
+VERIFY_LINES = 12                 # lines of the verify section
+CARE_SECONDS = 40.0               # AP3b: one time budget per report, its four sections read at once (budget.py)
+GRACE = 2.0                       # seconds past the budget the report waits for a section before saying "not in time"
 SOURCE = {"pipeline": "from the last pipeline run", "health": "from the health check's latest run",
           "verify": "from verify_build", "drift": "from the source now, compared with the plan",
           "recheck": "counted against the rows now"}
@@ -228,7 +232,10 @@ def basis(sid: str, pid) -> dict | None:
     p = product(sid, pid)
     if p is None:
         return None
-    return {"key": p["id"], "previous": p["review"], "created": list(p["created"]), "names": dict(p["names"])}
+    return {"key": p["id"], "previous": p["review"], "created": list(p["created"]), "names": dict(p["names"]),
+            # AP3b: what the report's verify found, so the dry run updates exactly those items and says the rest is unchanged
+            **({"update": list(p["update"])} if p.get("update") is not None else {}),
+            "verdicts": dict(p.get("verdicts") or {})}
 
 
 # ------------------------------------------------------------------ the four sources --------------------------------
@@ -264,6 +271,10 @@ def pipeline_section(p: dict) -> tuple[dict, dict]:
     got = rr.answer(ws, pipe["id"], server._workspace_items(ws, headers), lambda w, i: server._job_instances(w, i, headers),
                     lambda w, route, i: server._item_definition_parts(w, route, i, headers), True)
     sig = {"pipeline": {"id": pipe["id"], "name": pipe["name"], "workspace": ws}}
+    if got.get("kind") == "not_found":                          # AP3b: said by the name recorded at Create, not its id
+        return (_section("pipeline", "unknown", [f"Not read: {pipe['name']}, the pipeline recorded at Create, is not in its "
+                                                 "workspace's item list any more (deleted, or moved to another workspace)."]),
+                {**sig, "pipeline_state": "unknown"})
     if got.get("error"):
         return _section("pipeline", "unknown", [f"Not read: {_cut(got['error'], 200)}"]), {**sig, "pipeline_state": "unknown"}
     runs = got.get("runs") or []
@@ -296,7 +307,7 @@ def pipeline_section(p: dict) -> tuple[dict, dict]:
     run_state = {"Completed": "ok", "Failed": "failed", "Cancelled": "failed", "InProgress": "running", "NotStarted": "running"}.get(status, "unknown")
     return (_section("pipeline", state, lines, link=link.get("run") or link["pipeline"],
                      facts={"status": status, "seconds": secs, "failures": bad, "runs": len(runs)}),
-            {**sig, "pipeline_state": run_state})
+            {**sig, "pipeline_state": run_state, "last_run": _when(last.get("startTimeUtc"))[:10] if last.get("startTimeUtc") else ""})
 
 
 def health_section(p: dict) -> tuple[dict, dict]:
@@ -320,7 +331,10 @@ def health_section(p: dict) -> tuple[dict, dict]:
     head = {"green": "green", "amber": "amber", "red": "red"}.get(str(word), "")
     if not head:
         return (_section("health", "none", ["The pipeline has not written a health row for this plan yet: the check runs as "
-                                            "the pipeline's last step."]), {"health": "none"})
+                                            "the pipeline's last step."]),
+                {"health": "none", "health_table_name": out.get("table") or "krusgraph.health",
+                 # AP3b: run_health's documented answer says a missing table in its note (n200), not as a field
+                 "health_table": False if "does not exist yet" in str(out.get("note") or "") else None})
     lines = [f"Latest health check: {head}, {out.get('words') or ''}"
              + (f" (run of {_when(out['checked_at'])})" if out.get("checked_at") else "") + "."]
     if links:
@@ -329,6 +343,54 @@ def health_section(p: dict) -> tuple[dict, dict]:
     return (_section("health", {"green": "ok", "amber": "warn", "red": "bad"}[head], lines,
                      facts={"word": head, "failed": len(fails), "link_checks_failed": len(links)}),
             {"health": head, "links_failing": len(links), "health_drift": len(drift)})
+
+
+# output kind a verify line's item belongs to (guided_build.OUTPUTS / workload_api.KINDS)
+OUTPUT_OF = {"semantic_model": "semantic_model", "report": "report", "pipeline": "pipeline", "api": "graphql",
+             "ontology": "ontology", "app": "rayfin_app"}
+NOTEBOOK_OUTPUT = {"silver_notebook", "gold_views"}
+NOT_UPDATED_REPORT = "a report is never updated in place; make a new one with another name."
+NOT_UPDATED_HERE = ("Update the build in place here does not rebuild this kind of item; update it from the Krusgraph Model "
+                    "that built it.")
+
+
+def verdicts(p: dict, lines: list) -> dict:
+    """AP3b: one rule, shared by the report's proposal and the update's dry run: per output of this product, whether
+    verify_build found what it built different from the dry run ("differs": a definition difference or a figure that
+    differs), the same ("same") or could not tell ("not_checked"); with the items' names and whether an earlier version
+    of Krusgraph built them. A notebook a pipeline writes belongs to the pipeline: its Create writes its notebooks."""
+    by_name = {str(c.get("name") or "").lower(): c for c in p["created"]}
+    has_pipeline = any(c.get("type") == "DataPipeline" for c in p["created"])
+    out: dict = {}
+    names: dict = {}
+    for x in lines or []:
+        if not isinstance(x, dict):
+            continue
+        name = str(x.get("item") or "")
+        if x.get("kind") == "notebook":
+            made = by_name.get(name.lower()) or {}
+            kind = "pipeline" if has_pipeline else (made.get("output") if made.get("output") in NOTEBOOK_OUTPUT else "pipeline")
+        else:
+            kind = OUTPUT_OF.get(str(x.get("kind")), str(x.get("kind")))
+        diffs = x.get("differences") or []
+        differs = bool(diffs) or any(isinstance(f, dict) and f.get("state") == "differs" for f in x.get("figures") or [])
+        same = not differs and "checked" in x
+        state = "differs" if differs else ("same" if same else "not_checked")
+        names[name.lower()] = state
+        v = out.setdefault(kind, {"state": state, "items": [], "differs": [], "earlier": False})
+        v["items"].append(name)
+        if differs:
+            v["differs"].append(name)
+            v["earlier"] = v["earlier"] or any(d.get("earlier_version") for d in diffs if isinstance(d, dict))
+        v["state"] = "differs" if v["differs"] else ("not_checked" if "not_checked" in (v["state"], state) else "same")
+    return {"outputs": out, "items": names}
+
+
+def updatable(kinds) -> list[str]:
+    """The outputs /app's update can write: guided_build's outputs that the tool updates in place, in build order."""
+    from . import workload_api as W
+    from .guided_build import OUTPUTS
+    return [k for k, _ in OUTPUTS if k in set(kinds) and W.KINDS[k]["updates"]]
 
 
 def verify_section(p: dict) -> tuple[dict, dict]:
@@ -347,19 +409,24 @@ def verify_section(p: dict) -> tuple[dict, dict]:
     rows = verify_lines(out)
     for x in rows:
         if x["state"] in ("differs", "not checked"):
-            lines.append(_cut(x["said"], 260))
+            lines.append(_cut(x["said"], VERIFY_LINE_MAX))
     fixes = {str(f.get("action")) for f in out.get("fixes") or [] if isinstance(f, dict)}
     state = "bad" if differs else ("warn" if unchecked else "ok")
+    v = verdicts(p, out.get("lines"))
     # what an update in place can mend: a definition or a figure that differs from the dry run (a model never refreshed
     # or a pipeline never run differs too, but its fix is the refresh or the run, below)
-    built_differs = sum(1 for x in out.get("lines") or [] if isinstance(x, dict) and (
-        x.get("differences") or any(isinstance(f, dict) and f.get("state") == "differs" for f in x.get("figures") or [])))
+    found = [k for k, x in v["outputs"].items() if x["state"] == "differs"]
+    kept = [k for k in found if k not in updatable(found)]
+    for k in kept:                                              # differs, and /app's update does not write it: said
+        names = ", ".join(v["outputs"][k]["differs"])
+        lines.append(f"{names}: " + (NOT_UPDATED_REPORT if k == "report" else NOT_UPDATED_HERE))
     model_line = next((x for x in out.get("lines") or [] if isinstance(x, dict) and x.get("kind") == "semantic_model"), {})
     refresh = (model_line.get("state_check") or {}).get("state")
-    return (_section("verify", state, lines[:6], title_note=CHECKED_BY,
+    return (_section("verify", state, lines[:VERIFY_LINES], title_note=CHECKED_BY,
                      facts={"items": n, "verified": ok, "differs": differs, "not_checked": unchecked, "model_refresh": refresh}),
-            {"verify_differs": built_differs, "needs_refresh": "refresh_model" in fixes, "needs_run": "run_pipeline" in fixes,
-             "model": bool(model_line)})
+            {"verify_differs": sum(len(v["outputs"][k]["differs"]) for k in found), "verdicts": v,
+             "update": updatable(found), "needs_refresh": "refresh_model" in fixes, "needs_run": "run_pipeline" in fixes,
+             "model": bool(model_line), "model_name": model_line.get("item") or ""})
 
 
 DRIFT_WORDS = (("tables_added", "New table{s} in the source: {x}."), ("tables_removed", "Gone from the source: {x}."),
@@ -382,7 +449,9 @@ def _drift_name(kind: str, x) -> str:
 
 def drift_section(p: dict, health_sig: dict | None = None) -> tuple[dict, dict]:
     """What changed in the source since the plan: review.build's since_previous (drift.snapshot_diff of the plan's
-    snapshot and the source now). Reads names and types only; counts nothing."""
+    snapshot and the source now). Reads names and types only; counts nothing. AP3b: read at the same time as the health
+    check, so the links it found failing are added once both are read (links_into_drift); `health_sig` is for a caller
+    that has it already."""
     from . import server
     c = p["c"]
     now = server._review_file(c["workspace"], c["source"], c["schema"], None, None, None, p["review"], False, None, 60, None)
@@ -398,20 +467,59 @@ def drift_section(p: dict, health_sig: dict | None = None) -> tuple[dict, dict]:
     gone = since.get("decisions_no_longer_in_plan") or []
     if gone:
         lines.append(f"{_plural(len(gone), 'decision')} you made {'is' if len(gone) == 1 else 'are'} about something no longer in the plan.")
-    links_failing = int((health_sig or {}).get("links_failing") or 0)
-    if links_failing:
-        lines.append(f"{_plural(links_failing, 'key or link check')} no longer {'holds' if links_failing == 1 else 'hold'} "
-                     "against the rows (from the health check's latest run).")
     changed = bool(ch.get("changed"))
     breaking = bool(ch.get("tables_removed") or ch.get("columns_removed"))
     links_changed = bool(ch.get("keys_changed") or ch.get("relationships_added") or ch.get("relationships_removed"))
     if not changed and not gone:
         lines.insert(0, "The source still matches the plan: the same tables, columns, types, keys and links.")
     plan_now = now.get("plan_id")
-    state = "bad" if breaking else ("warn" if changed or gone or links_failing else "ok")
-    return (_section("drift", state, lines[:8], facts={"changed": changed, "breaking": breaking, "plan_was": p["review"].get("plan_id"),
-                                                       "plan_now": plan_now}),
-            {"drift": changed, "drift_breaking": breaking, "links_changed": links_changed})
+    state = "bad" if breaking else ("warn" if changed or gone else "ok")
+    sec = _section("drift", state, lines[:8], facts={"changed": changed, "breaking": breaking, "plan_was": p["review"].get("plan_id"),
+                                                     "plan_now": plan_now})
+    if health_sig:
+        links_into_drift(sec, health_sig)
+    return sec, {"drift": changed, "drift_breaking": breaking, "links_changed": links_changed}
+
+
+def links_into_drift(sec: dict, health_sig: dict) -> None:
+    """The key and link checks the health check's latest run found failing, said in the source section too."""
+    links_failing = int((health_sig or {}).get("links_failing") or 0)
+    if not links_failing or sec.get("key") != "drift" or sec.get("state") == "unknown":
+        return
+    sec["lines"].append(f"{_plural(links_failing, 'key or link check')} no longer {'holds' if links_failing == 1 else 'hold'} "
+                        "against the rows (from the health check's latest run).")
+    if sec["state"] == "ok":
+        sec["state"] = "warn"
+
+
+def health_why(sec: dict, sig: dict) -> None:
+    """AP3b: why a product has no health row, in plain words, from what the other parts read (the founder's live run of
+    25 November 2026: a pipeline that succeeded on 9 November and "Nothing yet"). Health rows are matched to the
+    product by its plan id, exactly (health.read_sql): the pipeline's check writes the plan it was built from. That
+    match is right; what was missing is the reason. Krusgraph's check notebooks write health rows since 11 November
+    2026 (n200); a pipeline built before has no health step."""
+    if sec.get("key") != "health" or sig.get("health") != "none":
+        return
+    run = sig.get("last_run") or ""
+    ps = sig.get("pipeline_state")
+    earlier = bool((((sig.get("verdicts") or {}).get("outputs") or {}).get("pipeline") or {}).get("earlier"))
+    if not sig.get("pipeline"):
+        return
+    if ps == "never":
+        line = "The pipeline has not run yet, so it has written no health row: the check runs as the pipeline's last step."
+    elif ps in ("ok", "failed") and earlier:
+        line = (f"The last run ({run or 'date not given'}) was of a pipeline built by an earlier version of Krusgraph, before "
+                "its check wrote health rows; Update the build in place adds the health step.")
+    elif ps in ("ok", "failed") and sig.get("health_table") is False:
+        line = (f"The last run ({run or 'date not given'}) wrote no health table ({sig.get('health_table_name') or 'krusgraph.health'}): "
+                "its check notebook was built before the check wrote health rows (Krusgraph's checks write them since "
+                "11 November 2026). Update the build in place adds the health step.")
+    elif ps in ("ok", "failed"):
+        line = (f"The health table has no row for this plan: the last run ({run or 'date not given'}) was of a pipeline built "
+                "from another plan, or before the check wrote health rows. Update the build in place builds it from this plan.")
+    else:
+        return
+    sec["lines"] = [line]
 
 
 # ------------------------------------------------------------------ the rules that propose -------------------------
@@ -439,12 +547,9 @@ def propose(sig: dict, runnable: tuple[bool, str]) -> list[dict]:
             out.append({"act": "run_pipeline", "why": why, "item": pipe["name"], "writes": True})
         else:
             out.append({"act": "run_manual", "why": why + " " + runnable[1], "item": pipe["name"], "writes": False})
-    if sig.get("drift") or sig.get("verify_differs"):
-        why = ("The source changed since the plan (from the source now, compared with the plan)." if sig.get("drift") else
-               f"{_plural(int(sig['verify_differs']), 'item')} {'differs' if sig['verify_differs'] == 1 else 'differ'} "
-               "from the dry run (from verify_build).")
-        out.append({"act": "update_build", "why": why + " A dry run comes first; nothing is written until you confirm.",
-                    "writes": True})
+    if sig.get("drift") or sig.get("update"):
+        out.append({"act": "update_build", "why": update_why(sig) + " A dry run comes first; nothing is written until you confirm.",
+                    "writes": True, "items": update_items(sig)})
     if sig.get("links_failing") or sig.get("links_changed"):
         why = (f"{_plural(int(sig['links_failing']), 'key or link check')} failed (from the health check's latest run)."
                if sig.get("links_failing") else "The rules find other keys or links than the plan (from the source now).")
@@ -456,27 +561,97 @@ def propose(sig: dict, runnable: tuple[bool, str]) -> list[dict]:
     return out[:MAX_ACTIONS]
 
 
+def update_items(sig: dict) -> list[str]:
+    """The items "Update the build in place" would write: the ones verify_build found different (AP3b: the same rule
+    the dry run then follows); with drift, every item the update rebuilds."""
+    v = ((sig.get("verdicts") or {}).get("outputs")) or {}
+    if sig.get("drift"):
+        return [n for k in sig.get("rebuild") or [] for n in (v.get(k) or {}).get("items") or []] or list(sig.get("rebuild_names") or [])
+    return [n for k in sig.get("update") or [] for n in (v.get(k) or {}).get("differs") or []]
+
+
+def update_why(sig: dict) -> str:
+    if sig.get("drift"):
+        return "The source changed since the plan (from the source now, compared with the plan)."
+    v = ((sig.get("verdicts") or {}).get("outputs")) or {}
+    names = update_items(sig)
+    said = (", ".join(names[:-1]) + " and " + names[-1]) if len(names) > 1 else (names[0] if names else "")
+    why = f"{said} {'differs' if len(names) == 1 else 'differ'} from the dry run (from verify_build)"
+    if any((v.get(k) or {}).get("earlier") for k in sig.get("update") or []):
+        why += ", built by an earlier version of Krusgraph"
+    pipe = (sig.get("pipeline") or {}).get("name")
+    if "pipeline" in (sig.get("update") or []) and pipe and any(n != pipe for n in (v.get("pipeline") or {}).get("differs") or []):
+        why += f"; the update writes them through {pipe}, whose Create writes its notebooks"
+    return why + "."
+
+
+SECTIONS = (("pipeline", pipeline_section), ("health", health_section), ("verify", verify_section), ("drift", drift_section))
+PART = {"pipeline": "pipeline runs", "health": "the health check", "verify": "verify_build", "drift": "the source"}
+
+
+def late(key: str) -> dict:
+    """A section that was not read within the report's time budget."""
+    return _section(key, "unknown", [f"Not read in time: the report's time budget of {CARE_SECONDS:g} s ran out before "
+                                     f"{PART[key]} {'was' if key != 'pipeline' else 'were'} read. Read again reads this data "
+                                     "product once more."], again=True)
+
+
+def read_sections(tokens, p: dict, seconds: float | None = None) -> tuple[list[dict], dict]:
+    """AP3b: the four sections read at the same time, each in its own thread with the person's own tokens, under one
+    time budget for the report (budget.call: every read inside sees the same deadline). A section not done when the
+    budget and GRACE have passed is "Not read in time"; its thread is left to finish on its own and its answer unused."""
+    import contextvars
+    from . import budget, server
+    seconds = CARE_SECONDS if seconds is None else seconds
+    results: dict = {}
+    progress = p.setdefault("progress", {})
+    progress.update(done=[], started=time.time(), parts=[k for k, _ in SECTIONS])
+    threads = []
+    with budget.call(seconds):
+        for key, fn in SECTIONS:
+            ctx = contextvars.copy_context()
+
+            def work(key=key, fn=fn):
+                with server.workload_tokens(tokens):
+                    try:
+                        got = fn(p)
+                    except Exception as exc:                    # noqa: BLE001 — one source not read never hides the others
+                        got = _not_read(key, exc)
+                with _LOCK:
+                    results[key] = got
+                    progress["done"] = [k for k, _ in SECTIONS if k in results]
+            th = threading.Thread(target=ctx.run, args=(work,), name=f"care-{key}", daemon=True)
+            th.start()
+            threads.append(th)
+        end = time.monotonic() + seconds + GRACE
+        for th in threads:
+            th.join(max(0.0, end - time.monotonic()))
+    sections, sig = [], {}
+    with _LOCK:
+        got = dict(results)
+    for key, _ in SECTIONS:
+        sec, s = got.get(key) or (late(key), {})
+        sections.append(sec)
+        sig.update(s)
+    by = {s["key"]: s for s in sections}
+    links_into_drift(by["drift"], sig)
+    health_why(by["health"], sig)
+    return sections, sig
+
+
 def report(tokens, sid: str, pid) -> dict:
     """The "Since last time" report of one data product: the four sources, then the proposals. Reads only."""
     from . import server
     p = product(sid, pid)
     if p is None:
         return {"error": "That data product is not one found for this sign-in. Open /app again.", "kind": "not_found"}
-    sections, sig = [], {}
+    sections, sig = read_sections(tokens, p)
+    rebuild = updatable({c.get("output") for c in p["created"]})
+    sig["rebuild"] = rebuild
+    sig["rebuild_names"] = [p["names"][k] for k in rebuild if p["names"].get(k)]
+    p["verdicts"] = sig.get("verdicts") or {}
+    p["update"] = rebuild if sig.get("drift") else list(sig.get("update") or [])
     with server.workload_tokens(tokens):
-        for key, fn in (("pipeline", pipeline_section), ("health", health_section), ("verify", verify_section)):
-            try:
-                sec, s = fn(p)
-            except Exception as exc:                            # noqa: BLE001 — one source not read never hides the others
-                sec, s = _not_read(key, exc)
-            sections.append(sec)
-            sig.update(s)
-        try:
-            sec, s = drift_section(p, sig)
-        except Exception as exc:                                # noqa: BLE001
-            sec, s = _not_read("drift", exc)
-        sections.append(sec)
-        sig.update(s)
         runnable = can_run() if sig.get("pipeline") else (False, "")
     actions = propose(sig, runnable)
     for a in actions:
@@ -492,15 +667,24 @@ def report(tokens, sid: str, pid) -> dict:
                                (f"{len(bad)} of {len(sections)} parts need a look." if bad else "a few things to look at.")))
     log("care_report", sections=len(sections), bad=len(bad), actions=len(actions))
     return {"product": summary_of(p), "say": say, "sections": sections, "actions": actions, "note": NOTHING_DONE,
-            "title": CHECKED_BY}
+            "title": CHECKED_BY, "budget": CARE_SECONDS}
+
+
+def progress(sid: str, pid) -> dict:
+    """AP3b: which parts of a report being read are done, for the page's busy line. Reads nothing in Fabric."""
+    p = product(sid, pid)
+    if p is None:
+        return {"error": "That data product is not one found for this sign-in.", "kind": "not_found"}
+    pr = p.get("progress") or {}
+    return {"parts": [{"key": k, "part": PART[k], "done": k in (pr.get("done") or [])} for k, _ in SECTIONS]}
 
 
 def update_args(p: dict) -> dict:
     """The AP2 dry run that "Update the build in place" opens: the same inputs, every built item that can be updated."""
     from . import workload_api as W
     from .guided_build import OUTPUTS
-    built = {c.get("output") for c in p["created"]}
-    update = [k for k, _ in OUTPUTS if k in built and W.KINDS[k]["updates"]]
+    update = list(p.get("update") if p.get("update") is not None else
+                  [k for k, _ in OUTPUTS if k in {c.get("output") for c in p["created"]} and W.KINDS[k]["updates"]])
     t = p.get("target")
     return {"workspace": p["c"]["workspace"], "source": p["c"]["source"], "schema": p["c"]["schema"], "update": update,
             "product": p["id"], **({"target": {"workspace": t["workspace_id"], **({"lakehouse": t["lakehouse"]} if t.get("lakehouse") else {})}}
@@ -547,6 +731,24 @@ def recheck(tokens, sid: str, pid) -> dict:
 
 
 # ------------------------------------------------------------------ the writing actions: preview, confirm, run ------
+
+def refresh_offer(sid: str) -> dict | None:
+    """AP3b: AP2's verify card proposes "Refresh the model once" for what this session created: that build is made a
+    data product of this session (session_product) whose one allowed action is refresh_model, so the button goes through
+    the same preview, confirm dialog naming the model and single-use token as the report's refresh. Only Power BI's
+    refresh is called (workload_api.run_refresh_only); the model's definition is not written. None: no model built."""
+    from . import guided_build
+    p = session_product(guided_build.BUILDS.get(sid) or {})
+    if p is None or _target_item(p, "refresh_model") is None:
+        return None
+    st = _state(sid)
+    with _LOCK:
+        old = next((k for k, v in st["products"].items() if v.get("origin") == "session" and v.get("refresh_only")), None)
+        pid = old or "p-" + secrets.token_urlsafe(9)
+        p.update(id=pid, where="", refresh_only=True, actions={"refresh_model"})
+        st["products"][pid] = p
+    return {"product": pid, "act": "refresh_model", "label": LABEL["refresh_model"], "item": _target_item(p, "refresh_model")["name"]}
+
 
 def _target_item(p: dict, act: str) -> dict | None:
     return _latest(p, "SemanticModel", "semantic_model") if act == "refresh_model" else _latest(p, "DataPipeline", "pipeline")

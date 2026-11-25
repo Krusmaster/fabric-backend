@@ -2971,6 +2971,16 @@ def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.M
         offered = _security_roles.offer(p, tables, (draft["summary"].get("security_roles") or {}).get("added"))
         if offered["proposed"]:                                    # a source with none (the shop) answers as before
             out["role_candidates"] = offered
+    if refresh and replaces and replaces.get("id"):
+        # AP3b (the orchestrator's live dry run, 25 November 2026: `replaces` said the whole definition is replaced and
+        # three relationships would go, `refresh` said the definition is left as it is). The code does the second: with
+        # an existing model, refresh=true is refresh only (below, "refreshed_only": no updateDefinition, no create). The
+        # answer now says that one thing: what an update would replace is kept for reference, marked as not applying.
+        out["mode"] = "refresh_only"
+        out["replaces"] = {**replaces, "applies": False,
+                           "said": (f"{name} exists, and refresh=true only refreshes it: its definition is not sent and nothing "
+                                    "in it is replaced or removed. Only an update (refresh=false) would replace it; for "
+                                    "reference, that is: " + str(replaces.get("said") or ""))}
     if refresh:                                                    # n229: one refresh, the fix for a model that shows no data
         out["refresh"] = {"planned": True, "said": (f"{name} exists: with dry_run=false it is refreshed once and its definition is left as it is."
                                                    if replaces else f"With dry_run=false {name} is refreshed once right after it is created."),
@@ -4710,6 +4720,20 @@ def _verify_built(workspace, source, items, schema, keys, confirmed, tables, ctx
             BUILD_IN.reset(build_tok)
 
 
+def _verify_ref(v) -> dict | None:
+    """AP3b: one item verify_build is given: a name, an id, or {id, name} as a Krusgraph Model recorded it at Create.
+    {id, name} (either may be empty), or None when it is none of these."""
+    from .workload_api import _GUID
+    if isinstance(v, str) and v.strip():
+        v = v.strip()
+        return {"id": v, "name": ""} if _GUID.match(v) else {"id": "", "name": v}
+    if isinstance(v, dict):
+        i, n = str(v.get("id") or "").strip(), str(v.get("name") or "").strip()
+        if (i and _GUID.match(i)) or n:
+            return {"id": i if _GUID.match(i) else "", "name": n}
+    return None
+
+
 def _verify_built_in(workspace, source, items, schema, keys, confirmed, tables, ctx, skip: dict | None, silver_schema: str,
                      gold_schema: str, key_checks: dict | None = None, build_workspace: str = "") -> dict:
     from . import budget as _budget, model_compare as _mc
@@ -4718,9 +4742,13 @@ def _verify_built_in(workspace, source, items, schema, keys, confirmed, tables, 
         raise PlanInputError("items: name what was built, by kind, for example {\"semantic_model\": \"shop_model\"}; kinds: "
                              + ", ".join(VERIFY_ORDER))
     unknown = [k for k in items if k not in VERIFY_ORDER]
-    if unknown or not all(isinstance(v, str) and v.strip() for v in items.values()):
+    if unknown or not all(_verify_ref(v) for v in items.values()):
         raise PlanInputError("items: {kind: name} with kinds " + ", ".join(VERIFY_ORDER) + (f"; not known: {', '.join(map(str, unknown))}" if unknown else ""))
-    items = {k: items[k].strip() for k in VERIFY_ORDER if k in items}
+    # AP3b (the founder's live run of 25 November 2026): a Krusgraph Model hands in what it recorded at Create, {id, name};
+    # a name given to the tool may be an id too. An item is looked up by its id when there is one, and every line names
+    # it by its display name in Fabric, else by the name recorded at Create, never by its id alone.
+    refs = {k: _verify_ref(items[k]) for k in VERIFY_ORDER if k in items}
+    items = {k: r["name"] or r["id"] for k, r in refs.items()}
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
     schema = p.schema.schema
     check_tables(p.schema, tables)
@@ -4742,8 +4770,15 @@ def _verify_built_in(workspace, source, items, schema, keys, confirmed, tables, 
 
     def find(kind: str, name: str) -> dict | None:
         typ = _verify.TYPE_OF[kind]
+        ref = refs.get(kind) or {"id": "", "name": name}
+        if ref["id"]:                                              # AP3b: the id first; a name only without one
+            hit = next((i for i in listing if str(i.get("id") or "").lower() == ref["id"].lower()), None)
+            if hit is not None or not ref["name"]:
+                return hit
         return next((i for i in listing if i.get("type") == typ and name.lower() in (str(i.get("displayName") or "").lower(),
                                                                                    str(i.get("id") or "").lower())), None)
+    found_items = {k: find(k, n) for k, n in items.items()}
+    items = {k: (str(found_items[k].get("displayName") or "") or n) if found_items[k] else n for k, n in items.items()}
 
     def reading(what: str):
         _budget.check(what)
@@ -4757,6 +4792,12 @@ def _verify_built_in(workspace, source, items, schema, keys, confirmed, tables, 
         return f"its definition could not be read ({_verify._why(e)})"
 
     def missing(kind: str, name: str) -> dict:
+        ref = refs.get(kind) or {}
+        if ref.get("id") and ref.get("name"):                      # AP3b: recorded at Create, gone since
+            return _verify.line(kind, name, not_checked=f"the {_verify.WORD_OF[kind]} recorded at Create is not in the workspace's "
+                                                        "item list any more (deleted, or moved to another workspace)")
+        if ref.get("id"):
+            return _verify.line(kind, name, not_checked=f"no item with the id {name} in the workspace's item list")
         return _verify.line(kind, name, not_checked=f"no {_verify.WORD_OF[kind]} named {name} in the workspace's item list")
 
     def state_of(read):
@@ -4770,7 +4811,7 @@ def _verify_built_in(workspace, source, items, schema, keys, confirmed, tables, 
     if key_checks is not None:
         keys_basis = {"how": "recorded", "said": "the key checks of this Model's review"}
     elif {"pipeline", "semantic_model"} & set(items) and _guessed_keys(p):
-        built_ids = {str(i["id"]).lower() for i in (find(k, n) for k, n in items.items()) if i}
+        built_ids = {str(i["id"]).lower() for i in found_items.values() if i}
         listings = [(ws, listing)]
         if str(info["workspace_id"]).lower() != str(ws).lower():           # the Model may sit beside the source
             try:
@@ -4802,9 +4843,12 @@ def _verify_built_in(workspace, source, items, schema, keys, confirmed, tables, 
         return figs, _verify.doubled(p, model, figs, execute, reading)
     try:
         for kind, name in items.items():
+            if kind == "app":                                      # AP3b: nothing to read back; said plainly, by name
+                lines.append(_verify.line(kind, name, state_check=_verify.app_state()))
+                continue
             try:
                 reading(f"reading {name}")
-                item = find(kind, name)
+                item = found_items[kind]
                 if not item:
                     lines.append(missing(kind, name))
                     continue
@@ -4986,8 +5030,6 @@ def _verify_built_in(workspace, source, items, schema, keys, confirmed, tables, 
                             lines.append(_verify.line("notebook", n["name"], cmp, notes=[key_note] if is_keyed and key_note else None))
                         except Exception as e:                             # noqa: BLE001
                             lines.append(_verify.line("notebook", n["name"], not_checked=not_read(e)))
-                elif kind == "app":
-                    lines.append(_verify.line(kind, shown, state_check=_verify.app_state()))
             except Exception as e:                                         # noqa: BLE001 - one item not read is one line
                 lines.append(_verify.line(kind, name, not_checked=not_read(e)))
     finally:
