@@ -1635,14 +1635,16 @@ def _source_inputs(workspace, source, schema, keys, confirmed, ctx):
 
 
 def _layers(info: dict, silver_schema: str = "", gold_schema: str = "", pipeline: str = "", ctx=None, need: bool = True,
-            which=("silver", "gold")) -> dict:
+            which=("silver", "gold"), find: bool = False) -> dict:
     """WB2 (#54): where the silver tables and gold views this output reads are (layer_schemas.py): the call's arguments,
     else the pipeline named by `pipeline`, else this source's one Krusgraph pipeline in the build's workspace, else
-    silver and gold. `need` false (nothing here reads silver or gold) skips reading Fabric. Never raises for a read."""
+    silver and gold. `need` false (nothing here reads silver or gold) skips reading Fabric. Never raises for a read.
+    LFD9b: `find` looks for the pipeline even when the arguments name the schemas; the answer's `pipeline` names the
+    pipeline found (absent when none was)."""
     from . import layer_schemas as _ls
     found, found_from, note = {}, "", ""
     given = all(bool((x or "").strip()) for k, x in (("silver", silver_schema), ("gold", gold_schema)) if k in which)
-    if (pipeline or "").strip() or (need and not given and info.get("item_kind", "Lakehouse") == "Lakehouse"):
+    if (pipeline or "").strip() or ((need or find) and not (given and not find) and info.get("item_kind", "Lakehouse") == "Lakehouse"):
         try:
             headers = _headers(ctx)
             ws = _out_ws(info["workspace_id"])
@@ -1656,7 +1658,20 @@ def _layers(info: dict, silver_schema: str = "", gold_schema: str = "", pipeline
     out = _ls.resolve(silver_schema, gold_schema, found=found, found_from=found_from)
     if note:
         out["note"] = note
+    if found:
+        out["pipeline"] = found_from
     return out
+
+
+def _model_on_silver(info: dict, silver_schema: str = "", pipeline: str = "", ctx=None, need: bool = False) -> tuple[bool, dict]:
+    """LFD9b: whether the semantic model of this data product reads the pipeline's silver tables, and the layers
+    (_layers). It does when the source is a lakehouse the pipeline writes into (no other target) and a Krusgraph pipeline
+    of this source and schema is in the workspace, or the one `pipeline` names: then a filter_rows, which the pipeline
+    applies, reaches the model after a run. Without a pipeline the model reads the source tables, as before."""
+    if info.get("item_kind", "Lakehouse") != "Lakehouse" or info.get("read_from") or info.get("reads_at") or _cross(info):
+        return False, _layers(info, silver_schema, "", pipeline, ctx, need=need, which=("silver",))
+    lay = _layers(info, silver_schema, "", pipeline, ctx, need=True, which=("silver",), find=True)
+    return bool(lay.get("pipeline")), lay
 
 
 def _layers_shown(lay: dict, which=("silver", "gold")) -> dict:
@@ -2227,6 +2242,9 @@ def _change_proposal(workspace: str, source: str, change, schema: str, applied, 
     """(propose's answer, the plan, the source's info, the two sides {before, after} the diff was made of)."""
     from . import change_diff as _change_diff
     p, info = _source_inputs(workspace, source, schema, None, confirmed, ctx)
+    on_silver, lay = _model_on_silver(info, "", "", ctx)                 # LFD9b: the layer the model is built on
+    if on_silver:
+        info = {**info, "silver_schema": lay["silver"], "model_reads": "silver"}
     counter, close = _change_counter(workspace, source, schema, ctx)
     sides: dict = {}
 
@@ -2286,11 +2304,18 @@ def _change_items(p, info: dict, ginfo: dict | None, schema: str, applied: dict,
                    check_notebook=build["notebooks"][2]["content"], pipeline=build,
                    targets={t["table"]: list(t["target"]) for t in build["silver_spec"]["tables"]})
     try:
-        out["semantic_model"] = _semantic_model.draft(p, info, names["semantic_model"], None, date_range=model_read["date_range"],
-                                                      whole_quantities=model_read["whole"], changes=applied)["parts"]
+        out["semantic_model"] = _change_model(p, info, applied, names, model_read)
     except PlanInputError as e:
         out["not_drafted"]["semantic_model"] = str(e)
     return out
+
+
+def _change_model(p, info: dict, applied: dict, names: dict, model_read: dict) -> dict:
+    """The model's parts as create_semantic_model builds them, on the layer info["model_reads"] names (LFD9b: "silver"
+    when the source has a Krusgraph pipeline, else the source tables)."""
+    return _semantic_model.draft(p, info, names["semantic_model"], None, date_range=model_read["date_range"],
+                                 whole_quantities=model_read["whole"], changes=applied,
+                                 on_silver=info.get("model_reads") == "silver")["parts"]
 
 
 def _change_definition(item: str, side: dict, ws: str, ids: dict | None = None):
@@ -2385,6 +2410,20 @@ def _apply_change(workspace: str, source: str, change, schema: str = "dbo", appl
     before = _change_items(sides["before"]["plan"], winfo, ginfo, schema, sides["before"]["applied"], names, model_read, on_gold)
     after = _change_items(sides["after"]["plan"], winfo, ginfo, schema, sides["after"]["applied"], names, model_read, on_gold)
     nb_names = {str(i.get("id")): i.get("displayName") for i in listing if i.get("type") == "Notebook"}
+    if "semantic_model" in todo and before.get("semantic_model") is not None and after.get("semantic_model") is not None \
+            and _ca.differences("semantic_model", _change_definition("semantic_model", before, ws), now["semantic_model"], nb_names):
+        # LFD9b: "now" on the layer the model in Fabric was built on. The diff drafts it on the pipeline's silver tables
+        # when the source has a Krusgraph pipeline, and on the source tables otherwise; a model built before its pipeline
+        # (or over one since renamed) reads the other layer, and is compared and written on that layer.
+        from .infer import PlanInputError
+        other = ({k: v for k, v in winfo.items() if k != "model_reads"} if winfo.get("model_reads") == "silver"
+                 else {**winfo, "silver_schema": winfo.get("silver_schema") or "silver", "model_reads": "silver"})
+        try:
+            alt = {side: _change_model(sides[side]["plan"], other, sides[side]["applied"], names, model_read) for side in ("before", "after")}
+        except PlanInputError:
+            alt = None
+        if alt and not _ca.differences("semantic_model", _ca.definition_parts(alt["before"]), now["semantic_model"], nb_names):
+            before, after = {**before, "semantic_model": alt["before"]}, {**after, "semantic_model": alt["after"]}
     plan_steps = []
     for k in todo:
         b, a = _change_definition(k, before, ws), _change_definition(k, after, ws)
@@ -2879,13 +2918,17 @@ def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.M
         raise _p_error("roles: this model reads the gold views, which a role is not drafted on yet; build the model "
                              "without roles, or on the source tables (no gold views in the build).")
     read = _model_reads(workspace, source, schema, p, tables, ctx)          # n151: the calendar's range, whole-number quantities
-    lay = _layers(info, silver_schema, "", pipeline, ctx, need=_combines(p, tables), which=("silver",))   # WB2 (#54): the dry run's and Create's
+    og = MODEL_ON_GOLD.get()
+    if (og and not tables) or (target_lakehouse or "").strip():
+        on_silver = False
+        lay = _layers(info, silver_schema, "", pipeline, ctx, need=_combines(p, tables), which=("silver",))   # WB2 (#54): the dry run's and Create's
+    else:                                                        # LFD9b: over a Krusgraph pipeline, its silver tables
+        on_silver, lay = _model_on_silver(info, silver_schema, pipeline, ctx, need=_combines(p, tables))
     info = {**info, "silver_schema": lay["silver"]}
     at, refusal = _read_at(info, target_lakehouse, lay["silver"], ctx)   # SM6 (G3): the silver tables where the build wrote them
     if refusal:
         return refusal
     info = at
-    og = MODEL_ON_GOLD.get()
     if og and not tables:                                        # DPM1: the build has gold views: the model reads them
         _, ginfo, gspec, refusal = _gold(workspace, source, schema, og.get("silver_schema") or "silver", og.get("gold_schema") or "gold",
                                          keys, confirmed, None, False, ctx, og.get("target_lakehouse", ""), og.get("gold_lakehouse", ""))
@@ -2897,7 +2940,7 @@ def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.M
                                               whole_quantities=read["whole"], predictions=predictions)
     else:
         draft = _semantic_model.draft(p, info, name, tables, date_range=read["date_range"], whole_quantities=read["whole"],
-                                      roles=accepted or None)
+                                      roles=accepted or None, on_silver=on_silver)
     _model_layers(draft, lay)
     body = _semantic_model.envelope(draft["parts"], name, description=_marked(f"Created by Krusgraph from {source} ({schema})", p, schema))
     replaces = _model_replacement(_out_ws(info["workspace_id"]), name, draft["parts"], _headers(ctx))   # n221: where it is built

@@ -466,7 +466,8 @@ Expected: 7 tables in `shop_lfd` (12 customers, 66 orders, 146 order lines) and 
 
 **3. Build first.** In Claude: *"Create the pipeline pipeline_shop_lfd for lfd_lh, schema shop_lfd. Dry run first."*,
 then create it, run it once, and *"Create the semantic model shop_lfd_model for lfd_lh, schema shop_lfd."*, dry run,
-then create. Use exactly these two names; `apply_change` finds only the names the diff gives. Expected: `silver_shop_lfd`,
+then create. Create the pipeline first: the model's dry run should say it reads the silver tables of `pipeline_shop_lfd`
+(`summary.reads`); a model made before the pipeline reads the source tables, and its report would not follow A2. Use exactly these two names; `apply_change` finds only the names the diff gives. Expected: `silver_shop_lfd`,
 `gold_shop_lfd`, `pipeline_shop_lfd_check`, `pipeline_shop_lfd` and `shop_lfd_model` in `demo`.
 
 **4. Run A2 to A6** as the script says. Fill in Result and Date.
@@ -475,12 +476,13 @@ then create. Use exactly these two names; `apply_change` finds only the names th
 | --- | --- | --- | --- | --- |
 | L1 | A2 *"Remove the test customers."* | two questions (the column `is_test`, then the 4 tables that point at customers), then the card: customers 12 → 10, addresses 19 → 17, orders 66 → 60, order lines 146 → 134, order amount 56 834.70 → 51 296.70 (−5 538.00); pipeline run needed | | |
 | L2 | A2 Yes | `silver_shop_lfd` written, one run of `pipeline_shop_lfd`, one refresh; definition verified; numbers verified after the run: silver holds 10 customers, 60 orders, 134 lines | | |
+| L2b | After L2's run, refresh `shop_lfd_model` (if L2 said "refresh not run") and open the report | the report shows 10 customers, 60 orders and an order amount of 51 296.70 | | |
 | L3 | A3 *"Add region from addresses to orders."* | if the plan counted `orders.ship_to_id` (R5, 60 of 60): the card at once, `gold_shop_lfd` updated; otherwise the link question first, then the link applied (silver, check and gold notebooks and the model), then the column | | |
 | L4 | A3 Yes | `gold_shop_lfd` written, one run, one refresh; `gold.orders` has `addresses_region`, 2 values, 60 rows; order amount 51 296.70 before and after the join | | |
 | L5 | A4 *"Add a measure: order value per customer."* | `shop_lfd_model` only, 5 129.67 (4 736.23 on the source); no run | | |
-| L6 | A4 Yes | the model written and refreshed once; no pipeline run; the measure is in the model | | |
+| L6 | A4 Yes | the model written and refreshed once; no pipeline run; the measure is in the model, and the report shows 5 129.67 | | |
 | L7 | A6 *"Undo removing the test customers."* | *Takes out the filter on customers.*; the undone change's numbers, 12 → 10, read back | | |
-| L8 | A6 Yes | `silver_shop_lfd` written, one run, one refresh; silver holds 12 customers, 66 orders and 146 lines again; region and the measure stay | | |
+| L8 | A6 Yes | `silver_shop_lfd` written, one run, one refresh; silver holds 12 customers, 66 orders and 146 lines again; region and the measure stay; after the refresh the report shows 12 customers and 4 736.23 | | |
 | L9 | B on `sap_lfd` (build as in step 3 with `pipeline_sap_lfd` and `sap_lfd_model`), *"Leave out cancelled billing documents and their cancellations."* | `sap_vbrk` 3 → 1, `sap_vbrp` 4 → 2, `sap_vbrk.NETWR` 600.00 → 400.00; `sap_vbak` 4 rows and 950.00 untouched; Yes writes `silver_sap_lfd`, runs, refreshes | | |
 
 **5. The points not verified yet** (docs/CHANGES.md). Note what happens at each:
@@ -492,9 +494,9 @@ then create. Use exactly these two names; `apply_change` finds only the names th
   expect "numbers not checked" and "refresh not run" on L2, L4 and L8. Then refresh the model by hand after the run, or
   call `apply_change` again with the same list (it writes nothing the second time) or `verify_build`.
 - **Refresh and Direct Lake framing after a new gold column.** After L4, check that `addresses_region` reaches the
-  model's view of gold, and that a refresh (framing) shows it. The model that `create_semantic_model` builds reads the
-  source tables, not gold, so it shows neither the new column nor the filter: the report keeps 12 customers and
-  4 736.23 per customer. Do not show the report as proof of A2 or A4.
+  gold view, and that a refresh (framing) of the model shows the silver tables' new rows. The model that
+  `create_semantic_model` builds over the pipeline reads the silver tables (round LFD9b), so it shows the filter but not
+  the new column, which is in the gold views only.
 - **Items under other names.** Items built under other names, by the Model editor (a model on gold), or in another
   lakehouse are not written: `apply_change` answers `not_built` or `items_differ` and writes nothing. Note it if a
   step answers that instead of writing. Do not try it on the earlier `shop` builds in `demo`: those items carry

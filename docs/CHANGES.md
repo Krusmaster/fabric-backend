@@ -3,8 +3,8 @@
 Status: **the contract, its drafts, its numbers, the proposal, applying it and undo** (round LFD2, 24 November 2026;
 rounds LFD3 to LFD7, 25 November 2026: the numbers, the diff, the read-only tool `propose_change` with the numbers
 counted, `apply_change` through Update, both behind `KRUSGRAPH_CHANGES`, off by default, and versions and undo, and the diff card; *The
-numbers*, *Proposing a change*, *Applying a change (LFD6)*, *Versions and undo (LFD7)*, *The diff card (LFD8)* and *The demo end to end (LFD9)*
-below).
+numbers*, *Proposing a change*, *Applying a change (LFD6)*, *Versions and undo (LFD7)*, *The diff card (LFD8)*, *The demo end to end (LFD9)* and *The model
+over a pipeline reads silver (LFD9b)* below).
 `fabric_backend/changes.py` is a module of pure functions with tests (`tests/test_lfd2_contract.py`); LFD3 applies a
 list of changes to the silver, gold and semantic model drafts (below, *Applying a list*; `tests/test_lfd3_apply.py`, and
 the silver notebook on a local PySpark 4.0.1 in `tests/test_spark_notebooks.py`); LFD4 counts the numbers before and
@@ -210,7 +210,8 @@ one** (the golden files do not change):
 | `add_link` | the plan | a confirmed relationship of the plan (`replan` above), which every draft follows like any other |
 
 The semantic model's summary and README have a section `changes` that says, per change, where it is drafted; a model
-on the source tables says that a `filter_rows` does not reach it, and one on gold that it does. On shop_lfd, scenario A
+on the source tables says that a `filter_rows` does not reach it, and one on silver or gold that it does (after the
+pipeline's run). On shop_lfd, scenario A
 (remove the test customers with their addresses, audit rows, orders and lines; region from addresses over
 `orders.ship_to_id`; order value per customer) gives 10 customers, 60 orders and 134 lines in silver, 60 rows in the
 gold view of orders with `addresses_region`, and the measure `DIVIDE([Order amount], DISTINCTCOUNT('orders'[customer_id]))`,
@@ -507,11 +508,47 @@ Found and not changed:
 - A change's id names the plan it was checked on (`base`), so after an `add_link` plans again, the earlier changes have
   new ids. An undo must name the id from the latest answer's `changes`, not the one the first answer gave; the card's
   Undo button already does.
-- The model `create_semantic_model` builds reads the source tables, so a filter never reaches it: after A2 the report
-  still shows 12 customers, and the measure of A4 shows 4 736.23 there, not 5 129.67. The numbers in the card are the
-  ones to show.
+- The model `create_semantic_model` built read the source tables, so a filter never reached it: after A2 the report
+  still showed 12 customers, and the measure of A4 showed 4 736.23 there, not 5 129.67. Round LFD9b fixed it (next
+  section).
 - The card shows a revert's numbers as the undone change had them (12 → 10); only the answer's text says they are read
   back.
+
+## The model over a pipeline reads silver (LFD9b)
+
+Round LFD9b (25 November 2026). **Why the report disagreed with the chat:** `create_semantic_model` chose its layer only
+for composite keys (n226: `_layers` was asked with `need=_combines(...)`, and `semantic_model.draft` read silver only
+when it carried a combined key column). The shop and SAP samples have no composite link, so the model read the source
+tables even with `pipeline_shop` in the workspace; `silver_schema` and `pipeline` only said *which* silver schema such a
+model would read. The diff (`change_diff.drafts`) and `apply_change` (`server._change_items`) drafted the model the same
+way, so the three agreed with each other and the filter never reached the report.
+
+**The layer.** When the source is a lakehouse that a Krusgraph pipeline of this source and schema writes into (the
+pipeline `pipeline` names, else the one `layer_schemas.discover` finds by its description, WB2), the model reads that
+pipeline's **silver** tables: `create_semantic_model`, the diff and `apply_change` all draft it with
+`semantic_model.draft(..., on_silver=True)` (`server._model_on_silver`), in the silver schema the pipeline's notebooks
+set. Same tables, columns, relationships and measures; only the partitions' `schemaName` (or the `silver_` prefix on a
+lakehouse without schemas) and the README's *Silver tables* section differ, and `summary.reads` says
+`{"layer": "silver", "schema_from": "the pipeline pipeline_shop ..."}`. Silver, not gold, because the model the MCP tools
+build is the plan's model over the plan's tables, and `create_pipeline` writes the fact views only: the Model editor's
+model on gold (DPM1) reads dimension views that only its own build writes (`MODEL_ON_GOLD`), and stays as it is. So a
+`filter_rows` reaches the model after the run and the refresh, and an `add_measure` counts the filtered rows; an
+`add_column` is in the gold views only, and the model's README says so.
+
+**Without a pipeline nothing changes**: a model of a source with no Krusgraph pipeline (and a warehouse, a mirrored
+source, a build into another lakehouse or workspace, or the Model editor's build) reads what it read before, byte for
+byte. The one golden change is in `tests/golden/hosted_tools.json`'s REST trace: on a lakehouse, `create_semantic_model`
+now reads the workspace's item list once more (`GET /items`, the pipeline lookup); its answers are unchanged. Create the pipeline before the model: a model made before its pipeline reads the source.
+
+**"Now" on the model's own layer.** `apply_change` compares the model in Fabric with the diff's "now" on the layer the
+diff drafted it on; when that differs, it drafts "now" on the other layer (source or silver), and when that matches, it
+compares and writes the model on that layer. A model built before its pipeline is therefore written on the source
+tables, as it was built, and not refused as `items_differ`.
+
+On the demo's fake (`tests/test_lfd9_demo_e2e.py`, `change_demo._Scenario._model`): the model's partitions read
+`silver`, and its measures, translated by `verify_build.measure_sql` and run on the fake's silver tables, give 60 orders
+and 51 296.70 after A2, **5 129.67** per customer after A4, and 66 orders, 56 834.70 and 4 736.23 after the undo of A6.
+`krusgraph demo change` prints them as a *report* line after each Yes.
 
 ## What these rounds do not do
 
