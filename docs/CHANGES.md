@@ -2,7 +2,8 @@
 
 Status: **the contract, its drafts, its numbers and the proposal** (round LFD2, 24 November 2026; rounds LFD3, LFD4
 and LFD5, 25 November 2026: the numbers, the diff and the read-only tool `propose_change`, behind `KRUSGRAPH_CHANGES`,
-off by default; *The numbers* and *Proposing a change* below).
+off by default; *The numbers* and *Proposing a change* below; round LFD7, 25 November 2026: versions and undo, *Versions
+and undo (LFD7)* below).
 `fabric_backend/changes.py` is a module of pure functions with tests (`tests/test_lfd2_contract.py`); LFD3 applies a
 list of changes to the silver, gold and semantic model drafts (below, *Applying a list*; `tests/test_lfd3_apply.py`, and
 the silver notebook on a local PySpark 4.0.1 in `tests/test_spark_notebooks.py`); LFD4 counts the numbers before and
@@ -94,8 +95,9 @@ Four forms: `count` (the rows of `table`), `distinct_count` and `sum` (of `colum
 {"type": "revert", "change": "chg-680f0a7414dc3b1e"}
 ```
 
-The id of an applied change. The caller hands in the ids applied so far; without them only the id's shape is checked,
-and the answer says so.
+The id of an applied change. The caller hands in the changes applied so far; without them only the id's shape is checked,
+and the answer says so. A revert of a change already reverted is denied, and one that a later change stands on is a
+question (*Versions and undo (LFD7)* below).
 
 ## The canonical form and the id
 
@@ -128,6 +130,7 @@ validation. Validating a normalised change against the same plan gives it back u
 | `path` | `add_column` without `via`, and several equally short paths repeat no row | each path as the `via` to send |
 | `link` | `add_column` without `via`, and no path repeats no row, but a column could be a link | each as an `add_link` change: what the plan proposed and did not apply, and reference-like columns with the type of the other table's key |
 | `link_direction` | `add_link` from a table's key to a column that is no key | the same link the other way |
+| `revert_dependent` | `revert` of a change that a later change in the list stands on (LFD7) | each later change, with why it stands on it and the `revert` to send for it first |
 
 A question chooses nothing. A candidate is listed because a rule matched its name or type; the answer says which. The
 counts in a candidate are the caller's: this module reads no rows (`counts` in `validate`; a later round computes them).
@@ -153,6 +156,7 @@ counts in a candidate are the caller's: this module reads no rows (`counts` in `
 | `unknown_measure` | a ratio names a measure that does not exist |
 | `already_exists`, `no_change` | the column, link or measure is already there, or the change changes nothing |
 | `unknown_change` | `revert` names a change that was not applied |
+| `already_reverted` | `revert` names a change an earlier revert already took out (LFD7) |
 
 The rules that deny are the engine's own, not new ones:
 
@@ -300,8 +304,67 @@ was written; when it is too long, the largest unified diffs leave it first, and 
 On shop_lfd (`tests/test_lfd5_propose.py`): *remove test customers* asks for the column, then the cascade, then changes
 the silver notebook only (and the model's README); *add region* is ok where the plan counted `orders.ship_to_id` (R5),
 and where it did not, asks for the link, plans again with it and changes the silver, check and gold notebooks and the
-model; *order value per customer* changes the semantic model only. The pipeline's definition names its three notebooks
+model; *order value per customer* changes the semantic model only (and, since LFD7, the list in the silver notebook's
+parameters cell). The pipeline's definition names its three notebooks
 and none of these changes it.
+
+## Versions and undo (LFD7)
+
+The change list of a data product is a history, and a version is a prefix of it. `changes.versions(list)` names them:
+**v0** is no change, **v1** the first change, **v2** the first two, and so on. A version's id is `ver-` and sixteen
+hexadecimal digits of the SHA-256 of its changes' ids in order (`changes.version_id`): each id is the hash of the change's
+canonical form, so the version's id is its content, the same on any machine, and another order is another version.
+`changes.version(list, "v2")` gives a version's list; `changes.since(previous, current)` says what changed from one version
+to another (`added`, `reverted`, and `dropped` when the two lists went apart, `later` when one continues the other).
+
+```json
+{"type": "revert", "change": "chg-cc9ffe2a3282d5a4"}
+```
+
+Undo is a change of its own: `revert` names an earlier change's id (the id of its ok answer, or the id it was sent with),
+and is the next version. It never rewrites an earlier version. `apply` takes the named change out of the list; the drafts
+see the list without it, so **v0 + c1 + c2 − c2 gives every draft byte for byte as v0 + c1** (the silver, check and gold
+notebooks, the pipeline, the semantic model on the source and on gold; `tests/test_lfd7_undo.py` for every pair of
+scenario A's changes). A change sent again after its revert is applied again.
+
+| Answer | When |
+| --- | --- |
+| denied, `unknown_change` | the id is not among the changes applied so far |
+| denied, `already_reverted` | an earlier revert in the list already took that change out ("To have it again, send the change itself") |
+| question, `revert_dependent` | a later change in the list stands on it: an `add_column` (its `via`) or a cascade that joins over the link an `add_link` confirmed, or a ratio that names the measure an `add_measure` added. The candidates name each later change, why, and the `revert` to send for it first; nothing is taken out for the person |
+
+A filter and a copied column stand on nothing a later change needs, so their revert is never a question. `validate`
+checks dependencies when `applied` holds apply's entries (`apply` passes them); with ids only it checks the id and says
+that dependencies were not checked. A change that a later revert in the list takes out, and that the current plan no longer
+accepts (a column over a link the plan was made again without), is kept as it was sent until its revert and never drafted;
+a link that a later revert takes out asks for no new plan.
+
+**The review file** (`review.build(..., changes=list)`) carries the list as `changes`:
+`{"version", "id", "list": [{"version", "id", "type", "change"}], "since_previous"}`, with `since_previous` from
+`changes.since`: since the previous review file's list when one is passed back (`previous`; a file without a list is v0),
+otherwise since the version before the last. The Markdown report gets a section *Changes*. Without a list, or with an empty
+one, the file and the report are byte for byte what they were.
+
+**The silver notebook** carries the applied list in its parameters cell, after a comment, as one line
+`CHANGE_LIST = "<JSON>"`: each change's id and normalised form, in order, without the reverted changes and the reverts (so
+v0 + c1 + c2 − c2 and v0 + c1 write the same line). The run does not use it. `silver.read_changes(definition)` reads it
+back from the notebook's text or its item definition (Get Notebook Definition's parts, base64): the basis for "what is
+built" when a later round applies a list. Every entry's id is checked against its change, so a list edited by hand is not
+read as one Krusgraph wrote. An empty list writes no line: the notebook, and every golden file, is as before. Because the
+notebook carries the whole list, a change of any type now updates the silver notebook's parameters cell; its steps change
+only for a `filter_rows` (the LFD3 and LFD5 tests compare the steps without that line).
+
+**propose_change** takes a revert like any change. The plan layer lists the filters, columns and measures it takes out
+(`filters_removed`, …) and `reverted` (`{"id", "type"}`); the revert of a confirmed `add_link` plans again without the link
+(`replan`), so `links_removed` names it and `confirmed` no longer holds it. The items layer says per item what is taken
+out ("the filter step on customers taken out"). The numbers layer calls the counter with the two sides the other way
+round, so it counts the reverted change as when it was applied, and says so (`reverts`, `read`): the revert takes the
+numbers from that change's after back to its before. A question or a denial passes through as for any change.
+
+Scenario A6 on shop_lfd: after *remove test customers*, *add region* and *order value per customer*, "undo remove test
+customers" is a revert of the first change. The drafts are those of the list of the other two, byte for byte; the silver
+steps are v0's again (`silver.simulate`: 12 customers, 66 orders, 146 lines, as the source); the review file says v4 took
+the filter out; the diff shows the filter removed and its numbers, customers 12 → 10 read backwards.
 
 ## What these rounds do not do
 

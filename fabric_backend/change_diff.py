@@ -157,6 +157,9 @@ def _silver_said(b: dict, a: dict, kept: set[str], was: set[str]) -> list[str]:
     out = [f"1 filter step on {c['table']} and its {_n(len(c['cascade']), 'dependent')}" if c["cascade"]
            else f"1 filter step on {c['table']}" for c in a["silver"].get("changes", []) if c["id"] not in old]
     out += [f"the filter step on {c['table']} taken out" for c in b["silver"].get("changes", []) if c["id"] not in new]
+    listed = [x["id"] for x in a["silver"].get("change_list", [])]
+    if not out and listed != [x["id"] for x in b["silver"].get("change_list", [])]:       # LFD7: the list it carries
+        out.append(f"the change list in the parameters cell (CHANGE_LIST): {_n(len(listed), 'change')}")
     return out
 
 
@@ -238,7 +241,18 @@ def items_layer(b: dict, a: dict, kept: set[str] = frozenset(), was: set[str] = 
 
 # ------------------------------------------------------------------ layer 3: the numbers -------------------------------
 
-def numbers_layer(before: Side, after: Side, numbers: NumbersLayer | Callable | None) -> dict:
+def numbers_layer(before: Side, after: Side, numbers: NumbersLayer | Callable | None, reverts: dict | None = None) -> dict:
+    """The counter's answer for the two sides. LFD7: for a revert the counter is called with the sides the other way
+    round (`before` the list without the reverted change, `after` the list with it), so it counts the reverted change as
+    it counts any change; the layer says so in `reverts` and `read`: the revert takes the numbers from that `after` back
+    to that `before`."""
+    if reverts is not None and numbers is not None:
+        got = numbers_layer(after, before, numbers)
+        if got["status"] == "counted":
+            got.update(reverts=reverts, read="These are the numbers of the reverted change, counted as when it was applied. The "
+                                             "revert takes them back: what the change had as after it, the data product has "
+                                             "as before the revert, and the revert's after is the change's before.")
+        return got
     if numbers is None:
         return {"status": NOT_COUNTED, "note": "The numbers before and after the change are not counted yet; the plan and the "
                                                "items above are worked out from the plan alone."}
@@ -251,9 +265,11 @@ def numbers_layer(before: Side, after: Side, numbers: NumbersLayer | Callable | 
 
 # ------------------------------------------------------------------ the diff and the proposal -------------------------
 
-def diff(before: Side, after: Side, info: dict, numbers: NumbersLayer | Callable | None = None) -> dict:
+def diff(before: Side, after: Side, info: dict, numbers: NumbersLayer | Callable | None = None, *,
+         reverts: dict | None = None) -> dict:
     """The three layers: {"plan", "items", "numbers", "summary"}, and `definitions`, a digest of every item's whole new
-    definition (the unified diffs are cut at MAX_DIFF_LINES; the digest is not)."""
+    definition (the unified diffs are cut at MAX_DIFF_LINES; the digest is not). `reverts` (LFD7): the change a revert
+    takes out ({"id", "type"}); the plan layer then names it, and the numbers layer counts it the other way round."""
     b = drafts(before["plan"], info, before["applied"])
     a = drafts(after["plan"], info, after["applied"])
     plan = plan_layer(before, after)
@@ -261,7 +277,9 @@ def diff(before: Side, after: Side, info: dict, numbers: NumbersLayer | Callable
     items = items_layer(b, a, kept, was)
     updated = [x["label"] for x in items if x["status"] == UPDATE]
     digest = hashlib.sha256(json.dumps(a["text"], sort_keys=True).encode("utf-8")).hexdigest()[:16]
-    return {"plan": plan, "items": items, "numbers": numbers_layer(before, after, numbers), "definitions": f"sha256:{digest}",
+    if reverts is not None:
+        plan["reverted"] = reverts
+    return {"plan": plan, "items": items, "numbers": numbers_layer(before, after, numbers, reverts), "definitions": f"sha256:{digest}",
             "summary": f"{plan['summary']}; " + (f"{_n(len(updated), 'item')} updated in place ({', '.join(updated)})"
                                                  if updated else "no item changes")}
 
@@ -300,6 +318,16 @@ def propose(change, plan: Plan, info: dict, applied: list | None = None, *, conf
     links = list(confirmed or [])
     after_plan = plan
     after = _changes.apply([*applied, change], plan)
+    reverts = None
+    if after["result"] == "ok" and change.get("type") == "revert":
+        gone = next((x for x in before["changes"] if x["id"] not in {y["id"] for y in after["changes"]}), None)
+        reverts = {"id": gone["id"], "type": gone["type"]} if gone else None
+        conf = gone["resolved"]["in_plan"] if gone and gone["type"] == "add_link" else None
+        if conf and conf.get("rule") == "confirmed" and replan is not None:   # LFD7: the plan made again without the link
+            entry = {k: v for k, v in conf.items() if k != "rule"}
+            links = [x for x in links if not _same_link(x, entry)]
+            after_plan = replan(links)
+            after = _changes.apply([*applied, change], after_plan)
     if after["result"] == "replan":
         if replan is None:
             return {**after, "at": len(applied)}
@@ -310,13 +338,19 @@ def propose(change, plan: Plan, info: dict, applied: list | None = None, *, conf
         return after
     new = next((x for x in after["changes"] if x["position"] == len(applied)), None)
     if new is None:                                              # a repeat, or a revert: the list's ids say which
-        head = _changes.validate(change, after_plan, applied=[x["id"] for x in before["changes"]])
+        head = _changes.validate(change, plan, applied=before["changes"], reverted=before.get("reverted"))
         new = {"id": head.get("id"), "change": head.get("change"), "notes": head.get("notes", [])}
     sides = ({"plan": plan, "applied": before}, {"plan": after_plan, "applied": after})
-    d = diff(*sides, info, numbers)
+    d = diff(*sides, info, numbers, reverts=reverts)
     return {"result": "ok", "id": new["id"], "change": new["change"], "notes": new.get("notes", []),
             "changes": [x["id"] for x in after["changes"]], "confirmed": links, "diff": d,
-            "confirm": confirm_token(sides[1], d)}
+            **({"reverts": reverts} if reverts else {}), "confirm": confirm_token(sides[1], d)}
+
+
+def _same_link(a: dict, b: dict) -> bool:
+    def key(x):
+        return (x["source"].lower(), tuple(c.lower() for c in x["source_cols"]), x["target"].lower(), tuple(c.lower() for c in x["target_cols"]))
+    return key(a) == key(b)
 
 
 WRITES = ("Nothing was written: propose_change reads the plan and drafts the items, and never writes to Fabric. A later "

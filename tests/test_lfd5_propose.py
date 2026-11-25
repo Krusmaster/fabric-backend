@@ -162,8 +162,8 @@ def test_a3_add_region_is_ok_where_the_plan_has_the_ship_to_link(shop):
     plan = ok["diff"]["plan"]
     assert [c["columns"] for c in plan["columns_added"]] == [["region"]] and not plan["filters_added"] and not plan["filters_removed"]
     items = _items(ok)
-    assert items["silver_notebook"]["status"] == items["pipeline"]["status"] == change_diff.UNCHANGED
-    assert items["gold_views"]["status"] == change_diff.UPDATE
+    assert items["pipeline"]["status"] == change_diff.UNCHANGED and items["gold_views"]["status"] == change_diff.UPDATE
+    assert items["silver_notebook"]["summary"] == "the change list in the parameters cell (CHANGE_LIST): 2 changes"   # LFD7
     assert items["gold_views"]["summary"] == "addresses_region already in gold.orders, marked with the change"
 
 
@@ -195,17 +195,18 @@ def test_a3_add_region_asks_for_the_link_then_plans_again_with_it(shop):
     assert "in gold.orders" in _items(col)["gold_views"]["summary"]
 
 
-def test_a4_add_measure_changes_the_semantic_model_only(shop):
+def test_a4_add_measure_changes_the_semantic_model_and_the_silver_list_only(shop):
     _, p = shop
     ok = change_diff.propose(A4, p, INFO, [A2, {**A3, "via": [SHIP_TO]}])
     assert ok["result"] == "ok"
     assert ok["diff"]["plan"]["measures_added"] == [{"id": ok["id"], "name": "Order value per customer", "form": "ratio"}]
     items = _items(ok)
-    assert [k for k, v in items.items() if v["status"] == change_diff.UPDATE] == ["semantic_model"]
+    assert [k for k, v in items.items() if v["status"] == change_diff.UPDATE] == ["silver_notebook", "semantic_model"]
+    assert items["silver_notebook"]["summary"] == "the change list in the parameters cell (CHANGE_LIST): 3 changes"   # LFD7
     model = items["semantic_model"]
     assert model["summary"] == "1 measure: Order value per customer"
     assert "DIVIDE([Order amount], DISTINCTCOUNT('orders'[customer_id]))" in model["diff"] and model["lines_removed"] == 0
-    assert ok["diff"]["summary"] == "1 measure added; 1 item updated in place (semantic model)"
+    assert ok["diff"]["summary"] == "1 measure added; 2 items updated in place (silver notebook, semantic model)"
 
 
 def test_the_same_proposal_gives_the_same_answer_and_another_list_another_token(shop):

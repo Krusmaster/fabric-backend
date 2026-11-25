@@ -141,6 +141,19 @@ def test_revert_names_an_applied_change(plan):
     denied(changes.validate({"type": "revert", "change": "the last one"}, plan), "bad_request")
 
 
+def test_revert_of_a_reverted_change_is_denied_and_one_a_later_change_stands_on_is_a_question(plan):
+    """LFD7 (tests/test_lfd7_undo.py has the rest): the applied list given as apply's entries."""
+    built = changes.apply([{"type": "add_measure", "name": "Orders", "measure": {"form": "count", "table": "orders"}},
+                           {"type": "add_measure", "name": "Lines per order", "measure": {
+                               "form": "ratio", "numerator": {"form": "count", "table": "order_items"}, "denominator": {"measure": "Orders"}}}],
+                          plan)["changes"]
+    q = changes.validate({"type": "revert", "change": built[0]["id"]}, plan, applied=built)
+    assert q["result"] == "question" and q["kind"] == "revert_dependent" and q["candidates"][0]["change"] == built[1]["id"]
+    assert ok(changes.validate({"type": "revert", "change": built[1]["id"]}, plan, applied=built))["change"] == built[1]["id"]
+    denied(changes.validate({"type": "revert", "change": built[1]["id"]}, plan, applied=built[:1], reverted=[built[1]["id"]]),
+           "already_reverted")
+
+
 # ------------------------------------------------------------------ the other questions -------------------------------
 
 def test_two_paths_that_repeat_no_row_are_a_question(plan):
