@@ -942,6 +942,76 @@ def _combined_model(workspace: str, source: str, schema: str, name: str, dry_run
     return text
 
 
+def _combine_concepts(workspace: str, source: str, schema: str, ctx):
+    """ON1: (plan, {concept: combine.count's answer}) for the customer and the product match, on one connection."""
+    p, item, headers = _plan(workspace, source, schema, None, None, ctx)
+    execute = _execute_factory(item, auth.sql(ctx))
+    try:
+        from .dialects import of as _dialect_of
+        d = _dialect_of(execute)
+        return p, {k: _combine.count(p, execute, d, concept=k) for k in _combine.CONCEPTS}
+    finally:
+        getattr(execute, "close", lambda: None)()
+
+
+def _combined_ontology(workspace: str, source: str, schema: str, name: str, dry_run: bool, ctx) -> str | None:
+    """ON1 (issue #152): create_ontology over a plan of several schemas once the person has accepted a match on the
+    path (the flow state): one shared ontology, shared_ontology.py. A dry run only in this version: the shared entity
+    types bind to the conformed gold, which the pipeline does not build yet, so dry_run=false answers kind not_yet and
+    writes nothing. None when no match is accepted: the ontology is drafted as before."""
+    if not _multi_schema.is_multi(schema):
+        return None
+    decided = (_flow_state.state(_flow_who(ctx), workspace, source, schema) or {}).get("decisions") or []
+    if not any(str(d.get("item", "")).startswith(_combine.PREFIX) and d.get("review") == "accepted" for d in decided):
+        return None
+    from . import shared_ontology as _shared
+    p, found = _combine_concepts(workspace, source, schema, ctx)
+    model = _shared.draft(p, found, decided)
+    if not model["summary"]["shared"]:
+        return json.dumps({"error": "The match you accepted is no longer found by the rules on these rows, so nothing is "
+                                    "shared.", "kind": "stale", "hint": "Open Decide on the start card again."}, indent=2)
+    if not dry_run:
+        return json.dumps({"error": "The shared ontology is a dry run in this version: its shared entity types bind to the "
+                                    "conformed gold, which the pipeline does not build yet.", "kind": "not_yet",
+                           "hint": "Run the gold SQL of the dry run in the product lakehouse first, or build each source "
+                                   "apart (reject the match)."}, indent=2)
+    _, info = _source_inputs(workspace, source, schema, None, None, ctx)
+    parts = _shared.parts(model, name, workspace_id=info["workspace_id"], item_id=info["item_id"],
+                          item_name=info["item_name"], item_kind=info["item_kind"], sql_endpoint=info["sql_endpoint"])
+    actions = []
+    for m in model["matches"]:
+        if m["state"] != "accepted":
+            kept = [d for d in decided if isinstance(d, dict) and d.get("item") != m["id"]]
+            args = {"workspace": workspace, "source": source, "schema": schema, "step": "decide",
+                    "plan": {"decisions": kept + [{"item": m["id"], "review": "accepted", "reason": "accepted for the shared ontology"}]}}
+            actions.append({"label": f"Accept the {m['concept'].lower()} match", "tool": "start", "arguments": args,
+                            "ask": f"Are these the same {m['concept'].lower()}s? {m['line']}"})
+    out = {"dry_run": True, "layers_to": f"ontology \u2192 {info['item_name']} ({_shared.GOLD} and the sources' schemas)",
+           "combined": {"line": _shared.line(model), "shared": model["summary"]["shared"],
+                        "single_source": model["summary"]["single_source"], "matches": model["matches"]},
+           "summary": {**model["summary"], "notes": model["notes"]},
+           "entities": [{k: v for k, v in e.items() if k != "properties"} | {"properties": len(e["properties"])}
+                        for e in model["entities"]],
+           "relationships": model["relationships"],
+           "first": (f"Build the conformed gold first: the shared entity types read {_shared.GOLD}.dim_* and the re-keyed "
+                     f"facts in {info['item_name']}, which the gold SQL below creates. The pipeline does not run it yet."),
+           "gold_sql": model["gold_sql"],
+           "rest": {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{_out_ws(info['workspace_id'])}/ontologies",
+                    "delegated_scope": "Item.ReadWrite.All", "parts": list(parts)},
+           "parts": parts,
+           "note": ("Matched by rules and counted on the rows; nothing is shared on a match you did not accept, and no "
+                    "relationship is written that the plan does not prove. Not run against Fabric yet: the definition "
+                    "follows ontology.py's generation-2 layout.")}
+    if actions:
+        out["actions"] = actions
+    text = json.dumps(out, indent=2)
+    if len(text) > MAX_RESULT_CHARS:
+        out["omitted"] = sorted(k for k in parts if k.startswith(("entities/", "tables/")))
+        out["parts"] = {k: v for k, v in parts.items() if not k.startswith(("entities/", "tables/"))}
+        text = json.dumps(out, indent=2)
+    return text
+
+
 def _start_review(workspace: str, source: str, schema: str, step: str, plan: dict, sample: bool, ctx) -> dict | None:
     """WB13 (#66, #71): step 6 on your own data reads review_plan's file with the checks counted (counts only, no row
     values), so the card can ask about each open link with its evidence; step 4 reads it without counting, for the small
@@ -1765,6 +1835,9 @@ def create_ontology(workspace: _p.Workspace, source: _p.Source, name: _p.Ontolog
     item's definition, so entity types not in the plan leave it; no item is deleted. Errors: {error, kind, hint}."""
     if (check or "").strip():                                # n227: how a started create went; reads only
         return _create_status("create_ontology", workspace, name, check, ctx)
+    shared = _combined_ontology(workspace, source, schema, name, dry_run, ctx)   # ON1: the matches the person accepted
+    if shared is not None:
+        return shared
     began = time.monotonic()
     p, args = _ontology_inputs(workspace, source, schema, keys, confirmed, ctx)
     schema = p.schema.schema                                   # n175: the name the metadata returns
