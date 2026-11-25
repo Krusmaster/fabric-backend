@@ -136,3 +136,21 @@ html[data-mascots="off"] .app-face, html[data-mascots="off"] .app-fig { visibili
   .app-input { padding: 10px 12px 12px }
   .app-bub .check-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) }
 }
+/* AP3: the caretaker's "Since last time" report (guided_care.py) */
+.care-card { display: grid; gap: 8px; min-width: 0 }
+.care-card > * { margin: 0; min-width: 0 }
+.care-name { font-size: 17px; font-family: var(--font-head); margin: 0; overflow-wrap: anywhere }
+.care-sec { border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; display: grid; gap: 4px; background: var(--card); min-width: 0 }
+.care-sec > * { margin: 0; min-width: 0 }
+.care-sec ul { margin: 0; padding-left: 20px }
+.care-sec li { overflow-wrap: anywhere }
+.care-sec.s-bad { border-color: var(--coral) }
+.care-sec.s-ok { border-color: var(--sage-d) }
+.care-sec-h { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline }
+.care-sec-h h4 { margin: 0; font-size: 15px; font-family: var(--font-head) }
+.care-sec a { font-weight: 700; display: inline-block; min-height: 32px; padding: 4px 0 }
+.app-badge.care-ok { background: var(--sage-soft); color: var(--sage-ink); border-color: transparent }
+.app-badge.care-warn, .app-badge.care-none, .app-badge.care-unknown { background: var(--lav-soft); color: var(--lav-ink); border-color: transparent }
+.app-badge.care-bad { background: var(--coral-soft); color: var(--coral-ink); border-color: transparent }
+.care-acts { margin: 0; padding-left: 22px; display: grid; gap: 4px }
+.care-acts li { overflow-wrap: anywhere }

@@ -12,6 +12,12 @@ what would be built (the Fabric workload's build, each item through its MCP tool
 that lists each item by name and the dry run's token, and verify_build's check of what was built. The step endpoint
 takes the read steps and Decide; the dry run, Create and the check after it have their own endpoint, /app/api/build.
 
+AP3 (guided_care.py) adds the caretaker: when the person has built data products (Krusgraph Model items' outputs.json
+in the workspaces they can see, or this session's own builds), Onto greets with a "Since last time" report per product
+from the engine's read-only readers (the pipeline's runs, the health check, verify_build, drift since the plan) and at
+most three fixes as buttons, chosen by fixed rules; a fix that writes has a preview, a confirm dialog and a one-use
+token, as Create has. Its endpoint is /app/api/care; "Update the build in place" is AP2's dry run on the product's basis.
+
 Closed by default. Every route answers the site's ordinary 404 unless KRUSGRAPH_APP_TENANTS names at least one tenant id
 (comma separated, read on every request) and the server runs with Entra sign-in. A sign-in from a tenant that is not on
 the list gets the same 404 and no session. The page is not linked from the navigation, the sitemap, robots.txt or
@@ -54,6 +60,7 @@ CALLBACK = PATH + "/callback"
 LOGOUT = PATH + "/logout"
 STEP = PATH + "/api/step"
 BUILD = PATH + "/api/build"               # AP2: dry run, Create, verify (guided_build.py)
+CARE = PATH + "/api/care"                 # AP3: the caretaker's report and fixes (guided_care.py)
 ENV = "KRUSGRAPH_APP_TENANTS"
 SESSION_COOKIE = "__Host-kg_app"
 FLOW_COOKIE = "__Host-kg_app_flow"
@@ -71,6 +78,7 @@ NEXT_LINE = "Next: decide what needs you, then a dry run of what would be built.
 NOTHING_WRITTEN = "Nothing was changed in Fabric: the check, Decide and the dry run only read."
 REVIEWS = ("accepted", "rejected", "skipped")
 BUILD_ACTIONS = ("places", "lakehouses", "dry_run", "confirm", "create", "state", "verify")
+CARE_ACTIONS = ("products", "report", "recheck", "preview", "confirm", "state")
 
 
 def allowed_tenants() -> frozenset[str]:
@@ -284,7 +292,10 @@ def page_html(name: str = "") -> str:
     from .pages import _shell, asset_version
     lines = {"hello": coach.LINE["data"], "read": coach.LINE["read"], "check": coach.LINE["check"], "next": NEXT_LINE,
              "nothing": NOTHING_WRITTEN, "error": coach.LINE["error"], "names": coach.NAMES,
-             "decide": coach.LINE["decide"], "build": coach.LINE["build"], "dry_run": coach.LINE["dry_run"]}
+             "decide": coach.LINE["decide"], "build": coach.LINE["build"], "dry_run": coach.LINE["dry_run"],
+             "since": "Since last time. I read what you built, by rules: the pipeline's runs, the health check, "
+                      "verify_build and the source against the plan. Nothing is changed while I read.",
+             "fresh": "Or start something new: pick a workspace and the lakehouse your tables are in."}
     who = f"Signed in as {html.escape(name[:80])}. " if name else "Signed in. "
     body = f"""<section class="wrap app-wrap" aria-labelledby="app-h">
   <div class="app-chat">
@@ -339,6 +350,7 @@ class App:
         self.sign_in_limit = Limiter(parse("30/minute,300/hour"), [])        # per network
         self.step_limit = Limiter(parse("60/minute,1200/hour"), [])          # per session
         self.build_limit = Limiter(parse("120/minute,2400/hour"), [])        # per session; Create's progress is polled
+        self.care_limit = Limiter(parse("60/minute,600/hour"), [])           # per session; AP3's reports read a lot
 
     # -- what every route checks first
     def on(self) -> bool:
@@ -615,11 +627,17 @@ class App:
                 update = data.get("update") or []
                 if not isinstance(update, list) or any(u not in dict(B.OUTPUTS) for u in update):
                     return answer({"error": "The update list is not readable.", "kind": "bad_request"}, 400)
+                basis = None
+                if data.get("product") is not None:            # AP3: Update the build in place of a data product
+                    from .guided_care import basis as care_basis
+                    basis = care_basis(sid, data["product"])
+                    if basis is None:
+                        return answer({"error": "That data product is not one found for this sign-in.", "kind": "not_found"}, 400)
                 try:
                     target = B.target_of(tokens, c, data.get("target"))
                 except ValueError as e:
                     return answer({"error": str(e), "kind": "bad_request"}, 400)
-                return answer(B.dry_run(tokens, sid, c, target, list(update)))
+                return answer(B.dry_run(tokens, sid, c, target, list(update), basis))
             if act == "confirm":
                 names = data.get("names")
                 return answer(B.confirm(tokens, sid, str(data.get("token") or "")[:80],
@@ -632,6 +650,59 @@ class App:
         except Exception as exc:                                    # noqa: BLE001 — explained, never leaked
             got = explain(exc, f"/app {act}")
             log("build_failed", action=act, error=type(exc).__name__, kind=got.get("kind"))
+            return answer({k: str(got[k])[:400] for k in ("error", "kind", "hint") if got.get(k)})
+
+    def care(self, request, body: bytes):
+        """POST /app/api/care {action, ...} (AP3, guided_care.py), with the same locks as the build endpoint. Actions:
+          products                                 the data products this person built
+          report {product}                         its "Since last time" report and at most three proposals
+          recheck {product}                        its keys and links counted against the rows again (reads only)
+          preview {product, act}                   what a writing fix would do, and its token (writes nothing)
+          confirm {token, names}                   the confirm dialog's yes: the preview's token and its item's name
+          state {operation_id}                     how a refresh is going"""
+        from starlette.responses import JSONResponse
+        nostore = {"Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow"}
+
+        def answer(payload: dict, status: int = 200):
+            return JSONResponse(payload, status_code=status, headers=nostore)
+        if not self.on():
+            return self.not_found(request)
+        if not self._same_origin(request) or not request.headers.get("content-type", "").startswith("application/json"):
+            return answer({"error": "This address takes JSON from Krusgraph's own page.", "kind": "bad_request"}, 403)
+        s = self.session(request)
+        if s is None:
+            return answer({"error": "Sign in first.", "kind": "sign_in", "login": LOGIN}, 401)
+        if self._limited(self.care_limit, _digest(s["token"])[:24]):
+            return answer({"error": "Too many requests at once. Wait a minute.", "kind": "rate_limited"}, 429)
+        try:
+            data = json.loads(body[:MAX_BODY]) if len(body) <= MAX_BODY else None
+        except ValueError:
+            data = None
+        if not isinstance(data, dict) or data.get("action") not in CARE_ACTIONS:
+            return answer({"error": "The request is not readable.", "kind": "bad_request"}, 400)
+        from . import guided_care as C
+        from .errors import explain
+        sid = _digest(request.cookies.get(SESSION_COOKIE) or "")
+        tokens = SessionTokens(self.obo, s["token"], s["tid"], s["who"])
+        owner = "app-" + s["who"]
+        act = data["action"]
+        try:
+            if act == "products":
+                return answer({"products": C.find_products(tokens, sid)})
+            if act == "report":
+                return answer(C.report(tokens, sid, data.get("product")))
+            if act == "recheck":
+                return answer(C.recheck(tokens, sid, data.get("product")))
+            if act == "preview":
+                return answer(C.preview(tokens, sid, data.get("product"), str(data.get("act") or "")[:40]))
+            if act == "confirm":
+                names = data.get("names")
+                return answer(C.confirm(tokens, sid, str(data.get("token") or "")[:80],
+                                        names if isinstance(names, list) and len(names) <= 5 else [], owner))
+            return answer(C.op_state(tokens, str(data.get("operation_id") or "")[:64], owner))
+        except Exception as exc:                                    # noqa: BLE001 — explained, never leaked
+            got = explain(exc, f"/app care {act}")
+            log("care_failed", action=act, error=type(exc).__name__, kind=got.get("kind"))
             return answer({k: str(got[k])[:400] for k in ("error", "kind", "hint") if got.get(k)})
 
     def _typed(self, tokens, args: dict, out: dict, text: str) -> dict:
@@ -664,7 +735,8 @@ class App:
         return [route(PATH, "GET", self.page), route(LOGIN, "GET", self.login),
                 route(CALLBACK, "GET", self.callback, threaded=True), route(LOGOUT, "POST", self.logout),
                 route(STEP, "POST", self.step, threaded=True, body=True),
-                route(BUILD, "POST", self.build, threaded=True, body=True)]
+                route(BUILD, "POST", self.build, threaded=True, body=True),
+                route(CARE, "POST", self.care, threaded=True, body=True)]
 
 
 def routes(cfg, validator, obo, entra_post=None, run=None) -> list:
