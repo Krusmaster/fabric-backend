@@ -2221,7 +2221,11 @@ def _ownership(o: dict, chosen: dict, req: dict, workspace: str, headers: dict, 
 # in outputs.json (created[].plan) and in its Fabric description (the marker below), and "already built" means built
 # from this plan. An item built from another plan, or by Krusgraph before plans were recorded, gets a card with two
 # choices: Update (dry run first; only where the tool updates in place) or a new name. Nothing is written for it.
-MARK = re.compile(r"\[Krusgraph plan (plan-[0-9a-f]+), schema (.+?) \((sha256:[0-9a-f]+)\), (\d+) links?\]")
+# LFD6: apply_change adds the change list the item now holds, as a count and a digest of its ids in order:
+# "[Krusgraph plan plan-…, schema shop (sha256:…), 7 links, 2 changes (sha256:…)]". A mark without that part (every mark
+# written before LFD6) reads as zero changes (change_apply.changes_of).
+MARK = re.compile(r"\[Krusgraph plan (plan-[0-9a-f]+), schema (.+?) \((sha256:[0-9a-f]+)\), (\d+) links?"
+                  r"(?:, (\d+) changes? \((sha256:[0-9a-f]+)\))?\]")
 DESCRIPTION_LIMIT = 256
 
 
@@ -2234,15 +2238,20 @@ def plan_mark(rv: dict, p, schema: str) -> dict:
 
 def mark_text(mark: dict) -> str:
     n = mark["links"]
+    k = int(mark.get("changes") or 0)                       # LFD6: only a mark apply_change writes carries changes
+    tail = f", {k} change{'' if k == 1 else 's'} ({mark['changes_digest']})" if k and mark.get("changes_digest") else ""
     return (f"[Krusgraph plan {mark['plan_id']}, schema {mark['schema']} ({mark['schema_fingerprint']}), "
-            f"{n} link{'' if n == 1 else 's'}]")
+            f"{n} link{'' if n == 1 else 's'}{tail}]")
 
 
 def mark_of_description(text) -> dict | None:
     m = MARK.search(str(text or ""))
     if not m:
         return None
-    return {"plan_id": m.group(1), "schema": m.group(2), "schema_fingerprint": m.group(3), "links": int(m.group(4))}
+    out = {"plan_id": m.group(1), "schema": m.group(2), "schema_fingerprint": m.group(3), "links": int(m.group(4))}
+    if m.group(5):                                          # LFD6: the change list, when apply_change wrote one
+        out.update(changes=int(m.group(5)), changes_digest=m.group(6))
+    return out
 
 
 def with_mark(description, mark: dict) -> str:

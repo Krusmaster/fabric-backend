@@ -1,15 +1,15 @@
 # Changing a data product: the change contract
 
-Status: **the contract, its drafts, its numbers and the proposal** (round LFD2, 24 November 2026; rounds LFD3, LFD4
-and LFD5, 25 November 2026: the numbers, the diff and the read-only tool `propose_change`, behind `KRUSGRAPH_CHANGES`,
-off by default; *The numbers* and *Proposing a change* below; round LFD7, 25 November 2026: versions and undo, *Versions
-and undo (LFD7)* below).
+Status: **the contract, its drafts, its numbers, the proposal, applying it and undo** (round LFD2, 24 November 2026;
+rounds LFD3 to LFD7, 25 November 2026: the numbers, the diff, the read-only tool `propose_change` with the numbers
+counted, `apply_change` through Update, both behind `KRUSGRAPH_CHANGES`, off by default, and versions and undo; *The
+numbers*, *Proposing a change*, *Applying a change (LFD6)* and *Versions and undo (LFD7)* below).
 `fabric_backend/changes.py` is a module of pure functions with tests (`tests/test_lfd2_contract.py`); LFD3 applies a
 list of changes to the silver, gold and semantic model drafts (below, *Applying a list*; `tests/test_lfd3_apply.py`, and
 the silver notebook on a local PySpark 4.0.1 in `tests/test_spark_notebooks.py`); LFD4 counts the numbers before and
 after each change on the rows (below, *The numbers*; `fabric_backend/change_numbers.py`, `tests/test_lfd4_numbers.py`,
-on SQLite over the synthetic samples). No tool uses it yet, and nothing here has run against a Fabric workspace. The
-round that follows adds the tools behind the switch `KRUSGRAPH_CHANGES`, which is off by default.
+on SQLite over the synthetic samples). The tools `propose_change` (LFD5) and `apply_change` (LFD6) use them only
+behind the switch `KRUSGRAPH_CHANGES`, which is off by default, and nothing here has run against a Fabric workspace.
 
 ## What it is for
 
@@ -292,20 +292,82 @@ answer's `confirmed` is what the next calls take. The diff has three layers:
    most per item; a longer one says how many lines are not shown); the same definition is `unchanged`; an item the
    source cannot have (gold views need a lakehouse with schemas) is `not drafted`, with the reason;
 3. **numbers**: what an injected counter returns, called as `numbers(before=side, after=side)`, where a side is
-   `{"plan", "applied"}` (`change_diff.NumbersLayer`). Round LFD4's `change_numbers.py` is that counter; whichever of
-   the two pull requests merges last passes it in `server._propose_change` and `mcp_server.propose_change`. Without it
-   the layer is `{"status": "not counted yet"}`.
+   `{"plan", "applied"}` (`change_diff.NumbersLayer`). Round LFD4's `change_numbers.py` is that counter, and since
+   round LFD6 `server._propose_change` and `mcp_server.propose_change` pass it (`change_apply.numbers`):
+   `change_numbers.count(after["applied"], after["plan"], execute)`, which counts every change of the list before and
+   after it, on the source's SQL endpoint, opened as `validate_plan` opens it (on the local server, its own connection).
+   Called without a counter (`change_diff.propose` alone) the layer is `{"status": "not counted yet"}`.
 
 `confirm` is a token in the style of the Update dry runs (`workload_api.confirm_token`, prefix `upd-`) over the list's
 ids in order, the plan they stand on and every item's new definition: the same proposal gives the same token, another
-list or another definition another one. A later `apply_change` (round LFD6) takes it back. The answer says that nothing
-was written; when it is too long, the largest unified diffs leave it first, and the summaries and line counts stay.
+list or another definition another one. `apply_change` (round LFD6, below) takes it back. The answer says that nothing
+was written, and whether the change needs a pipeline run (`pipeline_run`). It stays under the tool's limit
+(`MAX_RESULT_CHARS`, 60 000 characters) in this order (`change_apply.answer`): the numbers layer's receipt is always
+summarised as its count of rows (each number carries its own statement, and `change_numbers.statements` gives them all);
+when the answer is still too long, each number loses its SQL and keeps its before, after and difference; then the
+largest unified diffs leave first, and the summaries and line counts stay.
 
 On shop_lfd (`tests/test_lfd5_propose.py`): *remove test customers* asks for the column, then the cascade, then changes
 the silver notebook only (and the model's README); *add region* is ok where the plan counted `orders.ship_to_id` (R5),
 and where it did not, asks for the link, plans again with it and changes the silver, check and gold notebooks and the
 model; *order value per customer* changes the semantic model only. The pipeline's definition names its three notebooks
 and none of these changes it.
+
+On shop_lfd (`tests/test_lfd6_apply.py`), *remove test customers* now shows in the numbers layer customers 12 → 10,
+orders 66 → 60, lines 146 → 134 and the order amount 56 834.70 → 51 296.70, and says that a pipeline run is needed.
+
+## Applying a change (LFD6)
+
+`apply_change` is a creating tool, registered on the hosted server only when `KRUSGRAPH_CHANGES=1`, like
+`propose_change`, and left out by `KRUSGRAPH_READ_ONLY=1` like every creating tool. The local server has no creating tool
+for notebooks, pipelines or semantic models, so it has no `apply_change` either. It takes `propose_change`'s inputs
+(workspace, source, schema, `change`, `applied`, `confirmed`) and `confirm`, the `upd-` token `propose_change` returned,
+and `dry_run`, true by default as for the other creating tools.
+
+1. **The proposal again.** It plans, validates and drafts again exactly as `propose_change` does, with the numbers. A
+   question, a denial or `replan` is answered as it is, and nothing is written. With `dry_run=false`, a `confirm` that is
+   missing (`needs_confirmation`) or is not this proposal's (`confirm_mismatch`: another list, plan or definition) writes
+   nothing and answers the new diff with its new token.
+2. **What is written, and in which order.** Only the items the diff marks `update in place`, in this order: the silver,
+   check and gold notebooks and the pipeline's definition; then **one pipeline run**, only when the change needs rows
+   (the silver or the gold notebook changes; every answer says so in `pipeline_run`); then the semantic model; then
+   **one refresh** of the model (after it was written, or after a run that succeeded). Each definition goes through
+   Fabric's `updateDefinition` of the item, as the creating tools update an item of the same name; a step that fails
+   stops the steps after it. Nothing is ever deleted.
+3. **Whose items.** The items are found by the diff's names (`silver_<schema>`, `gold_<schema>`,
+   `pipeline_<schema>_check`, `pipeline_<schema>`, `<schema>_model`) in the workspace's item list. One that is not there
+   (`not_built`), one whose description has neither Krusgraph's plan marker (`workload_api.MARK`) nor Krusgraph's words
+   (`not_ours`, as `workload_api._krusgraph_made` reads it), and one whose definition in Fabric is not the diff's "now"
+   (`items_differ`, compared by `verify_build`'s own rules: a notebook's code line by line, a model's tables,
+   relationships and measures, a pipeline's steps) stop the whole call before anything is written. The definitions are
+   built as `create_pipeline` and `create_semantic_model` build them (the pipeline's silver notebook with its drift cell,
+   the model with the calendar range read from the rows; `server._change_items`, with the change list passed to the
+   drafts through `_pipeline_build(..., changes=)`), so "now" is what those tools wrote. An item already as the change
+   makes it is left as it is, so applying the same list twice writes nothing the second time. A change that reaches the
+   model only in its README (a filter) writes nothing to the model, since the README is not a part of the item.
+4. **The plan marker.** Each item written gets the marker of the plan it now stands on with the change list:
+   `[Krusgraph plan plan-…, schema shop (sha256:…), 7 links, 2 changes (sha256:…)]`, the count and a digest of the
+   list's ids in order (`change_apply.digest`). A marker without the change part, which every marker written before
+   LFD6 is, reads as zero changes (`change_apply.changes_of`), and every reader of the marker (`workload_api.MARK`,
+   `after_create.MARK`, `same_plan`) still reads the plan from it as before. The answer's `checks` show what each
+   item's marker records.
+5. **Verified afterwards, two states apart.** *Definition verified*: each written definition is read back from Fabric
+   and compared with what was written (`verify_build`'s comparisons; `verified`, `differs` or `not checked`). *Numbers
+   verified after a run*: after a run that succeeded, the rows of every silver table a filter of the list changed are
+   counted and compared with the numbers layer's "after"; without a run, or when the run has not succeeded within 30
+   seconds, the numbers are `not checked`, with the reason. `verify_build` itself compares a build with its dry run
+   without changes, so it is not the check here.
+
+The answer carries `applied_next`, the list to send as `applied` with the next change, and `writes`, which says what was
+written in which order, or why nothing was.
+
+On the fake Fabric of `tests/test_lfd6_apply.py` (the data product built first by `create_pipeline` and
+`create_semantic_model` with `dry_run=false`), scenario A applied change by change: *remove test customers* writes the
+silver notebook, runs the pipeline and refreshes the model, and the silver tables count 10 customers, 60 orders and 134
+lines (numbers verified); *region from addresses* writes the gold views notebook, runs and refreshes; *order value per
+customer* writes the semantic model only and refreshes it, with no run. The pipeline's definition is never written,
+because no change of scenario A changes it. Every written definition reads back verified. A wrong or old token, a dry
+run, an item someone else made and a notebook edited in Fabric write nothing.
 
 ## Versions and undo (LFD7)
 
@@ -369,9 +431,13 @@ the filter out; the diff shows the filter removed and its numbers, customers 12 
 
 ## What these rounds do not do
 
-- No tool unless `KRUSGRAPH_CHANGES=1`, and then only `propose_change`, which writes nothing: with the setting off the
-  tool listing is unchanged. `apply_change` is a later round.
-- Nothing is built in Fabric: the changes reach the drafts, and their numbers are counted on the source. `ok` means
-  "allowed and unambiguous against this plan", nothing more.
+- No tool unless `KRUSGRAPH_CHANGES=1`, and then `propose_change`, which writes nothing, and `apply_change`, which
+  writes only on a confirmed yes: with the setting off the tool listing is unchanged (16 tools by default,
+  `tests/golden/hosted_listing.json` byte for byte). On, the two are listed after the guided path's 16; `apply_change`
+  is not read-only, so the default read-only listing stays at 23 364 characters (25 November 2026).
+- Nothing here has run against a Fabric workspace: `apply_change` is tested against a fake Fabric only. Items built
+  under other names than the diff's, a model that reads gold (the Model editor's build) and a build in another
+  workspace or lakehouse are not written: their definitions are not the diff's "now", so the call stops and says so.
+- `ok` from `propose_change` means "allowed and unambiguous against this plan", nothing more.
 - No renaming of a copied column, no filter across tables, no measure with a filter: each is a later decision.
 - Relationships that are not key joins (`plan.extended`) are not used as paths.

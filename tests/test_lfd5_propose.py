@@ -76,7 +76,7 @@ def test_the_flag_is_off_by_default_and_read_from_the_environment():
     assert not tool_listing.changes_on({}) and not tool_listing.changes_on({"KRUSGRAPH_CHANGES": "0"})
     assert tool_listing.changes_on({"KRUSGRAPH_CHANGES": "1"}) and tool_listing.changes_on({"KRUSGRAPH_CHANGES": "on"})
     assert tool_listing.default_names({}) == tool_listing.DEFAULT and len(tool_listing.DEFAULT) == 16
-    assert tool_listing.default_names({"KRUSGRAPH_CHANGES": "1"}) == (*tool_listing.DEFAULT, "propose_change")
+    assert tool_listing.default_names({"KRUSGRAPH_CHANGES": "1"}) == (*tool_listing.DEFAULT, "propose_change", "apply_change")   # LFD6
 
 
 def test_flag_off_the_hosted_listing_is_the_golden_file_byte_for_byte():
@@ -99,7 +99,7 @@ def test_flag_on_the_tool_is_listed_read_only_and_the_default_read_only_listing_
     on = _listing("server", KRUSGRAPH_CHANGES="1", KRUSGRAPH_ADVANCED_TOOLS="0")
     off = _listing("server", KRUSGRAPH_ADVANCED_TOOLS="0")
     names = [t["name"] for t in on["tools"]]
-    assert sorted(names) == sorted((*tool_listing.DEFAULT, "propose_change")) and len(names) == 17
+    assert sorted(names) == sorted((*tool_listing.DEFAULT, "propose_change", "apply_change")) and len(names) == 18   # LFD6
     tool = next(t for t in on["tools"] if t["name"] == "propose_change")
     assert tool["annotations"]["read_only_hint"] is True and tool["annotations"]["destructive_hint"] is False
     assert set(tool["input_schema"]["properties"]) == {"workspace", "source", "change", "schema", "applied", "confirmed"}
