@@ -219,6 +219,84 @@ def test_a_the_items_in_fabric_at_the_end(runs):
     assert set(a["items"]) == {"silver_shop", "gold_shop", "pipeline_shop_check", "pipeline_shop", "shop_model"}
 
 
+# ------------------------------------------------------------------ LFD9b: the report shows the chat's numbers ----------
+
+def _partitions(fake_item: dict) -> set[tuple[str, str]]:
+    """(schemaName, entityName) of every Direct Lake partition of a model's TMDL parts."""
+    import re
+    out = set()
+    for path, text in fake_item["parts"].items():
+        if path.startswith("definition/tables/"):
+            for m in re.finditer(r"entityName: (\S+)\n\t+schemaName: (\S+)", text):
+                out.add((m.group(2), m.group(1)))
+    return out
+
+
+def test_lfd9b_the_model_is_built_on_the_pipelines_silver_tables(runs):
+    build = _step(runs["A"], "build")
+    reads = build["dry_run"]["shop_model"]["summary"]["reads"]
+    assert reads["layer"] == "silver" and reads["schema"] == "silver" and "pipeline_shop" in reads["schema_from"]
+    assert "combined_key_columns" not in build["dry_run"]["shop_model"]["summary"]
+    for label in ("A2 applied", "A3 applied", "A4 applied", "A6 applied"):
+        assert _step(runs["A"], label)["model"]["reads"] == ["silver"], label
+    assert _step(runs["B"], "B1 applied")["model"]["reads"] == ["silver"]
+
+
+def test_lfd9b_the_report_shows_10_customers_and_5_129_67_after_a2_and_a4_and_the_source_after_the_undo(runs):
+    a = runs["A"]
+    after_a2 = _step(a, "A2 applied")["model"]["measures"]
+    assert after_a2["Rows in orders"] == 60 and after_a2["Order amount"] == "51296.70"     # the 10 customers' orders
+    after_a4 = _step(a, "A4 applied")["model"]["measures"]
+    want = lfd_demo.EXPECTED["shop_lfd"]["numbers"]
+    assert after_a4["Order value per customer"] == "5129.67" == want["real_order_value_per_customer"]
+    assert after_a4["Order value per customer"] == _numbers(_step(a, "A4")["answer"])["measure:Order value per customer"]["value"]
+    after_a6 = _step(a, "A6 applied")["model"]["measures"]
+    assert (after_a6["Rows in orders"], after_a6["Order amount"], after_a6["Order value per customer"]) == \
+        (66, "56834.70", "4736.23")
+    assert after_a6["Order value per customer"] == want["order_value_per_customer"]
+    assert _step(runs["B"], "B1 applied")["model"]["measures"]["Rows in sap_vbrp"] == 2
+
+
+def test_lfd9b_the_model_in_the_store_reads_silver_and_a_filter_leaves_its_definition_alone():
+    with change_demo.offline("shop_lfd") as fake:
+        sc = change_demo._Scenario("shop_lfd", fake)
+        change_demo.scenario_a(sc)
+        model = fake.by_name("shop_model")
+        parts = _partitions(model)
+        assert parts and {s for s, _ in parts} == {"silver"}
+        assert {t for _, t in parts} >= {"customers", "orders", "order_items", "products"}
+    for label in ("A2 applied", "A6 applied"):                     # a filter reaches the model through the run, not its definition
+        assert "shop_model" not in _step({"steps": sc.steps}, label)["answer"]["written"]
+
+
+def test_lfd9b_without_a_pipeline_the_model_reads_the_source_tables_as_before():
+    from fabric_backend import server
+    src = change_demo.SOURCES["shop_lfd"]
+    with change_demo.offline("shop_lfd") as fake:
+        dry = json.loads(server.create_semantic_model(name="shop_model", dry_run=True, **src))
+        assert "reads" not in dry["summary"] and "layers_to" not in dry
+        json.loads(server.create_semantic_model(name="shop_model", dry_run=False, **src))
+        assert {s for s, _ in _partitions(fake.by_name("shop_model"))} == {src["schema"]}
+
+
+def test_lfd9b_a_model_built_before_its_pipeline_is_compared_and_written_on_the_source_tables():
+    """The diff drafts the model on silver (the source has a pipeline now); the model in Fabric reads the source, as it
+    was built before the pipeline. apply_change compares "now" on the model's own layer: no items_differ, and the
+    measure is written on the source tables, where the model reads."""
+    from fabric_backend import server
+    src = change_demo.SOURCES["shop_lfd"]
+    with change_demo.offline("shop_lfd") as fake:
+        json.loads(server.create_semantic_model(name="shop_model", dry_run=False, **src))
+        json.loads(server.create_pipeline(name="pipeline_shop", dry_run=False, **src))
+        sc = change_demo._Scenario("shop_lfd", fake)
+        ok = sc.propose("A4", change_demo.SAID["A4"], change_demo.A4)
+        assert ok["result"] == "ok"
+        out = sc.apply("A4 applied", change_demo.A4, ok)
+        assert out["result"] == "ok" and out["written"] == ["shop_model"], out.get("reason")
+        assert {s for s, _ in _partitions(fake.by_name("shop_model"))} == {src["schema"]}
+        assert out["verify"]["definition"]["state"] == "verified"
+
+
 # ------------------------------------------------------------------ scenario B on sap_lfd ------------------------------
 
 def test_b_cancelled_billing_documents_go_and_the_orders_stay(runs):
@@ -263,6 +341,8 @@ def test_krusgraph_demo_change_prints_the_chat(capsys):
                  "    Order value per customer: 4 736.23 → 5 129.67 (+393.44)",
                  "  Krusgraph: Takes out the filter on customers.",
                  "    silver customers: 12 rows (expected 12)",
+                 "  report (the model reads silver): Rows in orders 60, Order amount 51 296.70, Order value per customer 5 129.67",
+                 "  report (the model reads silver): Rows in orders 66, Order amount 56 834.70, Order value per customer 4 736.23",
                  "  Written, in this order: silver_shop. Nothing was deleted; only items Krusgraph made were written."):
         assert line in out.splitlines(), line
     assert "definition: verified; numbers after the run: verified" in out
@@ -284,6 +364,7 @@ def test_krusgraph_demo_change_sap_and_json(capsys):
     assert [s["step"] for s in r["steps"]] == ["build", "A2a", "A2b", "A2c", "A2 applied", "A3a", "A3b", "A3b applied", "A3c",
                                                "A3 applied", "A4", "A4 applied", "A6", "A6 applied"]
     assert next(s for s in r["steps"] if s["step"] == "A6 applied")["silver_rows"]["customers"] == 12
+    assert next(s for s in r["steps"] if s["step"] == "A4 applied")["model"]["measures"]["Order value per customer"] == "5129.67"
     code = cli.main(["demo", "change", "--apply", "--json"])
     assert code == cli.REFUSED
     capsys.readouterr()

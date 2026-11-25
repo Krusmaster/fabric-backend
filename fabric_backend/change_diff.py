@@ -56,7 +56,8 @@ class NumbersLayer(Protocol):
 def drafts(plan: Plan, info: dict, applied: dict | None) -> dict:
     """Every item's definition for one side, as text, with the specs the summaries read. The same builders as the
     drafts and create_pipeline's dry run (silver.spec, gold.spec, pipeline.check_spec, pipeline.pipeline_content,
-    semantic_model.draft), with `changes=applied`; an empty list gives the drafts without changes, byte for byte. An
+    semantic_model.draft), with `changes=applied`; an empty list gives the drafts without changes, byte for byte. LFD9b:
+    info["model_reads"] == "silver" (the source has a Krusgraph pipeline) drafts the model on the silver tables. An
     item the source cannot have (gold views need a lakehouse with schemas) is None in `text`, with the reason in
     `not_drafted`."""
     from . import gold, pipeline, semantic_model, silver
@@ -79,7 +80,8 @@ def drafts(plan: Plan, info: dict, applied: dict | None) -> dict:
             return None
     s = build(("silver_notebook", "check_notebook"), lambda: silver.spec(plan, info, **kw))
     g = build(("gold_views", "check_notebook"), lambda: gold.spec(plan, info, **kw))
-    model = build(("semantic_model",), lambda: semantic_model.draft(plan, info, names["semantic_model"], **kw))
+    model = build(("semantic_model",), lambda: semantic_model.draft(plan, info, names["semantic_model"],
+                                                                    on_silver=info.get("model_reads") == "silver", **kw))
     if s is not None:
         out["silver"], text["silver_notebook"] = s, silver.notebook_source(s)
     if g is not None:

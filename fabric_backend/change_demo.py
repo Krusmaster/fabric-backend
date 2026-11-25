@@ -58,6 +58,9 @@ SILVER_AMOUNT = {
     "sap_lfd": "SELECT SUM(CAST(ROUND([NETWR] * 100, 0) AS INTEGER)) FROM silver.[sap_vbrk]",
 }
 
+# LFD9b: the measures the demo reads off the model after each apply, as the report shows them (change_demo._model).
+REPORT = {"shop_lfd": ("Rows in orders", "Order amount", "Order value per customer"), "sap_lfd": ("Rows in sap_vbrp",)}
+
 # What the person types in the chat, per step (docs/demo/CHANGE-BY-CHAT.md has the same sentences).
 SAID = {
     "build": "Build the data product for shop_lh: the pipeline and the semantic model.",
@@ -285,6 +288,17 @@ def offline(sample: str = "shop_lfd"):
 
 # ------------------------------------------------------------------ the scenarios ------------------------------------
 
+def _cents(v: float) -> str:
+    from decimal import ROUND_HALF_UP, Decimal
+    # to the micro-unit first: the float of 56 834.70 / 12 is 4 736.224999…, which is 4 736.225, and so 4 736.23
+    return str(Decimal(repr(v)).quantize(Decimal("0.000001")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+
+
+def _sqlite_sql(sql: str) -> str:
+    from .dialects import sqlite_sql
+    return sqlite_sql(sql)
+
+
 def _call(fn, **kw) -> dict:
     return json.loads(fn(**kw))
 
@@ -348,9 +362,9 @@ class _Scenario:
         if [c for c in self.fake.calls[before:] if c[0] != "GET" and not c[1].endswith("/getDefinition")]:
             raise RuntimeError("change_demo: apply_change's dry run wrote to Fabric")
         out = _call(self.server._apply_change, **args, confirm=proposal.get("confirm", ""), dry_run=False)
-        self.steps.append({"step": label, "said": "Yes, apply it.", "kind": "apply", "change": change, "dry_run": dry,
+        self.steps.append({"step": label, "said": "Yes, apply it.", "kind": "apply", "sample": self.fake.sample, "change": change, "dry_run": dry,
                            "answer": out, "runs": len(self.fake.runs), "refreshes": len(self.fake.refreshes),
-                           "silver": self._silver(), "silver_amount": self._amount()})
+                           "silver": self._silver(), "silver_amount": self._amount(), "model": self._model()})
         if out.get("result") == "ok":
             self.applied = out["applied_next"]
             if proposal.get("confirmed") is not None:
@@ -362,6 +376,30 @@ class _Scenario:
             return {t: self.fake.silver_count(t) for t in self.fake.tables}
         except sqlite3.Error:
             return {}
+
+    def _model(self) -> dict | None:
+        """LFD9b: the semantic model in the store as the report reads it after its refresh: the schemas its partitions
+        read, and each measure the rules translate (verify_build.measure_sql, the SQL Krusgraph's own checks run)
+        computed over those tables in the fake (a decimal as text to the cent, rounded half up as the numbers layer
+        rounds). A measure that is not translated, or whose tables are not there yet (before the first run), is None.
+        None when there is no model."""
+        from . import model_compare, verify_build
+        try:
+            item = self.fake.by_name(self.src["schema"] + "_model")
+        except StopIteration:
+            return None
+        model = model_compare.from_tmdl(item["parts"])
+        reads = sorted({str(t.get("source_schema") or self.src["schema"]) for t in model["tables"].values() if t.get("source")})
+        values = {}
+        for t in model["tables"].values():
+            for name, m in t["measures"].items():
+                q = verify_build.measure_sql(model, m["expression"], self.src["schema"])
+                try:
+                    v = self.fake.con.execute(_sqlite_sql(q["sql"])).fetchone()[0] if q.get("sql") else None
+                except sqlite3.Error:
+                    v = None
+                values[name] = _cents(v) if isinstance(v, float) else v
+        return {"reads": reads, "measures": values}
 
     def _amount(self) -> str | None:
         """The order value (shop) or the billed amount (SAP) over the silver tables, in cents and back, as
@@ -499,6 +537,11 @@ def _apply_lines(step: dict) -> list[str]:
     for r in (v.get("numbers_after_run") or {}).get("rows") or []:
         if "counted" in r:
             out.append(f"    silver {r['table']}: {_spaced(r['counted'])} rows (expected {_spaced(r['expected'])})")
+    m = step.get("model") or {}
+    shown = [(k, m["measures"][k]) for k in REPORT.get(step.get("sample", ""), ()) if (m.get("measures") or {}).get(k) is not None]
+    if shown:                                                         # LFD9b: what the report shows after the refresh
+        out.append(f"  report (the model reads {', '.join(m['reads'])}): "
+                   + ", ".join(f"{k} {_spaced(v)}" for k, v in shown))
     out.append("  " + a.get("writes", ""))
     return out
 
@@ -554,7 +597,7 @@ def summary(result: dict) -> dict:
                        numbers_after_run=(v.get("numbers_after_run") or {}).get("state"),
                        silver_rows={r["table"]: r.get("counted") for r in (v.get("numbers_after_run") or {}).get("rows") or []
                                     if "counted" in r},
-                       writes=a.get("writes"))
+                       model=s.get("model"), writes=a.get("writes"))
         steps.append(row)
     return {"scenario": result["scenario"], "sample": result["sample"], "source": result["source"], "steps": steps,
             "runs": result["runs"], "refreshes": result["refreshes"], "deletes_or_puts": len(result["deletes_or_puts"]),

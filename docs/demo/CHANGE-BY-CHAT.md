@@ -1,4 +1,4 @@
-> 2026-11-25, round LFD9. Code: `fabric_backend/change_demo.py` and `krusgraph demo change` in
+> 2026-11-25, round LFD9; the report's numbers updated by round LFD9b. Code: `fabric_backend/change_demo.py` and `krusgraph demo change` in
 > `fabric_backend/krusgraph_cli.py`. Test: `tests/test_lfd9_demo_e2e.py`. Synthetic data only.
 
 # Change by chat: the demo script
@@ -38,7 +38,9 @@ written.
 **You type:** *Yes, create them.*
 
 **Krusgraph answers:** created. The workspace now has `silver_shop`, `gold_shop`, `pipeline_shop_check`,
-`pipeline_shop` and `shop_model`.
+`pipeline_shop` and `shop_model`. The model reads the silver tables the pipeline writes (its dry run says
+*Reads the silver tables the pipeline writes*), so it needs the pipeline's first run before it shows any rows. Create the
+pipeline before the model: a model made before its pipeline reads the source tables.
 
 Cut here if the first pipeline run is slow. Come back when it has finished.
 
@@ -77,6 +79,8 @@ Say: "Every number is a count on the rows. The SQL is in the answer."
 
 **Krusgraph answers:** the silver notebook written, one pipeline run, one refresh. The definition reads back as
 written. After the run, the silver tables hold 10 customers, 60 orders and 134 lines.
+
+You may open the Power BI report now: after the refresh it shows the 10 customers and 51 296.70, the card's numbers.
 
 **Cut here while the pipeline runs.** In Fabric, `apply_change` waits 30 seconds for the run. If the run takes longer,
 the answer says the numbers are not checked yet. Ask again later, or run `verify_build`.
@@ -118,9 +122,9 @@ and the order amount 51 296.70 before and after the join. Say: "The join repeats
 
 No cut needed here.
 
-Do not open the Power BI report to show 5 129.67. The model that `create_semantic_model` builds reads the source tables,
-not silver or gold, so a filter does not reach it: the report shows 12 customers and 4 736.23 per customer. The model's
-README says so. Show the numbers in the card instead.
+Open the Power BI report to show 5 129.67. The model reads the silver tables, which the run of A2 left without the test
+customers, so the report shows the card's number: 51 296.70 over 10 customers. (4 736.23 is the same measure on the
+source tables, where the test customers stay.)
 
 ### Step 5 (A6). Undo (about 1 minute)
 
@@ -134,7 +138,8 @@ The card shows these numbers as the undone change had them (12 → 10). The answ
 the card does not. Say it out loud, so nobody reads the arrow the wrong way.
 
 **You tap:** Yes. Krusgraph writes the silver notebook, runs once and refreshes. After the run the silver tables hold
-12 customers, 66 orders and 146 lines again. Region and the measure stay.
+12 customers, 66 orders and 146 lines again. Region and the measure stay. After the refresh the report shows 12
+customers and 4 736.23 per customer.
 
 **Cut here while the pipeline runs.**
 
@@ -174,5 +179,6 @@ document and 2 items.
 - Nothing here has run against a Fabric workspace. The live checks are in [LIVE-TEST.md](../LIVE-TEST.md).
 - The card's Yes button needs `apply_change` listed, so `KRUSGRAPH_CHANGES=1` on the server.
 - `ok` means "allowed and unambiguous against this plan". It does not mean the change is a good idea.
-- The Power BI report. The model reads the source tables, so the filters of A2 and B do not change its numbers. A model
-  that reads gold is not written by `apply_change` yet.
+- Region in the report. The model reads the silver tables, and A3's column is in the gold views, so `addresses_region`
+  is not in the model; the gold view `gold.orders` has it. A model that reads gold (the Model editor's build) is not
+  written by `apply_change` yet.

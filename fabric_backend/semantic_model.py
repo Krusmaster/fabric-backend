@@ -590,6 +590,24 @@ def _prediction_tables(predictions, tables, kinds, keys, rels, gschema) -> dict:
     return out
 
 
+def pipeline_layer(info: dict) -> dict | None:
+    """LFD9b: the silver layer a model over a Krusgraph pipeline reads, in combined_keys.layer's form with no combined
+    column; None for a source the silver step does not write into (not a lakehouse)."""
+    from . import combined_keys as _combined
+    kind = info.get("item_kind") or "Lakehouse"
+    if kind != "Lakehouse":
+        return None
+    silver = info.get("silver_schema") or _combined.DEFAULT_LAYER
+    enabled = info.get("schemas_enabled")
+    enabled = bool(enabled) if enabled is not None else not (kind == "Lakehouse" and (info.get("schema") or "dbo").lower() == "dbo")
+    where = f"{silver}.<table>" if enabled else f"{silver}_<table>"
+    return {"layer": "silver", "schema": silver if enabled else None, "prefix": "" if enabled else f"{silver}_",
+            "schemas_enabled": enabled, "combined_columns": 0,
+            "said": (f"Reads the silver tables the pipeline writes ({where}), not the source tables, so a change to the rows "
+                     "(filter_rows) reaches the model after the pipeline has run and the model is refreshed. Run the pipeline "
+                     "first; the source tables are not changed.")}
+
+
 def draft_on_gold(plan: Plan, info: dict, gspec: dict, name: str = "semantic_model", validation: dict | None = None,
                   date_range: tuple[str, str] | None = None, whole_quantities=frozenset(), products: dict | None = None,
                   predictions: list[dict] | None = None, changes: dict | None = None) -> dict:
@@ -625,7 +643,7 @@ def envelope(parts: dict[str, str], name: str, description: str = "") -> dict:
 def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str] | None = None, validation: dict | None = None,
           date_range: tuple[str, str] | None = None, whole_quantities: set[tuple[str, str]] = frozenset(),
           combined: bool | None = None, on_gold: dict | None = None, roles: list[str] | None = None,
-          changes: dict | None = None) -> dict:
+          changes: dict | None = None, on_silver: bool = False) -> dict:
     """info: item_name, item_kind, schema, sql_endpoint, sql_db, schemas_enabled (from server._source_inputs); returns
     {"parts": {path: content}, "summary": {...}}. `validation` (evidence.validate's answer): when it counted any of the
     model's links, the counts choose the active set (BL51, graphs.counted_active_set) and the summary's
@@ -645,13 +663,17 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
     is not added and the summary says why. Without `roles` the output is exactly as before.
     LFD3: `changes` (changes.apply's ok answer) adds each add_measure change as a measure whose DAX is built from the
     contract's form (change_dax), never from text, and the summary's `changes` says what each change of the list does
-    here. Without it, or with an empty list, the output is exactly as before."""
+    here. Without it, or with an empty list, the output is exactly as before.
+    LFD9b: `on_silver` (the source has a Krusgraph pipeline: server.create_semantic_model and apply_change pass it) makes
+    the model read the silver tables the pipeline writes (info["silver_schema"], else silver; on a lakehouse without
+    schemas the prefixed tables), so a filter_rows reaches it after a run. Off, the output is exactly as before."""
     from . import combined_keys as _combined, graphs
     original = plan
     plan, carried = _combined.carry(original, tables) if combined is not False else (original, {})
     layer = _combined.layer(info, carried)
     if not layer:                                                # nothing combined, or no silver step for this source
         plan, carried = original, {}
+        layer = pipeline_layer(info) if on_silver and not on_gold else None   # LFD9b: the pipeline's silver tables
     analysis = graphs.analyze(original, validation)
     if on_gold:                                                  # DPM1: the view's kind is the role (star schema)
         for t, kind in on_gold["kinds"].items():
@@ -916,7 +938,9 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                                   "Decisions to check with what the lakehouse needs." if composite else "The plan found no relationship between these tables.")]
     elif composite:
         readme += ["", f"{len(composite)} relationship(s) of the plan are not in the file: see Decisions to check."]
-    if layer:                                                    # n226
+    if layer and not carried:                                    # LFD9b: the pipeline's silver tables, nothing combined
+        readme += ["", "## Silver tables", "", layer["said"]]
+    elif layer:                                                  # n226
         readme += ["", "## Combined key columns", "", layer["said"], "",
                    "| Table | Column | Combines | For |", "| --- | --- | --- | --- |"]
         readme += [f"| `{c['table']}` | `{c['column']}` | {' + '.join(c['combines'])} | {'; '.join(c['for'])} |"
@@ -1054,7 +1078,8 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
         parts["README.generated.md"] = "\n".join(readme)
     if layer:                                                      # n226: only when columns are combined
         summary["reads"] = {"layer": "silver", "schema": schema, "tables": f"{prefix}<table>", "said": layer["said"]}
-        summary["combined_key_columns"] = _combined.describe(carried)
+        if carried:                                                # LFD9b: none on the pipeline's plain silver tables
+            summary["combined_key_columns"] = _combined.describe(carried)
     if flat:
         summary["flat_amounts"] = [{"table": t, "column": c, "header": h, "summarize_by": "none"} for (t, c), h in flat.items()]
     if dup.keys() & names:                                         # n150: only when the rows showed one
