@@ -109,7 +109,7 @@ def test_the_journey_reads_and_stops_before_deciding(run):
     assert run["live"] == "polite"
     assert run["focusOnNext"].startswith("Next: Check")                    # the keyboard lands on the next step
     said = run["said"]
-    assert "Hi! Pick your workspace" in said                               # the coach's own first line (coach.LINE)
+    assert said.count("Hi!") == 1 and "Hi! Which workspace" in said         # AP2b: one greeting, the start tool's own
     assert "demo › demo_lh › dbo ✓" in said
     assert "17 tables, 24 links, 1 needs you." in said
     assert any("40 of 41" in k for k in run["kpis"])
