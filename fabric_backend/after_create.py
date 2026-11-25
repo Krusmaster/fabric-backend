@@ -75,7 +75,8 @@ VERIFY_KINDS = ("semantic_model", "report", "ontology", "api", "pipeline", "app"
 # plan's mark known (the pipeline's health step), a semantic model counts as built from this plan only when its
 # description carries Krusgraph's marker of the same plan or of the same tables (schema fingerprint); a report follows
 # its model. Without a mark nothing changes.
-MARK = re.compile(r"\[Krusgraph plan (plan-[0-9a-f]+), schema (.+?) \((sha256:[0-9a-f]+)\), (\d+) links?\]")
+MARK = re.compile(r"\[Krusgraph plan (plan-[0-9a-f]+), schema (.+?) \((sha256:[0-9a-f]+)\), (\d+) links?"
+                  r"(?:, (\d+) changes? \((sha256:[0-9a-f]+)\))?\]")   # LFD6: the change list (workload_api.MARK)
 FOLLOWS_PLAN = ("semantic_model",)
 
 

@@ -211,6 +211,10 @@ _RAW = {
 if _changes_on():
     _RAW["propose_change"] = (HOSTED, READS, "nothing (plans and drafts; never writes to Fabric)",
                               "unit tests on the synthetic shop_lfd sample (SQLite); not run against Fabric")
+    # LFD6: the change applied through Update; a creating tool, so KRUSGRAPH_READ_ONLY=1 leaves it out (switches.creates)
+    _RAW["apply_change"] = (HOSTED, CREATES, "updates in place the notebooks, pipeline and semantic model a proposed change marks, "
+                                             "runs the pipeline once when rows change and refreshes the model; never deletes",
+                            "unit tests on the synthetic shop_lfd sample against a fake Fabric; not run against Fabric")
 STATUS: dict[str, ToolStatus] = {name: ToolStatus(*v, name=name) for name, v in _RAW.items()}
 
 
