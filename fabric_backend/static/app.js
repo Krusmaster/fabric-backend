@@ -5,7 +5,11 @@
    by the log's aria-live; after a tap the focus moves to the next buttons so the path works from the keyboard.
    AP2 (guided_build.py, POST /app/api/build): Decide as cards (the start tool's own buttons, recorded as taps), the dry
    run of each item with "Show definition" and the exact target, a confirm dialog that lists each item by name before
-   Create, Create item by item with its progress and links, and verify_build's result ("Checked by rules, not by AI"). */
+   Create, Create item by item with its progress and links, and verify_build's result ("Checked by rules, not by AI").
+   AP3 (guided_care.py, POST /app/api/care): when the person has built data products, Onto greets with a "Since last
+   time" report per product, each section naming its source, and at most three fixes as buttons; a fix that writes
+   shows a preview, then a confirm dialog naming the item, and sends the preview's token back. "Update the build in
+   place" is AP2's dry run with the product's id. */
 (function () {
   'use strict';
   var log = document.getElementById('app-log');
@@ -21,6 +25,7 @@
   var greeted = false;        // AP2b: one greeting: the start tool's own "Hi! ...", else the coach's line before it
   var target = null;          // AP2: where to build ({workspace, lakehouse}); null: the source's workspace
   var update = [];            // AP2: items the person chose to update in place (a dry run first)
+  var careProduct = null;     // AP3: the data product an update in place is for (its id, as the server gave it)
 
   function el(tag, attrs, kids) {
     var n = document.createElement(tag);
@@ -258,6 +263,7 @@
     setBusy(true);
     var body = { action: 'dry_run', workspace: state.workspace, source: state.source, schema: state.schema, update: update };
     if (target) body.target = target;
+    if (careProduct) body.product = careProduct;
     api(body).then(function (v) {
       reading.querySelector('.app-busy').classList.remove('app-busy');
       setBusy(false);
@@ -452,7 +458,175 @@
     });
   }
 
+  // ---------------------------------------------------------------- AP3: the caretaker -----------------------------
+  function careApi(body) {
+    return fetch('/app/api/care', {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    }).then(function (r) {
+      if (r.status === 401) { window.location.assign('/app/login'); return new Promise(function () {}); }
+      return r.json().catch(function () { return { error: 'The answer could not be read.' }; });
+    }).catch(function () { return { error: 'Krusgraph could not be reached.' }; });
+  }
+
+  var STATE_WORD = { ok: 'Fine', warn: 'Worth a look', bad: 'Needs a look', none: 'Nothing yet', unknown: 'Not read' };
+  var care = { reports: [] };
+
+  function careSection(x) {
+    var sec = el('section', { cls: 'care-sec s-' + x.state, 'aria-label': x.title });
+    sec.appendChild(el('div', { cls: 'care-sec-h' }, [el('h4', { text: x.title }), badge(STATE_WORD[x.state] || x.state, 'care-' + x.state)]));
+    sec.appendChild(el('p', { cls: 'care-src muted tiny', text: (x.title_note ? x.title_note + ', ' : '') + x.source + '.' }));
+    if ((x.lines || []).length) sec.appendChild(el('ul', null, x.lines.map(function (t) { return el('li', { text: t }); })));
+    if (x.link) sec.appendChild(el('a', { href: x.link, target: '_blank', rel: 'noopener noreferrer', text: 'Open in Fabric' }));
+    return sec;
+  }
+
+  function careReport(v) {
+    var p = v.product || {};
+    var card = el('article', { cls: 'care-card', 'aria-label': 'Since last time: ' + (p.name || '') }, [
+      el('h3', { cls: 'care-name', text: p.name || '' }),
+      el('p', { cls: 'muted tiny', text: 'From ' + (p.from || '') + '. Source: ' + (p.source || '') + '.' }),
+      el('p', { cls: 'app-line', text: v.say || '' })
+    ]);
+    (v.sections || []).forEach(function (x) { card.appendChild(careSection(x)); });
+    if ((v.actions || []).length) {
+      card.appendChild(el('p', { cls: 'app-line', text: 'What I propose, by rules' }));
+      card.appendChild(el('ol', { cls: 'care-acts' }, v.actions.map(function (a) {
+        return el('li', null, [el('strong', { text: a.label }), ' ', el('span', { text: a.why })]);
+      })));
+    }
+    card.appendChild(el('p', { cls: 'muted tiny', text: v.note || '' }));
+    return card;
+  }
+
+  function careStart() {
+    careApi({ action: 'products' }).then(function (v) {
+      var list = (v && v.products) || [];
+      if (v.error || !list.length) { run({}); return; }   // AP2b: show() greets once, unless the start tool already does
+      say('onto', [LINES.since || 'Since last time.']);
+      care.reports = [];
+      careNext(list, 0);
+    });
+  }
+
+  function careNext(list, i) {
+    if (i >= list.length) { careOffer(); return; }
+    var p = list[i];
+    var reading = say('onto', [el('p', { cls: 'app-busy', text: 'Reading ' + p.name }) ]);
+    setBusy(true);
+    careApi({ action: 'report', product: p.id }).then(function (v) {
+      setBusy(false);
+      if (v.error) {
+        reading.querySelector('.app-busy').replaceWith(el('p', { text: p.name + ': ' + v.error + (v.hint ? ' ' + v.hint : '') }));
+      } else {
+        reading.querySelector('.app-busy').replaceWith(careReport(v));
+        care.reports.push(v);
+      }
+      careNext(list, i + 1);
+    });
+  }
+
+  function careOffer() {
+    var many = care.reports.length > 1;
+    var buttons = [];
+    care.reports.forEach(function (v) {
+      (v.actions || []).forEach(function (a) {
+        buttons.push({ label: a.label + (many ? ' (' + v.product.name + ')' : ''), hint: a.writes ? 'A preview first' : 'Reads only',
+          primary: !buttons.length, act: function () { careDo(v, a); } });
+      });
+    });
+    if (care.reports.length) buttons.push({ label: 'Read the report again', act: function () { careStart(); } });
+    buttons.push({ label: 'Start something new', act: function () { say('onto', [LINES.fresh || LINES.hello]); run({}); } });
+    offer('What now?', buttons);
+  }
+
+  function careDo(v, a) {
+    var pid = v.product.id;
+    if (a.act === 'update_build') {
+      var b = a.build || {};
+      state = { workspace: b.workspace, source: b.source, schema: b.schema };
+      target = b.target || null;
+      update = (b.update || []).slice();
+      careProduct = b.product || pid;
+      dryRun();
+      return;
+    }
+    if (a.act === 'run_manual') {
+      var parts = [a.why];
+      if ((a.steps || []).length) parts.push(el('ol', null, a.steps.map(function (t) { return el('li', { text: t }); })));
+      if (a.link) parts.push(el('a', { href: a.link, target: '_blank', rel: 'noopener noreferrer', text: 'Open ' + a.item + ' in Fabric' }));
+      say('onto', parts);
+      careOffer();
+      return;
+    }
+    if (a.act === 'recheck_links') {
+      var reading = say('thinker', [el('p', { cls: 'app-busy', text: 'Counting the keys and links against the rows again' })]);
+      setBusy(true);
+      careApi({ action: 'recheck', product: pid }).then(function (r) {
+        reading.querySelector('.app-busy').classList.remove('app-busy');
+        setBusy(false);
+        if (r.error) { say('thinker', [LINES.error || 'That did not work.', r.error, r.hint || ''], 'error'); careOffer(); return; }
+        say('thinker', [el('h3', { cls: 'app-verify-h', text: r.title }),
+          el('ul', null, (r.lines || []).map(function (t) { return el('li', { text: t }); })), el('p', { cls: 'muted', text: r.note })], 'verify');
+        careOffer();
+      });
+      return;
+    }
+    setBusy(true);
+    careApi({ action: 'preview', product: pid, act: a.act }).then(function (pv) {
+      setBusy(false);
+      if (pv.error) { say('thinker', [LINES.error || 'That did not work.', pv.error, pv.hint || ''], 'error'); careOffer(); return; }
+      say('builder', [el('p', { cls: 'app-line', text: pv.label + ': ' + pv.item }), pv.say, el('p', { cls: 'muted', text: pv.note })]);
+      offer('What now?', [{ label: pv.label + '…', primary: true, act: function () { careConfirm(pv); } },
+        { label: 'Not now', act: careOffer }]);
+    });
+  }
+
+  function careConfirm(pv) {
+    var opener = document.activeElement;
+    if (dialog) dialog.remove();
+    var h = el('h2', { id: 'app-confirm-h', tabindex: '-1', text: pv.label + '?' });
+    var cancel = el('button', { type: 'button', cls: 'app-chip', text: 'Cancel' });
+    var go = el('button', { type: 'button', cls: 'app-chip primary', text: 'Yes, ' + pv.label.charAt(0).toLowerCase() + pv.label.slice(1) });
+    dialog = el('dialog', { cls: 'app-dialog', 'aria-labelledby': 'app-confirm-h', 'aria-describedby': 'app-confirm-d' }, [
+      h, el('p', { id: 'app-confirm-d', text: pv.say + ' Only this, once; nothing is deleted.' }),
+      el('ol', { cls: 'app-confirm-list' }, [el('li', null, [el('strong', { text: pv.item })])]),
+      el('div', { cls: 'app-dialog-b' }, [cancel, go])
+    ]);
+    document.body.appendChild(dialog);
+    function close() { dialog.close(); if (opener && opener.focus) opener.focus(); }
+    cancel.addEventListener('click', function () { close(); you('Not now'); careOffer(); });
+    dialog.addEventListener('cancel', function () { setTimeout(function () { if (opener && opener.focus) opener.focus(); }, 0); });
+    go.addEventListener('click', function () {
+      dialog.close(); input.dataset.focus = '1'; you('Yes, ' + pv.label.toLowerCase() + ': ' + pv.item);
+      var status = el('p', { cls: 'app-status', role: 'status', text: 'Sending.' });
+      say('builder', [status]);
+      setBusy(true);
+      careApi({ action: 'confirm', token: pv.token, names: [pv.item] }).then(function (got) {
+        if (got.error) { setBusy(false); say('thinker', [LINES.error || 'That did not work.', got.error, got.hint || ''], 'error'); careOffer(); return; }
+        if (got.operation_id) { carePoll(got, status); return; }
+        setBusy(false);
+        status.textContent = got.words || 'Sent.';
+        if (got.link) status.parentNode.appendChild(el('a', { href: got.link, target: '_blank', rel: 'noopener noreferrer', text: 'Follow the run in Fabric' }));
+        careOffer();
+      });
+    });
+    if (dialog.showModal) dialog.showModal(); else dialog.setAttribute('open', '');
+    h.focus();
+  }
+
+  function carePoll(got, status) {
+    status.textContent = got.item + ': refreshing once…';
+    setTimeout(function () {
+      careApi({ action: 'state', operation_id: got.operation_id }).then(function (s) {
+        if (s.error && s.kind !== 'rate_limited') { setBusy(false); status.textContent = s.error; careOffer(); return; }
+        if (s.status === 'done' || s.status === 'lost') { setBusy(false); status.textContent = got.item + ': ' + (s.words || s.status); careOffer(); return; }
+        carePoll(got, status);
+      });
+    }, 1500);
+  }
+
   function run(args) {
+    careProduct = null;
     var reading = null;
     if (args.step === 'check' || args.decide) reading = say('thinker', [el('p', { cls: 'app-busy', text: args.decide ? 'Recording your decision and counting again' : LINES.read })]);
     setBusy(true);
@@ -475,7 +649,7 @@
 
   // mascots.js is deferred after this file: start once every deferred script has run, so the first bubble has its figure
   var begun = false;
-  function begin() { if (begun) return; begun = true; run({}); }
+  function begin() { if (begun) return; begun = true; careStart(); }
   if (window.Mascots || document.readyState === 'complete') begin();
   else { document.addEventListener('DOMContentLoaded', begin); window.addEventListener('load', begin); }
 })();

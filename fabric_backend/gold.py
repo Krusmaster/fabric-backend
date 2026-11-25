@@ -102,10 +102,12 @@ def _unique(names: list[str]) -> list[str]:
 
 
 def spec(plan: Plan, info: dict, silver_schema: str = "silver", gold_schema: str = DEFAULT_SCHEMA, tables: list[str] | None = None,
-         show_personal_data: bool = False, within: list[str] | None = None, dimensions: bool = False) -> dict:
+         show_personal_data: bool = False, within: list[str] | None = None, dimensions: bool = False,
+         changes: dict | None = None) -> dict:
     """The views as data. Raises PlanInputError when the lakehouse has no schemas (MLV needs them), a schema name will
     not do, or a target would be a source or silver table. DPM1: `dimensions` adds one view per dimension table with a
-    key (`dimension_views`), so a semantic model can read a star schema from gold alone."""
+    key (`dimension_views`), so a semantic model can read a star schema from gold alone. LFD3: `changes` (changes.apply's
+    ok answer) puts its add_column changes in (apply_changes); without it, or with an empty list, the spec is as it was."""
     from . import graphs
     schema = info.get("schema") or plan.schema.schema
     gold_schema, silver_schema = (gold_schema or "").strip(), (silver_schema or "").strip()
@@ -237,13 +239,72 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", gold_schema: str
                       "tables": [fact] + [s["to"] for s in steps]})
     dims = _dimension_views(plan, roles, gold_schema, sources | silver, inside, flagged, show_personal_data, omitted, comb) if dimensions else []
     owner = f"{info.get('item_id') or info.get('item_name') or 'lakehouse'}/{schema}"
-    return {**({"dimension_views": dims} if dimensions else {}), "source": {"item": info.get("item_name") or "", "item_id": info.get("item_id") or "", "workspace_id": info.get("workspace_id") or "",
+    out = {**({"dimension_views": dims} if dimensions else {}), "source": {"item": info.get("item_name") or "", "item_id": info.get("item_id") or "", "workspace_id": info.get("workspace_id") or "",
                        "schema": schema, "tables": sorted(t.name for t in plan.schema)},
             "silver_schema": silver_schema, "gold_schema": gold_schema, "owner": owner, "views": views,
             **({"silver_lakehouse": info["silver_from"]["lakehouse"]} if info.get("silver_from") else {}),   # SM6
             "header_amounts_left_out": levels,
             "personal_data": {"shown": bool(show_personal_data), "omitted": omitted, "kept_for_joins": kept,
                               "flagged": _privacy.findings({k: v for k, v in flagged.items() if k[0] in {t for v in views + dims for t in v["tables"]}})}}
+    return apply_changes(out, changes) if changes else out
+
+
+def apply_changes(s: dict, applied: dict | None) -> dict:
+    """LFD3: the views with the change list's add_column changes in them, as a new dict (changes.apply's ok answer). The
+    view of the change's table (its fact view, or its dimension view) joins the tables of the change's `via` path, step by
+    step, and selects the columns as `<from>_<column>`. A step the view already joins (the same link from the same table)
+    is reused, so a column the view already carries is not repeated; a new step is a LEFT JOIN with no rule in the WHERE,
+    so no row is left out, and every step is many-to-one (or a one-to-one link), which validate checked, so no row is
+    repeated. A name another column already has gets `_via_<the first link's columns>`. Without add_column the spec is
+    returned as it is."""
+    import copy
+    from . import changes as _changes
+    adds = _changes.of_type(applied, "add_column")
+    if not adds:
+        return s
+    out = copy.deepcopy(s)
+    listed = []
+    for a in adds:
+        c, cid, steps = a["change"], a["id"], a["resolved"]["steps"]
+        entry = {"id": cid, "table": c["table"], "from": c["from"], "columns": list(c["columns"]), "path": a["resolved"]["path"], "views": []}
+        for view in [v for v in all_views(out) if v["fact"] == c["table"]]:
+            alias, used = "f", [j["alias"] for j in view["joins"]]
+            for st in steps:
+                same = next((j for j in view["joins"] if j["from_alias"] == alias and j["to"] == st["to"]
+                             and [x.lower() for x in j["source_cols"]] == [x.lower() for x in st["columns"]]
+                             and [x.lower() for x in j["target_cols"]] == [x.lower() for x in st["to_columns"]]), None)
+                if same is not None:
+                    alias = same["alias"]
+                    continue
+                new = f"c{sum(1 for x in used if re.fullmatch(r'c[0-9]+', x)) + 1}"
+                used.append(new)
+                view["joins"].append({"from": st["from"], "to": st["to"], "on": [f"{x} = {y}" for x, y in zip(st["columns"], st["to_columns"])],
+                                      "rule": st["rule"], "certainty": None, "alias": new, "from_alias": alias,
+                                      "source_cols": list(st["columns"]), "target_cols": list(st["to_columns"]), "change": cid})
+                if st["to"] not in view["tables"]:
+                    view["tables"].append(st["to"])
+                alias = new
+            names = {x["as"].lower() for x in view["columns"]}
+            added, present = [], []
+            for col in c["columns"]:
+                have = next((x for x in view["columns"] if x["alias"] == alias and x["column"].lower() == col.lower()), None)
+                if have is not None:
+                    have.setdefault("changes", []).append(cid)
+                    present.append(have["as"])
+                    continue
+                name = f"{c['from']}_{col}"
+                if name.lower() in names:
+                    name = f"{name}_via_{'_'.join(steps[0]['columns'])}"
+                name = _unique([*[x['as'] for x in view["columns"]], name])[-1]
+                names.add(name.lower())
+                view["columns"].append({"table": c["from"], "column": col, "alias": alias, "personal": None, "as": name, "changes": [cid]})
+                added.append(name)
+            entry["views"].append({"view": view["name"], "added": added, **({"already_in_view": present} if present else {})})
+        if not entry["views"]:
+            entry["not_applied"] = f"{c['table']} has no gold view here (a fact table gets one; a dimension table with dimensions=true)"
+        listed.append(entry)
+    out["changes"] = listed
+    return out
 
 
 def _dimension_views(plan: Plan, roles: dict, gold_schema: str, taken: set[str], inside: set[str] | None, flagged: dict,
@@ -327,8 +388,11 @@ def create_sql(view: dict, s: dict) -> str:
     """CREATE OR REPLACE MATERIALIZED LAKE VIEW with one CONSTRAINT per rule, each preceded by the rule that motivates it."""
     gold, name = view["name"].split(".", 1)
     lines = [_sql_comment(f"{view['why']}.")]
-    lines += [_sql_comment(f"join {j['from']}.{'+'.join(j['source_cols'])} -> {j['to']}.{'+'.join(j['target_cols'])}: rule {j['rule']}")
+    lines += [_sql_comment(f"join {j['from']}.{'+'.join(j['source_cols'])} -> {j['to']}.{'+'.join(j['target_cols'])}: rule {j['rule']}"
+                           + (f"; for change {j['change']} (add_column), a LEFT JOIN that leaves no row out" if j.get("change") else ""))
               for j in view["joins"]]
+    lines += [_sql_comment(f"{c['as']}: {c['table']}.{c['column']}, added by change {', '.join(c['changes'])} (add_column)")
+              for c in view["columns"] if c.get("changes")]
     lines.append(f"CREATE OR REPLACE MATERIALIZED LAKE VIEW {q(gold)}.{q(name)}")
     if view["constraints"]:
         lines.append("(")
