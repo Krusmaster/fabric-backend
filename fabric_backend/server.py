@@ -732,6 +732,9 @@ def _workspace_hint(wid: str, headers: dict) -> str:
     return ", ".join(words) + (f", {tables} {'table' if tables == 1 else 'tables'}" if tables is not None else "")
 
 
+HINT_THREADS = "krusgraph-hint"           # the name of a hint thread, which may outlive the call that started it
+
+
 def _workspace_hints(ids: list[str], headers: dict) -> dict[str, str]:
     """{workspace id: hint} for the ids answered within HINT_BUDGET; nothing for the others."""
     import hashlib
@@ -747,7 +750,7 @@ def _workspace_hints(ids: list[str], headers: dict) -> dict[str, str]:
             todo.append(wid)
     if not todo:
         return out
-    pool = ThreadPoolExecutor(max_workers=HINT_WORKERS)
+    pool = ThreadPoolExecutor(max_workers=HINT_WORKERS, thread_name_prefix=HINT_THREADS)   # tests/conftest.py joins them
     futures = {pool.submit(_workspace_hint, wid, headers): wid for wid in todo}
     done, _ = wait(futures, timeout=HINT_BUDGET)
     pool.shutdown(wait=False, cancel_futures=True)

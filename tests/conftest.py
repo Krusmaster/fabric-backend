@@ -7,6 +7,29 @@ import pytest
 os.environ["KRUSGRAPH_ADVANCED_TOOLS"] = "1"
 
 
+LATE_THREAD_SECONDS = 60
+
+
+@pytest.fixture(autouse=True)
+def _no_thread_outlives_its_test(monkeypatch):
+    """LFD9b: a read the server leaves to finish on its own (a caretaker report's section past the budget, AP3b; a
+    workspace hint past HINT_BUDGET) goes on in its thread after the call answered. In a test run that thread called
+    server._workspace_items about 4 s after its test, inside the next test on the same xdist worker, which had patched it
+    (test_w4_tenant_followups: a foreign workspace in `seen`). Each test ends only when such threads have finished,
+    still with its own test doubles (monkeypatch is undone after this fixture)."""
+    yield
+    from fabric_backend import guided_care, server
+    import threading
+    import time
+    end = time.monotonic() + LATE_THREAD_SECONDS
+    late = [t for t in threading.enumerate()
+            if t is not threading.current_thread() and t.name.startswith((guided_care.CARE_THREADS, server.HINT_THREADS))]
+    for t in late:
+        t.join(max(0.0, end - time.monotonic()))
+    still = [t.name for t in late if t.is_alive()]
+    assert not still, f"threads still running {LATE_THREAD_SECONDS} s after the test: {still}"
+
+
 @pytest.fixture(autouse=True)
 def _no_existing_api_lookup(monkeypatch):
     """create_backend looks for an existing API of the same name before it writes. Tests that do not mock that

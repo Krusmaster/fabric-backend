@@ -63,6 +63,7 @@ VERIFY_LINE_MAX = 600             # characters of one verify_build line in the r
 VERIFY_LINES = 12                 # lines of the verify section
 CARE_SECONDS = 40.0               # AP3b: one time budget per report, its four sections read at once (budget.py)
 GRACE = 2.0                       # seconds past the budget the report waits for a section before saying "not in time"
+CARE_THREADS = "care-"          # the name of a section's thread, which may outlive the report (tests/conftest.py joins them)
 SOURCE = {"pipeline": "from the last pipeline run", "health": "from the health check's latest run",
           "verify": "from verify_build", "drift": "from the source now, compared with the plan",
           "recheck": "counted against the rows now"}
@@ -620,7 +621,7 @@ def read_sections(tokens, p: dict, seconds: float | None = None) -> tuple[list[d
                 with _LOCK:
                     results[key] = got
                     progress["done"] = [k for k, _ in SECTIONS if k in results]
-            th = threading.Thread(target=ctx.run, args=(work,), name=f"care-{key}", daemon=True)
+            th = threading.Thread(target=ctx.run, args=(work,), name=f"{CARE_THREADS}{key}", daemon=True)
             th.start()
             threads.append(th)
         end = time.monotonic() + seconds + GRACE
