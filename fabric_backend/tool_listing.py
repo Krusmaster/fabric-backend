@@ -24,7 +24,7 @@ import re
 _NAMED = re.compile(r"\(([a-z]+(?:_[a-z]+)+)\b")      # "Label (create_pipeline with ...)": the tool a sentence names
 
 ADVANCED = "KRUSGRAPH_ADVANCED_TOOLS"
-CHANGES = "KRUSGRAPH_CHANGES"          # LFD5: the change-by-chat tools (propose_change), off by default
+CHANGES = "KRUSGRAPH_CHANGES"          # LFD5, LFD6: the change-by-chat tools (propose_change, apply_change), off by default
 _ON = {"1", "true", "yes", "on"}
 
 # The default listing, in the guided path's order (16 tools).
@@ -37,7 +37,7 @@ DEFAULT = (
 
 # LFD5: with KRUSGRAPH_CHANGES=1 (an operator setting, off by default) the change tools are registered and listed after
 # the default ones; off, they are not registered at all and every listing is as before.
-CHANGE_TOOLS = ("propose_change",)
+CHANGE_TOOLS = ("propose_change", "apply_change")         # LFD6: apply_change, a creating tool
 
 
 def changes_on(environ=None) -> bool:

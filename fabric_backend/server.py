@@ -2209,13 +2209,42 @@ def plan_drift(workspace: _p.Workspace, source: _p.Source, api: _p.DriftApi, sch
 
 # LFD5: the change-by-chat tool, registered only with KRUSGRAPH_CHANGES=1 (off by default; tool_listing.changes_on). Read-only:
 # it plans, validates the change by the contract's rules (changes.py) and drafts the items before and after
-# (change_diff.py); it never writes to Fabric. The confirm it returns is for a later apply_change (round LFD6).
-def _propose_change(workspace: str, source: str, change, schema: str = "dbo", applied=None, confirmed=None, ctx=None) -> str:
+# (change_diff.py); it never writes to Fabric. The confirm it returns is what apply_change takes back (round LFD6).
+def _change_counter(workspace: str, source: str, schema: str, ctx):
+    """LFD6: round LFD4's counter as the diff's numbers layer (change_numbers.count over every change of the list, before
+    and after), on the source's SQL endpoint, opened on first use as validate_plan opens it. (counter, close)."""
+    from . import change_apply as _ca
+    conn: dict = {}
+
+    def counter(*, before, after):
+        if "run" not in conn:
+            conn["run"] = _connected(workspace, source, schema, ctx)[1]
+        return _ca.numbers(conn["run"])(before=before, after=after)
+    return counter, lambda: getattr(conn.get("run"), "close", lambda: None)()
+
+
+def _change_proposal(workspace: str, source: str, change, schema: str, applied, confirmed, ctx) -> tuple[dict, object, dict, dict]:
+    """(propose's answer, the plan, the source's info, the two sides {before, after} the diff was made of)."""
     from . import change_diff as _change_diff
     p, info = _source_inputs(workspace, source, schema, None, confirmed, ctx)
-    out = _change_diff.propose(change, p, info, applied, confirmed=confirmed,
-                               replan=lambda links: _source_inputs(workspace, source, schema, None, links, ctx)[0])
-    return _change_diff.answer(out, MAX_RESULT_CHARS)
+    counter, close = _change_counter(workspace, source, schema, ctx)
+    sides: dict = {}
+
+    def counted(*, before, after):                                     # the sides as the diff saw them, then the counts
+        sides.update(before=before, after=after)
+        return counter(before=before, after=after)
+    try:
+        out = _change_diff.propose(change, p, info, applied, confirmed=confirmed, numbers=counted,
+                                   replan=lambda links: _source_inputs(workspace, source, schema, None, links, ctx)[0])
+    finally:
+        close()
+    return out, p, info, sides
+
+
+def _propose_change(workspace: str, source: str, change, schema: str = "dbo", applied=None, confirmed=None, ctx=None) -> str:
+    from . import change_apply as _ca
+    out = _change_proposal(workspace, source, change, schema, applied, confirmed, ctx)[0]
+    return _ca.answer(out, MAX_RESULT_CHARS)
 
 
 if _tool_listing.changes_on():
@@ -2226,6 +2255,259 @@ if _tool_listing.changes_on():
         """Checks one change to a data product by rules. Answers a question, a denial, or the diff (plan, items with
         unified diffs, numbers) and a confirm value. Writes nothing. Errors: {error, kind, hint}."""
         return _propose_change(workspace, source, change, schema, applied, confirmed, ctx)
+
+
+# LFD6: apply_change, with KRUSGRAPH_CHANGES=1 only. It proposes the change again and, on a yes (dry_run=false and the
+# confirm of that proposal), updates in place the items the diff marks, in change_apply.ORDER, through Fabric's
+# updateDefinition, as the creating tools update an item of the same name. Never a delete, never an item Krusgraph did
+# not make, never an item whose definition in Fabric is not the diff's "now" (docs/CHANGES.md, "Applying a change").
+def _change_items(p, info: dict, ginfo: dict | None, schema: str, applied: dict, names: dict, model_read: dict,
+                  on_gold: bool) -> dict:
+    """One side's definitions as create_pipeline and create_semantic_model build them (the pipeline's silver notebook has
+    its drift cell, the model the calendar range read from the rows), with the change list passed to the drafts.
+    {item: notebook text, pipeline build or model parts}; an item the source cannot have is None, with the reason."""
+    from .infer import PlanInputError
+    out: dict = {"not_drafted": {}}
+    tok = MODEL_ON_GOLD.set({"silver_schema": "silver", "gold_schema": "gold"} if on_gold else None)
+    try:
+        build = _pipeline_build(p, info, schema, "silver", "gold", None, False, names["pipeline"], names["silver_notebook"],
+                                names["gold_views"], gold_info=ginfo, changes=applied)
+    except PlanInputError as e:
+        build = None
+        out["not_drafted"].update(dict.fromkeys(("silver_notebook", "check_notebook", "gold_views", "pipeline"), str(e)))
+    finally:
+        MODEL_ON_GOLD.reset(tok)
+    if build is not None:
+        out.update(silver_notebook=build["notebooks"][0]["content"], gold_views=build["notebooks"][1]["content"],
+                   check_notebook=build["notebooks"][2]["content"], pipeline=build,
+                   targets={t["table"]: list(t["target"]) for t in build["silver_spec"]["tables"]})
+    try:
+        out["semantic_model"] = _semantic_model.draft(p, info, names["semantic_model"], None, date_range=model_read["date_range"],
+                                                      whole_quantities=model_read["whole"], changes=applied)["parts"]
+    except PlanInputError as e:
+        out["not_drafted"]["semantic_model"] = str(e)
+    return out
+
+
+def _change_definition(item: str, side: dict, ws: str, ids: dict | None = None):
+    """The definition of `item` on one side, in the form verify_build compares (a notebook's text, a model's parts, a
+    pipeline's content naming its notebooks by name, or by id with `ids`)."""
+    from . import change_apply as _ca
+    value = side.get(item)
+    if value is None:
+        return None
+    if item == "pipeline":
+        names = value["names"]
+        return _pipeline_content(value, ids or {n: n for n in names}, ws)
+    if item == "semantic_model":
+        return _ca.definition_parts(value)
+    return value
+
+
+def _apply_change(workspace: str, source: str, change, schema: str = "dbo", applied=None, confirmed=None, confirm: str = "",
+                  dry_run: bool = True, ctx=None) -> str:
+    from . import change_apply as _ca, change_diff as _cd, notebook as _notebook, pipeline as _pipeline, pipeline_jobs as _jobs
+    from . import workload_api as _w
+    from .deploy import send, write_and_wait
+    out, p, info, sides = _change_proposal(workspace, source, change, schema, applied, confirmed, ctx)
+    if out.get("result") != "ok":                                   # a question, a denial or replan: nothing is written
+        return _ca.fit({**out, "dry_run": dry_run, "writes": "Nothing was written: the change is not ready to apply."}, MAX_RESULT_CHARS)
+    schema = p.schema.schema
+    diff = out["diff"]
+    items = {x["item"]: x for x in diff["items"]}
+    names = {k: x["name"] for k, x in items.items()}
+    run = _ca.run_needed(diff)
+    todo = [k for k in _ca.ORDER if items[k]["status"] == _cd.UPDATE]
+    answer = {**out, "dry_run": dry_run, "pipeline_run": run, "steps": _ca.steps(diff),
+              "applied_next": [x["change"] for x in sides["after"]["applied"]["changes"]]}
+
+    def refused(kind: str, reason: str, **more) -> str:
+        return _ca.fit({**answer, "result": "not_applied", "kind": kind, "reason": reason, **more,
+                        "writes": "Nothing was written: " + reason}, MAX_RESULT_CHARS)
+    if not dry_run and str(confirm or "").strip() != out["confirm"]:
+        return refused("confirm_mismatch" if str(confirm or "").strip() else "needs_confirmation",
+                       ("confirm does not match this proposal (another list, plan or definition); the new diff and its confirm "
+                        "are below." if str(confirm or "").strip() else "confirm is missing; show the diff, and on a yes send its confirm."),
+                       hint="Show the diff below to the person; on their yes call apply_change again with this confirm.")
+    if not todo and not run["needed"]:
+        return _ca.fit({**answer, "result": "ok", "written": [], "writes": "Nothing to write: no item changes."}, MAX_RESULT_CHARS)
+    headers = _headers(ctx)
+    winfo, refusal = _write_info(info, "The pipeline's silver notebook", ctx)
+    ginfo = None
+    if not refusal:
+        ginfo, refusal = _gold_info(winfo, "", ctx)
+    if refusal:
+        return refused("unsupported", str((json.loads(refusal) or {}).get("error") or "the build's lakehouse could not be told"))
+    ws = _out_ws(info["workspace_id"])
+    listing = _workspace_items(ws, headers)
+
+    def find(item: str) -> dict | None:
+        return next((i for i in listing if i.get("type") == _ca.TYPE[item]
+                     and str(i.get("displayName") or "").lower() == names[item].lower()), None)
+
+    def read(item: str, it: dict) -> dict:
+        typ = _ca.TYPE[item]
+        return _item_definition_parts(ws, _ca.ROUTE[typ], it["id"], headers, fmt="TMDL" if typ == "SemanticModel" else None)
+    need = list(todo) + (["pipeline"] if run["needed"] and "pipeline" not in todo else [])
+    found = {k: find(k) for k in dict.fromkeys(need + ["gold_views", "semantic_model"])}
+    checks, problems, now = [], [], {}
+    for k in need:
+        it = found[k]
+        row = {"item": k, "name": names[k]}
+        if not it:
+            problems.append(("not_built", f"no {_ca.TYPE[k]} named {names[k]} in the workspace; create it first (dry run first)"))
+            checks.append({**row, "state": "not built"})
+            continue
+        if not _ca.ours(it.get("description")):
+            problems.append(("not_ours", f"{names[k]} was not made by Krusgraph (its description has no Krusgraph plan marker); "
+                                         "it is never written"))
+            checks.append({**row, "id": it["id"], "state": "not made by Krusgraph"})
+            continue
+        checks.append({**row, "id": it["id"], "state": "made by Krusgraph",
+                       "recorded": _ca.changes_of(_w.mark_of_description(it.get("description")))})
+    if problems:
+        return refused(problems[0][0], "; ".join(p_[1] for p_ in problems) + ".", checks=checks)
+    model_read = (_model_reads(workspace, source, schema, p, None, ctx) if "semantic_model" in todo
+                  else {"date_range": None, "whole": set(), "said": []})
+    now = {k: read(k, found[k]) for k in todo}
+    on_gold = False                                                    # the gold notebook as the build in Fabric has it
+    if ({"gold_views", "check_notebook"} & set(todo)) and found.get("gold_views") and _ca.ours(found["gold_views"].get("description")):
+        gold_now = now.get("gold_views") or read("gold_views", found["gold_views"])
+        plain = _change_items(sides["before"]["plan"], winfo, ginfo, schema, sides["before"]["applied"], names, model_read, False)
+        dims = _change_items(sides["before"]["plan"], winfo, ginfo, schema, sides["before"]["applied"], names, model_read, True)
+        on_gold = (plain.get("gold_views") is not None and dims.get("gold_views") is not None
+                   and bool(_ca.differences("gold_views", plain["gold_views"], gold_now))
+                   and not _ca.differences("gold_views", dims["gold_views"], gold_now))
+    before = _change_items(sides["before"]["plan"], winfo, ginfo, schema, sides["before"]["applied"], names, model_read, on_gold)
+    after = _change_items(sides["after"]["plan"], winfo, ginfo, schema, sides["after"]["applied"], names, model_read, on_gold)
+    nb_names = {str(i.get("id")): i.get("displayName") for i in listing if i.get("type") == "Notebook"}
+    plan_steps = []
+    for k in todo:
+        b, a = _change_definition(k, before, ws), _change_definition(k, after, ws)
+        row = next(c for c in checks if c["item"] == k)
+        if b is None or a is None:
+            problems.append(("not_drafted", f"{names[k]}: {after['not_drafted'].get(k) or before['not_drafted'].get(k, 'not drafted')}"))
+            continue
+        if b == a:                                                     # the diff's change is in the README only
+            row["now"] = "unchanged here: the change is in the model's README, which is not a part of the item"
+            continue
+        if not _ca.differences(k, a, now[k], nb_names):
+            row["now"] = "already as the change makes it: left as it is"
+            continue
+        off = _ca.differences(k, b, now[k], nb_names)
+        if off:
+            row["now"] = "differs from the diff's now"
+            row["differences"] = off[:5]
+            problems.append(("items_differ", f"{names[k]} in Fabric is not what the diff calls now ({len(off)} difference(s), "
+                                             "the first in checks); it was changed since it was built, or built with other "
+                                             "arguments"))
+            continue
+        row["now"] = "as the diff's now"
+        plan_steps.append(k)
+    if problems:
+        return refused(problems[0][0], "; ".join(p_[1] for p_ in problems) + ".", checks=checks)
+    answer["checks"] = checks
+    writes = [s for s in answer["steps"] if s["action"] != "update definition" or s["item"] in plan_steps]
+    if not run["needed"]:
+        writes = [s for s in writes if not (s["action"] == "refresh once" and "semantic_model" not in plan_steps)]
+    answer["steps"] = [{**s, "step": i} for i, s in enumerate(writes, 1)]
+    if dry_run:
+        said = "; ".join(f"{s['step']}. {s['action']} {s['name']}" for s in answer["steps"]) or "nothing"
+        return _ca.fit({**answer, "result": "ok", "written": [],
+                        "writes": f"Nothing was written: a dry run. With dry_run=false and this confirm, apply_change does: {said}. "
+                                  "Nothing is deleted."}, MAX_RESULT_CHARS)
+    # ---- the writes, in order; a step that fails stops the ones after it
+    mark = _ca.new_mark(_pipeline.plan_mark_of(sides["after"]["plan"]), schema, len(sides["after"]["plan"].relationships),
+                        [x["id"] for x in sides["after"]["applied"]["changes"]])
+    ids = {str(i.get("displayName")): i.get("id") for i in listing if i.get("type") == "Notebook"}
+    written, results, run_result = [], {}, None
+    for s in answer["steps"]:
+        k = s["item"]
+        it = found.get(k)
+        if s["action"] == "update definition":
+            typ = _ca.TYPE[k]
+            if k in _ca.NOTEBOOKS:
+                env = _notebook.envelope(names[k], after[k])
+            elif k == "pipeline":
+                env = _notebook.pipeline_envelope(names[k], _change_definition(k, after, ws, ids))
+            else:
+                env = _semantic_model.envelope(after[k], names[k])
+            r = write_and_wait(f"{FABRIC}/v1/workspaces/{ws}/{_ca.ROUTE[typ]}/{it['id']}/updateDefinition", {"definition": env["definition"]},
+                               headers, mode="updated", item_id=it["id"], item_type=typ, max_wait_seconds=60)
+            results[names[k]] = {x: v for x, v in r.items() if x != "body"}
+            if r.get("status") != "Succeeded":
+                s["status"] = "failed"
+                break
+            written.append(names[k])
+            s["status"] = "written"
+            s["marked"] = bool(_w.mark_items(ws, headers, [{"id": it["id"], "type": typ}], mark))
+        elif s["action"] == "run once":
+            def http(method, url, **kw):
+                return send(method, url, headers, write=method != "get", timeout=30, **kw)
+            token = auth.fabric(ctx)
+            got = _jobs.apply(http, ws, it["id"], names["pipeline"], True, None, wait_seconds=_ca.RUN_WAIT_SECONDS,
+                              sleep=lambda x: _ca.pause(x), scopes=_jobs.token_scopes(token), **_execute_admin())
+            run_result = got.get("run") or {}
+            s["status"] = run_result.get("status", "not started")
+            s["said"] = run_result.get("note") or run_result.get("why") or ""
+        else:                                                          # the refresh, after the model or after the run
+            model = found.get("semantic_model")
+            if run["needed"] and (run_result or {}).get("status") != "Succeeded":
+                s["status"] = "not run"
+                s["said"] = "the pipeline run has not succeeded yet: refresh the model after it ends"
+            elif not model or not _ca.ours(model.get("description")):
+                s["status"] = "not run"
+                s["said"] = f"no semantic model {names['semantic_model']} made by Krusgraph to refresh"
+            else:
+                got = _refresh_once(ws, model["id"], ctx)
+                s["status"] = got.get("status")
+                s["said"] = got.get("reason", "")
+    # ---- verify_build's rules on what was written, then the numbers after a run
+    lines = []
+    for k in [k for k in plan_steps if names[k] in written]:
+        try:
+            diffs = _ca.differences(k, _change_definition(k, after, ws), read(k, found[k]), nb_names)
+            lines.append({"item": k, "name": names[k], "state": _ca.DIFFERS if diffs else _ca.VERIFIED, **({"differences": diffs[:5]} if diffs else {})})
+        except Exception as e:                                          # noqa: BLE001 - not read: not checked, with the reason
+            lines.append({"item": k, "name": names[k], "state": _ca.NOT_CHECKED, "said": f"read back failed ({type(e).__name__})"})
+    unwritten = [names[k] for k in plan_steps if names[k] not in written]
+    states = {x["state"] for x in lines} | ({_ca.NOT_CHECKED} if unwritten else set())
+    definition = {"state": _ca.DIFFERS if _ca.DIFFERS in states else _ca.NOT_CHECKED if _ca.NOT_CHECKED in states or not lines else _ca.VERIFIED,
+                  "items": lines, **({"not_written": unwritten} if unwritten else {}),
+                  "said": "each written definition read back from Fabric and compared with what was written (verify_build's comparisons)"}
+    if not run["needed"]:
+        numbers = {"state": _ca.NOT_CHECKED, "said": "no run was needed: no rows change. The numbers layer above counts the change on "
+                                                     "the source; verify_build counts the model's figures after the refresh."}
+    elif (run_result or {}).get("status") != "Succeeded":
+        numbers = {"state": _ca.NOT_CHECKED, "said": "the numbers are verified after a run that succeeded; the run is "
+                                                     + str((run_result or {}).get("status") or "not started").lower()
+                                                     + ". apply_change again with the same list, or verify_build, checks it later."}
+    else:
+        conn = _connected(workspace, source, schema, ctx)[1]
+        try:
+            numbers = _ca.numbers_after_run(diff["numbers"].get("counted"), after.get("targets") or {}, conn)
+        finally:
+            getattr(conn, "close", lambda: None)()
+    answer.update(result="ok", written=written, results=results,
+                  verify={"label": _verify.LABEL, "definition": definition, "numbers_after_run": numbers})
+    if run_result is not None:
+        answer["run"] = run_result
+    answer["writes"] = (("Written, in this order: " + ", ".join(written) + ". " if written else "No definition was written. ")
+                        + "Nothing was deleted; only items Krusgraph made were written."
+                        + (" A step failed, and the ones after it were not done." if any(s.get("status") == "failed" for s in answer["steps"]) else ""))
+    return _ca.fit(answer, MAX_RESULT_CHARS)
+
+
+if _tool_listing.changes_on():
+    @mcp.tool(title="Apply a proposed change through Update (dry run by default)", annotations=WRITE)
+    @safe
+    def apply_change(workspace: _p.Workspace, source: _p.Source, change: _p.Change, schema: _p.Schema = "dbo",
+                     applied: _p.AppliedChanges = None, confirmed: _p.Confirmed = None, confirm: _p.ChangeConfirm = "",
+                     dry_run: _p.DryRun = True, ctx: Context = None) -> str:
+        """Applies a change propose_change showed. Proposes it again; with dry_run=false and its confirm, updates in place
+        only the items its diff marks: notebooks, a pipeline run when rows change, the semantic model, a refresh. Then
+        verifies by rules. Never deletes; writes only items Krusgraph made. Errors: {error, kind, hint}."""
+        return _apply_change(workspace, source, change, schema, applied, confirmed, confirm, dry_run, ctx)
 
 
 DRIFT_SECONDS = 40         # n218: below the client's own tool timeout, so the answer arrives instead of a silent cancel
@@ -3708,9 +3990,12 @@ def gold_description(info: dict, schema: str, gold_schema: str) -> str:
 
 
 def _pipeline_build(p, info: dict, schema: str, silver_schema: str, gold_schema: str, tables, show_personal_data: bool,
-                    name: str, silver_name: str, gold_name: str, schedule: dict | None = None, gold_info: dict | None = None) -> dict:
+                    name: str, silver_name: str, gold_name: str, schedule: dict | None = None, gold_info: dict | None = None,
+                    changes: dict | None = None) -> dict:
     """create_pipeline's items, the same as export_item_definitions(items=["pipeline"]) builds them (n110): the silver and
-    gold notebooks of the drafts, the check notebook, and the pipeline's label; nothing is sent."""
+    gold notebooks of the drafts, the check notebook, and the pipeline's label; nothing is sent. LFD6: `changes` (a
+    change list, changes.apply's ok answer) goes to the silver and gold drafts, as apply_change builds them; None (every
+    creating tool) builds them as before."""
     from . import silver as _silver_mod, gold as _gold_mod, pipeline as _pipeline
     from .infer import PlanInputError
     label = f"{(info.get('read_from') or {}).get('item_name') or info['item_name']}.{schema}"   # n201: the source, not the target
@@ -3718,13 +4003,14 @@ def _pipeline_build(p, info: dict, schema: str, silver_schema: str, gold_schema:
     if len({silver_name, gold_name, check}) < 3:
         raise PlanInputError("silver_name, gold_name and <name>_check must be three different notebook names")
     gi = gold_info or info                                     # SM6: the gold views and the check in the gold lakehouse
-    silver_spec = _silver_mod.spec(p, info, silver_schema, None, tables, show_personal_data)
+    kw = {"changes": changes} if changes is not None else {}                 # LFD6: apply_change's change list
+    silver_spec = _silver_mod.spec(p, info, silver_schema, None, tables, show_personal_data, **kw)
     # W2 (Gustav's Create of 23 November 2026: gold held only the three fact views, the model read six gold views and its
     # refresh failed): in a build whose semantic model reads gold (MODEL_ON_GOLD), the pipeline's gold notebook is the same
     # notebook create_gold_views writes, dimension views included. Before, this spec had no dimensions, so the pipeline step
     # (after the gold views step, same notebook name) replaced the notebook with the fact views only.
     gold_spec = _gold_mod.spec(p, gi, silver_schema, gold_schema, None, show_personal_data, within=tables,
-                               dimensions=MODEL_ON_GOLD.get() is not None)
+                               dimensions=MODEL_ON_GOLD.get() is not None, **kw)
     # n200: the plan the outputs are built from (the item's review, handed over by the Create; else the plan's own id),
     # for the health rows and the drift step, which becomes the silver notebook's first cell in the pipeline
     from . import health as _health
