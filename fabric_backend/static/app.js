@@ -2,7 +2,10 @@
    own sign-in through POST /app/api/step; this file only draws it: a mascot's bubble per answer, the person's choice as
    their own bubble, the choices as buttons. No model, no free-form reply: a typed name is sent as `text` and matched on
    the server by fixed rules. Text from the server is set with textContent, never as markup. New bubbles are announced
-   by the log's aria-live; after a tap the focus moves to the next buttons so the path works from the keyboard. */
+   by the log's aria-live; after a tap the focus moves to the next buttons so the path works from the keyboard.
+   AP2 (guided_build.py, POST /app/api/build): Decide as cards (the start tool's own buttons, recorded as taps), the dry
+   run of each item with "Show definition" and the exact target, a confirm dialog that lists each item by name before
+   Create, Create item by item with its progress and links, and verify_build's result ("Checked by rules, not by AI"). */
 (function () {
   'use strict';
   var log = document.getElementById('app-log');
@@ -15,6 +18,8 @@
   var POSE = { onto: 'point', thinker: 'think', builder: 'explain' };
   var state = {};
   var busy = false;
+  var target = null;          // AP2: where to build ({workspace, lakehouse}); null: the source's workspace
+  var update = [];            // AP2: items the person chose to update in place (a dry run first)
 
   function el(tag, attrs, kids) {
     var n = document.createElement(tag);
@@ -94,7 +99,10 @@
     if (busy) return;
     input.dataset.focus = '1';
     you(b.label);
-    run(b.arguments || {});
+    if (b.act) { b.act(); return; }
+    var a = b.arguments || {};
+    if (a.step === 'dry_run') { dryRun(); return; }
+    run(a);
   }
 
   function setBusy(on) {
@@ -164,8 +172,11 @@
         el('ul', null, v.rules.map(function (x) { return el('li', { text: x }); }))]));
       say('thinker', parts);
       say('builder', [v.next || LINES.next, LINES.nothing]);
-      offer('What now?', [{ label: 'Check another schema', arguments: { workspace: state.workspace, source: state.source, step: 'schema' } },
-        { label: 'Start over', arguments: { step: 'workspace' } }]);
+      offer('What now?', (v.buttons || []).concat([{ label: 'Check another schema', arguments: { workspace: state.workspace, source: state.source, step: 'schema' } },
+        { label: 'Start over', arguments: { step: 'workspace' } }]));
+      return;
+    } else if (v.stage === 'decide') {
+      showDecide(v);
       return;
     } else {
       var p = [v.say];
@@ -181,9 +192,263 @@
     offer(legend, buttons, typed);
   }
 
+  // ---------------------------------------------------------------- AP2: Decide ----------------------------------
+  function badge(text, cls) { return el('span', { cls: 'app-badge' + (cls ? ' ' + cls : ''), text: text }); }
+
+  function decisionCard(d) {
+    var sec = el('section', { cls: 'app-dec' + (d.decided ? ' decided' : ''), 'aria-label': d.question });
+    sec.appendChild(el('p', { cls: 'app-dec-q', text: d.question }));
+    if (d.rule) sec.appendChild(el('p', { cls: 'muted tiny', text: 'Proposed by the rule ' + d.rule + (d.rule_words ? ': ' + d.rule_words : '') + '.' }));
+    if (d.evidence && d.evidence.length) sec.appendChild(el('ul', null, d.evidence.map(function (x) { return el('li', { text: x }); })));
+    if (d.decided) sec.appendChild(badge(d.decided, 'mine'));
+    var opts = el('div', { cls: 'app-dec-opts', role: 'group', 'aria-label': 'Your answer' });
+    (d.options || []).forEach(function (o) {
+      var btn = el('button', { type: 'button', cls: 'app-chip' + (o.selected ? ' suggested' : '') }, [el('span', { text: o.label }), el('small', { text: o.words })]);
+      if (o.selected) { btn.setAttribute('aria-pressed', 'true'); btn.disabled = true; }
+      btn.addEventListener('click', function () {
+        if (busy) return;
+        input.dataset.focus = '1';
+        you(o.label + ': ' + (d.what || d.item) + '.');
+        run({ workspace: state.workspace, source: state.source, schema: state.schema, step: 'decide', decide: { item: d.item, review: o.review } });
+      });
+      opts.appendChild(btn);
+    });
+    sec.appendChild(opts);
+    return sec;
+  }
+
+  function showDecide(v) {
+    var parts = [LINES.decide || '', el('p', { cls: 'app-line', text: v.say })];
+    (v.decisions || []).forEach(function (d) { parts.push(decisionCard(d)); });
+    if (v.decided && v.decided.length) parts.push(el('ul', { cls: 'app-decided' }, v.decided.map(function (x) { return el('li', { text: x }); })));
+    if (v.review_error) parts.push(v.review_error);
+    say('thinker', parts);
+    var buttons = (v.buttons || []).map(function (b) { return Object.assign({}, b, { hint: b.why || '' }); });
+    buttons.push({ label: 'Back to the check', arguments: { workspace: state.workspace, source: state.source, schema: state.schema, step: 'check' } });
+    offer('What now?', buttons);
+    if (!(v.decisions || []).length || !v.open) return;
+    var first = log.querySelector('li:last-child .app-dec-opts button:not([disabled])');
+    if (first && input.dataset.focus === '1') first.focus({ preventScroll: true });
+  }
+
+  // ---------------------------------------------------------------- AP2: the build API -----------------------------
+  function api(body) {
+    return fetch('/app/api/build', {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    }).then(function (r) {
+      if (r.status === 401) { window.location.assign('/app/login'); return new Promise(function () {}); }
+      return r.json().catch(function () { return { error: 'The answer could not be read.' }; });
+    }).catch(function () { return { error: 'Krusgraph could not be reached.' }; });
+  }
+
+  function failed(v, again) {
+    say('thinker', [LINES.error || 'That did not work.', v.error, v.hint || ''], 'error');
+    offer('What now?', [{ label: 'Try again', act: again }, { label: 'Back to Decide', arguments: { workspace: state.workspace, source: state.source, schema: state.schema, step: 'decide' } }]);
+  }
+
+  // ---------------------------------------------------------------- AP2: the dry run -------------------------------
+  function dryRun() {
+    var reading = say('builder', [el('p', { cls: 'app-busy', text: 'Preparing the dry run of each item' })]);
+    setBusy(true);
+    var body = { action: 'dry_run', workspace: state.workspace, source: state.source, schema: state.schema, update: update };
+    if (target) body.target = target;
+    api(body).then(function (v) {
+      reading.querySelector('.app-busy').classList.remove('app-busy');
+      setBusy(false);
+      if (v.error) { failed(v, dryRun); return; }
+      showDry(v);
+    });
+  }
+
+  function itemRow(x) {
+    var li = el('li', { cls: 'app-item a-' + x.action });
+    li.appendChild(el('div', { cls: 'app-item-h' }, [el('strong', { text: x.name }), el('span', { cls: 'muted', text: x.label }), badge(x.badge, x.action)]));
+    if (x.words) li.appendChild(el('p', { text: x.words }));
+    if (x.consent) {
+      li.appendChild(el('p', { cls: 'warn', text: [x.consent.error, x.consent.hint].filter(Boolean).join(' ') }));
+      if (x.consent.steps) li.appendChild(el('ol', null, x.consent.steps.map(function (s) { return el('li', { text: s }); })));
+    }
+    if (x.definition) {
+      li.appendChild(el('details', null, [el('summary', { text: 'Show definition' }), el('pre', { cls: 'app-def', tabindex: '0', text: x.definition })]));
+    }
+    if (x.created && x.created.length) {
+      li.appendChild(el('ul', { cls: 'app-links', 'aria-label': 'Open in Fabric' }, x.created.map(function (c) {
+        return el('li', null, [el('a', { href: c.url, target: '_blank', rel: 'noopener noreferrer', text: 'Open ' + c.name + ' in Fabric' })]);
+      })));
+    }
+    if (x.steps && x.steps.length) {
+      li.appendChild(el('details', null, [el('summary', { text: 'Left to do in Fabric' }), el('ol', null, x.steps.map(function (s) { return el('li', { text: s }); }))]));
+    }
+    return li;
+  }
+
+  var lastDry = null;
+  function showDry(v) {
+    lastDry = v;
+    var t = v.target || {};
+    var parts = [LINES.build || '', el('p', { cls: 'app-line', text: v.say })];
+    parts.push(el('p', null, [el('span', { cls: 'muted', text: 'Builds in: ' }), el('strong', { cls: 'app-target', text: t.line || '' })]));
+    if (t.words && t.words.length) parts.push(el('details', null, [el('summary', { text: 'Where exactly, and why' }), el('ul', null, t.words.map(function (x) { return el('li', { text: x }); }))]));
+    parts.push(el('ul', { cls: 'app-items', 'aria-label': 'What the dry run would write' }, (v.items || []).map(itemRow)));
+    if (v.decided && v.decided.length) parts.push(el('ul', { cls: 'app-decided', 'aria-label': 'Decided by you' }, v.decided.map(function (x) { return el('li', { text: 'Decided by you: ' + x }); })));
+    if (v.left_out && v.left_out.length) parts.push('Left out by your decisions: ' + v.left_out.join('; ') + '.');
+    if (v.access) parts.push(el('p', { cls: 'muted tiny', text: v.access }));
+    parts.push(el('p', { cls: 'muted', text: LINES.dry_run || v.note }));
+    say('builder', parts);
+    var buttons = [];
+    var n = (v.creates || []).length;
+    if (n) buttons.push({ label: 'Create ' + (n === 1 ? 'this item' : 'these ' + n + ' items') + '…', primary: true, act: function () { askConfirm(v); } });
+    (v.items || []).forEach(function (x) {
+      if (x.action === 'choose') buttons.push({ label: 'Update ' + x.name + ' in place', hint: 'A dry run first', act: function () { if (update.indexOf(x.kind) < 0) update.push(x.kind); dryRun(); } });
+    });
+    buttons.push({ label: 'Change where to build', act: places });
+    buttons.push({ label: 'Back to Decide', arguments: { workspace: state.workspace, source: state.source, schema: state.schema, step: 'decide' } });
+    offer('What now?', buttons);
+  }
+
+  // ---------------------------------------------------------------- AP2: where to build ----------------------------
+  function places() {
+    setBusy(true);
+    api({ action: 'places' }).then(function (v) {
+      setBusy(false);
+      if (v.error) { failed(v, places); return; }
+      say('onto', ['Where shall I build? The source stays where it is; the build can go to another workspace.']);
+      offer('Choose the build workspace', (v.workspaces || []).map(function (w) {
+        var mine = w.name === state.workspace;
+        return { label: w.name, hint: mine ? 'the source\'s workspace: builds into ' + state.source : '', act: function () {
+          if (mine) { target = null; update = []; dryRun(); } else { lakehouses(w); }
+        } };
+      }));
+    });
+  }
+
+  function lakehouses(w) {
+    setBusy(true);
+    api({ action: 'lakehouses', workspace: w.id }).then(function (v) {
+      setBusy(false);
+      if (v.error) { failed(v, function () { lakehouses(w); }); return; }
+      say('onto', ['Which lakehouse in ' + w.name + ' gets the silver tables and the gold views?']);
+      var b = (v.lakehouses || []).map(function (name) {
+        return { label: name, act: function () { target = { workspace: w.id, lakehouse: name }; update = []; dryRun(); } };
+      });
+      b.push({ label: 'Let Krusgraph choose', hint: 'the first lakehouse by name, or one it makes (the dry run says which)', act: function () { target = { workspace: w.id }; update = []; dryRun(); } });
+      offer('Choose the lakehouse', b);
+    });
+  }
+
+  // ---------------------------------------------------------------- AP2: confirm, then Create ------------------------
+  var dialog = null;
+  function askConfirm(v) {
+    var opener = document.activeElement;
+    if (dialog) dialog.remove();
+    var items = v.creates || [];
+    var badges = {};
+    (v.items || []).forEach(function (x) { badges[x.name] = x.badge; });
+    var h = el('h2', { id: 'app-confirm-h', tabindex: '-1', text: 'Create ' + (items.length === 1 ? 'this item' : 'these ' + items.length + ' items') + ' in Fabric?' });
+    var cancel = el('button', { type: 'button', cls: 'app-chip', text: 'Cancel' });
+    var go = el('button', { type: 'button', cls: 'app-chip primary', text: 'Yes, create them' });
+    dialog = el('dialog', { cls: 'app-dialog', 'aria-labelledby': 'app-confirm-h', 'aria-describedby': 'app-confirm-d' }, [
+      h,
+      el('p', { id: 'app-confirm-d', text: 'In ' + ((v.target || {}).line || '') + ', as you, with your own Microsoft sign-in. Krusgraph writes only these, in this order, and deletes nothing.' }),
+      el('ol', { cls: 'app-confirm-list' }, items.map(function (x) {
+        return el('li', null, [el('strong', { text: x.name }), ' ', el('span', { cls: 'muted', text: x.label }), ' ', badge(badges[x.name] || '', '')]);
+      })),
+      el('div', { cls: 'app-dialog-b' }, [cancel, go])
+    ]);
+    document.body.appendChild(dialog);
+    function close() { dialog.close(); if (opener && opener.focus) opener.focus(); }
+    cancel.addEventListener('click', function () { close(); you('Not now'); offer('What now?', [{ label: 'Create these items…', primary: true, act: function () { askConfirm(v); } }, { label: 'Back to Decide', arguments: { workspace: state.workspace, source: state.source, schema: state.schema, step: 'decide' } }]); });
+    dialog.addEventListener('cancel', function () { setTimeout(function () { if (opener && opener.focus) opener.focus(); }, 0); });
+    go.addEventListener('click', function () { dialog.close(); input.dataset.focus = '1'; you('Yes, create ' + items.map(function (x) { return x.name; }).join(', ')); create(v, items); });
+    if (dialog.showModal) dialog.showModal(); else dialog.setAttribute('open', '');
+    h.focus();
+  }
+
+  function create(v, items) {
+    setBusy(true);
+    api({ action: 'confirm', token: v.token, names: items.map(function (x) { return x.name; }) }).then(function (got) {
+      if (got.error) { setBusy(false); failed(got, dryRun); return; }
+      var rows = {};
+      var status = el('p', { cls: 'app-status', role: 'status', text: 'Starting.' });
+      var list = el('ol', { cls: 'app-items' }, got.items.map(function (x) {
+        rows[x.kind] = el('li', { cls: 'app-item a-wait' }, [el('div', { cls: 'app-item-h' }, [el('strong', { text: x.name }), el('span', { cls: 'muted', text: x.label }), badge('Waiting', 'wait')])]);
+        return rows[x.kind];
+      }));
+      say('builder', ['Creating, one item after the other, as you.', status, list]);
+      var results = [];
+      var i = 0;
+      function next() {
+        if (i >= got.items.length) { status.textContent = 'Done: ' + got.items.length + ' of ' + got.items.length + ' sent.'; done(results); return; }
+        var x = got.items[i];
+        status.textContent = (i + 1) + ' of ' + got.items.length + ': creating ' + x.label.toLowerCase() + ' ' + x.name + '…';
+        rows[x.kind].replaceChildren(el('div', { cls: 'app-item-h' }, [el('strong', { text: x.name }), el('span', { cls: 'muted', text: x.label }), badge('Creating…', 'busy')]));
+        api({ action: 'create', run: got.run, kind: x.kind }).then(function (op) {
+          if (op.error) { finish(x, { kind: x.kind, name: x.name, label: x.label, action: 'error', badge: 'Not written', words: [op.error, op.hint].filter(Boolean).join(' ') }); return; }
+          poll(x, op.operation_id);
+        });
+      }
+      function poll(x, id) {
+        setTimeout(function () {
+          api({ action: 'state', operation_id: id }).then(function (s) {
+            if (s.error && s.kind !== 'rate_limited') { finish(x, { kind: x.kind, name: x.name, label: x.label, action: 'error', badge: 'Not known', words: s.error }); return; }
+            if (s.status === 'done' && s.item) { finish(x, Object.assign({ name: x.name, label: x.label }, s.item)); return; }
+            if (s.status === 'lost') { finish(x, { kind: x.kind, name: x.name, label: x.label, action: 'started', badge: 'Started', words: s.words || '' }); return; }
+            if (s.words) status.textContent = (i + 1) + ' of ' + got.items.length + ': ' + s.words;
+            poll(x, id);
+          });
+        }, 1500);
+      }
+      function finish(x, card) {
+        results.push(card);
+        rows[x.kind].replaceWith(rows[x.kind] = itemRow(card));
+        i += 1;
+        next();
+      }
+      next();
+    });
+  }
+
+  function done(results) {
+    var made = results.filter(function (r) { return r.action === 'create' || r.action === 'update' || r.action === 'skip'; }).length;
+    say('builder', [made + ' of ' + results.length + ' item' + (results.length === 1 ? '' : 's') + ' in Fabric. ' + (made ? 'Now I check what was built against the dry run.' : '')]);
+    if (!made) { setBusy(false); offer('What now?', [{ label: 'Dry run again', act: dryRun }, { label: 'Start over', arguments: { step: 'workspace' } }]); return; }
+    verify();
+  }
+
+  // ---------------------------------------------------------------- AP2: verify_build ------------------------------
+  function verify() {
+    var reading = say('thinker', [el('p', { cls: 'app-busy', text: 'Reading back what was built' })]);
+    setBusy(true);
+    api({ action: 'verify' }).then(function (v) {
+      reading.querySelector('.app-busy').classList.remove('app-busy');
+      setBusy(false);
+      if (v.error) { failed(v, verify); return; }
+      var c = v.counts || {};
+      var tiles = el('ul', { cls: 'check-kpis', 'aria-label': 'What was built, checked' }, [
+        [c.items, 'items read back', ''], [c.verified, 'match the dry run', 'ok'], [c.differs, 'differ', c.differs ? 'bad' : 'ok'], [c.not_checked, 'not checked', '']
+      ].filter(function (x) { return x[0] !== undefined && x[0] !== null; }).map(function (x) {
+        return el('li', { cls: x[2] }, [el('span', { cls: 'check-kpi-v', text: String(x[0]) }), el('span', { cls: 'check-kpi-l', text: x[1] })]);
+      }));
+      var parts = [el('h3', { cls: 'app-verify-h', text: v.title }), el('p', { text: v.summary }), tiles];
+      if (v.lines && v.lines.length) {
+        parts.push(el('details', null, [el('summary', { text: 'Item by item' }), el('ul', null, v.lines.map(function (x) {
+          return el('li', null, [el('strong', { text: x.item || '' }), ' ', el('span', { text: [x.state, x.said].filter(Boolean).join(': ') })].concat(
+            (x.figures || []).length ? [el('ul', null, x.figures.map(function (f) { return el('li', { text: f }); }))] : []));
+        }))]));
+      }
+      if (v.next_steps && v.next_steps.length) {
+        parts.push(el('p', { cls: 'app-line', text: 'Next steps' }));
+        parts.push(el('ol', null, v.next_steps.map(function (s) { return el('li', null, [el('strong', { text: s.label || '' }), s.why ? ' ' + s.why : '']); })));
+      }
+      parts.push(el('p', { cls: 'muted', text: v.note }));
+      say('thinker', parts, 'verify');
+      offer('What now?', [{ label: 'Dry run again', act: dryRun }, { label: 'Start over', arguments: { step: 'workspace' } }]);
+    });
+  }
+
   function run(args) {
     var reading = null;
-    if (args.step === 'check') reading = say('thinker', [el('p', { cls: 'app-busy', text: LINES.read })]);
+    if (args.step === 'check' || args.decide) reading = say('thinker', [el('p', { cls: 'app-busy', text: args.decide ? 'Recording your decision and counting again' : LINES.read })]);
     setBusy(true);
     fetch('/app/api/step', {
       method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },

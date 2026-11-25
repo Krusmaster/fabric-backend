@@ -5,8 +5,12 @@ the workspace, the source, the schema, then Krusgraph reads the tables, proposes
 counts them against the rows. The mascots say each step (Onto points the way, the Thinker checks, the Builder builds);
 the person answers with buttons. There is no AI model anywhere in it: every answer is the `start` tool's own (server.start,
 start_flow.guide), the same engine and step logic the MCP connector uses, called with the person's own sign-in. Free text
-is taken only where a fixed rule resolves it: a typed name is matched against the names offered (match_choice). Nothing
-here writes to Fabric; Decide, the dry run and Create come in AP2, and the step endpoint refuses them.
+is taken only where a fixed rule resolves it: a typed name is matched against the names offered (match_choice).
+
+AP2 (guided_build.py) adds the writing half: Decide (the start tool's own decide step and buttons), the dry run of
+what would be built (the Fabric workload's build, each item through its MCP tool), Create only after a confirm dialog
+that lists each item by name and the dry run's token, and verify_build's check of what was built. The step endpoint
+takes the read steps and Decide; the dry run, Create and the check after it have their own endpoint, /app/api/build.
 
 Closed by default. Every route answers the site's ordinary 404 unless KRUSGRAPH_APP_TENANTS names at least one tenant id
 (comma separated, read on every request) and the server runs with Entra sign-in. A sign-in from a tenant that is not on
@@ -49,6 +53,7 @@ LOGIN = PATH + "/login"
 CALLBACK = PATH + "/callback"
 LOGOUT = PATH + "/logout"
 STEP = PATH + "/api/step"
+BUILD = PATH + "/api/build"               # AP2: dry run, Create, verify (guided_build.py)
 ENV = "KRUSGRAPH_APP_TENANTS"
 SESSION_COOKIE = "__Host-kg_app"
 FLOW_COOKIE = "__Host-kg_app_flow"
@@ -58,10 +63,14 @@ MAX_SESSIONS, MAX_TXNS = 500, 1000      # bounded memory: the oldest go first
 MAX_BODY = 4096
 NAME_MAX = 256
 TOKEN_RE = re.compile(r"[A-Za-z0-9_-]{16,128}")
-# The steps this round serves: choosing the data and the check. Everything after (decide, dry_run, create) is AP2.
-READ_STEPS = ("", "workspace", "source", "schema", "data", "check")
-NEXT_LINE = "Next: decide and dry run (coming next)"
-NOTHING_WRITTEN = "Nothing was changed in Fabric: this page only reads."
+# The steps of the start tool this endpoint serves: choosing the data, the check and (AP2) Decide. The dry run and
+# Create are not start steps here: they go to BUILD (guided_build.py), which the page calls for a button with step dry_run.
+READ_STEPS = ("", "workspace", "source", "schema", "data", "check", "decide")
+BUTTON_STEPS = READ_STEPS + ("dry_run",)
+NEXT_LINE = "Next: decide what needs you, then a dry run of what would be built."
+NOTHING_WRITTEN = "Nothing was changed in Fabric: the check, Decide and the dry run only read."
+REVIEWS = ("accepted", "rejected", "skipped")
+BUILD_ACTIONS = ("places", "lakehouses", "dry_run", "confirm", "create", "state", "verify")
 
 
 def allowed_tenants() -> frozenset[str]:
@@ -148,6 +157,11 @@ class SessionTokens:
         from .csn_onelake import STORAGE_SCOPE
         return self.obo.token(self.user_token, self.tenant, STORAGE_SCOPE)
 
+    def powerbi(self) -> str:
+        """AP2: for the Power BI REST API (Create's one refresh of a new semantic model), as workload_api.Tokens."""
+        from .workload_api import POWERBI_SCOPE
+        return self.obo.token(self.user_token, self.tenant, POWERBI_SCOPE)
+
 
 # ------------------------------------------------------------------ fixed rules for typed text ----------------------
 
@@ -171,12 +185,14 @@ def match_choice(text: str, names: list[str]) -> tuple[str | None, list[str]]:
 # ------------------------------------------------------------------ the start tool's answer, for the page ----------
 
 def _args(a: dict | None) -> dict | None:
-    """A button's arguments as the page may send them back: the three names and a read-only step, nothing else."""
+    """A button's arguments as the page may send them back: the three names and a step of this page, nothing else (a
+    plan or a decision never travels through the page: Decide sends {item, review}, guided_build finds the start
+    answer's own button for it)."""
     if not isinstance(a, dict):
         return None
     out = {k: str(a[k])[:NAME_MAX] for k in ("workspace", "source", "schema") if isinstance(a.get(k), str) and a[k].strip()}
     step = str(a.get("step") or "").strip().lower()
-    if step not in READ_STEPS:
+    if step not in BUTTON_STEPS:
         return None
     if step:
         out["step"] = step
@@ -237,7 +253,19 @@ def view(out: dict) -> dict:
         rules = ((out.get("found") or {}).get("rules")) or []
         if rules:
             v["rules"] = [str(x) for x in rules][:10]
-        v["next"] = NEXT_LINE                         # AP1 stops here: deciding and the dry run come in AP2
+        v["next"] = NEXT_LINE
+    if stage == "decide":                             # AP2: each decision as a card; the choices are the start tool's own
+        from .guided_build import decisions_view
+        v["decisions"] = decisions_view(out)
+        v["open"] = int(out.get("open_decisions") or 0)
+        if out.get("decided"):
+            v["decided"] = [str(x) for x in out["decided"]][:20]
+        if out.get("review_error"):
+            v["review_error"] = str(out["review_error"])[:200]
+        for b in v.get("buttons") or []:
+            if b.get("arguments", {}).get("step") == "dry_run" and v["open"]:
+                b["primary"] = False                  # secondary until each decision is answered or skipped
+                b["why"] = "Next leaves the open decision open."
     return v
 
 
@@ -255,14 +283,15 @@ def page_html(name: str = "") -> str:
     from . import coach
     from .pages import _shell, asset_version
     lines = {"hello": coach.LINE["data"], "read": coach.LINE["read"], "check": coach.LINE["check"], "next": NEXT_LINE,
-             "nothing": NOTHING_WRITTEN, "error": coach.LINE["error"], "names": coach.NAMES}
+             "nothing": NOTHING_WRITTEN, "error": coach.LINE["error"], "names": coach.NAMES,
+             "decide": coach.LINE["decide"], "build": coach.LINE["build"], "dry_run": coach.LINE["dry_run"]}
     who = f"Signed in as {html.escape(name[:80])}. " if name else "Signed in. "
     body = f"""<section class="wrap app-wrap" aria-labelledby="app-h">
   <div class="app-chat">
     <div class="app-head">
       <span class="app-fig" data-mascot="onto" data-pose="rest" data-label=""></span>
       <div class="app-title"><h1 id="app-h">Your data, step by step</h1>
-        <p class="muted tiny">{who}Krusgraph only reads here: nothing is changed in Fabric.</p></div>
+        <p class="muted tiny">{who}Nothing is changed in Fabric until you confirm the names after a dry run.</p></div>
       <form method="post" action="{LOGOUT}" class="app-out"><button type="submit" class="btn ghost small">Sign out</button></form>
     </div>
     <ol class="app-log" id="app-log" role="log" aria-live="polite" aria-relevant="additions" aria-label="Conversation"></ol>
@@ -309,6 +338,7 @@ class App:
         self.run = run or run_start
         self.sign_in_limit = Limiter(parse("30/minute,300/hour"), [])        # per network
         self.step_limit = Limiter(parse("60/minute,1200/hour"), [])          # per session
+        self.build_limit = Limiter(parse("120/minute,2400/hour"), [])        # per session; Create's progress is polled
 
     # -- what every route checks first
     def on(self) -> bool:
@@ -508,8 +538,8 @@ class App:
             return answer({"error": "The step is not readable.", "kind": "bad_request"}, 400)
         step = str(data.get("step") or "").strip().lower()
         if step not in READ_STEPS:
-            return answer({"error": "Deciding, the dry run and creating come in the next version of this page.",
-                           "kind": "not_yet"}, 400)
+            return answer({"error": "The dry run and Create have their own address on this page (/app/api/build).",
+                           "kind": "wrong_step"}, 400)
         args = {k: str(data[k]).strip()[:NAME_MAX] for k in ("workspace", "source", "schema")
                 if isinstance(data.get(k), str) and data[k].strip()}
         if step:
@@ -517,9 +547,92 @@ class App:
         text = str(data.get("text") or "").strip()[:NAME_MAX]
         tokens = SessionTokens(self.obo, s["token"], s["tid"], s["who"])
         out = self.run(tokens, args)
+        tap = data.get("decide")
+        if step == "decide" and tap is not None:              # AP2: one tap on a decision card
+            if (not isinstance(tap, dict) or not isinstance(tap.get("item"), str) or len(tap["item"]) > 400
+                    or tap.get("review") not in REVIEWS):
+                return answer({"error": "The decision is not readable.", "kind": "bad_request"}, 400)
+            from .guided_build import decide_action
+            again = decide_action(out, tap["item"], tap["review"])
+            if again is None:
+                return answer({**view(out), "match": {"text": "", "candidates": [],
+                                                      "say": "That choice is not offered here now. Here is the step again."}})
+            out = self.run(tokens, again)                     # the start card's own button: recorded as a tap
+            log("decided", review=tap["review"])
         if text:
             out = self._typed(tokens, args, out, text)
-        return answer(view(out) if not out.get("match") else {**view(out), "match": out["match"]})
+        v = view(out) if not out.get("match") else {**view(out), "match": out["match"]}
+        if v.get("decisions"):
+            from .guided_build import remember_rules
+            remember_rules(_digest(request.cookies.get(SESSION_COOKIE) or ""), v["decisions"])
+        return answer(v)
+
+    def build(self, request, body: bytes):
+        """POST /app/api/build {action, ...} (AP2, guided_build.py), with the step endpoint's locks: this site's Origin,
+        JSON, a session of an allowed tenant, a rate limit per session. Actions:
+          places                                   the workspaces to build in
+          lakehouses {workspace}                   the lakehouses of one of them
+          dry_run {workspace, source, schema, target?: {workspace, lakehouse?}, update?: [kind]}
+          confirm {token, names}                   the confirm dialog's yes: the dry run's token and exactly its names
+          create {run, kind}                       one confirmed item, as a background operation
+          state {operation_id}                     how that item is going; its card once done
+          verify                                   verify_build's rules on what this session created"""
+        from starlette.responses import JSONResponse
+        nostore = {"Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow"}
+
+        def answer(payload: dict, status: int = 200):
+            return JSONResponse(payload, status_code=status, headers=nostore)
+        if not self.on():
+            return self.not_found(request)
+        if not self._same_origin(request) or not request.headers.get("content-type", "").startswith("application/json"):
+            return answer({"error": "This address takes JSON from Krusgraph's own page.", "kind": "bad_request"}, 403)
+        s = self.session(request)
+        if s is None:
+            return answer({"error": "Sign in first.", "kind": "sign_in", "login": LOGIN}, 401)
+        if self._limited(self.build_limit, _digest(s["token"])[:24]):
+            return answer({"error": "Too many requests at once. Wait a minute.", "kind": "rate_limited"}, 429)
+        try:
+            data = json.loads(body[:MAX_BODY]) if len(body) <= MAX_BODY else None
+        except ValueError:
+            data = None
+        if not isinstance(data, dict) or data.get("action") not in BUILD_ACTIONS:
+            return answer({"error": "The request is not readable.", "kind": "bad_request"}, 400)
+        from . import guided_build as B
+        from .errors import explain
+        sid = _digest(request.cookies.get(SESSION_COOKIE) or "")
+        tokens = SessionTokens(self.obo, s["token"], s["tid"], s["who"])
+        owner = "app-" + s["who"]
+        act = data["action"]
+        try:
+            if act == "places":
+                return answer(B.places(tokens))
+            if act == "lakehouses":
+                return answer(B.lakehouses(tokens, str(data.get("workspace") or "")[:64]))
+            if act == "dry_run":
+                c = B.chosen(data)
+                if c is None:
+                    return answer({"error": "Choose the workspace, the source and the schema first.", "kind": "bad_request"}, 400)
+                update = data.get("update") or []
+                if not isinstance(update, list) or any(u not in dict(B.OUTPUTS) for u in update):
+                    return answer({"error": "The update list is not readable.", "kind": "bad_request"}, 400)
+                try:
+                    target = B.target_of(tokens, c, data.get("target"))
+                except ValueError as e:
+                    return answer({"error": str(e), "kind": "bad_request"}, 400)
+                return answer(B.dry_run(tokens, sid, c, target, list(update)))
+            if act == "confirm":
+                names = data.get("names")
+                return answer(B.confirm(tokens, sid, str(data.get("token") or "")[:80],
+                                        names if isinstance(names, list) and len(names) <= 20 else []))
+            if act == "create":
+                return answer(B.create_item(tokens, sid, str(data.get("run") or "")[:64], str(data.get("kind") or "")[:40], owner))
+            if act == "state":
+                return answer(B.item_state(tokens, sid, str(data.get("operation_id") or "")[:64], owner))
+            return answer(B.verify(tokens, sid))
+        except Exception as exc:                                    # noqa: BLE001 — explained, never leaked
+            got = explain(exc, f"/app {act}")
+            log("build_failed", action=act, error=type(exc).__name__, kind=got.get("kind"))
+            return answer({k: str(got[k])[:400] for k in ("error", "kind", "hint") if got.get(k)})
 
     def _typed(self, tokens, args: dict, out: dict, text: str) -> dict:
         """A typed name for the choice on screen: matched by fixed rules against the names start offered; one match
@@ -550,7 +663,8 @@ class App:
             return Route(path, handler, methods=every)
         return [route(PATH, "GET", self.page), route(LOGIN, "GET", self.login),
                 route(CALLBACK, "GET", self.callback, threaded=True), route(LOGOUT, "POST", self.logout),
-                route(STEP, "POST", self.step, threaded=True, body=True)]
+                route(STEP, "POST", self.step, threaded=True, body=True),
+                route(BUILD, "POST", self.build, threaded=True, body=True)]
 
 
 def routes(cfg, validator, obo, entra_post=None, run=None) -> list:
