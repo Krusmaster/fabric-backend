@@ -47,7 +47,7 @@ owner of an area is listed here. Change an area you do not own only when the mai
 | SAP pack | `fabric_backend/packs/`, `fabric_backend/sap_pack.py`, `fabric_backend/sap_demo.py`, `fabric_backend/exports.py` || open |
 | Catalog publish | `fabric_backend/catalog_publish/` | open |
 | Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | open; M1 holds new files under `docs/marketing/` only (marketing drafts: a fictional industrial case on synthetic data, LinkedIn posts, a film script, taglines, a home page section; nothing applied to the site or `llms.txt`); W9 holds the one new file `docs/INTEGRATE-AND-HEAL-DESIGN.md` (a design for connecting sources to OneLake and for self-healing data products by rules; docs only, nothing built); not the site, not the editor) |
-| Tests | `tests/` | open |
+| Tests | `tests/` | n244 holds the page loads of the browser tests only (`tests/*browser*.js`, `tests/browser_check.js` and the new `tests/browser_nav.js`); the rest is open |
 | Workload | `workload/` (the Fabric workload, a fork of Microsoft's starter kit), `fabric_backend/workload_api.py`, the workload routes in `server.py`, `docs/WORKLOAD-DEV.md` | open |
 | Marketplace | `fabric_backend/marketplace.py`, `fabric_backend/entitlements.py`, the marketplace routes in `server.py`, `docs/MARKETPLACE-SETUP.md`, `tests/test_marketplace.py` | open |
 | Hub readiness | `docs/HUB-ATTESTATION.md`, `docs/HUB-READINESS.md`, `tools/hub_readiness.py`, `.github/workflows/hub-readiness.yml` (new files only; no `workload/` code, no site, no engine) | open |
