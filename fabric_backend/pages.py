@@ -577,6 +577,51 @@ def shared_film_html() -> str:
             '</figure>')
 
 
+# MF1: "Why Krusgraph" (/docs/why), the founder's manifesto. Its film is made separately; until the web file is in
+# static/media the place at the top renders nothing. Then it is the ON3 pattern: native controls, metadata only before
+# play, playsinline, a poster and English captions (offered, not on by default, when the film has them burned in).
+WHY_FILM_MP4 = "/static/media/krusgraph-why.mp4"
+WHY_FILM_POSTER = "/static/media/krusgraph-why-poster.webp"
+WHY_FILM_VTT = "/static/media/krusgraph-why.en.vtt"
+WHY_FILM_LABEL = "Why Krusgraph: a short film"
+
+
+def _static_file(url: str) -> bool:
+    return (HERE / url.removeprefix("/")).is_file()
+
+
+def why_film_html() -> str:
+    """The manifesto film, or "" while static/media has no krusgraph-why.mp4."""
+    if not _static_file(WHY_FILM_MP4):
+        return ""
+    poster = f' poster="{WHY_FILM_POSTER}"' if _static_file(WHY_FILM_POSTER) else ""
+    track = (f'\n      <track kind="captions" srclang="en" label="English" src="{WHY_FILM_VTT}">'
+             if _static_file(WHY_FILM_VTT) else "")
+    return ('<figure class="so-film mf-film" id="why-film">\n'
+            '  <div class="so-film-frame">\n'
+            f'    <video controls preload="metadata" playsinline width="1920" height="1080"{poster}\n'
+            f'      aria-label="{WHY_FILM_LABEL}">\n'
+            f'      <source src="{WHY_FILM_MP4}" type="video/mp4">{track}\n'
+            f'      <p>Your browser cannot play this film. <a href="{WHY_FILM_MP4}">Download it as MP4</a>.</p>\n'
+            '    </video>\n  </div>\n</figure>')
+
+
+def why_manifesto_html(rendered: str) -> str:
+    """The manifesto as written in DOCS.md; its last paragraph (the sign-off) gets its own type and one small mark ends
+    it. The first paragraph, the belief, stays a plain <p> (site.css sizes it), so it is the page's description."""
+    paras = list(re.finditer(r"<p>(.*?)</p>", rendered, re.S))
+    if paras:
+        last = paras[-1]
+        rendered = (rendered[:last.start()] + f'<p class="mf-sign">{last.group(1)}</p>\n'
+                    f'<div class="mf-mark">{_LOGO}</div>' + rendered[last.end():])
+    return f'<div class="mf-why">\n{rendered}\n</div>'
+
+
+def why_see_html(rendered: str) -> str:
+    """The "See it" row: three links, no buttons."""
+    return f'<nav class="mf-see" aria-label="See it"><p class="mf-see-h">See it</p>\n{rendered}\n</nav>'
+
+
 def shared_gold_figure_html() -> str:
     """ON3: the shared gold as a small HTML figure (real text, the site's colour tokens, so it reads in both themes and
     stacks at 390 px): the two sources, the gold the pipeline's one notebook builds, and the ontology bound to it. The
@@ -1627,8 +1672,11 @@ def _with_toc(rendered: str) -> str:
 # rendered, so every line of it is on exactly one page and /docs.md is the same text as before. The intro and "Why" are
 # /docs itself (the overview); each other "##" section is a group page (its heading and the lines before its first "###")
 # and each "###" a page under it. The menu labels of the groups are below; the rest of the menu is the headings.
-DOCS_GROUPS = ["Overview", "Why Krusgraph", "Get started", "Concepts", "Explore and check", "Build from a plan", "Krusgraph for Fabric", "Reference",
-               "Hosting and permissions"]                                  # W8: the eight points, second in the menu
+DOCS_GROUPS = ["Overview", "Why Krusgraph", "Why choose Krusgraph", "Get started", "Concepts", "Explore and check", "Build from a plan",
+               "Krusgraph for Fabric", "Reference", "Hosting and permissions"]
+# MF1: "Why Krusgraph", the founder's short manifesto, is the first part after the overview, at /docs/why; W8's eight
+# points follow it and keep their address. A group without an entry here is at /docs/<slug of its label>.
+DOCS_PATHS = {"Why Krusgraph": "/docs/why", "Why choose Krusgraph": "/docs/why-krusgraph"}
 # n188: "Which Krusgraph should I use?" is the docs menu's first entry (DOCS_FIRST), above the docs' own pages
 DOCS_FIRST = ("/choose", "Which Krusgraph should I use?")
 DOCS_MORE = [("/getting-started", "Getting started for a pilot"), ("/start", "The set-up guide"), ("/it", "For your IT department"), ("/lovable", "Use with Lovable")]
@@ -1661,7 +1709,8 @@ def docs_pages() -> list[dict]:
             pages[0]["md"] += text; why = True                      # "Why ..." belongs to the overview
         elif kind == "##":
             label = DOCS_GROUPS[gi]; gi += 1
-            pages.append(dict(path="/docs/" + _slug(label), title=head, group=label, gpath="/docs/" + _slug(label), depth=1, md=text))
+            gpath = DOCS_PATHS.get(label, "/docs/" + _slug(label))
+            pages.append(dict(path=gpath, title=head, group=label, gpath=gpath, depth=1, md=text))
         else:
             parent = next(x for x in reversed(pages) if x["depth"] <= 1)
             if parent["depth"] == 0:
@@ -1679,8 +1728,11 @@ def docs_pages() -> list[dict]:
 
 
 def docs_anchors(pages: list[dict] | None = None) -> dict[str, str]:
-    """Old /docs#anchor → the page that has that heading now (built from the headings, never by hand)."""
-    return {i: x["path"] for x in (pages or docs_pages()) if x["depth"] for i in x["ids"]}
+    """Old /docs#anchor → the page that has that heading now (built from the headings, never by hand). MF1: an id the
+    overview itself has stays there (/docs#why-krusgraph is the overview's own "Why", not the page /docs/why)."""
+    pages = pages or docs_pages()
+    own = set(pages[0]["ids"])
+    return {i: x["path"] for x in pages if x["depth"] for i in x["ids"] if i not in own}
 
 
 def _docs_tree(pages: list[dict], current: str) -> str:
@@ -1708,6 +1760,9 @@ def docs_page_html(path: str) -> str:
     figs["sap-film"] = lambda _rendered: sap_film_docs_html()                # W7: the SAP film of /sap on "SAP on Fabric"
     figs["shared-ontology-film"] = lambda _rendered: shared_film_html()      # ON3: the film on "Shared ontology"
     figs["shared-gold"] = lambda _rendered: shared_gold_figure_html()        # ON3: the shared gold, as a figure
+    figs["why-film"] = lambda _rendered: why_film_html()                      # MF1: nothing until the film exists
+    figs["why-manifesto"] = why_manifesto_html                               # MF1: the manifesto's type and spacing
+    figs["why-see"] = why_see_html                                           # MF1: the calm "See it" row
     from . import claims
     figs["what-you-can-build"] = lambda _rendered: claims.section_html()     # n194: n190's grid, moved from the home page
     from . import offering

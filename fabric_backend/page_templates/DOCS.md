@@ -79,12 +79,49 @@ has its own identity and access settings; see [App access](#app-access) before y
 **Open source.** MIT-licensed. Use the hosted service or run it yourself ([locally](/local), or in your own Azure
 subscription with `deploy/krusgraph.sh`).
 
+**What we believe.** [Why {{PRODUCT}}](/docs/why): the reason we make it, on one page.
+
 **In eight points.** [Why choose {{PRODUCT}}](/docs/why-krusgraph): one line each, with the page that backs it.
 
 **When {{PRODUCT}} is not the right tool:** if your data isn't in Fabric yet, if you're building a transactional app
 that needs its own database, or if you need row-level security defined in the API itself. Fabric's API for GraphQL has
 no row-level security of its own; it applies what the source enforces for the identity that queries it (see
 [App access](#app-access)), and {{PRODUCT}} does not create security policies.
+
+## Why {{PRODUCT}}
+
+<!-- figure:why-film -->
+<!-- /figure -->
+
+<!-- figure:why-manifesto -->
+**We believe data work should start with what's true, not with what someone guessed.**
+
+Most data projects begin with a guess. Someone looks at the tables, assumes how they fit together, and builds. The report looks right. The totals look right. Until someone notices an order counted twice, or a link that points at nothing. By then it is built on, shared and trusted.
+
+We think that is the wrong order.
+
+So we do it the other way around.
+
+- **We count before we build.** Every key and every link is checked against your rows.
+- **We show our work.** Every rule, every number, every reason.
+- **We say so when we don't know.** What the rows can't prove, we hand to you instead of guessing.
+- **You decide.** Nothing is created or changed without your yes, and nothing is deleted.
+- **We check what we built.** Read back from Fabric, compared with the plan, counted again.
+
+We believe people should spend their time deciding, not double-checking.
+
+We believe trust is earned with numbers, not promises.
+
+We just happen to make it for Microsoft Fabric.
+
+**{{PRODUCT}}. Count first.**
+<!-- /figure -->
+
+<!-- figure:why-see -->
+- [The guided demo](/check?example=sample&guide=1)
+- [One shared ontology](/docs/build-from-a-plan/shared-ontology)
+- [Connect {{PRODUCT}} to Claude](/start)
+<!-- /figure -->
 
 ## Why choose {{PRODUCT}}
 
