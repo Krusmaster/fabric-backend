@@ -1531,6 +1531,31 @@ table.wr-table{min-width:0;width:100%;border-collapse:collapse;font-size:14.5px;
 .sap-film-docs .sap-film-frame video{display:block;width:100%;height:auto;aspect-ratio:16/9;background:var(--card-2)}
 .sap-film-docs .sap-film-frame video:fullscreen{aspect-ratio:auto;object-fit:contain;background:#000}
 .sap-film-docs .sap-film-note{margin:8px 0 0;font-size:14px;line-height:1.5}
+/* ON3: the shared-ontology film on the docs' "Shared ontology" page; 16:9 at every width, the note a figcaption */
+.so-film{margin:4px 0 24px}
+.so-film-frame{max-width:100%;background:var(--card);border:1px solid var(--line);border-radius:var(--radius-s);box-shadow:var(--shadow);overflow:hidden}
+.so-film-frame video{display:block;width:100%;height:auto;aspect-ratio:16/9;background:var(--card-2)}
+.so-film-frame video:fullscreen{aspect-ratio:auto;object-fit:contain;background:#000}
+.so-film .so-film-note{margin:8px 0 0;font-size:14px;line-height:1.5}
+/* ON3: the shared gold as a figure: two sources, the gold, the ontology; real text in the theme's colours, stacked */
+.so-fig{margin:18px 0 26px;display:flex;flex-direction:column;gap:0;max-width:100%}
+.so-srcs{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.so-box{min-width:0;border:1.5px solid var(--line-strong);border-radius:var(--radius-s);padding:12px 14px;background:var(--card);font-size:15px;line-height:1.45}
+.so-box ul{margin:6px 0 0;padding-left:18px}
+.so-box li{margin:2px 0;overflow-wrap:anywhere}
+.so-box code{font-size:.92em}
+.so-h{margin:0;font-family:var(--font-head);font-weight:600;font-size:17px;line-height:1.25}
+.so-h span{display:block;font-family:var(--font-body);font-weight:400;font-size:13px;color:var(--muted)}
+.so-foot{margin:8px 0 0;font-size:14px;color:var(--muted)}
+.so-sap{border-color:var(--lav);background:var(--lav-soft)} .so-sap .so-h{color:var(--lav-ink)}
+.so-d365{border-color:var(--sage);background:var(--sage-soft)} .so-d365 .so-h{color:var(--sage-ink)}
+.so-gold{border-color:var(--mustard);background:var(--mustard-soft)} .so-gold .so-h{color:var(--mustard-ink)}
+.so-ont{border-color:var(--coral);background:var(--coral-soft)} .so-ont .so-h{color:var(--coral-ink)}
+.so-step{margin:0;padding:6px 0 6px 22px;position:relative;font-size:13px;color:var(--muted);min-height:34px;display:flex;align-items:center}
+.so-step::before{content:"";position:absolute;left:10px;top:0;bottom:8px;border-left:2px solid var(--line-strong)}
+.so-step::after{content:"";position:absolute;left:5px;bottom:2px;border:6px solid transparent;border-top:7px solid var(--line-strong);border-bottom:0}
+.so-fig figcaption{margin-top:10px}
+@media (max-width:560px){.so-srcs{grid-template-columns:1fr}.so-box{font-size:14px;padding:10px 12px}}
 /* n161: on phones the 4:5 version plays (the first <source>, media="(max-width: 640px)"); the frame takes its shape, and
    the one poster (16:9; a poster cannot be swapped without script) is shown cropped to the frame instead of letterboxed */
 @media (max-width:640px){.film-frame video{aspect-ratio:4/5;object-fit:cover}}
