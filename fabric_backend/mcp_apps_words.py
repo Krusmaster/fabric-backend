@@ -605,6 +605,28 @@ TITLES = {"list_workspaces": "Workspaces", "list_sources": "Sources", "list_tabl
           "domain_draft": "Data products", "dbt_schema": "dbt project", "review_plan": "Review"}
 
 
+VERIFY_RANK = {"differs": 0, "not checked": 1, "verified": 2}
+
+
+def verify_card(answer: dict) -> dict:
+    """SC1 (the founder's live run: the card said "2 differ" and only the raw JSON said which): verify_build's answer as
+    {title, result, lines, notes}. The lines are the items that differ or were not checked, first, each with what
+    differs in one line, then the fixes; every item with its verdict is the note behind Show."""
+    items = sorted([x for x in answer.get("lines") or [] if isinstance(x, dict) and isinstance(x.get("said"), str)],
+                   key=lambda x: VERIFY_RANK.get(str(x.get("state")), 1))
+    short = [x["said"] if len(x["said"]) <= 300 else x["said"][:299] + "\u2026" for x in items]
+    open_ = [t for x, t in zip(items, short) if x.get("state") != "verified"]
+    fixes = [f"Fix for {f.get('item')}: {f.get('label') or f.get('said') or f.get('ask')}" for f in answer.get("fixes") or []
+             if isinstance(f, dict) and (f.get("label") or f.get("said") or f.get("ask"))]
+    out = {"title": "Verify what was built", "result": str(answer.get("summary") or "")}
+    lines = (open_ + fixes)[:LINES_MAX]
+    if lines:
+        out["lines"] = [plain(x) for x in lines]
+    if short:
+        out["notes"] = [_note(f"Every item with its verdict ({len(short)}).", [plain(x) for x in short])]
+    return out
+
+
 def card(tool: str, answer: dict, stash: dict | None = None, call: dict | None = None) -> dict | None:
     """{title?, result?, lines?, notes?, onto?, thinker?, builder?} for the card, or None when there is nothing to say
     (an error or a refusal: the card shows the error itself, with its next steps)."""
@@ -641,6 +663,8 @@ def card(tool: str, answer: dict, stash: dict | None = None, call: dict | None =
     elif tool == "validate_plan" and isinstance(answer.get("totals"), dict):
         out["title"] = "Plan check"
         out["lines"] = check_lines(answer, stash.get("checks"))
+    elif tool == "verify_build" and isinstance(answer.get("lines"), list):
+        out.update(verify_card(answer))
     else:                                            # n227: every other answer, in one form
         try:
             out.update(summary_card(tool, answer, call))

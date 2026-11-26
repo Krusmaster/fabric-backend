@@ -524,7 +524,8 @@ __OPEN_JS__
     var old = document.querySelector(".nx-coach"); if (old) old.remove();
     var box = el("section", null, "nx-coach"); box.setAttribute("aria-label", "Where you are");
     box.setAttribute("data-stage", String(c.stage || ""));
-    box.appendChild(el("p", "Step " + (Number(c.n) || 1) + " of " + (Number(c.of) || 9) + ": " + c.title, "nx-stage"));
+    // SC1: a creating tool outside the path (n null) has its own heading and no "Step n of 5"
+    box.appendChild(el("p", (Number(c.n) > 0 ? "Step " + Number(c.n) + " of " + (Number(c.of) || 5) + ": " : "") + c.title, "nx-stage"));
     var say = el("div", null, "kg-say " + c.who), fig = el("span", null, "kg-fig");
     var src = document.querySelector('#kg-mascots [data-mascot="' + c.who + '"] svg');
     if (src) { var f = src.cloneNode(true); f.setAttribute("data-pose", String(c.pose || "point")); fig.appendChild(f); }

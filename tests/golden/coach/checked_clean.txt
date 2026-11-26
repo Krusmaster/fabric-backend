@@ -1,5 +1,5 @@
-Coach (step 4 of 5: Build silver and gold)
-Where the user is, in plain words: Bronze to silver to gold: you see a dry run first, and nothing is created until you say yes.
+Coach (step 2 of 5: Check the links against the rows)
+Where the user is, in plain words: Every key and link holds in the rows. Next comes a dry run of silver and gold; nothing is created until you say yes.
 Possible next step for the user: Build silver and gold (dry run first) (create_pipeline(workspace="demo", source="demo_lh", schema="sap_silver", name="sap_silver_pipeline", dry_run=true)).
 Other options: Draft the gold views.
 Where a card is drawn, it already shows this result's lists and counts.
