@@ -1,0 +1,37 @@
+2026-11-25, film round "film-analytics" (Opus), v3. Draft post texts for the advanced analytics film in this folder. Not approved, not scheduled, not posted.
+Files: krusgraph-advanced-analytics-9x16-captioned.mp4 (Reels, TikTok, Shorts), krusgraph-advanced-analytics-4x5-captioned.mp4 (feed), krusgraph-advanced-analytics-16x9-captioned.mp4 (LinkedIn, YouTube), krusgraph-advanced-analytics-cover-9x16.jpg (the Reel's cover), krusgraph-advanced-analytics.en.srt.
+No voice in this version (captions only). Music: original, synthesized in code (no samples). Synthetic example; the chart is illustrative. Focus: sales forecasting (the weekly orders forecast). The mascots are not named.
+
+=== (a) LinkedIn ===
+
+Your data is ready! What's next? A sales forecast in gold.
+
+Once Krusgraph has proved the keys and links on your rows in Microsoft Fabric, it can write the notebooks for a weekly orders forecast, by fixed rules and with no AI picking the analysis:
+
+1. A feature table with one row per order.
+2. A model: a scikit-learn linear regression on the trend and the week of the year, kept beside a seasonal naive baseline (the same week a year earlier). Both are backtested on the last 8 weeks, and the run is logged with MLflow in an ML experiment.
+3. Predictions in gold: orders per week for the next 8 weeks, with the baseline beside them, and the model name, version and run id on every row.
+
+Krusgraph runs a notebook only when you press Run now. The training happens in your own workspace, so every number comes from your own run. When the semantic model is drafted on gold, the forecast comes along as a "Forecast orders" measure and a "Forecast orders by week" visual.
+
+Where it stands: the feature table notebook ran in Fabric on 21 November. The model and prediction steps pass unit tests on synthetic data and have not yet run in Fabric. The forecast counts orders per week; it is not a revenue forecast. The chart in the film is illustrative. Krusgraph is independent and not affiliated with Microsoft.
+
+krusgraph.com
+
+=== (b) Instagram ===
+
+Your data is ready! What's next? A sales forecast.
+
+Fixed rules pick the analysis, three steps build it (features, model, predictions), and the weekly orders forecast lands in a gold table with the model version on every row. Nothing runs until you press Run now.
+
+Synthetic example, illustrative chart. Krusgraph is independent and not affiliated with Microsoft.
+
+#MicrosoftFabric #SalesForecasting #DataScience #MLflow #DataEngineering
+
+krusgraph.com (link in bio)
+
+=== (c) TikTok ===
+
+Your data is ready! Now what? A weekly sales forecast in gold: features, a model, predictions. You press Run. Synthetic example. Not affiliated with Microsoft. krusgraph.com
+
+#MicrosoftFabric #SalesForecasting #DataScience #MLflow
