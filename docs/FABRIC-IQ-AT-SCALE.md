@@ -628,3 +628,30 @@ rules, and Krusgraph for Claude.
    user approves, and show the domain steps an administrator takes. Engine and Docs, effort S. Never sets endorsement.
 
 Lifecycle (health over time, suggested fixes, autonomy levels, the Lifecycle view and the opt-in Claude agent in the customer's own Azure): `docs/LIFECYCLE-DESIGN.md` (n191).
+
+## 9. One shared ontology over SAP and Dynamics 365 (ON1, 25 November 2026)
+
+**Not run against Fabric.** Unit tests on synthetic data only (`tests/test_on1_shared_ontology.py`).
+
+`fabric_backend/shared_ontology.py` drafts one ontology over a plan of several sources (`schema="sap+d365"`) once the
+person has accepted a counted match ([SMOOTH/COMBINE-SOURCES.md](SMOOTH/COMBINE-SOURCES.md), section 7):
+
+| Entity type | When | Bound to | Records |
+| --- | --- | --- | --- |
+| Shared (`Customer`, `Product`) | the concept's match is accepted | `gold.dim_customer`, `gold.dim_product`, keyed on the conformed key | both source tables and their keys, the match's id, rule and counts (matched, ambiguous, only in each source) |
+| Single-source (`SapOrder`, `D365Order`, `D365Opportunity`, `SapDelivery`, ...) | the concept has no accepted match, or only one source has it | the source table in the product lakehouse, or the fact table re-keyed to `customer_key` (a view before ON2) | its one source table and key |
+
+A relationship type is written only when the plan proves it: a re-keyed fact to the shared Customer (its plan link to
+the party table plus the accepted match), or a single-column plan link inside one source. The rest is listed under
+`notes` with the reason. The definition follows `ontology.py`'s generation-2 layout, each entity type with its own
+`schemaName` and its sources and match in its description. `create_ontology` shows it as a dry run; `dry_run=false`
+answers `not_yet` until the pipeline builds the gold it binds to. One namespace (`default`) as everywhere else
+(section 8.4, round 3).
+
+**ON2 (25 November 2026).** The pipeline builds that gold: `create_pipeline` on the same path writes one notebook that
+creates `gold.dim_customer`, `gold.dim_product` and the re-keyed facts as Delta tables, ambiguous rows kept apart
+(single-source entity types bind to their source tables, which are already there). `create_ontology` with
+`dry_run=false` reads the gold schema; when every bound table and column is there it creates the shared ontology by the
+usual create path, otherwise `not_yet` names the pipeline. `verify_build` compares the created ontology with the dry
+run. Fake Fabric that records writes, and the gold SQL on SQLite (`tests/test_on2_shared_gold.py`); **not run against
+Fabric** ([SMOOTH/COMBINE-SOURCES.md](SMOOTH/COMBINE-SOURCES.md), section 8).

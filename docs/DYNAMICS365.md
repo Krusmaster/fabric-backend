@@ -7,6 +7,11 @@ No., spreads every table over companies, and keeps its header amounts as FlowFie
 dynamics365 pack says these things per table and per relationship, with the public page each claim rests on, and the
 engine uses it before the name rules, as it uses the SAP pack ([SAP.md](SAP.md)).
 
+**Status (ON1, 25 November 2026).** Dynamics 365 can now be combined with SAP in one data product: the customer
+(`account`, or Business Central's `Customer`) and the product (`product`, or `Item`) are matched to SAP's KNA1 and MARA
+by rules with counts, and one shared Fabric IQ ontology is drafted over both ("Combined with SAP" below). Unit tests on
+synthetic data only; **not run against Fabric**.
+
 The pack describes tables, not a connector: it holds no credentials, endpoints or extraction logic and connects to
 nothing ([PACKS.md](PACKS.md), "What a pack is, and is not"). Microsoft product names are used only as names.
 Krusgraph is independent and not affiliated with Microsoft.
@@ -212,6 +217,31 @@ krusgraph plan --folder ./landing --dataverse-metadata metadata.xml
 It takes a saved file and refuses a URL. Unit tests only (`tests/test_bl42_dataverse_plan.py`, synthetic metadata and
 demo lake). Next: read the file from the lakehouse's Files in the hosted tools and the workload item (`server.py`), as
 the CSN file is.
+
+## Combined with SAP (ON1)
+
+Round ON1, 25 November 2026 ([SMOOTH/COMBINE-SOURCES.md](SMOOTH/COMBINE-SOURCES.md), section 7). With SAP and
+Dynamics 365 as two schemas of one lakehouse (`schema="sap+d365"`):
+
+- **Built:** the customer match (`account.accountnumber`, or a custom column that names SAP such as
+  `new_sapcustomerno`, against `KNA1.KUNNR`; Business Central's `Customer` takes part through a column such as
+  `SAP_Customer_No`) and the product match (`product.productnumber` against `MARA.MATNR`; `Item` likewise), each
+  counted as matched, ambiguous, only in SAP and only in Dynamics 365, compared after trimming, case folding and
+  stripping leading zeros. Link to Fabric's system columns (`Id`, `versionnumber`, ...) are never a match key. Once the
+  person accepts a match, `create_ontology` drafts one shared ontology: Customer and Product shared, every other
+  concept one entity type per source, relationships only where the plan proves them.
+- **Built in ON2:** the gold in the pipeline. With a match accepted, `create_pipeline` builds `gold.dim_customer`,
+  `gold.dim_product` and the re-keyed facts (one notebook, ambiguous rows kept apart), and `create_ontology` with
+  `dry_run=false` creates the shared ontology once that gold is in the lakehouse (`not_yet`, naming the pipeline,
+  until then); `verify_build` reads it back. Fake Fabric only ([SMOOTH/COMBINE-SOURCES.md](SMOOTH/COMBINE-SOURCES.md),
+  section 8).
+- **Not built:** the combined semantic model over this gold; Order and Invoice across
+  sources (no rule matches them); the filtered lookups (`customerid`, `ownerid`) as relationships; lines and products
+  related to the shared Product; the agent over both; Business Central counted on rows (names only in the tests).
+
+On the synthetic pair `tests/fixtures/sap_dynamics.py`: customers 3 matched, 2 ambiguous (two accounts carry customer
+13), 2 only in SAP, 1 only in Dynamics 365; products 2 matched, 2 only in SAP, 1 only in Dynamics 365. Nothing here
+was checked on a real environment's rows.
 
 ## Next
 

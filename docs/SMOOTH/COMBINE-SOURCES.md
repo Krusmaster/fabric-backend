@@ -7,8 +7,16 @@ choices differ from the text below and are Gustav's to confirm: the **master** i
 KNA1 for M0), not the side with the most keys, because two CRM accounts may point at one SAP customer and a master per
 account would give that customer two keys and double its SAP totals; and when the side pointed at has a tenant column
 (MANDT) and the other has none, the match runs **within the tenant with the most rows**. Properties are carried per
-source (`sap_LAND1`, `crm_Industry`); personal-data columns are left out. Not built yet (issue #152): schema shortcuts
-(G5), M3, the gold in the pipeline, ontology and agent, catalog publish, survivorship choices.
+source (`sap_LAND1`, `crm_Industry`); personal-data columns are left out.
+
+**Status (ON1, 25 November 2026).** SAP and Dynamics 365 are matched the same way, and one shared ontology is drafted
+over the result (section 7). Built: the customer match (KNA1 against Dataverse `account` or Business Central
+`Customer`) and the product match (MARA against Dataverse `product` or Business Central `Item`), counted with the
+ambiguous rows apart; the shared ontology as a `create_ontology` dry run once a match is accepted. Unit tests on a
+synthetic SAP + Dataverse pair only; **not run against Fabric**. Not built yet (issue #152): schema shortcuts (G5), M3,
+the gold in the pipeline (so creating the shared ontology answers `not_yet`), the agent over the combined sources,
+catalog publish, survivorship choices, a matched or unioned Order and Invoice, and the Product decision on the start
+card (it is accepted from the ontology dry run's action).
 
 **The case.** SAP holds orders and customers. A CRM such as Salesforce holds accounts, opportunities and cases. The
 business wants one question answered over both, for example "revenue and open opportunities per customer". It wants one
@@ -144,3 +152,95 @@ does not certify anything. It counts, proposes, builds what was approved, and ch
 | Conformed gold (xref, dims, re-keyed facts) in the pipeline | M-L | the match rules |
 | Model / ontology / agent over the conformed gold | S-M | the gold (one item, as today) |
 | Reference a shared entity from a second product | M | DOMAINS-DESIGN part 4 |
+
+## 7. SAP and Dynamics 365, and one shared ontology (ON1, 25 November 2026)
+
+Built in `fabric_backend/combine.py` (the matches) and `fabric_backend/shared_ontology.py` (the ontology). Unit tests
+only (`tests/test_on1_shared_ontology.py`, on the synthetic pair `tests/fixtures/sap_dynamics.py`); **not run against
+Fabric**.
+
+**The matches.** The rules of section 2 now run per concept: `customer` (the party masters of DP1's catalog: SAP's
+KNA1, Dataverse's `account`, Business Central's `Customer`) and `product` (the `product` masters: SAP's MARA,
+Dataverse's `product`, Business Central's `Item`). Two additions, both by name:
+
+- Dataverse names columns in lower case without separators. In such a name, a word ending in number, no, nr or num is
+  read as its head and that identifier word, so `accountnumber` and `productnumber` are key-shaped (M2), and
+  `new_sapcustomerno` names SAP (M0). Lookups ending in `id` are GUIDs and are never split.
+- The columns Link to Fabric adds (`Id`, `IsDelete`, `SinkCreatedOn`, `SinkModifiedOn`, `versionnumber`) are never a
+  candidate. Before ON1, Dataverse's `Id` was proposed against `KNA1.KUNNR`.
+
+Every match is counted on the rows, two statements as before: matched, **ambiguous** (a row whose normalised number is
+also held by another row of its side, or finds more than one row on the other side), only in one source, only in the
+other. The rules never resolve an ambiguous row: the evidence says how many there are, and accepting the match stays
+the person's tap. The start card's Check line is SM7's (`card_line`, ambiguous rows counted as matching);
+`match_line` gives them apart.
+
+On the synthetic pair (SAP demo plus two customers; Dataverse demo plus two accounts, `accountnumber` and
+`productnumber`):
+
+| Match | Rule | D365 rows | SAP rows | Matched | Ambiguous | Only in SAP | Only in D365 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `d365.account.accountnumber` → `sap.KNA1.KUNNR` | M2 | 6 (5 filled) | 6 | 3 | 2 accounts on one customer | 2 (one in client 200) | 1 |
+| `d365.product.productnumber` → `sap.MARA.MATNR` | M2 | 3 (2 filled) | 4 | 2 | 0 | 2 (one in client 200) | 1 |
+
+**The shared ontology.** `create_ontology` over a plan of several schemas, once a match is accepted on the path,
+answers with one ontology instead of one per source:
+
+- one entity type per concept DP1 names for a table: Customer, Product, Order, Invoice, Opportunity, Delivery, Case
+  (masters and headers; lines and texts are not entity types yet);
+- **shared** when the concept's match is accepted: `Customer` bound to `gold.dim_customer`, `Product` to
+  `gold.dim_product` (the gold SQL of section 4, now also for products), keyed on the conformed key, recording both
+  source tables and the counted match;
+- **single-source** otherwise: one entity type per source table (`SapOrder`, `D365Order`). Orders and invoices exist
+  in both systems but no rule says an SAP order is a Dynamics order, so none is guessed. Opportunity and Case come from
+  Dataverse only, Delivery from SAP only;
+- **relationships only where the plan proves them**: a transaction table re-keyed to `customer_key` points at the shared
+  Customer (its own plan link to the party table, plus the accepted match); otherwise the plan's single-column links
+  inside one source. Composite links, links into a table that is now part of a shared entity, and Dataverse's filtered
+  lookups (`salesorder.customerid` where `customeridtype` is account) are listed under `notes`, not written.
+
+On the pair, with both matches accepted: 9 entity types (Customer and Product shared; SapOrder, D365Order, SapInvoice,
+D365Invoice, D365Opportunity, SapDelivery and D365Case from one source each) and 7 relationship types. The dry run
+writes nothing; `dry_run=false` answers `not_yet` until the pipeline builds the gold the shared entity types bind to
+(section 8 builds it). A match not yet accepted is offered as a `start` action in the dry run.
+
+## 8. The shared gold and the shared ontology created (ON2, 25 November 2026)
+
+Built in `fabric_backend/shared_gold.py`, `combine.gold_sql(..., apart=True)` and the combined branches of
+`create_pipeline`, `create_ontology` and `verify_build` in `server.py`. Unit tests with a fake Fabric that records
+writes (`tests/test_on2_shared_gold.py`), and the gold SQL run on SQLite over the synthetic pair; **not run against
+Fabric**.
+
+With a match accepted on the path, the order is: Decide, then `create_pipeline`, run it once, then `create_ontology`,
+then `verify_build`. Each creating call is a dry run first, and changes Fabric only with `dry_run=false` after the
+person's yes; a run starts only with `run_once` and the `confirm_jobs` code of its dry run.
+
+- **The pipeline.** On a plan of several schemas with an accepted match, `create_pipeline` builds the shared gold
+  instead of the per-table silver and gold: one notebook (`<name>_shared_gold`) and a pipeline with one Notebook
+  activity, in the product lakehouse's workspace. The notebook runs the shared ontology's gold SQL in order
+  (`xref_customer`, `dim_customer`, the re-keyed facts, `xref_product`, `dim_product`), all as Delta tables (the facts
+  were views in section 4; the SQL analytics endpoint and the ontology's OneLake binding do not see a Spark view). It
+  stops before anything is created when `gold` is a source schema or a table of these names exists that it did not
+  create (the table property `krusgraph.gold`). Source tables are only read.
+- **Ambiguous rows apart.** The gold keeps every ambiguous row apart exactly as section 7 counts it: a row of either
+  side that is in more than one matching pair keeps its own key, with `ambiguous` true and `only_in` its own source;
+  only one-to-one pairs share a key. The notebook's last cell counts the xref again (matched, ambiguous, only in each
+  source), prints it beside the counts the person accepted, and fails the run when a source row has two keys, an
+  ambiguous row was merged or a key is more than one row of its dimension. SM7's combined model (section 4) still drafts
+  the earlier SQL, which joins an ambiguous row to its customer.
+- **Create.** `create_ontology` with `dry_run=false` reads the product lakehouse's `gold` schema on the SQL analytics
+  endpoint (the same connection that counts the matches). When every table and column the shared entity types bind is
+  there, it creates the shared ontology through the same create path as every ontology (POST, or updateDefinition of
+  an ontology of that name), with the dry run's definition. Otherwise it answers `not_yet`, lists what is missing and
+  names the step that comes first: `create_pipeline` with the same workspace, source and schema.
+- **Verify.** `verify_build` with `items={"ontology": name}` on the same path reads the created ontology back and
+  compares it with the shared dry run (entity types, keys, bindings, relationship types). The graph is still the
+  person's step in Fabric, as for every ontology.
+
+On the synthetic pair, run on SQLite: `gold.dim_customer` 9 rows (3 matched pairs, the 2 ambiguous accounts and SAP
+customer 13 each on their own, 1 only in Dynamics 365, 2 only in SAP), `gold.dim_product` 5 rows (2 matched, 1 only in
+Dynamics 365, 2 only in SAP), each fact with as many rows as its source table.
+
+Not built: the combined semantic model (SM7) still answers `not_yet`; its card and counts merge an ambiguous row, so
+moving it onto this gold is more than a small change. Not run against Fabric: the notebook, the pipeline and the
+ontology create are checked with a fake Fabric; Fabric's own Spark and ontology have not seen them.

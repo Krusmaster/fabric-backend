@@ -43,6 +43,25 @@ dim_customer and the facts, each fact related to dim_customer only, never to ano
 
 Not in SM7 (issue in the PR): creating the schema shortcuts (G5), the conformed code-list dimensions (M3), the pipeline
 step that runs the gold SQL, the ontology and agent over it, and the person's choice of master and properties.
+
+**ON2.** `gold_sql(..., apart=True)` is the gold the pipeline builds for the shared ontology (shared_gold.py): the
+ambiguous rows kept apart as `count` counts them (each in its own row, `ambiguous` true), one-to-one pairs merged, and
+the facts as Delta tables. SM7's combined model still drafts the SQL above.
+
+**ON1 (SAP and Dynamics 365, issue #152).** The same rules match two concepts, each on its own (`concept`):
+`customer` (the party tables above: SAP's KNA1, Dataverse's `account`, Business Central's `Customer`) and `product`
+(DP1's `product` masters: SAP's MARA, Dataverse's `product`, Business Central's `Item`). Two additions, both by name:
+
+- Dataverse names its columns in lower case without separators (`accountnumber`, `productnumber`,
+  `new_sapcustomerno`). In a column name with no capital letter, a word that ends in number, no, nr or num is read as
+  its head and that identifier word (`accountnumber` -> account + number), and a head that starts with the other
+  source's name is that name (`sapcustomerno` names sap: M0). GUID lookups end in `id` and are never split.
+- The columns Link to Fabric adds (`Id`, `IsDelete`, `SinkCreatedOn`, `SinkModifiedOn`, `versionnumber`;
+  dataverse_meta.SYSTEM_COLUMNS) are never a candidate: `Id` is the lake's row id, not a customer number.
+
+**Ambiguous rows** are counted, never resolved: `ambiguous` is the number of referencing rows whose normalised value
+is also held by another referencing row, or finds more than one row on the other side. `matched` is `found` less
+`ambiguous`. Accepting the match stays the person's tap, with the ambiguous count in its evidence.
 """
 from __future__ import annotations
 
@@ -53,8 +72,10 @@ from .dialects import DATABRICKS, TSQL, Dialect
 from .schema import Column, Schema, Table
 
 PARTY = ("customer", "crm_account")             # DP1 catalog products that are a party who buys
+CONCEPTS = {"customer": PARTY, "product": ("product",)}   # ON1: what is matched across sources, by DP1 product (master)
 FACT_KIND, FACT_ROLE = "transaction", "header"
 ID_WORDS = {"no", "nr", "number", "num", "id", "key"}
+TAIL_WORDS = ("number", "num", "nr", "no")      # ON1: the tails read off a lower-case compound name; never "id"
 CODE_WORDS = {"currency", "country", "iso", "language", "lang", "unit"}   # code lists are M3, never a customer match
 IDENTIFIERS = {                                   # M1: official identifiers, by the column's name (words joined)
     "vat id": ("vat", "vatid", "vatno", "vatnumber", "stceg", "ustid", "vatregistrationnumber", "taxid"),
@@ -75,6 +96,30 @@ def _words(name: str) -> list[str]:
     """'SAP_Customer_No__c' -> ['sap', 'customer', 'no', 'c']; 'AccountNumber' -> ['account', 'number']."""
     spaced = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", str(name))
     return [w for w in re.split(r"[^0-9a-z]+", spaced.lower()) if w]
+
+
+def _rule_words(name: str, system: set[str] = frozenset()) -> set[str]:
+    """The words the rules read in a column name. ON1: a name with no capital letter (Dataverse's logical names) also
+    gives each compound word's head and identifier tail (`accountnumber` -> account, number), and a head that starts
+    with a source's name gives that name (`sapcustomerno` -> sap)."""
+    words = _words(name)
+    out = set(words)
+    if str(name) != str(name).lower():
+        return out
+    for w in words:
+        tail = next((t for t in TAIL_WORDS if w.endswith(t) and len(w) > len(t) + 1), None)
+        if tail is None:
+            continue
+        head = w[:-len(tail)]
+        out |= {head, tail}
+        out |= {x for x in system if head.startswith(x) and len(head) > len(x)}
+    return out
+
+
+def _system_column(name: str) -> bool:
+    """The columns Link to Fabric adds to every Dataverse table (dataverse_meta.SYSTEM_COLUMNS): never a match key."""
+    from .dataverse_meta import SYSTEM_COLUMNS
+    return str(name).lower() in {c.lower() for c in SYSTEM_COLUMNS}
 
 
 def _joined(name: str) -> str:
@@ -143,12 +188,14 @@ def _entries(plan) -> dict[str, list[dict]]:
     return out
 
 
-def parties(plan) -> dict[str, dict]:
-    """{schema: {table, product, number, tenant, key}} per schema with a party master table (DP1's key mapping)."""
+def parties(plan, concept: str = "customer") -> dict[str, dict]:
+    """{schema: {table, product, number, tenant, key}} per schema with a master table of the concept (DP1's key
+    mapping): the party tables for `customer` (SM7), the product masters for `product` (ON1)."""
+    wanted = CONCEPTS[concept]
     out: dict[str, dict] = {}
     for key, entries in _entries(plan).items():
         for e in entries:
-            if e.get("product") not in PARTY or e.get("role") != "master":
+            if e.get("product") not in wanted or e.get("role") != "master":
                 continue
             s = _schema_of(key)
             t = plan.schema[key]
@@ -218,9 +265,10 @@ def _personal(plan, table: str) -> set[str]:
         return set()
 
 
-def candidates(plan) -> list[dict]:
-    """Every candidate key pair between two schemas' party tables, by M0, M1 and M2 (names only; nothing counted)."""
-    party = parties(plan)
+def candidates(plan, concept: str = "customer") -> list[dict]:
+    """Every candidate key pair between two schemas' master tables of the concept (the party tables by default), by M0,
+    M1 and M2 (names only; nothing counted)."""
+    party = parties(plan, concept)
     out: list[dict] = []
     schemas = list(party)
     for a in schemas:
@@ -232,9 +280,9 @@ def candidates(plan) -> list[dict]:
             own = {c.lower() for c in pa["key"]} | _fk_cols(plan, pa["table"])
             system = _system_words(b, plan)
             for c in ta.columns:
-                if c.name.lower() in own:
+                if c.name.lower() in own or _system_column(c.name):
                     continue
-                w = set(_words(c.name))
+                w = _rule_words(c.name, system)
                 if (w & system and w & ID_WORDS) or pb["number"].lower() in c.name.lower():
                     out.append(_cand("M0", a, pa, c.name, b, pb, pb["number"], f"{c.name} names {b} and an identifier"))
                 elif a < b and (kind := identifier_of(c.name)):              # M1 is symmetric: once per pair
@@ -247,7 +295,7 @@ def candidates(plan) -> list[dict]:
     for x in sorted(out, key=lambda x: (ORDER.index(x["rule"]), x["id"])):
         if x["id"] not in seen:
             seen.add(x["id"])
-            uniq.append(x)
+            uniq.append({**x, "concept": concept})
     return uniq
 
 
@@ -300,10 +348,13 @@ def count_sql(c: dict, d: Dialect = TSQL) -> tuple[str, str]:
     scope = f" WHERE t.{q(to['tenant'])} = {_tenant_pick(to, d)}" if to.get("tenant") else ""
     has = f"s.{col} IS NOT NULL AND LTRIM(RTRIM({_text('s.' + col, d)})) <> ''"
     one = (f"SELECT {n}(*) AS a_rows, SUM(CASE WHEN {has} THEN 1 ELSE 0 END) AS filled, {n}(r.k) AS found_raw, "
-           f"{n}(m.k) AS found FROM {a} AS s"
+           f"{n}(m.k) AS found, SUM(CASE WHEN m.k IS NOT NULL AND (m.n > 1 OR g.n > 1) THEN 1 ELSE 0 END) AS ambiguous"
+           f" FROM {a} AS s"
            f" LEFT JOIN (SELECT DISTINCT {_text('t.' + num, d)} AS k FROM {b} AS t{scope}) AS r ON {_text('s.' + col, d)} = r.k"
-           f" LEFT JOIN (SELECT DISTINCT {normal('t.' + num, rule, d)} AS k FROM {b} AS t{scope}) AS m"
-           f" ON {normal('s.' + col, rule, d)} = m.k")
+           f" LEFT JOIN (SELECT {normal('t.' + num, rule, d)} AS k, {n}(*) AS n FROM {b} AS t{scope}"
+           f" GROUP BY {normal('t.' + num, rule, d)}) AS m ON {normal('s.' + col, rule, d)} = m.k"
+           f" LEFT JOIN (SELECT {normal('s.' + col, rule, d)} AS k, {n}(*) AS n FROM {a} AS s WHERE {has}"
+           f" GROUP BY {normal('s.' + col, rule, d)}) AS g ON {normal('s.' + col, rule, d)} = g.k")
     on_scope = f" AND t.{q(to['tenant'])} = {_tenant_pick(to, d)}" if to.get("tenant") else ""
     two = (f"SELECT {n}(*) AS b_rows, {n}(m.k) AS b_found, SUM(CASE WHEN m.n > 1 THEN 1 ELSE 0 END) AS b_shared, "
            f"{n}(DISTINCT m.k) AS distinct_found FROM {b} AS t"
@@ -319,11 +370,12 @@ def _int(v) -> int:
         return 0
 
 
-def count(plan, execute, dialect: Dialect = TSQL) -> dict:
-    """{candidates: [candidate + counts], proposed: id or None, party, facts, queries}. Never raises: a statement that
-    fails leaves its candidate `not_counted` with the reason."""
-    party = parties(plan)
-    cands = candidates(plan)
+def count(plan, execute, dialect: Dialect = TSQL, concept: str = "customer") -> dict:
+    """{candidates: [candidate + counts], proposed: id or None, party, facts, queries, concept}. Never raises: a
+    statement that fails leaves its candidate `not_counted` with the reason. `facts` (the transaction tables re-keyed
+    to the conformed key) are drafted for the customer only."""
+    party = parties(plan, concept)
+    cands = candidates(plan, concept)
     out: list[dict] = []
     queries = 0
     for c in cands[:MAX_CANDIDATES]:
@@ -337,7 +389,9 @@ def count(plan, execute, dialect: Dialect = TSQL) -> dict:
             continue
         k = {"a_rows": _int(r1.get("a_rows")), "filled": _int(r1.get("filled")), "found_raw": _int(r1.get("found_raw")),
              "found": _int(r1.get("found")), "b_rows": _int(r2.get("b_rows")), "b_found": _int(r2.get("b_found")),
-             "b_shared": _int(r2.get("b_shared")), "distinct": _int(r2.get("distinct_found"))}
+             "b_shared": _int(r2.get("b_shared")), "distinct": _int(r2.get("distinct_found")),
+             "ambiguous": _int(r1.get("ambiguous"))}
+        k["matched"] = k["found"] - k["ambiguous"]
         k["only_a"] = k["a_rows"] - k["found"]
         k["only_b"] = k["b_rows"] - k["b_found"]
         share = k["found"] / k["filled"] if k["filled"] else 0.0
@@ -352,7 +406,7 @@ def count(plan, execute, dialect: Dialect = TSQL) -> dict:
     held = [c for c in out if c.get("holds")]
     best = max(held, key=lambda c: (c["certainty"], -ORDER.index(c["rule"]), c["counts"]["found"]), default=None)
     return {"candidates": out, "proposed": best["id"] if best else None, "party": party,
-            "facts": facts(plan, party), "queries": queries}
+            "facts": facts(plan, party) if concept == "customer" else [], "queries": queries, "concept": concept}
 
 
 # ------------------------------------------------------------------------------------------------ the words
@@ -375,7 +429,22 @@ def card_line(c: dict) -> str:
 
 def _noun(table: str) -> str:
     t = table.split(".", 1)[-1].lower()
-    return {"kna1": "customer", "account": "account"}.get(t, "row")
+    return {"kna1": "customer", "account": "account", "customer": "customer", "mara": "material", "product": "product",
+            "product2": "product", "item": "item"}.get(t, "row")
+
+
+def match_line(c: dict) -> str:
+    """ON1: card_line with the ambiguous rows apart, in at most 25 words: 'SAP has 6 customers, D365 6 accounts. 3
+    accounts match on accountnumber after normalising, 2 ambiguous. 2 only in SAP, 1 only in D365.'"""
+    k = c["counts"]
+    fr, to = c["from"], c["to"]
+    nb, na = _noun(to["table"]), _noun(fr["table"])
+    how = " after normalising" if k["found"] != k["found_raw"] and c["rule"] != "M1" else ""
+    on = c.get("identifier") or fr["column"]
+    amb = f", {k['ambiguous']} ambiguous" if k.get("ambiguous") else ""
+    return (f"{_source_word(to['schema'])} has {k['b_rows']} {_plural(nb, k['b_rows'])}, {_source_word(fr['schema'])} "
+            f"{k['a_rows']} {_plural(na, k['a_rows'])}. {k['matched']} {_plural(na, k['matched'])} match on {on}{how}{amb}. "
+            f"{k['only_b']} only in {_source_word(to['schema'])}, {k['only_a']} only in {_source_word(fr['schema'])}.")
 
 
 def _plural(noun: str, n: int) -> str:
@@ -389,9 +458,13 @@ def evidence(c: dict) -> list[str]:
     out = [f"{c['rule']}: {c['why']}. {fr['table']}.{fr['column']} {chr(8594)} {to['table']}.{to['column']}.",
            f"{k['filled']} of {k['a_rows']} {fr['table']} rows hold a value; {k['found_raw']} match as written, "
            f"{k['found']} after normalising."]
+    if k.get("ambiguous"):
+        out.append(f"{k['ambiguous']} {fr['table']} {'row is' if k['ambiguous'] == 1 else 'rows are'} ambiguous: the value "
+                   f"is held by another {fr['table']} row too, or finds more than one {to['table']} row. The rules do not "
+                   f"pick one: you decide.")
     if k["b_shared"]:
         out.append(f"{k['b_shared']} {to['table']} {'row is' if k['b_shared'] == 1 else 'rows are'} matched by more than "
-                   f"one {fr['table']} row: they become one customer.")
+                   f"one {fr['table']} row: they become one {_noun(to['table']) if c.get('concept') == 'product' else 'customer'}.")
     if to.get("tenant"):
         out.append(f"Matched within the {to['tenant']} value with the most rows; the other {to['tenant']} values stay, "
                    f"counted as only in {_source_word(to['schema'])}.")
@@ -421,10 +494,20 @@ def _xcol(schema: str, col: str) -> str:
     return f"{schema}_{col}"
 
 
-def gold_sql(c: dict, plan, fact_list: list[dict], gold: str = "gold", d: Dialect = DATABRICKS) -> dict[str, str]:
+def gold_sql(c: dict, plan, fact_list: list[dict], gold: str = "gold", d: Dialect = DATABRICKS,
+             concept: str = "customer", apart: bool = False) -> dict[str, str]:
     """{table: Spark SQL} of the conformed gold for an accepted match, read in the product lakehouse (its schemas are
-    the sources). Master: the side pointed at."""
+    the sources). Master: the side pointed at. ON1: `concept` names the tables and the key (`xref_product`,
+    `dim_product`, `product_key`); the customer's are as SM7 wrote them.
+
+    ON2: `apart` (the shared ontology and the pipeline that builds its gold) keeps the ambiguous rows apart, exactly as
+    `count` counts them: a row of either side that is in more than one matching pair is never merged, it keeps its own
+    key with `ambiguous` true; only one-to-one pairs share a key. The facts are then Delta tables, not views, so the
+    SQL analytics endpoint and the ontology's OneLake binding see them. Without it the SQL is SM7's, byte for byte."""
+    if apart:
+        return _gold_sql_apart(c, plan, fact_list, gold, d, concept)
     q = d.quote
+    xref, dim, ck = f"xref_{concept}", f"dim_{concept}", f"{concept}_key"
     fr, to, rule = c["from"], c["to"], c["rule"]
     m_s, o_s = to["schema"], fr["schema"]
     mk, ok = to["key"], fr["key"]
@@ -439,8 +522,8 @@ def gold_sql(c: dict, plan, fact_list: list[dict], gold: str = "gold", d: Dialec
     on_o = " AND ".join(f"a.{x} = m.{x}" for x in ox)
     null = lambda cols: ", ".join(f"NULL AS {x}" for x in cols)
     order = ", ".join([f"u.{x}" for x in mx] + [f"CASE WHEN u.{mx[-1]} IS NULL THEN u.{x} END" for x in ox])
-    xref = (
-        f"CREATE OR REPLACE TABLE {g('xref_customer')} AS\n"
+    xref_sql = (
+        f"CREATE OR REPLACE TABLE {g(xref)} AS\n"
         f"WITH b AS (SELECT {mcols}, {normal('t.' + q(to['column']), rule, d)} AS k, {in_scope} AS in_scope FROM {mt} AS t),\n"
         f"a AS (SELECT {ocols}, {normal('s.' + q(fr['column']), rule, d)} AS k FROM {ot} AS s),\n"
         f"m AS (SELECT {', '.join('b.' + x for x in mx)}, {', '.join('a.' + x for x in ox)} FROM a JOIN b ON a.k = b.k AND b.in_scope),\n"
@@ -448,7 +531,7 @@ def gold_sql(c: dict, plan, fact_list: list[dict], gold: str = "gold", d: Dialec
         f"CASE WHEN m.{ox[0]} IS NULL THEN '{m_s}' END AS only_in FROM b LEFT JOIN m ON {on_m}\n"
         f"      UNION ALL SELECT {null(mx)}, {', '.join('a.' + x for x in ox)}, '{o_s}' AS only_in FROM a\n"
         f"      LEFT ANTI JOIN m ON {on_o})\n"
-        f"SELECT DENSE_RANK() OVER (ORDER BY u.{mx[-1]} IS NULL, {order}) AS customer_key,\n"
+        f"SELECT DENSE_RANK() OVER (ORDER BY u.{mx[-1]} IS NULL, {order}) AS {ck},\n"
         f"       u.*, CASE WHEN u.only_in IS NULL THEN '{rule}' END AS match_rule,\n"
         f"       CASE WHEN u.only_in IS NULL THEN '{fr['table']}.{fr['column']} = {to['table']}.{to['column']}' END AS matched_on\n"
         f"FROM u")
@@ -456,45 +539,110 @@ def gold_sql(c: dict, plan, fact_list: list[dict], gold: str = "gold", d: Dialec
     m_props, o_props = properties(plan, to), properties(plan, fr)
     agg = (", ".join(f"MIN({x}) AS {x}" for x in mx + ox) + f", {d.count}({ox[-1]}) AS {q(o_s + '_rows')}, "
            "MIN(only_in) AS only_in")
-    dim = (f"CREATE OR REPLACE TABLE {g('dim_customer')} AS\n"
-           f"WITH x AS (SELECT customer_key, {agg} FROM {g('xref_customer')} GROUP BY customer_key)\n"
-           f"SELECT x.*" + "".join(f", t.{q(p)} AS {q(_xcol(m_s, p))}" for p in m_props)
-           + "".join(f", s.{q(p)} AS {q(_xcol(o_s, p))}" for p in o_props) + "\n"
-           f"FROM x LEFT JOIN {mt} AS t ON " + " AND ".join(f"t.{q(k)} = x.{q(_xcol(m_s, k))}" for k in mk)
-           + f"\nLEFT JOIN {ot} AS s ON " + " AND ".join(f"s.{q(k)} = x.{q(_xcol(o_s, k))}" for k in ok))
-    out = {"xref_customer": xref, "dim_customer": dim}
+    dim_sql = (f"CREATE OR REPLACE TABLE {g(dim)} AS\n"
+               f"WITH x AS (SELECT {ck}, {agg} FROM {g(xref)} GROUP BY {ck})\n"
+               f"SELECT x.*" + "".join(f", t.{q(p)} AS {q(_xcol(m_s, p))}" for p in m_props)
+               + "".join(f", s.{q(p)} AS {q(_xcol(o_s, p))}" for p in o_props) + "\n"
+               f"FROM x LEFT JOIN {mt} AS t ON " + " AND ".join(f"t.{q(k)} = x.{q(_xcol(m_s, k))}" for k in mk)
+               + f"\nLEFT JOIN {ot} AS s ON " + " AND ".join(f"s.{q(k)} = x.{q(_xcol(o_s, k))}" for k in ok))
+    out = {xref: xref_sql, dim: dim_sql}
     for f in fact_list:
         s = f["schema"]
         xs = [q(_xcol(s, k)) for k in f["party_cols"]]
         on = " AND ".join(f"f.{q(src)} = x.{q(_xcol(s, k))}" for src, k in zip(f["cols"], f["party_cols"]))
         out[f["name"]] = (f"CREATE OR REPLACE VIEW {g(f['name'])} AS\n"
-                          f"SELECT x.customer_key, f.* FROM {d.table('+', f['table'])} AS f\n"
-                          f"LEFT JOIN (SELECT DISTINCT customer_key, {', '.join(xs)} FROM {g('xref_customer')} "
+                          f"SELECT x.{ck}, f.* FROM {d.table('+', f['table'])} AS f\n"
+                          f"LEFT JOIN (SELECT DISTINCT {ck}, {', '.join(xs)} FROM {g(xref)} "
                           f"WHERE {xs[-1]} IS NOT NULL) AS x ON {on}")
     return out
 
 
-def model_schema(c: dict, plan, fact_list: list[dict], gold: str = "gold") -> Schema:
+def model_schema(c: dict, plan, fact_list: list[dict], gold: str = "gold", concept: str = "customer",
+                 apart: bool = False) -> Schema:
     """The conformed gold as a Schema for the model: dim_customer keyed on customer_key, each fact with customer_key
-    pointing at it (a declared foreign key), and no link between facts."""
+    pointing at it (a declared foreign key), and no link between facts. ON1: `concept` names the dimension and key.
+    ON2: `apart` adds the dimension's `ambiguous` column (gold_sql with apart)."""
+    dim, ck = f"dim_{concept}", f"{concept}_key"
     fr, to = c["from"], c["to"]
     s = Schema(schema=gold)
     mt, ot = plan.schema[to["table"]], plan.schema[fr["table"]]
-    cols = [Column("customer_key", "bigint", False)]
+    cols = [Column(ck, "bigint", False)]
     cols += [Column(_xcol(to["schema"], k), _type(mt, k)) for k in to["key"]]
     cols += [Column(_xcol(fr["schema"], k), _type(ot, k)) for k in fr["key"]]
     cols += [Column(f"{fr['schema']}_rows", "bigint"), Column("only_in", "nvarchar")]
+    cols += [Column("ambiguous", "boolean")] if apart else []
     cols += [Column(_xcol(to["schema"], p), _type(mt, p)) for p in properties(plan, to)]
     cols += [Column(_xcol(fr["schema"], p), _type(ot, p)) for p in properties(plan, fr)]
-    s.tables["dim_customer"] = Table("dim_customer", cols, ["customer_key"], [], schema=gold)
+    s.tables[dim] = Table(dim, cols, [ck], [], schema=gold)
     for f in fact_list:
         src = plan.schema[f["table"]]
         keys = list((plan.keys.get(f["table"]) or ([], ""))[0])
-        fcols = [Column("customer_key", "bigint")] + [Column(x.name, x.data_type) for x in src.columns
-                                                       if x.name.lower() != "customer_key"]
-        s.tables[f["name"]] = Table(f["name"], fcols, keys, [(["customer_key"], "dim_customer", ["customer_key"])],
-                                    schema=gold)
+        fcols = [Column(ck, "bigint")] + [Column(x.name, x.data_type) for x in src.columns if x.name.lower() != ck]
+        s.tables[f["name"]] = Table(f["name"], fcols, keys, [([ck], dim, [ck])], schema=gold)
     return s
+
+
+def _gold_sql_apart(c: dict, plan, fact_list: list[dict], gold: str, d: Dialect, concept: str) -> dict[str, str]:
+    """ON2: gold_sql with the ambiguous rows apart (see gold_sql). Portable enough to run on SQLite in the tests: NOT
+    EXISTS instead of a left anti join, window counts instead of a second grouping."""
+    q = d.quote
+    xref, dim, ck = f"xref_{concept}", f"dim_{concept}", f"{concept}_key"
+    fr, to, rule = c["from"], c["to"], c["rule"]
+    m_s, o_s = to["schema"], fr["schema"]
+    mk, ok = to["key"], fr["key"]
+    mt, ot = d.table("+", to["table"]), d.table("+", fr["table"])
+    g = lambda name: f"{q(gold)}.{q(name)}"
+    mcols = ", ".join(f"t.{q(k)} AS {q(_xcol(m_s, k))}" for k in mk)
+    ocols = ", ".join(f"s.{q(k)} AS {q(_xcol(o_s, k))}" for k in ok)
+    in_scope = (f"t.{q(to['tenant'])} = {_tenant_pick(to, d, 'x')}" if to.get("tenant") else "TRUE")
+    mx = [q(_xcol(m_s, k)) for k in mk]
+    ox = [q(_xcol(o_s, k)) for k in ok]
+    on = lambda left, right, cols: " AND ".join(f"{left}.{x} = {right}.{x}" for x in cols)
+    null = lambda cols: ", ".join(f"NULL AS {x}" for x in cols)
+    order = ", ".join([f"u.{x}" for x in mx] + [f"CASE WHEN u.{mx[-1]} IS NULL THEN u.{x} END" for x in ox])
+    xref_sql = (
+        f"CREATE OR REPLACE TABLE {g(xref)} AS\n"
+        f"WITH b AS (SELECT {mcols}, {normal('t.' + q(to['column']), rule, d)} AS k, {in_scope} AS in_scope FROM {mt} AS t),\n"
+        f"a AS (SELECT {ocols}, {normal('s.' + q(fr['column']), rule, d)} AS k FROM {ot} AS s),\n"
+        # every matching pair, with how many pairs each side's row is in: one each is a match, more is ambiguous
+        f"p AS (SELECT {', '.join('b.' + x for x in mx)}, {', '.join('a.' + x for x in ox)}, "
+        f"{d.count}(*) OVER (PARTITION BY {', '.join('a.' + x for x in ox)}) AS na, "
+        f"{d.count}(*) OVER (PARTITION BY {', '.join('b.' + x for x in mx)}) AS nb "
+        f"FROM a JOIN b ON a.k = b.k AND b.in_scope WHERE a.k IS NOT NULL AND a.k <> ''),\n"
+        f"m AS (SELECT {', '.join(mx + ox)} FROM p WHERE na = 1 AND nb = 1),\n"
+        f"am AS (SELECT DISTINCT {', '.join(mx)} FROM p WHERE na > 1 OR nb > 1),\n"
+        f"ao AS (SELECT DISTINCT {', '.join(ox)} FROM p WHERE na > 1 OR nb > 1),\n"
+        f"u AS (SELECT {', '.join('b.' + x for x in mx)}, {', '.join('m.' + x for x in ox)}, "
+        f"CASE WHEN m.{ox[0]} IS NULL THEN '{m_s}' END AS only_in, "
+        f"CASE WHEN am.{mx[-1]} IS NULL THEN FALSE ELSE TRUE END AS ambiguous\n"
+        f"      FROM b LEFT JOIN m ON {on('b', 'm', mx)} LEFT JOIN am ON {on('b', 'am', mx)}\n"
+        f"      UNION ALL SELECT {null(mx)}, {', '.join('a.' + x for x in ox)}, '{o_s}' AS only_in, "
+        f"CASE WHEN ao.{ox[-1]} IS NULL THEN FALSE ELSE TRUE END AS ambiguous\n"
+        f"      FROM a LEFT JOIN ao ON {on('a', 'ao', ox)}\n"
+        f"      WHERE NOT EXISTS (SELECT 1 FROM m WHERE {on('m', 'a', ox)}))\n"
+        f"SELECT DENSE_RANK() OVER (ORDER BY u.{mx[-1]} IS NULL, {order}) AS {ck},\n"
+        f"       u.*, CASE WHEN u.only_in IS NULL THEN '{rule}' END AS match_rule,\n"
+        f"       CASE WHEN u.only_in IS NULL THEN '{fr['table']}.{fr['column']} = {to['table']}.{to['column']}' END AS matched_on\n"
+        f"FROM u")
+    m_props, o_props = properties(plan, to), properties(plan, fr)
+    agg = (", ".join(f"MIN({x}) AS {x}" for x in mx + ox) + f", {d.count}({ox[-1]}) AS {q(o_s + '_rows')}, "
+           "MIN(only_in) AS only_in, MAX(ambiguous) AS ambiguous")
+    dim_sql = (f"CREATE OR REPLACE TABLE {g(dim)} AS\n"
+               f"WITH x AS (SELECT {ck}, {agg} FROM {g(xref)} GROUP BY {ck})\n"
+               f"SELECT x.*" + "".join(f", t.{q(p)} AS {q(_xcol(m_s, p))}" for p in m_props)
+               + "".join(f", s.{q(p)} AS {q(_xcol(o_s, p))}" for p in o_props) + "\n"
+               f"FROM x LEFT JOIN {mt} AS t ON " + " AND ".join(f"t.{q(k)} = x.{q(_xcol(m_s, k))}" for k in mk)
+               + f"\nLEFT JOIN {ot} AS s ON " + " AND ".join(f"s.{q(k)} = x.{q(_xcol(o_s, k))}" for k in ok))
+    out = {xref: xref_sql, dim: dim_sql}
+    for f in fact_list:
+        s = f["schema"]
+        xs = [q(_xcol(s, k)) for k in f["party_cols"]]
+        cond = " AND ".join(f"f.{q(src)} = x.{q(_xcol(s, k))}" for src, k in zip(f["cols"], f["party_cols"]))
+        out[f["name"]] = (f"CREATE OR REPLACE TABLE {g(f['name'])} AS\n"
+                          f"SELECT x.{ck}, f.* FROM {d.table('+', f['table'])} AS f\n"
+                          f"LEFT JOIN (SELECT DISTINCT {ck}, {', '.join(xs)} FROM {g(xref)} "
+                          f"WHERE {xs[-1]} IS NOT NULL) AS x ON {cond}")
+    return out
 
 
 def properties(plan, side: dict) -> list[str]:

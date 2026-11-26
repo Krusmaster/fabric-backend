@@ -942,6 +942,255 @@ def _combined_model(workspace: str, source: str, schema: str, name: str, dry_run
     return text
 
 
+def _combine_concepts(workspace: str, source: str, schema: str, ctx, read_gold: str = ""):
+    """ON1: (plan, {concept: combine.count's answer}) for the customer and the product match, on one connection. ON2:
+    `read_gold` also reads that schema of the product lakehouse on the same connection (as the SQL analytics endpoint
+    lists it) and returns (plan, found, Schema, or the reason it could not be read)."""
+    p, item, headers = _plan(workspace, source, schema, None, None, ctx)
+    execute = _execute_factory(item, auth.sql(ctx))
+    try:
+        from .dialects import of as _dialect_of
+        d = _dialect_of(execute)
+        found = {k: _combine.count(p, execute, d, concept=k) for k in _combine.CONCEPTS}
+        if not read_gold:
+            return p, found
+        try:
+            gold = _fabric.PLATFORM.read_schema(execute, read_gold)
+        except Exception as e:                                          # noqa: BLE001 - said as the reason, nothing created
+            gold = (str(e) or type(e).__name__).splitlines()[0][:200]
+        return p, found, gold
+    finally:
+        getattr(execute, "close", lambda: None)()
+
+
+def _shared_decided(workspace: str, source: str, schema: str, ctx) -> list | None:
+    """ON1: the flow state's decisions when the schema is several and a match is accepted on the path, else None."""
+    if not _multi_schema.is_multi(schema):
+        return None
+    decided = (_flow_state.state(_flow_who(ctx), workspace, source, schema) or {}).get("decisions") or []
+    if not any(str(d.get("item", "")).startswith(_combine.PREFIX) and d.get("review") == "accepted" for d in decided):
+        return None
+    return decided
+
+
+SHARED_STALE = {"error": "The match you accepted is no longer found by the rules on these rows, so nothing is shared.",
+                "kind": "stale", "hint": "Open Decide on the start card again."}
+
+
+def _shared_pipeline_step(workspace: str, source: str, schema: str, name: str = "") -> dict:
+    """ON2: the step that comes before the shared ontology: the pipeline that builds its gold, as a create_pipeline call."""
+    return {"label": "Build the shared gold (pipeline)", "tool": "create_pipeline",
+            "arguments": {"workspace": workspace, "source": source, "schema": schema,
+                          "name": f"{name}_gold" if name else "shared_gold"},
+            "ask": "Show me the pipeline that builds the shared gold (dry run), then create it and run it once."}
+
+
+def _combined_ontology(workspace: str, source: str, schema: str, name: str, dry_run: bool, ctx) -> str | None:
+    """ON1 (issue #152): create_ontology over a plan of several schemas once the person has accepted a match on the
+    path (the flow state): one shared ontology, shared_ontology.py. None when no match is accepted: the ontology is
+    drafted as before. ON2: dry_run=false reads the product lakehouse's gold schema; when every table and column the
+    shared entity types bind is there (the pipeline of create_pipeline built it, shared_gold.py), it creates the
+    ontology through the same create path as every ontology; otherwise kind not_yet, naming the pipeline."""
+    decided = _shared_decided(workspace, source, schema, ctx)
+    if decided is None:
+        return None
+    from . import shared_gold as _sgold
+    from . import shared_ontology as _shared
+    began = time.monotonic()
+    got = _combine_concepts(workspace, source, schema, ctx, read_gold="" if dry_run else _shared.GOLD)
+    p, found = got[0], got[1]
+    model = _shared.draft(p, found, decided)
+    if not model["summary"]["shared"]:
+        return json.dumps(SHARED_STALE, indent=2)
+    _, info = _source_inputs(workspace, source, schema, None, None, ctx)
+    parts = _shared.parts(model, name, workspace_id=info["workspace_id"], item_id=info["item_id"],
+                          item_name=info["item_name"], item_kind=info["item_kind"], sql_endpoint=info["sql_endpoint"])
+    actions = []
+    for m in model["matches"]:
+        if m["state"] != "accepted":
+            kept = [d for d in decided if isinstance(d, dict) and d.get("item") != m["id"]]
+            args = {"workspace": workspace, "source": source, "schema": schema, "step": "decide",
+                    "plan": {"decisions": kept + [{"item": m["id"], "review": "accepted", "reason": "accepted for the shared ontology"}]}}
+            actions.append({"label": f"Accept the {m['concept'].lower()} match", "tool": "start", "arguments": args,
+                            "ask": f"Are these the same {m['concept'].lower()}s? {m['line']}"})
+    ws_out = _out_ws(info["workspace_id"])
+    out = {"dry_run": dry_run, "layers_to": f"ontology → {info['item_name']} ({_shared.GOLD} and the sources' schemas)",
+           "combined": {"line": _shared.line(model), "shared": model["summary"]["shared"],
+                        "single_source": model["summary"]["single_source"], "matches": model["matches"]},
+           "summary": {**model["summary"], "notes": model["notes"]},
+           "entities": [{k: v for k, v in e.items() if k != "properties"} | {"properties": len(e["properties"])}
+                        for e in model["entities"]],
+           "relationships": model["relationships"],
+           "first": (f"Build the conformed gold first: the shared entity types read {_shared.GOLD}.dim_* and the re-keyed "
+                     f"facts in {info['item_name']}. create_pipeline on this path builds them (one notebook, the gold SQL "
+                     "below, ambiguous rows kept apart); run it once, then create the ontology."),
+           "gold_tables": sorted(_sgold.bound(model)),
+           "gold_sql": model["gold_sql"],
+           "rest": {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{ws_out}/ontologies",
+                    "update": f"{FABRIC}/v1/workspaces/{ws_out}/ontologies/{{id}}/updateDefinition",
+                    "delegated_scope": "Item.ReadWrite.All", "workspace_role": "Contributor", "parts": list(parts)},
+           "parts": parts,
+           "note": ("Matched by rules and counted on the rows; nothing is shared on a match you did not accept, no ambiguous "
+                    "row is merged, and no relationship is written that the plan does not prove. Not run against Fabric: "
+                    "unit-tested with a fake Fabric that records writes; the definition follows ontology.py's "
+                    "generation-2 layout.")}
+    if actions:
+        out["actions"] = actions
+    if not dry_run:
+        gold = got[2]
+        gone = _sgold.missing(gold, model) if not isinstance(gold, str) else None
+        if gone is None or gone:
+            why = (f"the gold schema of {info['item_name']} could not be read ({gold})" if gone is None else
+                   f"{info['item_name']} does not have {', '.join(gone[:6])}{' and more' if len(gone) > 6 else ''} yet")
+            return json.dumps({"error": f"The shared ontology binds to the conformed gold, and {why}. Nothing was created.",
+                               "kind": "not_yet", "first": "Run the pipeline that builds the shared gold.",
+                               "hint": ("create_pipeline with the same workspace, source and schema builds it (dry run, then "
+                                        "dry_run=false with run_once after your yes); when its run has succeeded, "
+                                        "create_ontology again."),
+                               "next_steps": [_shared_pipeline_step(workspace, source, schema, name)],
+                               "missing": gone or []}, indent=2)
+        body = _ontology.envelope(name, parts, description=f"Created by Krusgraph from {source} ({schema}): one shared "
+                                                            f"ontology, {', '.join(model['summary']['shared'])} shared")
+        again = _still_running("create_ontology", ws_out, name, body)
+        if again:
+            return json.dumps({"dry_run": False, **again}, indent=2)
+        out.pop("parts")
+        out.pop("gold_sql")
+        out["gold"] = {"read": f"{info['item_name']}.{_shared.GOLD}", "bound": sorted(_sgold.bound(model)), "missing": []}
+        with _answer_by(began + CREATE_ANSWER_SECONDS):
+            result = _create_ontology(body, ws_out, token_provider=lambda: auth.fabric(ctx))
+        _remember("create_ontology", ws_out, name, body, result)
+        return _finish_create(out, result, "Item.ReadWrite.All", f"creating the ontology {name!r}", "create_ontology", name)
+    text = json.dumps(out, indent=2)
+    if len(text) > MAX_RESULT_CHARS:
+        out["omitted"] = sorted(k for k in parts if k.startswith(("entities/", "tables/")))
+        out["parts"] = {k: v for k, v in parts.items() if not k.startswith(("entities/", "tables/"))}
+        text = json.dumps(out, indent=2)
+    return text
+
+
+def _shared_parts(workspace: str, source: str, schema: str, name: str, ctx) -> dict | None:
+    """ON2: the shared ontology's definition as create_ontology writes it on this path, for verify_build; None when the
+    path has no accepted match (the ontology is then compared as before)."""
+    decided = _shared_decided(workspace, source, schema, ctx)
+    if decided is None:
+        return None
+    from . import shared_ontology as _shared
+    p, found = _combine_concepts(workspace, source, schema, ctx)
+    model = _shared.draft(p, found, decided)
+    if not model["summary"]["shared"]:
+        return None
+    _, info = _source_inputs(workspace, source, schema, None, None, ctx)
+    return _shared.parts(model, name, workspace_id=info["workspace_id"], item_id=info["item_id"],
+                         item_name=info["item_name"], item_kind=info["item_kind"], sql_endpoint=info["sql_endpoint"])
+
+
+def _combined_pipeline(workspace: str, source: str, schema: str, name: str, dry_run: bool, run_once: bool, spec,
+                       confirm_jobs: str, ctx) -> str | None:
+    """ON2: create_pipeline over a plan of several schemas once a match is accepted on the path: the pipeline that
+    builds the shared ontology's gold (shared_gold.py), one notebook and one pipeline in the product lakehouse's
+    workspace, by the same create path and the same run-once and schedule rules as every pipeline. None otherwise."""
+    decided = _shared_decided(workspace, source, schema, ctx)
+    if decided is None:
+        return None
+    from . import notebook as _notebook
+    from . import pipeline_jobs as _jobs
+    from . import shared_gold as _sgold
+    from . import shared_ontology as _shared
+    from .deploy import create_item_with_definition
+    p, found = _combine_concepts(workspace, source, schema, ctx)
+    model = _shared.draft(p, found, decided)
+    if not model["summary"]["shared"]:
+        return json.dumps(SHARED_STALE, indent=2)
+    _, info = _source_inputs(workspace, source, schema, None, None, ctx)
+    ws = info["workspace_id"]
+    nb_name = f"{name}_shared_gold"
+    label = f"{info['item_name']}.{schema}"
+    content = _sgold.notebook_source(model, label=label, workspace_id=ws, item_id=info["item_id"],
+                                     item_name=info["item_name"], owner=f"{info['item_id']}/{schema}")
+    desc = f"Shared gold for {label}, generated by Krusgraph from the matches you accepted"
+    checks = _sgold.checks(model)
+    out = {"summary": (f"{_shared.line(model)} The pipeline {name} runs {nb_name}: it builds "
+                       f"{len(model['gold_sql'])} gold tables, ambiguous rows kept apart, then checks them."),
+           "dry_run": dry_run,
+           "combined": {"shared": model["summary"]["shared"], "matches": [m for m in model["matches"] if m["state"] == "accepted"],
+                        "builds": [f"{_shared.GOLD}.{t}" for t in model["gold_sql"]],
+                        "binds": sorted(_sgold.bound(model)),
+                        "checks": [{"entity": c["entity"], "accepted": c["accepted"],
+                                    "fails_the_run": [x[0] for x in c["invariants"]]} for c in checks]},
+           "steps": [f"{_sgold.STEP}: {nb_name}"],
+           "runs": " ".join(w + "." for w in _jobs.describe(name, run_once, spec)) or _pipeline_not_run(),
+           "notebooks": [{"step": _sgold.STEP, "name": nb_name, "path": "notebook-content.py", "format": "fabricGitSource",
+                          "description": desc, "content": content}],
+           "pipeline": {"name": name, "path": "pipeline-content.json", "description": f"Krusgraph shared gold pipeline for {label}",
+                        "content": _sgold.pipeline_content(nb_name, label, {nb_name: _pipeline_placeholder(nb_name)}, ws)},
+           "rest": [{"step": nb_name, "method": "POST", "url": f"{FABRIC}/v1/workspaces/{ws}/notebooks",
+                     "or_update": f"{FABRIC}/v1/workspaces/{ws}/notebooks/{{id}}/updateDefinition", "delegated_scope": NOTEBOOK_SCOPE},
+                    {"step": name, "method": "POST", "url": f"{FABRIC}/v1/workspaces/{ws}/dataPipelines",
+                     "or_update": f"{FABRIC}/v1/workspaces/{ws}/dataPipelines/{{id}}/updateDefinition", "delegated_scope": PIPELINE_SCOPE}],
+           "then": "When the run has succeeded, create_ontology with dry_run=false creates the shared ontology over this gold.",
+           "note": ("Not run against Fabric: unit-tested with a fake Fabric that records writes, and the gold SQL on SQLite "
+                    "over the synthetic SAP + Dynamics 365 pair.")}
+    if run_once or spec:
+        code = _jobs.confirm_code(ws, name, run_once, spec)
+        out["jobs"] = {"run_once": bool(run_once), "schedule": spec, "words": _jobs.describe(name, run_once, spec),
+                       "confirm": code,
+                       "ask": ("What runs and when is in jobs.words, for the person to confirm. After their yes, the same "
+                               f"call with dry_run=false and confirm_jobs={code!r} starts it; without it nothing runs.")}
+        if not dry_run and PIPELINE_JOBS.get() is None and str(confirm_jobs or "").strip() != code:
+            return json.dumps({"error": "Run once and Schedule start only after a dry run that shows them and the person's "
+                                        "confirmation; confirm_jobs " + ("does not match these jobs" if confirm_jobs else "is missing")
+                                        + ". Nothing was created, run or scheduled.", "kind": "needs_confirmation",
+                               "jobs": {k: out["jobs"][k] for k in ("words", "confirm", "ask")},
+                               "hint": "Run the dry run with the same run_once and schedule, show jobs.words, and on a yes "
+                                       "pass jobs.confirm as confirm_jobs."}, indent=2)
+    if dry_run:
+        if len(json.dumps(out, indent=2)) > MAX_RESULT_CHARS:
+            out["notebooks"][0]["omitted"] = f"the notebook ({len(out['notebooks'][0].pop('content'))} characters) did not fit in one answer"
+        return json.dumps(out, indent=2)
+    def token():
+        return auth.fabric(ctx)
+    out["notebooks"][0].pop("content", None)
+    out["result"] = {}
+    r = create_item_with_definition("notebooks", "Notebook", _notebook.envelope(nb_name, content, desc), ws, token_provider=token)
+    out["result"][nb_name] = {k: v for k, v in r.items() if k != "body"}
+    if r.get("status") != "Succeeded" or not r.get("id"):
+        if r.get("status") == "Succeeded":
+            out.update({"error": f"Fabric created the notebook {nb_name!r} but its id could not be read, so the pipeline was not created.",
+                        "kind": "timeout", "hint": "create_pipeline again in a minute finds the notebook by name and updates it in place."})
+            return json.dumps(out, indent=2, default=str)
+        return _step_failed(out, nb_name, r, NOTEBOOK_SCOPE, f"creating the notebook {nb_name!r}")
+    out["pipeline"]["content"] = _sgold.pipeline_content(nb_name, label, {nb_name: r["id"]}, ws)
+    pl = create_item_with_definition("dataPipelines", "DataPipeline",
+                                     _notebook.pipeline_envelope(name, out["pipeline"]["content"], out["pipeline"]["description"]),
+                                     ws, token_provider=token)
+    out["result"][name] = {k: v for k, v in pl.items() if k != "body"}
+    if pl.get("status") != "Succeeded":
+        return _step_failed(out, name, pl, PIPELINE_SCOPE, f"creating the pipeline {name!r}")
+    out["result"]["status"] = "Succeeded"
+    if (run_once or spec) and pl.get("id"):
+        from .deploy import send
+        headers = {"Authorization": f"Bearer {token()}", "Content-Type": "application/json"}
+
+        def http(method, url, **kw):
+            return send(method, url, headers, write=method != "get", timeout=30, **kw)
+        jobs_ctx = PIPELINE_JOBS.get() or {}
+        out["result"].update(_jobs.apply(http, ws, pl["id"], name, run_once, spec, ours=jobs_ctx.get("schedule_ids") or (),
+                                         wait_seconds=jobs_ctx.get("wait", _jobs.RUN_WAIT_SECONDS),
+                                         scopes=_jobs.token_scopes(token()), **_execute_admin()))
+    return json.dumps(out, indent=2, default=str)
+
+
+def _pipeline_placeholder(notebook: str) -> str:
+    from . import pipeline as _pipeline
+    return _pipeline.placeholder(notebook)
+
+
+def _pipeline_not_run() -> str:
+    from . import pipeline as _pipeline
+    return _pipeline.NOT_RUN
+
+
 def _start_review(workspace: str, source: str, schema: str, step: str, plan: dict, sample: bool, ctx) -> dict | None:
     """WB13 (#66, #71): step 6 on your own data reads review_plan's file with the checks counted (counts only, no row
     values), so the card can ask about each open link with its evidence; step 4 reads it without counting, for the small
@@ -1765,6 +2014,9 @@ def create_ontology(workspace: _p.Workspace, source: _p.Source, name: _p.Ontolog
     item's definition, so entity types not in the plan leave it; no item is deleted. Errors: {error, kind, hint}."""
     if (check or "").strip():                                # n227: how a started create went; reads only
         return _create_status("create_ontology", workspace, name, check, ctx)
+    shared = _combined_ontology(workspace, source, schema, name, dry_run, ctx)   # ON1: the matches the person accepted
+    if shared is not None:
+        return shared
     began = time.monotonic()
     p, args = _ontology_inputs(workspace, source, schema, keys, confirmed, ctx)
     schema = p.schema.schema                                   # n175: the name the metadata returns
@@ -4153,6 +4405,9 @@ def create_pipeline(workspace: _p.Workspace, source: _p.Source, name: _p.Pipelin
         spec = _jobs.schedule_spec(schedule)
     except _jobs.ScheduleError as exc:
         return json.dumps({"error": str(exc), "kind": "bad_request", "hint": "Fix the schedule, or leave it out to schedule nothing."})
+    shared = _combined_pipeline(workspace, source, schema, name, dry_run, run_once, spec, confirm_jobs, ctx)   # ON2
+    if shared is not None:
+        return shared
     from .deploy import create_item_with_definition
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
     schema = p.schema.schema                                   # n175: the name the metadata returns
@@ -4890,9 +5145,11 @@ def _verify_built_in(workspace, source, items, schema, keys, confirmed, tables, 
                     figs, doubles = figures_for(model, shape if shape["visuals"] else None, m_item["id"])
                     lines.append(_verify.line(kind, shown, cmp, figs=figs, doubles=doubles, notes=notes))
                 elif kind == "ontology":
-                    parts = _ontology.ontology_parts(p, shown, tables=tables, silver_schema=lay["silver"],
-                                                     **{k: info[k] for k in ("workspace_id", "item_id", "item_name",
-                                                                             "item_kind", "schema", "sql_endpoint")})
+                    parts = _shared_parts(workspace, source, schema, shown, ctx)        # ON2: the shared ontology's path
+                    if parts is None:
+                        parts = _ontology.ontology_parts(p, shown, tables=tables, silver_schema=lay["silver"],
+                                                         **{k: info[k] for k in ("workspace_id", "item_id", "item_name",
+                                                                                 "item_kind", "schema", "sql_endpoint")})
                     cmp = _verify.compare_ontology(parts, _item_definition_parts(ws, "ontologies", item["id"], headers))
                     lines.append(_verify.line(kind, shown, cmp, state_check=_verify.ontology_state(shown, listing)))
                 elif kind == "api":
