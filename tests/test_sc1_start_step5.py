@@ -307,3 +307,31 @@ def test_the_verify_card_shows_each_item_not_a_key_dump_at_390(tmp_path, scheme)
     assert "Fix: shop_model: Update the model in place" in det
     for dump in ("Counts: ", "Lines: ", "Result lines: ", "Sql: "):
         assert dump not in det
+
+
+# ------------------------------------------------------------------ verify_build finds what "Already built" names ------
+
+LISTING = [{"id": "m1", "displayName": "shop_model", "type": "SemanticModel", "description": "Created by Krusgraph from demo_lh (shop)"},
+           {"id": "r1", "displayName": "shop_overview", "type": "Report", "description": "Created by Krusgraph on the semantic model shop_model"}]
+
+
+def test_verify_takes_the_report_already_built_when_the_default_name_is_not_there():
+    found = {"report": None, "semantic_model": LISTING[0]}
+    said = server._verify_built_instead(found, {"report": "shop_report", "semantic_model": "shop_model"}, {}, LISTING,
+                                        "demo_lh", "shop", {"item_name": "demo_lh"})
+    assert found["report"]["displayName"] == "shop_overview"
+    assert said == ["No report is named shop_report; checked shop_overview, the report built from demo_lh (shop)."]
+    # the same source as "Already built" after a Create
+    built = after_create.built_from_plan(LISTING, "demo_lh", "shop", "demo_lh")
+    assert built["report"] == ["shop_overview"]
+
+
+def test_verify_names_the_candidates_and_picks_none_when_there_are_several():
+    two = LISTING + [{"id": "r2", "displayName": "shop_sales", "type": "Report",
+                      "description": "Created by Krusgraph on the semantic model shop_model"}]
+    found = {"report": None}
+    said = server._verify_built_instead(found, {"report": "shop_report"}, {}, two, "demo_lh", "shop", {"item_name": "demo_lh"})
+    assert found["report"] is None and "shop_overview, shop_sales" in said[0] and "Name one in items" in said[0]
+    named = {"report": None}                                   # an id recorded at Create is never swapped
+    assert server._verify_built_instead(named, {"report": "x"}, {"report": {"id": "r9", "name": "x"}}, LISTING,
+                                        "demo_lh", "shop", {"item_name": "demo_lh"}) == [] and named["report"] is None

@@ -430,14 +430,10 @@ RESULT_JS = r"""
   function summaryOf(tool, d) {
     var lines = [], questions = [], s = isObj(d.summary) ? d.summary : null;
     if (readable(d.error)) { lines.push(["Error", d.error + (readable(d.hint) ? " " + d.hint : "")]); return { lines: lines, questions: questions }; }
-    if (Array.isArray(d.lines) && Array.isArray(d.result_lines)) {   // SC1: verify_build, one line per item, differs first
-      var rank = { "differs": 0, "not checked": 1, "verified": 2 }, word = { "differs": "Differs", "not checked": "Not checked", "verified": "Verified" };
-      d.lines.filter(function (x) { return isObj(x) && readable(x.said); }).map(function (x, i) { return [x, i]; })
-        .sort(function (a, b) { return ((rank[a[0].state] == null ? 1 : rank[a[0].state]) - (rank[b[0].state] == null ? 1 : rank[b[0].state])) || a[1] - b[1]; })
-        .forEach(function (p) { var x = p[0], t = String(x.said); lines.push([word[x.state] || "Item", t.length > 400 ? t.slice(0, 400) + "…" : t]); });
-      arr(d.fixes).filter(isObj).forEach(function (f) {
-        lines.push(["Fix", (name(f.item) ? f.item + ": " : "") + (readable(f.label) ? f.label : readable(f.said) ? f.said : readable(f.ask) ? f.ask : "see the next steps")]);
-      });
+    if (Array.isArray(d.lines) && Array.isArray(d.result_lines)) {   // SC1
+      var W = { "differs": "Differs", "not checked": "Not checked", "verified": "Verified" }, R = ["differs", "not checked", "verified"];
+      R.forEach(function (st) { d.lines.forEach(function (x) { if (isObj(x) && x.state === st && readable(x.said)) lines.push([W[st], String(x.said).slice(0, 400)]); }); });
+      arr(d.fixes).filter(isObj).forEach(function (f) { lines.push(["Fix", (name(f.item) ? f.item + ": " : "") + (f.label || f.said || f.ask || "")]); });
       if (readable(d.note)) lines.push(["Note", d.note]);
       return { lines: lines, questions: questions };
     }
