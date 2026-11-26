@@ -379,6 +379,10 @@ tr:last-child td{border-bottom:0}
 .footer-links a{text-decoration:none;color:var(--ink)}
 .footer-links a:hover{color:var(--coral-ink);text-decoration:underline}
 .footer-controls{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.footer-social{display:flex;flex-wrap:wrap;gap:6px 18px;margin:6px 0 10px}
+.footer-social a{display:inline-flex;align-items:center;gap:8px;min-height:44px;color:var(--ink);text-decoration:none;font-weight:600}
+.footer-social a:hover{color:var(--coral-ink)}
+.footer-social a:hover span{text-decoration:underline}
 
 /* mascots */
 .mascot{display:inline-block;overflow:visible;vertical-align:middle;--gx:var(--gaze-x,1.2px);--gy:-.6px}
