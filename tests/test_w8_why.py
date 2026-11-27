@@ -54,7 +54,8 @@ def test_the_docs_page_renders_second_in_the_menu(client):
         assert _plain(p["title"]) in text and _plain(p["line"].replace("{{PRODUCT}}", "Krusgraph").replace("`", "")) in text, p["id"]
     menu = re.search(r'<nav class="docs-menu"[^>]*>(.*?)</nav>', client.get("/docs").text, re.S).group(1)
     hrefs = re.findall(r'href="([^"#]+)"', menu)
-    assert hrefs.index(why.PAGE) == hrefs.index("/docs") + 1 < hrefs.index("/docs/get-started")
+    # MF1: the manifesto "Why Krusgraph" (/docs/why) comes first after the overview, the eight points right after it
+    assert hrefs.index(why.PAGE) == hrefs.index("/docs/why") + 1 == hrefs.index("/docs") + 2 < hrefs.index("/docs/get-started")
     assert pages.DOCS_GROUPS[1] == "Why Krusgraph"
     assert 'href="/docs/why-krusgraph"' in client.get("/docs").text          # the overview's "Why" links it
 

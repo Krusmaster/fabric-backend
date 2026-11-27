@@ -1561,6 +1561,26 @@ table.wr-table{min-width:0;width:100%;border-collapse:collapse;font-size:14.5px;
 .so-step::after{content:"";position:absolute;left:5px;bottom:2px;border:6px solid transparent;border-top:7px solid var(--line-strong);border-bottom:0}
 .so-fig figcaption{margin-top:10px}
 @media (max-width:560px){.so-srcs{grid-template-columns:1fr}.so-box{font-size:14px;padding:10px 12px}}
+/* MF1: "Why Krusgraph" (/docs/why), the manifesto: short lines, generous space, the belief line large; the theme's tokens,
+   so it reads in light and dark; one small mark at the end */
+.mf-film{margin:4px 0 32px}
+.mf-why{max-width:34em;margin:8px 0 40px}
+.mf-why p{margin:0 0 22px;font-size:18px;line-height:1.7;max-width:34em}
+.mf-why>p:first-child{font-family:var(--font-head);font-weight:600;font-size:clamp(26px,4.2vw,38px);line-height:1.22;letter-spacing:-.01em;max-width:18em;margin:28px 0 40px;text-wrap:balance}
+.mf-why>p:first-child strong{font-weight:inherit}
+.mf-why ul{list-style:none;margin:32px 0 40px;padding:0;border-top:1px solid var(--line)}
+.mf-why li{margin:0;padding:16px 0;border-bottom:1px solid var(--line);font-size:18px;line-height:1.6}
+.mf-why li strong{display:block;font-family:var(--font-head);font-weight:600;font-size:20px;line-height:1.3;margin-bottom:2px}
+.mf-why .mf-sign{margin:44px 0 0;font-family:var(--font-head);font-size:clamp(22px,3vw,28px);line-height:1.3}
+.mf-why .mf-sign strong{font-weight:600}
+.mf-mark{margin:18px 0 0;width:32px;height:32px}
+.mf-mark .logo-mark{display:block;width:32px;height:32px}
+.mf-see{margin:0 0 36px;padding:20px 0 0;border-top:1px solid var(--line)}
+.mf-see .mf-see-h{margin:0 0 10px;font-size:14px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.mf-see ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:10px 28px}
+.mf-see li{margin:0;font-size:17px}
+@media (max-width:560px){.mf-why p,.mf-why li{font-size:17px}.mf-why>p:first-child{margin-bottom:32px}.mf-why li strong{font-size:18px}
+  .mf-see ul{flex-direction:column;gap:10px}}
 /* n161: on phones the 4:5 version plays (the first <source>, media="(max-width: 640px)"); the frame takes its shape, and
    the one poster (16:9; a poster cannot be swapped without script) is shown cropped to the frame instead of letterboxed */
 @media (max-width:640px){.film-frame video{aspect-ratio:4/5;object-fit:cover}}
