@@ -998,11 +998,16 @@ a.hub-go:focus-visible{border-radius:999px;outline-offset:4px}
 /* W6: the connector address under the hero's buttons, with a Copy button (the same copy row as on /start) */
 .hero-ctas:has(+.hero-connect){margin-bottom:12px}
 .hero-connect{width:100%;max-width:720px;margin:0 auto 18px}
-.hero-connect .copy-row{justify-content:center;flex-wrap:nowrap;gap:8px;max-width:480px;margin:0 auto}
-.hero-connect .copy-row pre{flex:1 1 auto;padding:6px 12px;font-size:15px;text-align:left;white-space:nowrap}
+/* The two buttons and the address field share one width; Copy sits inside the field */
+.hero-ctas:has(+.hero-connect){display:grid;grid-template-columns:1fr 1fr;gap:12px;width:min(100%,460px);margin-left:auto;margin-right:auto}
+.hero-ctas:has(+.hero-connect) .btn{justify-content:center;width:100%}
+.hero-connect .copy-row{flex-wrap:nowrap;gap:6px;width:min(100%,460px);margin:0 auto;padding:5px 5px 5px 0;background:var(--card);border:1px solid var(--line-strong);border-radius:999px}
+.hero-connect .copy-row pre{flex:1 1 auto;padding:6px 16px;font-size:15px;text-align:left;white-space:nowrap;background:none;border:0;border-radius:0}
+.hero-connect .copy-row .btn{flex:0 0 auto;border-radius:999px}
+@media (max-width:480px){.hero-ctas:has(+.hero-connect){grid-template-columns:1fr}}
 .hero-connect p{margin:6px 0 0;line-height:1.35}
 .hero-connect p a{white-space:nowrap}
-@media (max-width:420px){.hero-connect .copy-row pre{padding:7px 9px;font-size:14px}}
+@media (max-width:420px){.hero-connect .copy-row pre{padding:7px 12px;font-size:14px}}
 @media (min-width:1000px){.check-examples{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .check-ex-h{grid-column:1/-1;margin:0;font-weight:700}
 .check-ex-wide{grid-column:1/-1}                /* n192: the fifth example, the manufacturing sample, on a row of its own */

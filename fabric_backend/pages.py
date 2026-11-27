@@ -1476,7 +1476,7 @@ def consent_done_html(params) -> str:
     if granted:
         title, kicker, h1 = "Admin consent granted — {{PRODUCT}}", "Admin consent", f"Admin consent granted for your organisation."
         q = e(FIRST_QUESTION)
-        claude_add = (f"<p>Add {p} to Claude: <strong>Customize → Connectors → Add → Add custom connector</strong>, paste "
+        claude_add = (f"<p>Add {p} to Claude: <strong>+ → Plugins → Add → Add custom connector</strong>, paste "
                       f"<code>{e(v['CLAUDE_URL'])}</code>, {CLAUDE_STEP}. {e(CLAUDE_WHY)} Then paste this question in a new chat; it only reads:</p>"
                       if _registration_on() else
                       f"<p>Add {p} to Claude (step 3 of the set-up guide) and sign in with your Microsoft work account. Then paste this question in a new chat; it only reads:</p>")
