@@ -12,9 +12,9 @@ from fabric_backend import concepts, domains, ontology, pages, seed, server, too
 from fabric_backend.infer import plan
 
 # DS1: the group is "How it works" (still at /docs/concepts); Vision moved to "Why" with "Where Krusgraph is heading" in it
-CONCEPTS = ["/docs/concepts", "/docs/concepts/how-it-works", "/docs/concepts/ontologies", "/docs/concepts/data-products",
+CONCEPTS = ["/docs/concepts", "/docs/concepts/the-short-version", "/docs/concepts/ontologies", "/docs/concepts/data-products",
             "/docs/concepts/how-they-connect", "/docs/concepts/where-it-runs", "/docs/why/vision"]
-HOW_IT_WORKS = ["/docs/concepts", "/docs/concepts/how-it-works", "/docs/concepts/how-relationships-are-inferred",
+HOW_IT_WORKS = ["/docs/concepts", "/docs/concepts/the-short-version", "/docs/concepts/how-relationships-are-inferred",
                 "/docs/concepts/how-krusgraph-uses-graph-theory", "/docs/concepts/ontologies", "/docs/concepts/data-products",
                 "/docs/concepts/how-they-connect", "/docs/concepts/where-it-runs", "/docs/concepts/sources",
                 "/docs/concepts/sap-on-fabric"]
@@ -153,7 +153,7 @@ def test_the_tips_are_on_the_chat_pages_and_check_and_link_to_the_concept_pages(
 def test_the_home_page_steps_link_to_the_concept_pages(client):
     home = client.get("/").text
     steps = home[home.index('<ol class="steps">'):home.index("</ol>", home.index('<ol class="steps">'))]
-    for path in ("/docs/concepts/how-it-works", "/docs/concepts/how-they-connect", "/docs/concepts/ontologies", "/docs/concepts/data-products"):
+    for path in ("/docs/concepts/the-short-version", "/docs/concepts/how-they-connect", "/docs/concepts/ontologies", "/docs/concepts/data-products"):
         assert f'href="{path}"' in steps, path
 
 
@@ -163,7 +163,7 @@ def _figures(text: str) -> list[str]:
     return re.findall(r'<figure class="cx-fig cx-arch".*?</figure>', text, re.S)
 
 
-@pytest.mark.parametrize("path", ["/docs/concepts/how-it-works", "/docs/hosting-and-permissions", "/docs/concepts/how-they-connect"])
+@pytest.mark.parametrize("path", ["/docs/concepts/the-short-version", "/docs/hosting-and-permissions", "/docs/concepts/how-they-connect"])
 def test_each_diagram_is_inline_svg_with_a_text_version_and_a_phone_drawing(client, path):
     figs = _figures(client.get(path).text)
     assert len(figs) == 1, path

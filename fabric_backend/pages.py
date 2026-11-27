@@ -638,12 +638,11 @@ def why_beliefs_html(rendered: str) -> str:
 
 
 def _value_pair(head: str) -> tuple[str, str]:
-    """"Counting over assuming." → ("Counting", "over assuming."); a line without "over" splits at its comma."""
+    """"Counting over assuming." → ("Counting", "over assuming."); a line without "over" is one whole line: (line, "")."""
     if " over " in head:
         left, right = head.split(" over ", 1)
         return left, "over " + right
-    left, right = head.split(", ", 1)
-    return left + ",", right
+    return head, ""
 
 
 def why_engineering_html(rendered: str) -> str:
@@ -652,9 +651,11 @@ def why_engineering_html(rendered: str) -> str:
     ps = _paras(rendered)
     head = re.sub(r"</?strong>", "", ps[0])
     items = re.findall(r"<li><strong>(.*?)</strong>\s*(.*?)</li>", rendered, re.S)
-    rows = "".join(f'<li><p class="mf-pair"><strong class="mf-left">{l}</strong> <span class="mf-right">{r}</span></p>'
-                   f'<p class="mf-because">{t.strip()}</p></li>\n' for l, r, t in
-                   ((*_value_pair(h), t) for h, t in items))
+    def row(l: str, r: str, t: str) -> str:
+        pair = (f'<p class="mf-pair"><strong class="mf-left">{l}</strong> <span class="mf-right">{r}</span></p>' if r else
+                f'<p class="mf-pair mf-whole"><strong class="mf-left">{l}</strong></p>')    # "People decide, tools prepare."
+        return f'<li>{pair}<p class="mf-because">{t.strip()}</p></li>\n'
+    rows = "".join(row(*_value_pair(h), t) for h, t in items)
     return (f'<section class="mf-sec mf-eng">\n<h2 class="mf-h">{head}</h2>\n<p class="mf-lead">{ps[1]}</p>\n'
             f"<p>{ps[2]}</p>\n" f'<ul class="mf-values">\n{rows}</ul>\n<p class="mf-coda">{ps[3]}</p>\n</section>')
 
@@ -666,10 +667,23 @@ def why_close_html(rendered: str) -> str:
             f'<p class="mf-sign">{ps[2]}</p>\n<div class="mf-mark">{_LOGO}</div>\n</section>')
 
 
+SIGNATURE_SVG = "/static/signature-gustav.svg"
+
+
+def why_signature_html(rendered: str) -> str:
+    """DS1: the founder's name as a signature (an inline SVG of paths in currentColor, its accessible name the name as
+    written in DOCS.md), and the caption under it."""
+    ps = _paras(rendered)
+    svg = (HERE / SIGNATURE_SVG.removeprefix("/")).read_text(encoding="utf-8").strip()
+    if f'aria-label="{ps[0]}"' not in svg:
+        raise ValueError("the signature's name and DOCS.md differ")
+    return f'<div class="mf-sig">\n{svg}\n<p class="mf-sig-cap">{ps[1]}</p>\n</div>'
+
+
 def why_figures() -> dict:
     """The manifesto's sections on /docs/why, each a figure of DOCS.md, so the words stay in one place, as written."""
     return {"why-hero": why_hero_html, "why-problem": why_problem_html, "why-commitments": why_commitments_html,
-            "why-beliefs": why_beliefs_html, "why-engineering": why_engineering_html, "why-close": why_close_html,
+            "why-beliefs": why_beliefs_html, "why-engineering": why_engineering_html, "why-close": why_close_html, "why-signature": why_signature_html,
             "why-see": why_see_html}
 
 
@@ -1744,13 +1758,17 @@ DOCS_FIRST = ("/choose", "Which Krusgraph should I use?")
 DOCS_GROUP_LINKS = {"Get started": [DOCS_FIRST]}
 # DS1: old /docs#anchors whose heading was renamed or became a part of another page (the rest follow the headings)
 DOCS_ANCHOR_ALIASES = {"concepts": "/docs/concepts", "explore-and-check": "/docs/explore-and-check",
-                       "build-from-a-plan": "/docs/build-from-a-plan", "where-krusgraph-is-heading": "/docs/why/vision"}
+                       "build-from-a-plan": "/docs/build-from-a-plan", "where-krusgraph-is-heading": "/docs/why/vision",
+                       "how-it-works": "/docs/concepts/the-short-version"}   # the page "How it works" is "The short version"
+# DS1: a group page that lists no "Pages in this part" under its text (the menu has them)
+DOCS_NO_CHILD_LIST = {"/docs/why"}
 
 
 def docs_redirects() -> dict[str, str]:
     """DS1: docs addresses that moved, old → new (answered with 301). Every address the docs had before DS1 still answers."""
     product = _slug(_vars()["PRODUCT"])
-    return {"/docs/concepts/vision": "/docs/why/vision",
+    return {"/docs/concepts/how-it-works": "/docs/concepts/the-short-version",
+            "/docs/concepts/vision": "/docs/why/vision",
             "/docs/concepts/where-krusgraph-is-heading": "/docs/why/vision#where-krusgraph-is-heading",
             "/docs/explore-and-check/how-relationships-are-inferred": "/docs/concepts/how-relationships-are-inferred",
             f"/docs/explore-and-check/how-{product}-uses-graph-theory": f"/docs/concepts/how-{product}-uses-graph-theory",
@@ -1814,7 +1832,8 @@ def docs_anchors(pages: list[dict] | None = None) -> dict[str, str]:
     own = set(pages[0]["ids"])
     where = {i: x["path"] for x in pages if x["depth"] for i in x["ids"] if i not in own}
     paths = {x["path"] for x in pages}
-    return {**{i: to for i, to in DOCS_ANCHOR_ALIASES.items() if to in paths and i not in where}, **where}
+    where.update({i: to for i, to in DOCS_ANCHOR_ALIASES.items() if to in paths and i not in own})   # an alias is chosen by hand
+    return where
 
 
 def _docs_tree(pages: list[dict], current: str) -> str:
@@ -1881,7 +1900,7 @@ def docs_page_html(path: str) -> str:
     kids = ""
     if pg["depth"] == 0:
         kids = f'<nav class="docs-children" aria-label="All docs pages">{tree}</nav>'
-    elif pg["depth"] == 1:
+    elif pg["depth"] == 1 and path not in DOCS_NO_CHILD_LIST:
         items = [(h, t) for h, t in DOCS_GROUP_LINKS.get(pg["group"], [])] + [
             (y["path"], y["title"]) for y in pages if y["depth"] == 2 and y["gpath"] == path]
         kids = ("" if not items else '<nav class="docs-children" aria-label="Pages in this part"><ul>' + "".join(

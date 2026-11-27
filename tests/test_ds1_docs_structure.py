@@ -62,6 +62,7 @@ OLD = {
     "/docs/hosting-and-permissions/support": "Support",
 }
 MOVED = {
+    "/docs/concepts/how-it-works": "/docs/concepts/the-short-version",       # renamed: the group is "How it works"
     "/docs/concepts/vision": "/docs/why/vision",
     "/docs/concepts/where-krusgraph-is-heading": "/docs/why/vision#where-krusgraph-is-heading",
     "/docs/explore-and-check/how-relationships-are-inferred": "/docs/concepts/how-relationships-are-inferred",
@@ -71,6 +72,7 @@ MOVED = {
     "/docs/krusgraph-for-fabric/troubleshooting": "/docs/troubleshooting",
     "/docs/hosting-and-permissions/support": "/docs/support",
 }
+RENAMED = {"/docs/concepts/how-it-works": "The short version"}
 GROUPS = ["Why", "Get started", "How it works", "Check", "Build", "Run and reference"]
 
 
@@ -104,7 +106,7 @@ def test_every_old_docs_address_still_answers(client, old):
         if frag:                                              # merged: a part of the page it moved into
             assert re.search(rf'<h2 id="{frag}">{re.escape(OLD[old])}</h2>', page.text), old
         else:
-            assert _title(page.text) == f"{OLD[old]} — Krusgraph docs", old
+            assert _title(page.text) == f"{RENAMED.get(old, OLD[old])} — Krusgraph docs", old
     else:
         assert r.status_code == 200, old
         if OLD[old] and old != "/docs":
@@ -138,6 +140,7 @@ def test_every_old_anchor_lands_on_a_page_with_that_heading(client):
             assert i in where, i
             page = client.get(where[i]).text
             assert f'id="{i}"' in page or i in pages.DOCS_ANCHOR_ALIASES, i
+    assert where["how-it-works"] == "/docs/concepts/the-short-version"        # the old page's anchor, not the group page
 
 
 def test_the_menu_has_six_groups_in_order(client):
@@ -162,7 +165,7 @@ def test_the_groups_hold_the_pages_asked_for():
     ps = pages.docs_pages()
     by = lambda g: [x["title"] for x in ps if x["group"] == g and x["depth"] == 2]
     assert by("Why") == ["Why choose Krusgraph", "Vision"]
-    assert by("How it works")[:3] == ["How it works", "How relationships are inferred", "How Krusgraph uses graph theory"]
+    assert by("How it works")[:3] == ["The short version", "How relationships are inferred", "How Krusgraph uses graph theory"]
     assert by("How it works")[3:] == ["Ontologies", "Data products", "How they connect", "Where it runs", "Sources", "SAP on Fabric"]
     assert by("Check") == ["Review, check, then create", "Keep your review", "Fix data issues"]
     assert by("Build") == ["One plan, five Fabric pieces", "Fabric IQ: the same graph as an ontology", "Shared ontology",
@@ -184,9 +187,13 @@ def test_the_manifesto_sections_in_order(client):
                        r'<p class="mf-card-h"><strong>(.*?)</strong></p><p>(.*?)</p></li>', art)
     assert [n for n, _h, _t in cards] == ["1", "2", "3", "4", "5"] and '<ol class="mf-cards">' in art
     assert art.count('<p class="mf-quote">We believe ') == 2
+    assert 'aria-label="Pages in this part"' not in art                   # no list of the group's pages under "See it"
     pairs = re.findall(r'<strong class="mf-left">(.*?)</strong> <span class="mf-right">(.*?)</span>', art)
-    assert [_html.unescape(l) for l, _r in pairs] == ["Counting", "Evidence", '"I don\'t know"', "People decide,", "A dry run",
+    assert [_html.unescape(l) for l, _r in pairs] == ["Counting", "Evidence", '"I don\'t know"', "A dry run",
                                                        "Checking what was built", "Open rules"]
+    # the one value without "over" is one whole line in the left side's style, its sentence under it
+    assert ('<li><p class="mf-pair mf-whole"><strong class="mf-left">People decide, tools prepare.</strong></p>'
+            '<p class="mf-because">The tool does the counting; you make the call.</p></li>') in art
     assert art.count('class="mf-because"') == 7
     assert '<p class="mf-close-big"><strong>Know what&#x27;s true. Build what you need.</strong></p>' in art or \
         "<p class=\"mf-close-big\"><strong>Know what's true. Build what you need.</strong></p>" in art
@@ -195,11 +202,11 @@ def test_the_manifesto_sections_in_order(client):
 def test_the_manifesto_keeps_its_words(client):
     """The page says exactly the words of DOCS.md, in the same order: the layout adds none and drops none."""
     md = pages.docs_md()
-    md = md[md.index("<!-- figure:why-hero -->"):md.index("<!-- figure:why-see -->")]
+    md = md[md.index("<!-- figure:why-hero -->"):md.index("<!-- figure:why-signature -->")]
     md = re.sub(r"<!--.*?-->", " ", md).replace("**", "")
     md = re.sub(r"^- ", "", md, flags=re.M)
     art = _article(client.get("/docs/why").text)
-    art = art[art.index('<section class="mf-sec mf-hero">'):art.index('<nav class="mf-see"')]
+    art = art[art.index('<section class="mf-sec mf-hero">'):art.index('<div class="mf-sig">')]
     art = re.sub(r'<span class="mf-num" aria-hidden="true">\d</span>', " ", art)
     art = re.sub(r"<svg\b.*?</svg>", " ", art, flags=re.S)
     assert _text(art) == re.sub(r"\s+", " ", md).strip()
@@ -212,3 +219,28 @@ def test_the_manifesto_css_uses_the_tokens_and_both_widths():
     assert "var(--radius)" in block and "var(--card)" in block and "var(--coral" in block and "var(--font-head)" in block
     assert "grid-template-columns:1fr 1fr" in block                     # two columns of cards on a wide screen
     assert not re.search(r"#[0-9a-fA-F]{3,6}\b", block)                 # colours from the theme's tokens only (light and dark)
+
+
+def test_run_and_reference_looks_like_the_other_groups():
+    css = (pages.STATIC_DIR / "site.css").read_text()
+    part = re.search(r"\.docs-part-h\{([^}]*)\}", css).group(1)
+    group = re.search(r"\.docs-tree a\.docs-group\{([^}]*)\}", css).group(1)
+    assert "uppercase" not in part and "font-size" not in part                # the menu's own size, as the groups
+    for decl in group.split(";"):                                             # the groups' ink and weight
+        assert decl in part, decl
+
+
+def test_the_signature_after_count_first_with_its_name_and_caption(client):
+    art = _article(client.get("/docs/why").text)
+    sig = re.search(r'<div class="mf-sig">\s*(<svg\b.*?</svg>)\s*<p class="mf-sig-cap">(.*?)</p>\s*</div>', art, re.S)
+    assert sig and sig.group(2) == "Founder, Krusgraph"
+    svg = sig.group(1)
+    assert 'role="img"' in svg and 'aria-label="Gustav Kruse"' in svg
+    assert "<path" in svg and 'fill="currentColor"' in svg and "<text" not in svg and "font-family" not in svg   # paths, not text
+    assert art.index('class="mf-sign"') < art.index('class="mf-mark"') < art.index('class="mf-sig"') < art.index('class="mf-see"')
+    assert "Herr Von Muellerhoff" in svg and "Open Font License" in svg                       # the font and its licence
+    assert (pages.HERE / "static" / "fonts" / "OFL-HerrVonMuellerhoff.txt").is_file()
+    assert not list((pages.HERE / "static").rglob("*Muellerhoff*.ttf")) and not list((pages.HERE / "static").rglob("*Muellerhoff*.woff*"))
+    css = (pages.STATIC_DIR / "site.css").read_text()
+    assert ".mf-sig .mf-sig-svg{display:block;width:200px" in css and "{.mf-sig .mf-sig-svg{width:160px}}" in css
+    assert "signature-gustav.svg" in (pages.HERE.parent / "THIRD_PARTY_NOTICES.md").read_text()

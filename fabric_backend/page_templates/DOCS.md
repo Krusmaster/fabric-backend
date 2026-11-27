@@ -145,6 +145,12 @@ We just happen to make it for Microsoft Fabric.
 **{{PRODUCT}}. Count first.**
 <!-- /figure -->
 
+<!-- figure:why-signature -->
+Gustav Kruse
+
+Founder, {{PRODUCT}}
+<!-- /figure -->
+
 <!-- figure:why-see -->
 - [The guided demo](/check?example=sample&guide=1)
 - [One shared ontology](/docs/build-from-a-plan/shared-ontology)
@@ -385,7 +391,7 @@ What the parts are and how they fit together. The examples on these pages are ge
 synthetic shop schema each time a page is rendered: the same schema the [example on /check](/check?example=sample) runs
 in your browser, with no account.
 
-### How it works
+### The short version
 
 {{PRODUCT}} sits between the AI client you ask in and Microsoft Fabric. It reads table and column metadata, makes one
 plan of keys and relationships with the rule behind each one, counts checks against the rows as queries in Fabric, and
