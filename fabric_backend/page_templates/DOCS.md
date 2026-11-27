@@ -128,6 +128,8 @@ Most data platforms aren't built on what the data is. They're built on what some
 
 The things on the right have their place. We just think the things on the left should come first.
 
+**Know what's true. Build what you need.**
+
 We just happen to make it for Microsoft Fabric.
 
 **{{PRODUCT}}. Count first.**
