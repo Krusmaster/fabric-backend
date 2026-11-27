@@ -48,7 +48,10 @@ LATER_LIVE = {
                             "DataPipeline.Execute.All.",
     "create_ontology": "On 28 October 2026 it created the ontology shop_ontology live against a Fabric workspace with synthetic "
                        "data (7 entity types, 5 with a key; 7 relationship types). Before that, with the ontology (preview) turned off in the tenant's settings, Fabric "
-                       "answered HTTP 403 FeatureNotAvailable. On 29 October 2026 Gustav reviewed the item in the Fabric portal.",
+                       "answered HTTP 403 FeatureNotAvailable. On 29 October 2026 Gustav reviewed the item in the Fabric portal. On 26 "
+                       "November 2026 it created shop_ontology_2 from Claude (the dry run found shop_ontology taken and offered "
+                       "the new name); Fabric was still working when the call returned, a status check then read it in Fabric "
+                       "as an ontology, the portal showed 7 entity types and 7 relationship types, and verify_build passed on it.",
     "create_semantic_model": "On 29 October 2026 it created the semantic model shop_model_live live against a Fabric workspace "
                              "with synthetic data (7 tables, 6 active and 1 inactive relationship, Direct Lake, 4 measures, "
                              "the date table Calendar); the same day Gustav refreshed it and reviewed it in the Fabric portal. On 30 October "
@@ -66,7 +69,8 @@ LATER_LIVE = {
 # today's draft need not have.
 LATER_LIVE_ANSWER = {
     "create_ontology": "On 28 October 2026 it created the ontology shop_ontology live against a Fabric workspace with synthetic "
-                       "data; the item was reviewed in the Fabric portal on 29 October 2026.",
+                       "data; the item was reviewed in the Fabric portal on 29 October 2026. On 26 November 2026 it created another "
+                       "ontology the same way, which a status check read in Fabric and verify_build passed.",
     "create_semantic_model": "On 29 October 2026 it created the semantic model shop_model_live live against a Fabric workspace "
                              "with synthetic data; it was refreshed and reviewed in the Fabric portal the same day, and a model "
                              "was updated in place on 30 October 2026. The counts in this answer are today's draft's.",
@@ -86,10 +90,10 @@ LATEST_LIVE = {
     "lineage": {"said": "Last run live on 2 November 2026 (build src-69aa8afa445e6c97) against the same workspace: 7 tables "
                         "and 7 objects, none skipped.",
                 "evidence": "**`lineage`**: 7 tables and 7 objects, none skipped."},
-    "validate_plan": {"said": "Last run live on 2 November 2026, after round n87's deployment, against the same workspace: on "
-                              "schema shop 6 of 6 keys unique and 7 of 7 relationships without orphans; on schema dbo 17 of 17 "
-                              "keys and 32 of 34 relationships.",
-                      "evidence": "**`validate_plan`** on schema `shop`: 6 of 6 keys unique and 7 of 7 relationships without orphans."},
+    "validate_plan": {"said": "Last run live on 26 November 2026 against the same workspace: on schema shop 6 of 6 keys held, "
+                              "7 of 7 links held, no orphans; 13 passed, 0 failed, 0 not checked.",
+                      "evidence": "**`validate_plan`** on schema `shop`: 6 of 6 keys held, 7 of 7 links held, no orphans; 13 "
+                                  "passed, 0 failed, 0 not checked."},
     "join_path": {"said": "Last run live on 2 November 2026, after round n87's deployment: orders to addresses took the direct "
                           "step through ship_to_id, rule R5.",
                   "evidence": "**`join_path`** from `orders` to `addresses`: the direct step through `ship_to_id`, rule R5."},
@@ -98,9 +102,18 @@ LATEST_LIVE = {
 CREATE_RECORD = {
     "create_views": "creating has no recorded live run (docs/LIVE-TEST.md, row 20), although the demo lakehouse holds the view "
                     "krusgraph.vw_order_items, which create_views made at a time no protocol records.",
-    "create_data_agent": "creating has no recorded live run in docs/LIVE-TEST.md; a data agent lineage finds in a workspace may "
-                         "have been made by it outside a recorded run.",
+    "create_data_agent": "on 26 November 2026 it created shop_agent from the Start Krusgraph card (step 5, after the dry run "
+                         "and the confirmed name); the agent has not yet been read back by verify_build (docs/LIVE-TEST.md).",
 }
+# LV1: a create run live on 26 November 2026 whose item has not been read back or used yet, as the tool's own answer says it
+# (docs/LIVE-TEST.md, "26 Nov 2026 LV1"). Only that: the status word and build_word() do not change for it.
+LATER_CREATE = {
+    "create_backend": "On 26 November 2026 it created a new API, shop_api_2, live against the same workspace, and verify_build "
+                      "read it back as verified; no query has been run against it yet.",
+}
+LATER_CREATE_SENTENCE = ("On 26 November 2026 a new API was made with create_backend and read back by verify_build as "
+                         "verified, and a data agent was made with create_data_agent from the Start Krusgraph card; the data "
+                         "agent has not been read back, and no query has used either yet.")
 # Creating tools whose live item has been reviewed in the Fabric portal, and when (only that: not each part, no agent use).
 REVIEWED = {"create_ontology": "29 October 2026", "create_semantic_model": "29 October 2026", "create_report": "30 October 2026"}
 # n177: a tool's option that changes what it does, and the date it first ran live with that option against the demo
@@ -144,17 +157,21 @@ _ITEM = "creates/updates one item; never deletes"
 # n146: the qualifiers that used to follow the status word are now separate fields (LIVE: the last operation tried
 # live, its date and its result; OPEN: what is still open), so `note` stays empty and label() builds the text.
 _RAW = {
-    "start": (HOSTED, READS, "nothing (answers the next step; calls no tool itself)", "unit tests"),   # n219
+    "start": (HOSTED, READS, "nothing (answers the next step; calls no tool itself)",
+              "unit tests; the card's steps 1 to 5 live on 26 November 2026"),   # n219
     "publish_catalog": (HOSTED, CREATES, "sets item descriptions and adds existing tags; never removes, deletes or endorses",
                         "unit tests (Fabric replaced by a test double); not run against Fabric"),   # CA1
-    "verify_build": (HOSTED, READS, _NO, "unit tests (definitions, rows and Power BI answers replaced by test doubles)"),   # n229
+    "verify_build": (HOSTED, READS, _NO, "unit tests (definitions, rows and Power BI answers replaced by test doubles); "
+                     "run live on 26 November 2026: verified, a real differs at relationship level, and not checked with "
+                     "its reason"),   # n229
     "list_workspaces": (HOSTED, READS, _NO, "unit tests"),
     "list_sources": (HOSTED, READS, _NO, "unit tests"),
     "list_tables": (HOSTED, READS, _NO, "unit tests"),
     "plan_backend": (HOSTED, READS, "nothing (counting queries for rule R5)", "unit tests"),
     "validate_plan": (HOSTED, READS, "nothing (counting queries)", "unit tests"),
     "sample_rows": (HOSTED, READS, _NO, "unit tests; the masking live since 27 October 2026"),
-    "create_backend": (HOSTED, CREATES, _ITEM, "unit tests; live as an update in place, a new item by unit tests only"),
+    "create_backend": (HOSTED, CREATES, _ITEM, "unit tests; live as an update in place, and one new item created live on 26 November 2026 and "
+                       "verified by verify_build, not yet queried"),
     "describe_backend": (HOSTED, READS, _NO, "unit tests"),
     "query_graphql": (HOSTED, READS, _NO, "unit tests; with `question` live since 27 October 2026"),
     "rayfin_connector": (HOSTED, DRAFT, _NO, "unit tests"),
@@ -173,8 +190,8 @@ _RAW = {
     "create_views": (HOSTED, CREATES, "creates/alters views in that schema only; never drops",
                      "unit tests; creating by unit tests only", True),
     "create_data_agent": (HOSTED, CREATES, "creates/updates one item and its staging config; never deletes",
-                          "unit tests; creating by unit tests only", True),
-    "create_ontology": (HOSTED, CREATES, _ITEM, "unit tests; created live on 28 October 2026"),
+                          "unit tests; created once from the start card on 26 November 2026, not read back", True),
+    "create_ontology": (HOSTED, CREATES, _ITEM, "unit tests; created live on 28 October 2026, again on 2 and 26 November 2026"),
     "app_starter": (HOSTED, DRAFT, _NO, "unit tests"),
     "app_readiness": (HOSTED, READS, "nothing (one introspection query)", "unit tests"),
     "analyze_schema": (HOSTED, READS, _NO, "unit tests"),
@@ -225,22 +242,39 @@ TRIED = "Tried live"
 # result). A tool of the run of LIVE_RUN_DATE without an entry here gets that run's row (live_fields()). Every entry is
 # a dated record of docs/LIVE-TEST.md or of the dicts above (LATER_LIVE, RAN_LIVE, LATEST_LIVE, LIVE_RUN_PARTLY).
 LIVE = {
+    "start": ("26 November 2026", "the Start Krusgraph card from Claude, steps 1 to 5 on demo / demo_lh / shop",
+              "step 2: 6 tables, 7 links, 1 needs you, 13 of 13 checks hold; step 3: orders.ship_to_id → addresses, 60 of 60 "
+              "found, accepted; step 4: the dry run; step 5: shop_pipeline, shop_model and shop_agent confirmed and Yes, create "
+              "for each, with progress lines, ending in Done. What next?; each item's own final state is not recorded"),
+    "verify_build": ("26 November 2026", "shop_ontology_2, shop_ontology and shop_api_2 one by one from Claude, and the "
+                     "whole shop data product",
+                     "each single item verified, by rules (an ontology: 7 entity types, 7 relationships, 14 data bindings; "
+                     "shop_api_2: 7 types, 14 relationships); over the whole product 10 items verified, shop_model_film "
+                     "differs (two relationships with active and inactive swapped; never refreshed; its figures still match "
+                     "the rows), shop_pipeline differs (definition as the plan, never run), and shop_report not checked: no "
+                     "item of that name in the workspace; the product's report, shop_overview, verified on its own: 6 "
+                     "visuals, its 3 figures as the rows (324 units, 60 orders, 134 order lines)"),
+    "create_data_agent": ("26 November 2026", "created shop_agent from the Start Krusgraph card, after the dry run and the "
+                          "confirmed name", "created from the start card; not yet read back by verify_build"),
     "lineage": ("2 November 2026", "read-only call from Claude (build src-69aa8afa445e6c97)", "7 tables and 7 objects, none skipped"),
-    "validate_plan": ("2 November 2026", "read-only call from Claude, after round n87's deployment",
-                      "schema shop: 6 of 6 keys unique and 7 of 7 relationships without orphans; schema dbo: 17 of 17 keys and "
-                      "32 of 34 relationships"),
+    "validate_plan": ("26 November 2026", "read-only call from Claude",
+                      "schema shop: 6 of 6 keys held, 7 of 7 links held, no orphans; 13 passed, 0 failed, 0 not checked"),
     "join_path": ("2 November 2026", "read-only call from Claude, after round n87's deployment",
                   "orders to addresses through ship_to_id, rule R5"),
-    "create_backend": ("30 October 2026", "update in place of shop_api from Lovable (as an MCP client)",
-                       "updated; the first update in place, from Claude on 27 October 2026, passed"),
+    "create_backend": ("26 November 2026", "created shop_api_2 as a new item from the validate_plan card (dry run: new, 7 "
+                       "tables and 14 relationship fields; then Yes, create)", "Created shop_api_2, an API for GraphQL, in "
+                       "Fabric; verify_build: verified (7 types, 14 relationships, 0 differ); not yet queried; updated shop_api "
+                       "in place from Claude on 27 October 2026 and from Lovable on 30 October 2026"),
     "create_semantic_model": ("30 October 2026", "update in place of shop_model from Lovable (as an MCP client)",
                               "updated; created live on 29 October 2026 as shop_model_live, refreshed and reviewed in the "
                               "Fabric portal by Gustav the same day"),
     "create_report": ("7 November 2026", "created shop_report_visuals on shop_model with the page drawn from the model's "
                       "measures (round n144), and shop_report_lovable the same way from Lovable", "status Succeeded; every figure "
                       "checked in Power BI was right; the first blank-page report was created on 30 October 2026"),
-    "create_ontology": ("2 November 2026", "created shop_ontology_n81 with dry_run=false, then updated it",
-                        "status Succeeded, mode created, then mode updated"),
+    "create_ontology": ("26 November 2026", "created shop_ontology_2 from Claude with dry_run=false (the dry run found "
+                        "shop_ontology taken); Fabric was still working when the call returned, and Check status read it",
+                        "in Fabric as an ontology; the portal showed 7 entity types and 7 relationship types; verify_build "
+                        "passed; created live before on 28 October and 2 November 2026"),
     "create_silver_notebook": ("28 October 2026", "created the notebook silver_shop with dry_run=false", "created"),
     "create_gold_views": ("28 October 2026", "created the notebook gold_shop with dry_run=false", "created"),
     "create_drift_monitor": ("28 October 2026", "created drift_shop and drift_shop_nightly with dry_run=false and schedule=false",
@@ -253,9 +287,16 @@ LIVE = {
 _PIPELINE_RAN = "create_pipeline writes the same notebook and ran it in Fabric on 7 November 2026 (run 9de8bc49)"
 # n146: what is still open for each tool: what has not been tried live, or what it needs that the hosted app lacks.
 OPEN = {
-    "create_backend": "creating a new API is unit-tested only",
+    "start": "step 5's Create buttons on the card are not seen by the model in the chat (being fixed); each item's own final "
+             "state from the card is not recorded",
+    "verify_build": "on 26 November 2026 Verify what was built first picked the older shop_ontology over shop_ontology_2 "
+                    "(being fixed), and the whole-product run looked for shop_report while the product's report is "
+                    "shop_overview (verified when named); which 2 items differed in an earlier run that day (8 items: 6 "
+                    "verified, 2 differ) is not recorded",
+    "create_backend": "no query has been run against the new API created live on 26 November 2026 (shop_api_2)",
     "create_views": "creating them: Experimental; creating has no recorded live run",
-    "create_data_agent": "creating: Experimental; creating has no recorded live run",
+    "create_data_agent": "creating: Experimental; shop_agent, created from the start card on 26 November 2026, has not been "
+                         "read back by verify_build",
     "create_report": "the page's look of round n151 (plain titles, layout, theme, slicers, the date table's Year Month) has not run live",
     "create_ontology": "needs the tenant setting \"Users can create Ontology (preview) items\" (HTTP 403 FeatureNotAvailable "
                        "while it was off, 28 October 2026)",
@@ -268,7 +309,9 @@ OPEN = {
     "create_drift_monitor": "neither item has been run in Fabric; the schedule needs DataPipeline.Execute.All, opt-in on the "
                             "hosted app",
     "create_pipeline": "Run once and Schedule (after a dry run and the person's confirmation) need DataPipeline.Execute.All, "
-                       "opt-in on the hosted app, and have not run live; without it someone runs the pipeline in Fabric",
+                       "opt-in on the hosted app, and have not run live: on 26 November 2026 Run once from the chat was "
+                       "refused because the signed-in token lacks it (only the dry run happened, nothing changed); without "
+                       "it someone runs the pipeline in Fabric",
     "compare_semantic_model": "comparing with a live model, and comparing from `tmdl` files, have not run live",
     "review_plan": "reading a file back is unit-tested only",
 }
@@ -409,9 +452,13 @@ def answer_note(name: str) -> str:
     if name in RAN_LIVE:
         return RAN_LIVE[name]
     if not s.live:
+        if name in LIVE:          # LV1: tried live after the run of LIVE_RUN_DATE, read-only
+            date, op, result = LIVE[name]
+            return f"Tried live on {date} {where}: {op}; result: {result}."
         return "Not yet run against a live workspace."
     if name in LIVE_RUN_PARTLY:
-        return f"Run live on {LIVE_RUN_DATE} {where} only {LIVE_RUN_PARTLY[name]}; the rest is unit-tested."
+        later = (" " + LATER_CREATE[name]) if name in LATER_CREATE else ""
+        return f"Run live on {LIVE_RUN_DATE} {where} only {LIVE_RUN_PARTLY[name]}.{later} The rest is unit-tested."
     if s.dry_run_only:
         return f"The dry run was tested end to end on {LIVE_RUN_DATE} {where}; " + CREATE_RECORD.get(
             name, "creating has no recorded live run (docs/LIVE-TEST.md).")
@@ -436,14 +483,17 @@ def instructions_sentence() -> str:
     return (f"Test status: on {LIVE_RUN_DATE} every tool but {not_run_list().replace('`', '')} ran from Claude against a Fabric workspace "
             f"with synthetic data, read-only or as a draft, and {_listed(dry)} as dry runs" + (f" ({partly})" if partly else "")
             + "; no new item was created that day. Since then " + _listed(list(LATER_LIVE) + list(RAN_LIVE))
-            + " have created items live against the same workspace (status per tool: /docs#test-status).")
+            + " have created items live against the same workspace. " + LATER_CREATE_SENTENCE
+            + " Status per tool: /docs#test-status.")
 
 
 def create_api_status() -> str:
     """create_backend in a sentence for the pages that offer creating the API: what ran live and what did not."""
     s = STATUS["create_backend"]
     if s.live and "create_backend" in LIVE_RUN_PARTLY:
-        return f"Creating a new API is experimental; updating one in place was tested end to end on {LIVE_RUN_DATE}"
+        later = ("; one new API was created live on 26 November 2026 and verified, not yet queried"
+                 if "create_backend" in LATER_CREATE else "")
+        return f"Creating a new API is experimental{later}; updating one in place was tested end to end on {LIVE_RUN_DATE}"
     return "Creating the API is " + phrase("create_backend")
 
 
@@ -532,7 +582,8 @@ CLIENTS_DECIDED = "2 November 2026"
 DECIDED_NOTE = "status set by Gustav on " + CLIENTS_DECIDED
 CLIENTS = (
     ClientStatus("Claude", "hosted, via /mcp (the connector)", "/mcp", "Tested end to end", "26 October 2026",
-                 "the live runs of 26 and 27 October 2026"),
+                 "the live runs of 26 and 27 October 2026; on 26 November 2026 also added as a custom connector at "
+                 "/mcp/connect (Krusgraph's approval page, then Microsoft's consent with the verified publisher)"),
     ClientStatus("VS Code", "hosted, via /mcp/connect", "/mcp/connect", "Tested end to end", "27 October 2026",
                  CONNECT_NOTE + "; " + BUTTON_NOTE.format(button="Add to VS Code", client="VS Code") + "; " + DECIDED_NOTE),
     ClientStatus("Claude Code", "hosted, via /mcp/connect", "/mcp/connect", "Experimental", note=CONNECT_NOTE + "; not tried yet"),

@@ -11,10 +11,10 @@ recorded (for class U, the day the test was read for the register; for class S, 
 class. A sentence that is not in this table has no recorded proof and should not be repeated. To add a
 claim, add a row to `REGISTER` in `tools/evidence_register.py` and run the tool.
 
-33 claims. Classes:
+34 claims. Classes:
 
 - **U** (27): unit test: the repository's own tests show it, on fakes and synthetic data.
-- **S** (6): synthetic run: a recorded run against a live Fabric workspace or a real client, on synthetic data only.
+- **S** (7): synthetic run: a recorded run against a live Fabric workspace or a real client, on synthetic data only.
 - **C** (0): customer: a run on a customer's or pilot's own data.
 
 **No class C row exists yet.** No customer or pilot has run Krusgraph on their own data, and the repository records no such run (`docs/MISSING-EVIDENCE.md`, row 9). Every row below rests on the repository's tests or on synthetic data.
@@ -49,11 +49,12 @@ claim, add a row to `REGISTER` in `tools/evidence_register.py` and run the tool.
 | E31 | Load SAP demo data creates one notebook after a dry run and never runs it. | `docs/TRUST.md`: “*Load SAP demo data* is a dry run first” | `tests/test_wb5_sap_item.py::test_load_sap_demo_data_is_a_dry_run_first_then_one_notebook_never_run` | - | 2026-11-23 | U |
 | E32 | The pilot self-check only reads, and says the tenant setting is unknown instead of guessing. | `docs/TRUST.md`: “The pilot self-check (*Is everything ready?*) only reads” | `tests/test_wb9_selfcheck.py::test_a_ready_workspace_says_ready_and_the_tenant_setting_is_unknown` | - | 2026-11-23 | U |
 | E33 | With the licence check off nothing is gated; on, only Create is, and dry runs stay open. | `docs/TRUST.md`: “The Marketplace licence check is off unless switched on” | `tests/test_wb7_marketplace_gate.py::test_flags_off_change_nothing` | - | 2026-11-23 | U |
-| E24 | validate_plan, live on the demo workspace: 6 of 6 keys unique, 7 of 7 relationships without orphans. | `docs/LIVE-TEST.md`: “✓ 6 of 6 keys unique, 7 of 7 relationships without orphans” | `tests/test_evidence.py::test_synthetic_shop_keys_are_unique_and_relationships_hold` | “6 \| `validate_plan`” | 2026-11-02 | S |
-| E25 | create_backend updated the existing API shop_api in place, live; creating a new API has not run live. | `docs/MISSING-EVIDENCE.md`: “then `create_backend` updating `shop_api` in place” | `tests/test_create_backend_dry_run.py` | “7 \| `create_backend`” | 2026-10-27 | S |
+| E24 | validate_plan, live on the demo workspace: 6 of 6 keys held, 7 of 7 links held, no orphans. | `docs/LIVE-TEST.md`: “✓ 6 of 6 keys held, 7 of 7 links held, no orphans; 13 passed, 0 failed, 0 not checked” | `tests/test_evidence.py::test_synthetic_shop_keys_are_unique_and_relationships_hold` | “6 \| `validate_plan`” | 2026-11-26 | S |
+| E25 | create_backend updated the existing API shop_api in place, live, and created a new API, shop_api_2, live on 26 November 2026, which verify_build read back as verified; no query has used shop_api_2 yet. | `docs/MISSING-EVIDENCE.md`: “then `create_backend` updating `shop_api` in place” | `tests/test_create_backend_dry_run.py` | “7 \| `create_backend`” | 2026-11-26 | S |
 | E26 | create_semantic_model created shop_model_live in the demo workspace (synthetic data). | `docs/MISSING-EVIDENCE.md`: “`create_semantic_model` created `shop_model_live` on 29 October 2026” | `tests/test_creating_tools.py::test_create_semantic_model_posts_then_updates_in_place` | “18 \| `create_semantic_model`” | 2026-10-29 | S |
 | E27 | create_report: shop_report opened in the Fabric portal with data; a report of the same name is left alone. | `docs/MISSING-EVIDENCE.md`: “Gustav opened `shop_report` in the Fabric portal” | `tests/test_create_report.py::test_a_report_of_that_name_is_left_alone` | “39 \| `create_report`” | 2026-10-30 | S |
 | E28 | A Lovable app read shop_api live (orders, customers and the ship-to address). | `docs/MISSING-EVIDENCE.md`: “A Lovable app read `shop_api` live on 30 October 2026” | none; the live run is the proof | “### 30 October 2026: `create_report`, Lovable as an MCP client” | 2026-10-30 | S |
+| E34 | verify_build read back an ontology live and it passed, by rules: 7 entity types, 7 relationships and 14 data bindings as the dry run. | `docs/LIVE-TEST.md`: “passed, by rules: 7 entity types (5 with a key), 7 relationships and 14 data bindings” | `tests/test_n229_verify_build.py::test_ontology_keys_bindings_and_relationships_are_compared` | “6 \| `verify_build`” | 2026-11-26 | S |
 
 What is still missing, and who takes it: `docs/MISSING-EVIDENCE.md`. Statements about security and data handling, each
 with its source: `docs/TRUST.md`.

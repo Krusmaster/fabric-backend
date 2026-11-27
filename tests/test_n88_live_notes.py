@@ -17,6 +17,8 @@ def test_lineage_names_the_run_of_2_november(fabric):
 
 
 def test_every_latest_run_a_note_names_is_recorded():
+    import re
     for tool, said in tool_status.LATEST_LIVE.items():
-        assert "2 November 2026" in tool_status.answer_note(tool), tool
+        date = re.search(r"\d{1,2} \w+ 2026", said["said"]).group(0)   # LV1: validate_plan's latest run is 26 November 2026
+        assert date in tool_status.answer_note(tool) and date in LIVE, (tool, date)
         assert said["evidence"] in LIVE, (tool, said["evidence"])

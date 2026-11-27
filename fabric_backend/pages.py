@@ -550,6 +550,67 @@ def sap_film_docs_html() -> str:
             '</div>')
 
 
+# ON3: the approved film on one shared Fabric IQ ontology over SAP and Dynamics 365 (synthetic example, AI voice and
+# music), at the top of the docs page "Shared ontology" (DOCS.md, "Build from a plan"). The 16:9 web file, a poster and
+# English captions as WebVTT; metadata only before play. The note under it is a figcaption, so the page's description
+# stays its first paragraph. The film carries its captions in the picture (burned in), so the WebVTT track is offered in
+# the player's captions menu and to assistive technology but is not on by default: on by default, Chromium drew the same
+# line twice, over the film's own (checked at 1280 and 390 px, 26 November 2026). Adding `default` turns it on.
+SHARED_FILM_MP4 = "/static/media/krusgraph-shared-ontology.mp4"
+SHARED_FILM_POSTER = "/static/media/krusgraph-shared-ontology-poster.webp"
+SHARED_FILM_VTT = "/static/media/krusgraph-shared-ontology.en.vtt"
+SHARED_FILM_LABEL = "One shared Fabric IQ ontology over SAP and Dynamics 365: a film on a synthetic example, AI-generated voice and music"
+SHARED_FILM_NOTE = "Synthetic example. Voice and music are AI-generated."
+
+
+def shared_film_html() -> str:
+    """The shared-ontology film: native controls, preload="metadata", playsinline, the poster, the English captions track."""
+    return ('<figure class="so-film" id="shared-ontology-film">\n'
+            '  <div class="so-film-frame">\n'
+            f'    <video controls preload="metadata" playsinline width="1920" height="1080" poster="{SHARED_FILM_POSTER}"\n'
+            f'      aria-label="{SHARED_FILM_LABEL}">\n'
+            f'      <source src="{SHARED_FILM_MP4}" type="video/mp4">\n'
+            f'      <track kind="captions" srclang="en" label="English" src="{SHARED_FILM_VTT}">\n'
+            f'      <p>Your browser cannot play this film. <a href="{SHARED_FILM_MP4}">Download it as MP4</a>.</p>\n'
+            '    </video>\n  </div>\n'
+            f'  <figcaption class="muted tiny so-film-note">{SHARED_FILM_NOTE}</figcaption>\n'
+            '</figure>')
+
+
+def shared_gold_figure_html() -> str:
+    """ON3: the shared gold as a small HTML figure (real text, the site's colour tokens, so it reads in both themes and
+    stacks at 390 px): the two sources, the gold the pipeline's one notebook builds, and the ontology bound to it. The
+    names and counts are those of the synthetic pair (tests/fixtures/sap_dynamics.py, tests/test_on2_shared_gold.py)."""
+    def box(cls: str, head: str, items: list[str], foot: str = "") -> str:
+        lis = "".join(f"<li>{x}</li>" for x in items)
+        tail = f'<p class="so-foot">{foot}</p>' if foot else ""
+        return f'<div class="so-box {cls}"><p class="so-h">{head}</p><ul>{lis}</ul>{tail}</div>'
+    sap = box("so-sap", "SAP <span>schema <code>sap</code></span>",
+              ["<code>KNA1</code> customers", "<code>MARA</code> materials", "<code>VBAK</code>, <code>VBRK</code>, <code>LIKP</code>"])
+    d365 = box("so-d365", "Dynamics 365 <span>schema <code>d365</code></span>",
+               ["<code>account</code>", "<code>product</code>", "<code>opportunity</code>, <code>salesorder</code>, <code>invoice</code>, <code>incident</code>"])
+    gold = box("so-gold", "<code>gold</code> <span>Delta tables, one notebook</span>",
+               ["<code>xref_customer</code> → <code>dim_customer</code> (9 rows)",
+                "<code>xref_product</code> → <code>dim_product</code> (5 rows)",
+                "<code>fact_sap_sales_order</code>, <code>fact_sap_invoice</code>, <code>fact_sap_delivery</code>, "
+                "<code>fact_d365_opportunity</code>, re-keyed to <code>customer_key</code>"],
+               "Last cell: counts the matches again and fails the run if a source row has two keys, an ambiguous row was "
+               "merged or a key is two rows of its dimension.")
+    ont = box("so-ont", "Ontology <span>9 entity types, 7 relationship types</span>",
+              ["Shared: <strong>Customer</strong> on <code>gold.dim_customer</code>, <strong>Product</strong> on <code>gold.dim_product</code>",
+               "One source each, in gold: SapOrder, SapInvoice, SapDelivery, D365Opportunity",
+               "One source each, on their own tables: D365Order, D365Invoice, D365Case"])
+    return ('<figure class="so-fig" id="shared-gold-figure">\n'
+            f'  <div class="so-srcs">{sap}{d365}</div>\n'
+            '  <p class="so-step" aria-hidden="true"><span>accepted matches</span></p>\n'
+            f'  {gold}\n'
+            '  <p class="so-step" aria-hidden="true"><span>after the pipeline has run</span></p>\n'
+            f'  {ont}\n'
+            '  <figcaption class="muted tiny">The shared gold and the ontology on the synthetic SAP and Dynamics 365 pair. '
+            'Source tables are only read.</figcaption>\n'
+            '</figure>')
+
+
 def _md_to_html(md: str, figures: dict | None = None) -> str:
     """Just enough Markdown for these pages: headings (with ids), paragraphs, bold/italic, code, links, lists, pipe tables.
     n86b: the Markdown between `<!-- figure:NAME -->` and `<!-- /figure -->` is rendered as usual and handed to
@@ -1645,6 +1706,8 @@ def docs_page_html(path: str) -> str:
     figs = concepts.figures()
     figs["overview-film"] = lambda _rendered: film_html(heading=False)        # n157: the overview film at the top of /docs
     figs["sap-film"] = lambda _rendered: sap_film_docs_html()                # W7: the SAP film of /sap on "SAP on Fabric"
+    figs["shared-ontology-film"] = lambda _rendered: shared_film_html()      # ON3: the film on "Shared ontology"
+    figs["shared-gold"] = lambda _rendered: shared_gold_figure_html()        # ON3: the shared gold, as a figure
     from . import claims
     figs["what-you-can-build"] = lambda _rendered: claims.section_html()     # n194: n190's grid, moved from the home page
     from . import offering
