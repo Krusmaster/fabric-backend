@@ -112,6 +112,22 @@ We believe people should spend their time deciding, not double-checking.
 
 We believe trust is earned with numbers, not promises.
 
+**What we believe about data engineering**
+
+**When you know what's true, you can build what you actually need.**
+
+Most data platforms aren't built on what the data is. They're built on what someone thought it was. So we believe in a different order:
+
+- **Counting over assuming.** A key is a key when the rows say so.
+- **Evidence over confidence.** Every link comes with the rule that found it and the count that proves it.
+- **"I don't know" over a good guess.** What the rows can't prove goes to a person, not into the model.
+- **People decide, tools prepare.** The tool does the counting; you make the call.
+- **A dry run over an apology.** See what will be built before anything is built.
+- **Checking what was built over hoping it works.** Read it back, compare it, count it again.
+- **Open rules over black boxes.** You can read every rule we use.
+
+The things on the right have their place. We just think the things on the left should come first.
+
 We just happen to make it for Microsoft Fabric.
 
 **{{PRODUCT}}. Count first.**
