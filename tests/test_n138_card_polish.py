@@ -247,11 +247,13 @@ def test_attention_lines_when_something_needs_it(tmp_path, fabric):  # noqa: F81
 # ------------------------------------------------------------------ the buttons ---------------------------------------
 
 def _spec_call(m: dict, tool: str):
-    """The view's tools/call as the specification has it: a JSON-RPC 2.0 request with params {name, arguments}."""
+    """The view's tools/call as the specification has it: a JSON-RPC 2.0 request with params {name, arguments}. SC2: and
+    `_meta` (the specification's request metadata) holding only the card's mark, so the server can tell Claude later."""
     assert set(m) == {"jsonrpc", "id", "method", "params"}, m
     assert m["jsonrpc"] == "2.0" and m["method"] == "tools/call"
     assert isinstance(m["id"], (int, str)) and not isinstance(m["id"], bool)
-    assert set(m["params"]) == {"name", "arguments"} and m["params"]["name"] == tool
+    assert set(m["params"]) == {"name", "arguments", "_meta"} and m["params"]["name"] == tool
+    assert m["params"]["_meta"] == {"io.krusgraph/from": "card"}
     assert isinstance(m["params"]["arguments"], dict)
     json.dumps(m)                                                                       # plain JSON, nothing else
 

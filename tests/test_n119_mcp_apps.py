@@ -251,7 +251,8 @@ def test_the_card_renders_and_asks_the_host_for_read_tools_only(tmp_path, fabric
     first = [m for m in out["log"] if m.get("method")][:2]
     assert [m["method"] for m in first] == ["ui/initialize", "ui/notifications/initialized"]
     assert first[0]["params"]["protocolVersion"] == "2026-01-26" and "appInfo" in first[0]["params"]
-    calls = [m["params"] for m in out["log"] if m.get("method") == "tools/call"]
+    calls = [dict(m["params"]) for m in out["log"] if m.get("method") == "tools/call"]
+    assert all(c.pop("_meta", None) == {"io.krusgraph/from": "card"} for c in calls), calls   # SC2: the card's mark, only that
     assert out["buttons"] == len(summary["next_steps"]) == len(calls) >= 1
     for call, step in zip(calls, summary["next_steps"]):
         assert call["name"] == step["tool"] and call["name"] in evidence.NEXT_STEP_TOOLS

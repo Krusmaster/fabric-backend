@@ -190,8 +190,9 @@ def test_the_cards_stay_self_contained_and_small():
     for html in (mcp_apps.card_html(), mcp_apps_review.card_html(), build.card_html()):
         # n227: the shared result script (progress, words, the static ontology); WB13: + the content-height reporter, the
         # small map with Show the map, the ontology file behind Show and the next step's reason (#71, #89, #91, #92);
-        # CO1: + the coach's "Step N of 8" and its one mascot line (coachHead, about 2 kB)
-        assert len(html) < 134_000
+        # CO1: + the coach's "Step N of 8" and its one mascot line (coachHead, about 2 kB); SC2: + the verify card's picture
+        # (mcp_apps_verify: its icons, rows and plan-beside-built figure, about 8.7 kB, in the shared result script)
+        assert len(html) < 143_000
         assert 'id="pictures"' in html and "kgDemoPicture" in html
         for bad in ("fetch(", "XMLHttpRequest", " src=", "@import", "url("):
             assert bad not in html

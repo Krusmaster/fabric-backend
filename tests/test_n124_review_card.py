@@ -221,7 +221,8 @@ def test_the_diagram_has_every_table_and_relationship_of_the_shop(tmp_path, fabr
     # n218: Accept and Reject per item; Accept on the first, then Re-plan, asks for review_plan with that decision
     undecided = [it["id"] for it in rv["items"] if it["review"] in mcp_apps_review.UNDECIDED]
     assert list(dict.fromkeys(out["buttons"])) == undecided and len(undecided) == 13 and len(out["buttons"]) == 26
-    calls = [m["params"] for m in out["log"] if m.get("method") == "tools/call"]
+    calls = [dict(m["params"]) for m in out["log"] if m.get("method") == "tools/call"]
+    assert all(c.pop("_meta", None) == {"io.krusgraph/from": "card"} for c in calls), calls   # SC2: the card's mark, only that
     assert len(calls) == 1 and calls[0]["name"] == "review_plan"
     a = calls[0]["arguments"]
     assert set(a) <= set(mcp_apps_review.CARRIED) | {"previous", "decisions"}
@@ -246,5 +247,6 @@ def test_findings_are_highlighted_and_the_card_fits_a_narrow_dark_screen(tmp_pat
     assert d["docWidth"] <= d["viewWidth"] and d["svgWidth"] <= d["viewWidth"]  # no sideways scroll at 340 px
     assert d["colors"]["body"] != "rgb(255, 255, 255)"                          # dark background in a dark host
     assert "Accepted, but the check failed: key of order_items" in out["text"]
-    calls = [m["params"] for m in out["log"] if m.get("method") == "tools/call"]
+    calls = [dict(m["params"]) for m in out["log"] if m.get("method") == "tools/call"]
+    assert all(c.pop("_meta", None) == {"io.krusgraph/from": "card"} for c in calls), calls   # SC2: the card's mark, only that
     assert calls[0]["arguments"]["keys"] == {"order_items": ["order_id"]}      # the call's own keys are carried

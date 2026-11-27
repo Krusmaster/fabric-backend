@@ -338,7 +338,8 @@ def _browser(tmp_path, mode: str) -> dict:
 def test_in_a_browser_a_click_runs_the_dry_run_then_create_with_the_same_arguments(tmp_path, fabric):  # noqa: F811
     out = _browser(tmp_path, "tools")
     assert out["errors"] == []
-    calls = [m["params"] for m in out["log"] if m.get("method") == "tools/call"]
+    calls = [dict(m["params"]) for m in out["log"] if m.get("method") == "tools/call"]
+    assert all(c.pop("_meta", None) == {"io.krusgraph/from": "card"} for c in calls), calls   # SC2: the card's mark, only that
     dry_args = out["button"]["arguments"]
     assert calls == [{"name": "create_semantic_model", "arguments": dry_args},
                      {"name": "create_semantic_model", "arguments": {**dry_args, "dry_run": False}}]
