@@ -226,7 +226,7 @@ It reads table and column names, infers keys and relationships from names (decla
 
 ## Connect
 
-- Claude (web, desktop, mobile): Customize → Connectors → Add → Add custom connector → URL `{v['CLAUDE_URL']}`{claude_reg} → sign in with a Microsoft work account. An Entra admin of the organisation grants consent once: {o}/docs.md#connect{(" " + v["CLAUDE_WHY"]) if v["CLAUDE_WHY"] else ""}
+- Claude (web, desktop, mobile): + → Plugins → Add → Add custom connector → URL `{v['CLAUDE_URL']}`{claude_reg} → sign in with a Microsoft work account. An Entra admin of the organisation grants consent once: {o}/docs.md#connect{(" " + v["CLAUDE_WHY"]) if v["CLAUDE_WHY"] else ""}
 {connect_lines}
 - First message after connecting: "start Krusgraph", which calls `start` (a guided path, one step at a time; it reads nothing itself, and nothing is created before a dry run and a second confirmation of the names). First calls: `list_workspaces`, then `list_sources` with the workspace name, `plan_backend` (nothing is deployed), `validate_plan` to check the plan against the rows (a step to ask for; `create_backend` does not run it), `create_backend`, then `describe_backend` before `query_graphql`.
 

@@ -169,7 +169,7 @@ The start card's five steps are today's path; [Where Krusgraph is heading](#wher
    [grant admin consent](https://login.microsoftonline.com/organizations/adminconsent?client_id={{CLIENT_ID}}&redirect_uri={{CONSENT_URL_ENC}}).
    This lets the connector call Fabric and SQL as each signed-in user. It allows nothing more. Microsoft then sends the
    admin to [{{DOMAIN}}/consent/done](/consent/done). That page says whether the consent was granted, and what to do next if it was not.
-2. **In Claude:** Customize → Connectors → Add → Add custom connector, with the URL
+2. **In Claude:** + → Plugins → Add → Add custom connector, with the URL
    `{{CLAUDE_URL}}`. {{#IF CLIENT_REGISTRATION}}Keep **Register automatically** selected (no client ID or secret), add it,
    and sign in with your Microsoft work account now. {{CLAUDE_WHY}} VS Code, Cursor and other MCP clients that sign in on
    their own use the same `{{CONNECT_URL}}` ([below](#other-mcp-clients)).{{/IF}}{{#IF NO_CLIENT_REGISTRATION}}Sign in with your Microsoft work account. {{/IF}}{{#IF NO_CLIENT_REGISTRATION}}The hosted service supports Claude, and Claude is the client

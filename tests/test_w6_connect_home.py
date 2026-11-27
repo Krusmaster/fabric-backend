@@ -44,7 +44,7 @@ def test_the_home_hero_shows_the_same_address_as_start_with_a_copy_button(client
     expected = "https://krusgraph.test/mcp/connect" if registration else "https://krusgraph.test/mcp"
     assert shown.group(1) == expected == _start_address(start)                      # never an address /start does not give
     how = re.sub(r"<[^>]+>", "", re.search(r'<p class="muted tiny">(.*?)</p>', row, re.S).group(1))
-    assert how.startswith("In Claude: Customize → Connectors → Add custom connector")
+    assert how.startswith("In Claude: + → Plugins → Add → Add custom connector")
     assert ("Register automatically" in how) == bool(registration)                 # as step 3 of /start says it
     assert how.endswith("Other clients: set-up guide.") and '<a href="/start#step-3">set-up guide</a>' in row
     assert home.count('id="connect-url"') == 1 and home.count('id="connect-address"') == 1
