@@ -558,7 +558,8 @@ https://krusgraph.com/docs#test-status. "Tried live" is a dated live run after 2
 "Experimental" is kept for what has never run live. "Tested end to end" rests on the 27 October
 run below and covers only the tools that ran in it, a draft as "(a draft; creates nothing)" and a dry run as "tested
 end to end as a dry run"; `create_backend` is tested end to end as an update in place of `shop_api`, and creating a
-new API with it has not run live. `docs/LIVE-TEST.md`
+new API with it ran live once, on 26 November 2026 (`shop_api_2`, verified by `verify_build`, not yet queried).
+`docs/LIVE-TEST.md`
 is the checklist for the next run.
 
 **Status per tool, as the site and the tool list in Claude show it.** A tool whose status is neither "tested end to end"
@@ -567,9 +568,9 @@ nor "created live" has "(experimental)" at the end of its title in the tool list
 <!-- tool-status:begin (generated from fabric_backend/tool_status.py by readme_status_md(); do not edit by hand) -->
 | Tool | Status | Title in the tool list |
 | --- | --- | --- |
-| `start` | experimental | ends in (experimental) |
+| `start` | tried live | ends in (experimental) |
 | `publish_catalog` | draft; deployment not yet verified | ends in (experimental) |
-| `verify_build` | experimental | ends in (experimental) |
+| `verify_build` | tried live | ends in (experimental) |
 | `list_workspaces` | tested end to end | no label |
 | `list_sources` | tested end to end | no label |
 | `list_tables` | tested end to end | no label |
@@ -674,7 +675,8 @@ tenant setting for ontology items was on (reviewed in the Fabric portal on 29 Oc
 `create_report` created `shop_report_live` (dry run first, then `dry_run=false`) and, from Lovable as an MCP client
 signed in at `/mcp/connect`, `shop_report`; Gustav opened `shop_report` in the portal, added a visualisation and saw
 data. Lovable also updated `shop_api` and `shop_model` in place that day, and a Lovable app reads `shop_api` live
-(orders, customers, ship-to addresses). Creating a new API with `create_backend` has still not run live.
+(orders, customers, ship-to addresses). A new API was made with `create_backend` once, on 26 November 2026
+(`shop_api_2`, from the `validate_plan` card); `verify_build` read it back as verified, and no query has used it yet.
 
 **7 November 2026: the first pipeline run.** `create_pipeline` created `pipeline_shop` with its silver, gold and check
 notebooks in `demo`, and the pipeline was run in Fabric: the first run's check failed on an import (fixed in n140, the

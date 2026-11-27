@@ -69,7 +69,7 @@ ontology (preview) was turned off in the tenant's settings, not a missing permis
 (preview) items" was turned on, it created `shop_ontology` the same day (7 entity types, 7 relationship types); on 29
 October 2026 Gustav reviewed the item in the Fabric portal. Since round n33 a refusal like the first one quotes Fabric's own `errorCode` and
 `message` and says `consent` only for `InsufficientScopes` (`fabric_backend/server.py` `_consent`).
-On 29 October 2026 `create_semantic_model` created `shop_model_live` with `dry_run=false` (7 tables, 6 active and 1 inactive relationship, Direct Lake, 4 measures, the date table `Calendar`); the same day Gustav refreshed it and reviewed it in the Fabric portal. `create_data_agent` has not been run with `dry_run=false`.
+On 29 October 2026 `create_semantic_model` created `shop_model_live` with `dry_run=false` (7 tables, 6 active and 1 inactive relationship, Direct Lake, 4 measures, the date table `Calendar`); the same day Gustav refreshed it and reviewed it in the Fabric portal. `create_data_agent` created `shop_agent` once, from the Start Krusgraph card on 26 November 2026 (`docs/LIVE-TEST.md`, *26 Nov 2026 LV1*); the agent has not been read back by `verify_build` yet.
 
 A deployment whose Entra app lacks a permission still works in `dry_run=true` (the default); asked to create, the tool
 answers `kind: consent` with the permission's name when Fabric says `InsufficientScopes`.
@@ -92,6 +92,11 @@ read 11 November 2026: microsoft/fabric-rest-api-specs `dataPipeline/swagger.jso
 Item.Read.All or Item.ReadWrite.All". Learn, Job Scheduler - Run On Demand Item Job (fabric-rest-apis-docs b4d803a):
 "Generic scope: Item.Execute.All; Specific scope: itemType.Execute.All"; Create Item Schedule (89f63b1): "Item.Execute.All
 and Item.ReadWrite.All".
+
+On 26 November 2026 the same held: asked to run `shop_pipeline` once from the chat, Krusgraph answered that the signed-in
+token lacks the delegated `DataPipeline.Execute.All`, so only the dry run happened and nothing changed
+(`docs/LIVE-TEST.md`, *26 Nov 2026 LV1*, row 14). The hosted app's registration does not hold the opt-in below yet;
+creating and updating pipelines works without it, running them from the chat does not.
 
 Krusgraph asks for the narrower `DataPipeline.Execute.All` (it runs pipelines, no other item type) as an **opt-in**: the
 deploy switch `pipeline_execute` in `deploy/krusgraph.json` makes the deploy check demand it with admin consent

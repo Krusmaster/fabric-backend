@@ -149,10 +149,11 @@ def test_readme_status_lines_equal_tool_status():
 
 
 def test_readme_says_what_tool_status_says_about_create_backend():
-    # tool_status: updated in place live (27 October from Claude, 30 October from Lovable), a new API by unit tests only
+    # tool_status: updated in place live (27 October from Claude, 30 October from Lovable); LV1: a new API created live once
+    # on 26 November 2026 and verified by verify_build, not yet queried
     assert ts.word("create_backend") == "Tested end to end as an update in place"
-    assert "creating a new API is unit-tested only" in ts.OPEN["create_backend"]
-    assert "Creating a new API with `create_backend` has still not run live." in README
+    assert "no query has been run against the new API" in ts.OPEN["create_backend"]
+    assert "A new API was made with `create_backend` once, on 26 November 2026" in README
     assert "a Lovable app read `shop_api` live on 30 October 2026" in README
 
 
