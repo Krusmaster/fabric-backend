@@ -34,7 +34,7 @@
       </div>
       <div class="start-pane" data-pane="3" id="step-3">
         <div class="start-pane-head"><div><h2 class="h3">Add the connector in Claude</h2>
-        <p>In Claude, open <strong>Customize → Connectors → Add → Add custom connector</strong>. Give it a name and paste this URL:</p>{{#IF CLIENT_REGISTRATION}}
+        <p>In Claude, open <strong>+ → Plugins → Add → Add custom connector</strong>. Give it a name and paste this URL:</p>{{#IF CLIENT_REGISTRATION}}
         <p>Keep <strong>Register automatically</strong> selected (no client ID or secret), add it, and sign in with Microsoft now. <span class="muted">{{CLAUDE_WHY}}</span></p>{{/IF}}</div>
         <div class="start-figure" aria-hidden="true"><span data-mascot="builder" data-pose="celebrate" data-label=""></span></div></div>
         <div class="copy-row"><pre><code id="mcp-url">{{CLAUDE_URL}}</code></pre><button type="button" class="btn ghost small" data-copy="#mcp-url">Copy URL</button></div>
