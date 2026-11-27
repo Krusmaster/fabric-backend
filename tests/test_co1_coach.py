@@ -80,15 +80,22 @@ EXPECT = {                                     # name: (step n of the start path
 NINE_TO_FIVE = {1: 1, 2: 1, 3: 1, 4: 2, 5: 2, 6: 3, 7: 2, 8: 4, 9: 5}
 EXPECT = {k: (NINE_TO_FIVE[n], label) for k, (n, label) in EXPECT.items()}
 EXPECT["start_map"] = (1, "Next: Check")              # all chosen: "demo › demo_lh › dbo ✓" and Next
+# SC1: a card's heading is its own tool's step, not the next step's: a clean check is step 2 (its next step is still the
+# dry run of silver and gold); a draft outside the path has its own heading and no step (n is None)
+EXPECT["checked_clean"] = (2, "Build silver and gold (dry run first)")
+EXPECT["ontology_draft"] = (None, "Check against the rows")
 
 
 @pytest.mark.parametrize("name,tool,call,answer", STATES, ids=[s[0] for s in STATES])
 def test_each_plan_state_has_exactly_one_primary_step_that_is_new(name, tool, call, answer):
     c = coach.coach(tool, call, answer)
-    assert 1 <= c["n"] <= c["of"] == 5                            # SM2: the start path's five steps everywhere
+    if tool in coach.OWN_TITLE:                                   # SC1: outside the path, its own heading, no step
+        assert c["n"] is None and c["of"] == 5 and c["title"] == coach.OWN_TITLE[tool]
+    else:
+        assert 1 <= c["n"] <= c["of"] == 5                        # SM2: the start path's five steps everywhere
     if tool == "start":
         assert c["title"] == start_flow.SHORT[answer["step"]["key"]]
-    else:
+    elif tool not in coach.OWN_TITLE:
         assert c["title"] in [x[1] for x in coach.STAGES]
     p = c["primary"]
     assert p.get("primary") is True and p["label"] and p["say"] and p["ask"]           # never no step
@@ -129,7 +136,7 @@ def test_the_same_state_gives_the_same_coach():
 @pytest.mark.parametrize("name,tool,call,answer", STATES, ids=[s[0] for s in STATES])
 def test_the_coach_block_is_short_stable_and_plain(name, tool, call, answer):
     text = coach.coach(tool, call, answer)["text"]
-    assert len(text) <= coach.TEXT_MAX and text.startswith("Coach (step ")
+    assert len(text) <= coach.TEXT_MAX and text.startswith("Coach (step " if tool not in coach.OWN_TITLE else "Coach (")
     assert "Possible next step for the user: " in text and text.count("\n") <= 5
     said = text.split("\n")[1]
     assert not JARGON.search(said)

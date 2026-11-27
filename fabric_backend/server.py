@@ -807,14 +807,29 @@ def start(workspace: _p.StartPick = "", source: _p.StartPick = "", schema: _p.St
         plan["decisions"], plan["confirmed"] = kept["decisions"], kept["confirmed"]
     review = _start_review(workspace, source, schema, step, plan, bool(sample), ctx)
     combined = _start_combine(workspace, source, schema, step, plan, bool(sample), ctx)
+    taken, taken_error = _start_taken(workspace, source, schema, step, bool(sample), ctx)
     out = _start_flow.guide(workspace=workspace, source=source, schema=schema, step=step,
                             keys=plan.get("keys"), confirmed=plan.get("confirmed"),
                             decisions=plan.get("decisions"), create=create, confirm=confirm,
                             sample=sample, options=options, review=review, picked=picked, suggested=suggested,
                             targets=_start_targets(workspace, source, schema, step, bool(sample), ctx),
-                            combine=combined)
+                            combine=combined, taken=taken, taken_error=taken_error)
     out["seq"] = kept.get("seq") or 0
     return json.dumps(out, indent=2)
+
+
+def _start_taken(workspace: str, source: str, schema: str, step: str, sample: bool, ctx) -> tuple[list | None, str | None]:
+    """SC1: on the dry run, Create and Done, the workspace's item names (as the build card reads them), so a suggested name
+    is never one an item has (it moves to _2) and Done can list what was made. (None, None) elsewhere and on the sample;
+    (None, why) when the names cannot be read: then step 5 offers no Create."""
+    c = {"workspace": (workspace or "").strip() or None, "source": (source or "").strip() or None,
+         "schema": (schema or "").strip() or None}
+    if sample or not all(c.values()) or _start_flow.current((step or "").strip().lower() or None, c) not in ("dry_run", "create", "done"):
+        return None, None
+    try:
+        return list(_item_names(c["workspace"], ctx)), None
+    except Exception as e:                                       # noqa: BLE001 - said on step 5, no Create offered
+        return None, (str(e) or type(e).__name__).splitlines()[0][:200]
 
 
 def _start_latest(workspace: str, source: str, schema: str, sample: bool, ctx) -> dict:
@@ -1725,6 +1740,51 @@ def _next_after(kind: str, call: dict, workspace_id: str | None = None, mark: di
         if str(call["model"]).lower() not in {n.lower() for n in built["semantic_model"]}:
             built["semantic_model"].append(str(call["model"]))
     return _after_create.next_steps(kind, args, built, name, lakehouse=lakehouse, taken=taken)
+
+
+def _verify_built_instead(found: dict, items: dict, refs: dict, listing, source: str, schema: str, info: dict) -> list[str]:
+    """SC1 (the founder's live run: verify_build was asked for shop_report, the default name, and said "no item with that
+    name", while "Already built" named the product's report shop_overview): a name given without an id that is not in
+    the workspace is looked up where "Already built" looks (after_create.built_from_plan). Exactly one item of that kind
+    built from this source and schema is verified instead, and said; several are named and none is picked. Changes
+    `found` in place; returns the sentences."""
+    said = []
+    try:
+        built = _after_create.built_from_plan(listing, str(source or ""), str(schema or ""), info.get("item_name"))
+    except Exception:                                              # noqa: BLE001 - then only the names given are looked up
+        return said
+    for kind, name in items.items():
+        if found.get(kind) or (refs.get(kind) or {}).get("id"):
+            continue
+        cand = built.get(kind) or []
+        if len(cand) == 1:
+            typ = _verify.TYPE_OF[kind]
+            hit = next((i for i in listing if i.get("type") == typ and str(i.get("displayName") or "").lower() == cand[0].lower()), None)
+            if hit is not None:
+                found[kind] = hit
+                said.append(f"No {_verify.WORD_OF[kind]} is named {name}; checked {cand[0]}, the {_verify.WORD_OF[kind]} "
+                            f"built from {source} ({schema}).")
+        elif len(cand) > 1:
+            said.append(f"No {_verify.WORD_OF[kind]} is named {name}; built from {source} ({schema}): "
+                        f"{', '.join(cand)}. Name one in items to check it.")
+    return said
+
+
+def _verify_which(out: dict, items: dict, listing, source: str, schema: str, info: dict) -> None:
+    """SC1 (the founder's live run of 26 November 2026: verify_build checked shop_ontology, not shop_ontology_2 made
+    just before): the answer names the item it checked per kind (`checked_items`), and when Krusgraph built more items
+    of that kind from this source and schema, it names them (`also_built`) instead of leaving the choice unsaid."""
+    out["checked_items"] = dict(items)
+    try:
+        built = _after_create.built_from_plan(listing, str(source or ""), str(schema or ""), info.get("item_name"))
+    except Exception:                                              # noqa: BLE001 - the check stands without the candidates
+        return
+    other = {k: [n for n in built.get(k, []) if n.lower() != str(v).lower()] for k, v in items.items()}
+    other = {k: v for k, v in other.items() if v}
+    if other:
+        out["also_built"] = other
+        out["which"] = " ".join(f"Checked {items[k]}; also built from {source} ({schema}): {', '.join(v)}. Name it in items "
+                                f"to check that one instead." for k, v in other.items())
 
 
 @mcp.tool(title="Create or update the GraphQL API (dry run by default)",
@@ -5036,6 +5096,7 @@ def _verify_built_in(workspace, source, items, schema, keys, confirmed, tables, 
         return next((i for i in listing if i.get("type") == typ and name.lower() in (str(i.get("displayName") or "").lower(),
                                                                                    str(i.get("id") or "").lower())), None)
     found_items = {k: find(k, n) for k, n in items.items()}
+    instead = _verify_built_instead(found_items, items, refs, listing, source, schema, info)
     items = {k: (str(found_items[k].get("displayName") or "") or n) if found_items[k] else n for k, n in items.items()}
 
     def reading(what: str):
@@ -5295,6 +5356,9 @@ def _verify_built_in(workspace, source, items, schema, keys, confirmed, tables, 
     finally:
         getattr(conn.get("run"), "close", lambda: None)()
     out = _verify.result(lines, _budget.ran_out())
+    _verify_which(out, items, listing, source, schema, info)
+    if instead:
+        out["instead"] = instead
     args = {"workspace": workspace, "source": source, "schema": schema, "keys": keys, "confirmed": confirmed}
     if out["fixes"]:
         out["next_steps"] = _verify_fix_steps(out["fixes"], args, items, build_workspace)

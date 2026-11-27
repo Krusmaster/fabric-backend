@@ -9,7 +9,8 @@ The chips (CHIPS) are derived, never typed per page:
                 docs/LIVE-TEST.md record it (tool_status.build_word == "creates", or the item was run there: RAN_LIVE);
   Preview       available, but only in Krusgraph for Fabric (the Krusgraph Model item, a pilot not yet among the runs
                 docs/LIVE-TEST.md records), or a Fabric item type that is itself in preview;
-  Experimental  the tool exists and is unit-tested; creating it has no recorded live run;
+  Experimental  the tool exists and is unit-tested; creating it has no recorded live run, or one whose item has not
+                been verified yet (LV1: the data agent and a new API, 26 November 2026);
   Planned       not available yet.
 """
 from __future__ import annotations
@@ -20,7 +21,7 @@ CHIPS = ("Tested live", "Preview", "Experimental", "Planned")
 CHIP_MEANING = {
     "Tested live": "created by the hosted service in a live Fabric workspace with synthetic data, as the test record says",
     "Preview": "available in Krusgraph for Fabric (a pilot) or as a Fabric preview item; not yet in the recorded live runs",
-    "Experimental": "built and unit-tested; creating it has no recorded live run",
+    "Experimental": "built and unit-tested; creating it has no recorded live run, or one not verified yet",
     "Planned": "not available yet",
 }
 CHIP_CLASS = {"Tested live": "chip-live", "Preview": "chip-preview", "Experimental": "chip-exp", "Planned": "chip-planned"}

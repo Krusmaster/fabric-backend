@@ -147,7 +147,7 @@ Code read on 9 November 2026 at `a6b4c2a`.
 | Semantic model | Direct Lake TMDL from the plan, relationships with cardinality, date table, measures. Created live on 29 October 2026. | Done | `semantic_model.py`; `server.py:967`, `:1471` |
 | Model descriptions | On measures and the date table only; not on tables or columns | Partial | `semantic_model.py:244`, `:452` |
 | Linguistic schema / prep data for AI | Not written | Missing | n/a |
-| Data agent instructions | AI instructions, data source instructions and example questions from the plan | Done (no recorded live run) | `data_agent.py`; `server.py:1687` |
+| Data agent instructions | AI instructions, data source instructions and example questions from the plan | Done (created live once from the start card on 26 November 2026, not read back) | `data_agent.py`; `server.py:1687` |
 | Domains, data products | Proposed domains from the graph, each with an ODCS v3.2.0 contract | Partial (draft; no Fabric domain is created) | `domains.py` |
 | OneLake catalog | Item descriptions and tags drafted with the exact REST calls; not sent | Partial | `catalog.py`; `server.py` `export_item_definitions` with `items=["catalog"]` |
 | Several sources in one plan | One source and one schema per plan; shortcuts into one lakehouse work today | Missing (design note exists) | `docs/MULTI-SOURCE.md` |

@@ -147,13 +147,14 @@ REGISTER: tuple[Claim, ...] = (
           "docs/TRUST.md", "The Marketplace licence check is off unless switched on",
           "tests/test_wb7_marketplace_gate.py::test_flags_off_change_nothing", "", "2026-11-23", "U"),
     # Live runs on synthetic data (from docs/MISSING-EVIDENCE.md and docs/LIVE-TEST.md).
-    Claim("E24", "validate_plan, live on the demo workspace: 6 of 6 keys unique, 7 of 7 relationships without orphans.",
-          "docs/LIVE-TEST.md", "✓ 6 of 6 keys unique, 7 of 7 relationships without orphans",
+    Claim("E24", "validate_plan, live on the demo workspace: 6 of 6 keys held, 7 of 7 links held, no orphans.",
+          "docs/LIVE-TEST.md", "✓ 6 of 6 keys held, 7 of 7 links held, no orphans; 13 passed, 0 failed, 0 not checked",
           "tests/test_evidence.py::test_synthetic_shop_keys_are_unique_and_relationships_hold",
-          "| 6 | `validate_plan` |", "2026-11-02", "S"),
-    Claim("E25", "create_backend updated the existing API shop_api in place, live; creating a new API has not run live.",
+          "| 6 | `validate_plan` |", "2026-11-26", "S"),
+    Claim("E25", "create_backend updated the existing API shop_api in place, live, and created a new API, shop_api_2, live "
+                 "on 26 November 2026, which verify_build read back as verified; no query has used shop_api_2 yet.",
           "docs/MISSING-EVIDENCE.md", "then `create_backend` updating `shop_api` in place",
-          "tests/test_create_backend_dry_run.py", "| 7 | `create_backend` |", "2026-10-27", "S"),
+          "tests/test_create_backend_dry_run.py", "| 7 | `create_backend` |", "2026-11-26", "S"),
     Claim("E26", "create_semantic_model created shop_model_live in the demo workspace (synthetic data).",
           "docs/MISSING-EVIDENCE.md", "`create_semantic_model` created `shop_model_live` on 29 October 2026",
           "tests/test_creating_tools.py::test_create_semantic_model_posts_then_updates_in_place",
@@ -166,6 +167,11 @@ REGISTER: tuple[Claim, ...] = (
     Claim("E28", "A Lovable app read shop_api live (orders, customers and the ship-to address).",
           "docs/MISSING-EVIDENCE.md", "A Lovable app read `shop_api` live on 30 October 2026",
           "", "### 30 October 2026: `create_report`, Lovable as an MCP client", "2026-10-30", "S"),
+    Claim("E34", "verify_build read back an ontology live and it passed, by rules: 7 entity types, 7 relationships and 14 "
+                 "data bindings as the dry run.",
+          "docs/LIVE-TEST.md", "passed, by rules: 7 entity types (5 with a key), 7 relationships and 14 data bindings",
+          "tests/test_n229_verify_build.py::test_ontology_keys_bindings_and_relationships_are_compared",
+          "| 6 | `verify_build`", "2026-11-26", "S"),
 )
 
 TEST_RE = re.compile(r"^tests/[\w/]+\.py(::test_\w+)?$")

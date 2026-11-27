@@ -43,6 +43,10 @@ same coach).
   mascots, in their voice: Onto for choosing and for done, the Thinker for reading, checking and deciding, the Builder
   for building). The card's three summary figures are off while the coach speaks, so there is one line, not three; the
   summary sentences are shown as text instead. **Mascots: on/off** still works: off hides the figure, the words stay.
+  SC1 (26 November 2026): a creating tool outside the build path (the ontology, the API for GraphQL, the report, the
+  views, the notebooks, the drift monitor, the catalog) shows its own heading ("Ontology") with no "Step N of 5", and
+  its Coach block starts "Coach (Ontology, outside the five steps of Start Krusgraph)". Step 5 of the start card
+  offers the API for GraphQL and the ontology unticked next to the three defaults.
 - **One primary button and at most two others** (the card's own primary action, such as Check against the rows on a
   plan or Create on a dry run, stays the primary). The check card's table of every key and link, with its rule codes,
   is under **Details: every key and link**; the map's labels leave the rule code out when the coach is on; the start

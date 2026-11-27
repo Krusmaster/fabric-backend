@@ -101,6 +101,27 @@ BUILD_PATH = (
     ("agent", "create_data_agent", "Create the data agent"),
 )
 BUILD_OF = {t: i for i, (_, t, _) in enumerate(BUILD_PATH)}
+# SC1 (the founder's live run of 26 November 2026: create_ontology's dry run said "Step 4 of 5: Build silver and gold"):
+# a creating tool outside the coach's build path (silver and gold, the semantic model, the data agent) gets its own
+# heading and no "Step n of 5", wherever it is called from. The start path's own headings are unchanged.
+OWN_TITLE = {"create_ontology": "Ontology", "create_backend": "API for GraphQL", "create_report": "Report",
+             "create_views": "Views", "create_silver_notebook": "Silver notebook", "create_gold_views": "Gold views",
+             "create_drift_monitor": "Drift monitor", "publish_catalog": "Catalog"}
+OWN_MADE = "Done: the {what} is created in Fabric."
+# SC1 (the coordinator, same run: validate_plan's "Plan check" card said "Step 4 of 5: Build silver and gold" with the
+# Builder's bronze-silver-gold line): the heading and the mascot line say where the card's own tool is, not where the
+# next step leads. A tool on the path keeps its own stage (TOOL_STAGE); the drafts and reads outside the path get their
+# own heading and no step, like the creating tools above.
+OWN_TITLE.update({"ontology_draft": "Ontology draft", "domain_draft": "Data products", "dbt_schema": "dbt project",
+                  "requirements_draft": "Requirements", "data_dictionary": "Data dictionary", "join_path": "Join path",
+                  "semantic_view_draft": "Semantic view draft", "drift_monitor_draft": "Drift monitor draft",
+                  "export_item_definitions": "Item definitions", "analyze_schema": "Schema analysis",
+                  "plan_drift": "What a re-run would change", "lineage": "Lineage", "verify_build": "Verify what was built"})
+CREATING = tuple(t for t in OWN_TITLE if t.startswith("create_")) + ("publish_catalog",)
+OWN_LINE = {"verify_build": "I read back what was built and compare it with its dry run, by rules. Nothing is changed.",
+            "lineage": "What builds on these tables, read from the workspace. Nothing is changed."}
+DRAFT_LINE = "A draft from the plan: nothing is created in Fabric."
+CLEAN_LINE = "Every key and link holds in the rows. Next comes a dry run of silver and gold; nothing is created until you say yes."
 # The drafts that come before a build stage's dry run
 DRAFT_BEFORE = {"gold_views_draft": 0, "semantic_model_draft": 1}
 SECONDARY = 2
@@ -355,12 +376,20 @@ def coach(tool: str, call: dict | None, answer, checks: dict | None = None, step
         p = {**p, "primary": {**_from_action(lead), "writes": bool(p["primary"].get("writes")) and tool.startswith("create_")},
              "secondary": [x for x in rest if x.get("label") != lead.get("label")]}
     i = KEYS.index(p["stage"])
+    own = TOOL_STAGE.get(tool)
+    clean = False
+    if tool != "start" and not p.get("error") and not p.get("built") and own and tool not in OWN_TITLE and KEYS.index(own) < i \
+            and not (own in ("read", "check") and p["stage"] == "decide"):
+        clean = p["stage"] in ("build", "model", "agent")              # SC1: the card's own step, not the next one's
+        i = KEYS.index(own)
     key, title, who, pose = STAGES[i]
     n, of = step_of(key, tool, call, answer)
     if p.get("error"):
         line, pose = LINE["error"], "explain"
     elif p.get("dry_run"):
         line, who, pose = LINE["dry_run"], "builder", "explain"
+    elif clean:
+        line = CLEAN_LINE
     else:
         line = LINE[key]
     if p.get("built") and key != "done":
@@ -376,6 +405,15 @@ def coach(tool: str, call: dict | None, answer, checks: dict | None = None, step
         who = WHO.get(str(st.get("key")), who)
         if isinstance(answer.get("say"), str) and answer["say"].strip():
             line = answer["say"].strip()
+    if tool in OWN_TITLE:                                          # SC1: its own heading, not a step of the path
+        n, title = None, OWN_TITLE[tool]
+        if not p.get("error") and tool not in CREATING:
+            line, who, pose = OWN_LINE.get(tool, DRAFT_LINE), ("thinker" if tool in OWN_LINE else "builder"), "explain"
+        elif not p.get("error"):
+            if (call or {}).get("dry_run", True) is False:
+                line, who, pose = OWN_MADE.format(what=title if title == "API for GraphQL" else title.lower()), "builder", "celebrate"
+            else:
+                line, who, pose = LINE["dry_run"], "builder", "explain"
     out = {"n": n, "of": of, "stage": key, "title": title, "who": who, "name": NAMES[who], "pose": pose,
            "line": line, "primary": primary, "secondary": secondary,
            "writes": bool(p["primary"].get("writes"))}
@@ -396,7 +434,8 @@ def text(c: dict, primary: dict, secondary: list) -> str:
     """The Coach block: short and stable, the same words for the same state. DIR1 (directory review criteria, 20 Nov
     2026): it states where the user is and the options, as facts; it gives the model no instructions. The choice of what
     to do next stays with the user and Claude."""
-    lines = [f"Coach (step {c['n']} of {c['of']}: {c['title']})",
+    head = f"step {c['n']} of {c['of']}: {c['title']}" if c.get("n") else f"{c['title']}, outside the five steps of Start Krusgraph"
+    lines = [f"Coach ({head})",
              f"Where the user is, in plain words: {c['line']}",
              f"Possible next step for the user: {primary['label']} ({_call_of(primary)})."]
     if c.get("writes"):

@@ -13,6 +13,8 @@ What the card draws, all from the answer (start_flow.guide), never invented by t
   a creating tool only as a dry run (no dry_run argument: the tool's default is true), except on step 5 after the
   user's confirmation of exactly that name (the answer's confirmed_by_user), and even then it is armed by a first
   click and runs on the second, as n218's Create does;
+- SC1: step 5's confirmation draws the names as checkboxes when the answer has `optional` (the API for GraphQL and the
+  ontology, unticked); "Confirm these names" sends the ticked ones;
 - "Next": the `start` call in `after`. Its answer replaces the card's content, so the card walks the path in place.
 
 BL47 (issue #104, second part): an older card folds to "Moved on: step N" also when the user typed and Claude opened
@@ -116,6 +118,9 @@ details.st-done[open] > summary { margin-bottom: 4px }
 .st-tiles li { border: 1px solid var(--kg-line); border-radius: 10px; padding: 6px 8px; display: grid }
 .st-tiles strong { font-size: 18px; font-variant-numeric: tabular-nums }
 .st-tiles span { font-size: 12.5px; color: var(--kg-muted) }
+.st-picks { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px }
+.st-picks label { display: flex; gap: 8px; align-items: center; min-height: 32px; overflow-wrap: anywhere }
+.st-picks input { width: 20px; height: 20px; flex: none; accent-color: var(--kg-ink); margin: 0 }
 .st-choices { display: flex; flex-wrap: wrap; gap: 6px }
 .st-choices button { display: grid; text-align: left; justify-items: start; border-radius: 12px; max-width: 100%;
   overflow-wrap: anywhere }
@@ -324,6 +329,8 @@ __READ_JS__
     });
   }
   // A tool's answer inside this card: its few lines (kg_card), the long lists folded; never another coach or buttons
+  var picks = null;                                         // SC1: step 5's checkboxes, when it offers more than the defaults
+  function picked() { return (picks || []).filter(function (c) { return c.checked; }).map(function (c) { return c.value; }); }
   function stepAnswer(tool, r) {
     var d = answerOf(r), box = el("div", null, "nx-res st-res");
     box.appendChild(resultView(tool, r));
@@ -353,9 +360,13 @@ __READ_JS__
         out.hidden = false; out.textContent = "Tap again to create " + a.arguments.name + ". Nothing has been created yet.";
         return;
       }
-      var args = JSON.parse(JSON.stringify(a.arguments));
+      var args = JSON.parse(JSON.stringify(a.arguments)), ask = askOf(a);
+      if (a.kind === "confirm" && picks) {                    // SC1: the names ticked are the names confirmed
+        args.create = picked(); if (!args.create.length) return;
+        ask = "Yes, use the names " + args.create.join(", ") + ".";
+      }
       var act = { kind: a.kind, label: a.label, name: a.arguments.name };        // n227: the progress state
-      if (a.tool === "start") { startCall(args, askOf(a), out, b, act); return; }
+      if (a.tool === "start") { startCall(args, ask, out, b, act); return; }
       if (create) {                                           // n227: a Create is never sent twice from the card
         act.unknown = function (box) { statusRow(a, "name", box); };
         runOrSay(a.tool, args, askOf(a), out, b, function (r) {
@@ -548,9 +559,27 @@ __READ_JS__
     if (Array.isArray(f.decisions)) drawDecisions(d, f, box);
     if (Array.isArray(f.doubled)) more.appendChild(listOf(f.doubled));
     if (Array.isArray(f.dry_runs)) more.appendChild(listOf(f.dry_runs.filter(isObj).map(function (x) { return x.name + ": " + x.line; })));
+    picks = null;
     if (Array.isArray(d.would_create) && d.would_create.length && d.needs_confirmation) {
-      box.appendChild(listOf(d.would_create.filter(isObj).map(function (w) { return w.name; })));
+      var opt = Array.isArray(d.optional) ? d.optional.filter(function (o) { return isObj(o) && readable(o.name); }) : [];
+      if (!opt.length) box.appendChild(listOf(d.would_create.filter(isObj).map(function (w) { return w.name; })));
+      else {                                                  // SC1: the defaults ticked, the API and the ontology unticked
+        var ul = el("ul", null, "st-picks"); picks = [];
+        d.would_create.filter(isObj).map(function (w) { return { name: w.name, on: true }; })
+          .concat(opt.map(function (o) { return { name: o.name, on: false, what: o.what }; })).forEach(function (w) {
+            var li = el("li"), lab = el("label"), cb = el("input"); cb.type = "checkbox"; cb.checked = w.on; cb.value = w.name;
+            cb.setAttribute("data-name", w.name); lab.appendChild(cb); lab.appendChild(el("span", w.name));
+            if (!w.on && readable(w.what)) lab.appendChild(el("span", w.what.replace(/^an? /, ""), "muted"));
+            li.appendChild(lab); ul.appendChild(li); picks.push(cb);
+            cb.addEventListener("change", function () {
+              var cf = document.querySelector('button[data-kind="confirm"]');
+              if (cf) cf.disabled = !picked().length;
+            });
+          });
+        box.appendChild(ul);
+      }
     }
+    strings(d.renamed).forEach(function (x) { box.appendChild(el("p", x, "muted")); });   // SC1: a taken name, said plainly
     if (readable(f.summary) && key === "map") box.appendChild(el("p", f.summary));
     if (box.childNodes.length) answer.appendChild(box);
     // everything else is under Details

@@ -1,5 +1,5 @@
-Coach (step 2 of 5: Krusgraph reads the tables)
-Where the user is, in plain words: Finding the keys and the links between your tables. I only read; nothing is changed.
+Coach (Ontology draft, outside the five steps of Start Krusgraph)
+Where the user is, in plain words: A draft from the plan: nothing is created in Fabric.
 Possible next step for the user: Check against the rows (validate_plan(workspace="demo", source="demo_lh", schema="sap_silver")).
 Other options: Create the ontology (dry run first); Create the semantic model (dry run first).
 Where a card is drawn, it already shows this result's lists and counts.
