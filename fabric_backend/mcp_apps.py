@@ -430,6 +430,13 @@ RESULT_JS = r"""
   function summaryOf(tool, d) {
     var lines = [], questions = [], s = isObj(d.summary) ? d.summary : null;
     if (readable(d.error)) { lines.push(["Error", d.error + (readable(d.hint) ? " " + d.hint : "")]); return { lines: lines, questions: questions }; }
+    if (Array.isArray(d.lines) && Array.isArray(d.result_lines)) {   // SC1
+      var W = { "differs": "Differs", "not checked": "Not checked", "verified": "Verified" }, R = ["differs", "not checked", "verified"];
+      R.forEach(function (st) { d.lines.forEach(function (x) { if (isObj(x) && x.state === st && readable(x.said)) lines.push([W[st], String(x.said).slice(0, 400)]); }); });
+      arr(d.fixes).filter(isObj).forEach(function (f) { lines.push(["Fix", (name(f.item) ? f.item + ": " : "") + (f.label || f.said || f.ask || "")]); });
+      if (readable(d.note)) lines.push(["Note", d.note]);
+      return { lines: lines, questions: questions };
+    }
     if (s && isObj(s.roles) && "relationships_active" in s) {          // a semantic model draft
       var roles = isObj(s.roles) ? s.roles : {}, by = {};
       Object.keys(roles).forEach(function (t) { (by[roles[t]] = by[roles[t]] || []).push(t); });

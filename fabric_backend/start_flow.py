@@ -17,7 +17,9 @@ next step with everything carried over.
 Honesty on the first run: each step says whether it reads or writes. Steps 1-4 only read (the dry runs create nothing).
 Step 5 writes, and only after the dry run (step 4) and a second, explicit confirmation that names the items: `create`
 must list exactly names the dry run showed, and `confirm` must be true. Without both, step 5 answers what to confirm and
-hands over no call with dry_run=false. No row values: the steps return counts (sample_rows is never part of the path).
+hands over no call with dry_run=false. SC1: step 5 confirms the three defaults (silver and gold, the semantic model, the
+data agent) and offers the API for GraphQL and the ontology unticked; every name is free in the workspace (a taken one
+moves to _2), and Done lists what was made. No row values: the steps return counts (sample_rows is never part of the path).
 A user without Fabric data gets the same path on the synthetic shop (`sample=true`, demo.py: the engine's own output on
 fabric_backend/seed.py's shop), which reads and creates nothing in Fabric.
 
@@ -68,6 +70,10 @@ SHORT = {"data": "Your data", "check": "Check", "decide": "Decide", "dry_run": "
 WHO = {"data": "onto", "check": "thinker", "decide": "thinker", "dry_run": "builder", "create": "builder"}
 # WB15 (item 11): the names suggested on step 5, the path of the coach: silver and gold, the model, the data agent
 SUGGESTED = ("create_pipeline", "create_semantic_model", "create_data_agent")
+# SC1 (the founder's live run of 26 November 2026): step 5 also offers the API for GraphQL and the ontology, unticked, so
+# the default build (SM3: the same three in the chat and the editor) and Dry run everything stay as they are. A ticked one
+# is confirmed with the others and gets its own Create button; their dry runs are under the dry run step's Details.
+OPTIONAL = ("create_backend", "create_ontology")
 BY_KEY = {s[0]: s for s in STEPS}
 
 # What the dry run shows and step 5 creates, in the order they are built: (tool, suffix, what it is). The report binds to
@@ -204,10 +210,27 @@ def base_name(source: str | None, schema: str | None) -> str:
     return out or "krusgraph"
 
 
-def build_names(source: str | None, schema: str | None) -> dict[str, str]:
-    """{tool: proposed name}: <stem>_pipeline, <stem>_model, ... (the dry run's own answer says when one is taken)."""
+def build_names(source: str | None, schema: str | None, taken=None) -> dict[str, str]:
+    """{tool: proposed name}: <stem>_pipeline, <stem>_model, ... SC1: with `taken` (the workspace's item names) a name an
+    item already has moves to <name>_2, <name>_3 ..., as the build card does, so nothing that exists is overwritten."""
     stem = base_name(source, schema)
-    return {tool: f"{stem}_{suffix}" for tool, suffix, _ in BUILDS}
+    out = {tool: f"{stem}_{suffix}" for tool, suffix, _ in BUILDS}
+    if taken:
+        from .mcp_apps_build import free_name
+        used = {str(t) for t in taken}
+        for tool in out:
+            out[tool] = free_name(out[tool], used)
+            used.add(out[tool])
+    return out
+
+
+def renamed_lines(source: str | None, schema: str | None, taken, tools=None) -> list[str]:
+    """SC1: one plain line per suggested name that moved to _2, _3 ... because the name before it is taken."""
+    if not taken:
+        return []
+    from .mcp_apps_build import name_why
+    base, names = build_names(source, schema), build_names(source, schema, taken)
+    return [w for t in (tools or names) if (w := name_why(base[t], names[t], taken))]
 
 
 def _shown(args: dict) -> str:
@@ -391,7 +414,8 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
           keys: dict | None = None, confirmed: list | None = None, decisions: list | None = None,
           create: list | None = None, confirm: bool = False, sample: bool = False, options: dict | None = None,
           review: dict | None = None, picked: list | None = None, suggested: dict | None = None,
-          targets: dict | None = None, combine: dict | None = None) -> dict:
+          targets: dict | None = None, combine: dict | None = None, taken: list | None = None,
+          taken_error: str | None = None) -> dict:
     """The stepper's answer (see the module docstring). Pure: no Fabric, no SQL. `options` (WB12, #76) is what the
     start tool read for a choosing stage: {step, items: [{name, hint?, tables?}]} or {step, error}. `review` (WB13, #66)
     is review_plan's file with the checks counted, built by the start tool for Check and Decide, or {error}. `picked`
@@ -399,6 +423,10 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
     c = {"workspace": (workspace or "").strip() or None, "source": (source or "").strip() or None,
          "schema": (schema or "").strip() or None, "keys": keys or None, "confirmed": confirmed or None,
          "decisions": decisions or None, "sample": bool(sample)}
+    if taken is not None and not sample:                    # SC1: the workspace's item names, read by the start tool
+        c["taken"] = [str(t) for t in taken]
+    if taken_error and not sample:
+        c["taken_error"] = str(taken_error)[:200]
     if isinstance(targets, dict) and targets.get("silver") and targets.get("gold") and not c["sample"]:
         c["targets"] = {"silver": str(targets["silver"]), "gold": str(targets["gold"])}       # SM6: one lakehouse per layer
     if c["sample"]:
@@ -409,7 +437,7 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
     n = KEYS.index(key) + 1
     out = {"flow": PROMPT_TITLE, "step": {"n": n, "of": len(STEPS), "key": key, "title": title, "does": does,
                                           "short": SHORT[key]},
-           "stage": now, "who": WHO[key], "path": _path(key), "chosen": {k: v for k, v in c.items() if v and k not in ("sample", "targets")}}
+           "stage": now, "who": WHO[key], "path": _path(key), "chosen": {k: v for k, v in c.items() if v and k not in ("sample", "targets", "taken", "taken_error")}}
     out["done_line"] = _finished(out["path"])
     actions: list[dict] = []
     nxt = _next_key(now) if now not in CHOOSE else None
@@ -515,8 +543,11 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
                 out["review_error"] = str(review["error"])[:200]
             actions.append(_call("Record my decisions", "review_plan", args))
     elif now == "dry_run":
-        names = build_names(c["source"], c["schema"])
+        names = build_names(c["source"], c["schema"], c.get("taken"))
         out["say"] = "One tap dry-runs everything. Nothing is created."
+        moved = renamed_lines(c["source"], c["schema"], c.get("taken"))
+        if moved:                                          # SC1: a taken name moved to _2, said plainly
+            out["renamed"] = moved
         if c.get("targets"):                               # SM6: where the build writes, in one line
             out["layers_to"] = targets_line(c["targets"])
             out["say"] = f"One tap dry-runs everything: {out['layers_to']}."
@@ -533,7 +564,8 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
                 continue
             args = {**_build_args(c, t), "name": names[t]}
             label = {"create_pipeline": "Dry run: silver and gold", "create_semantic_model": "Dry run: semantic model",
-                     "create_data_agent": "Dry run: data agent"}.get(t, f"Dry run: {w}")
+                     "create_data_agent": "Dry run: data agent", "create_backend": "Dry run: API for GraphQL",
+                     "create_ontology": "Dry run: ontology"}.get(t, f"Dry run: {w}")
             a = _call(label, t, args, kind="dry_run")
             a["more"] = True                               # SM2: one button runs them all; each one under Details
             actions.append(a)
@@ -559,7 +591,7 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
         else:
             nxt = None
     elif now == "done":
-        out.update(_closing(c))
+        out.update(_closing(c, create))
         actions = out.pop("actions")
         nxt = None
     if isinstance(review, dict) and isinstance(review.get("items"), list) and now in ("check", "decide"):
@@ -588,8 +620,11 @@ def guide(workspace: str | None = None, source: str | None = None, schema: str |
         out["next_waits"] = {"label": "Next", "why": CHOOSE[now]}
     elif nxt:
         label = "Next: what now?" if nxt == "done" else f"Next: {SHORT[STAGE[nxt]]}"
-        out["after"] = {"tool": TOOL, "arguments": _start_args(c, nxt), "label": label,
-                        "say": f"Next step (start with {_shown(_start_args(c, nxt))}).", "ask": f"{label}."}
+        nargs = _start_args(c, nxt)
+        if nxt == "done" and out.get("confirmed_by_user"):     # SC1: Done lists what was made from these names
+            nargs["create"] = list(out["confirmed_by_user"])
+        out["after"] = {"tool": TOOL, "arguments": nargs, "label": label,
+                        "say": f"Next step (start with {_shown(nargs)}).", "ask": f"{label}."}
         if now == "decide" and out.get("open_decisions"):    # WB13 (#66): secondary until each is answered or skipped
             out["after"]["secondary"] = True
             out["after"]["why"] = "Next leaves the open decision open."
@@ -714,13 +749,36 @@ def _schedule_preview(names: dict) -> dict:
                           for sch in d["schedules"]]}
 
 
-def _closing(c: dict) -> dict:
-    """SM2: step 5 after Create. Open it in Fabric, add another source, or schedule the pipeline. BL40: Schedule shows
-    the schedule's draft (schedules.draft) and creates nothing."""
+def _made_names(c: dict, create: list | None) -> dict[str, str]:
+    """SC1: {tool: name} of the names confirmed on step 5 (they travel to the closing step in `create`), matched to their
+    tool by the stem's suffix (<stem>_model, <stem>_model_2 ...); the plain names for the rest."""
+    import re
     names = build_names(c["source"], c["schema"])
+    for x in create or []:
+        for t, n in names.items():
+            if str(x) == n or re.fullmatch(re.escape(n) + r"_[0-9]+", str(x)):
+                names[t] = str(x)
+    return names
+
+
+def _closing(c: dict, create: list | None = None) -> dict:
+    """SM2: step 5 after Create. Open it in Fabric, add another source, or schedule the pipeline. BL40: Schedule shows
+    the schedule's draft (schedules.draft) and creates nothing. SC1: it lists what was made: the confirmed names that
+    are in the workspace now (the start tool reads its item names), and the ones that are not, plainly."""
+    names = _made_names(c, create)
     pipe = names["create_pipeline"]
     preview = _schedule_preview(names)
-    return {"say": "Done. What next?",
+    asked = [str(x) for x in create or []]
+    made: dict = {}
+    if asked and isinstance(c.get("taken"), list):
+        there = {t.lower() for t in c["taken"]}
+        made = {"made": [x for x in asked if x.lower() in there], "not_made": [x for x in asked if x.lower() not in there]}
+        lines = ([f"Made: {', '.join(made['made'])}."] if made["made"] else []) + \
+                ([f"Not in Fabric yet: {', '.join(made['not_made'])}."] if made["not_made"] else [])
+        made["lines"] = lines
+    elif asked:
+        made = {"confirmed": asked, "lines": [f"Confirmed: {', '.join(asked)}. Open in Fabric shows which were created."]}
+    return {"say": "Done. What next?", **made,
             "actions": [{"kind": "link", "label": "Open in Fabric", "who": "builder", "tool": TOOL, "arguments": {},
                          "url": FABRIC_URL, "primary": True, "say": f"Open Fabric ({FABRIC_URL}).",
                          "ask": f"Open {c['workspace']} in Fabric."},
@@ -732,8 +790,10 @@ def _closing(c: dict) -> dict:
 
 
 def _create(c: dict, create: list | None, confirm: bool) -> dict:
-    """Step 9: the creating calls with dry_run=false, only for names the dry run showed and only with confirm=true."""
-    names = build_names(c["source"], c["schema"])
+    """Step 9: the creating calls with dry_run=false, only for names the dry run showed and only with confirm=true.
+    SC1: the names are free in the workspace (build_names with its item names), the API for GraphQL and the ontology are
+    offered unticked (`optional`), and without the item names no Create button is offered: nothing is overwritten."""
+    names = build_names(c["source"], c["schema"], c.get("taken"))
     by_name = {v: k for k, v in names.items()}
     asked = [str(x) for x in (create or [])]
     unknown = [x for x in asked if x not in by_name]
@@ -742,16 +802,29 @@ def _create(c: dict, create: list | None, confirm: bool) -> dict:
         suggest = [x for x in asked if x in by_name] or [names[t] for t in SUGGESTED]
         confirm_args = {**_start_args(c, "create"), "create": suggest, "confirm": True}
         why = (f"Not in the dry run: {', '.join(unknown)}. " if unknown else "")
+        optional = [{"tool": t, "name": names[t], "what": w} for t, _, w in BUILDS if t in OPTIONAL and names[t] not in suggest]
+        moved = renamed_lines(c["source"], c["schema"], c.get("taken"), [by_name[x] for x in suggest] + [o["tool"] for o in optional])
         return {"needs_confirmation": True, "would_create": [{"tool": by_name[x], "name": x} for x in suggest],
-                "suggested": suggest,
+                "suggested": suggest, **({"optional": optional} if optional else {}),
+                **({"renamed": moved} if moved else {}),
                 "say": f"{why}Confirm these names; then each gets its own Create button.",
-                "then": ("The question for the user: \"Create " + ", ".join(asked or sorted(names.values())) + " in " +
+                "then": ("The question for the user: \"Create " + ", ".join(asked or suggest) + " in " +
                          str(c["workspace"]) + "? Say yes to create exactly these.\" After a yes: start with "
-                         "step=\"create\", create=[the names] and confirm=true."),
+                         "step=\"create\", create=[the names] and confirm=true."
+                         + (" Also offered, if the user wants them: " + ", ".join(f"{o['name']} ({o['what']})" for o in optional)
+                            + "." if optional else "")),
                 "actions": [{**_call("Confirm these names", TOOL, confirm_args), "kind": "confirm", "primary": True,
                              "ask": "Yes, use the names " + ", ".join(suggest) + "."},
                             {**_call("Back to the dry run", TOOL, _start_args(c, "dry_run")), "secondary": True}]}
     ordered = [t for t, _, _ in BUILDS if names[t] in asked]
+    if c.get("taken_error"):                     # SC1: a name may be taken: no Create from here, said plainly
+        return {"needs_confirmation": True, "would_create": [{"tool": t, "name": names[t]} for t in ordered],
+                "names_unread": c["taken_error"],
+                "say": "I could not read the item names in this workspace, so I cannot promise these names are free. "
+                       "Nothing is created from here.",
+                "actions": [{**_call("Try again", TOOL, {**_start_args(c, "create"), "create": asked, "confirm": True}),
+                             "primary": True},
+                            {**_call("Back to the dry run", TOOL, _start_args(c, "dry_run")), "secondary": True}]}
     actions = []
     for t in ordered:
         if t == "create_report":                 # no dry run of it could run before the model existed: one now, first

@@ -138,8 +138,9 @@ def next_steps(created: str, args: dict, built: dict[str, list[str]] | None = No
     the item just created counts as built). `taken`: the workspace's item names, for the names the steps suggest."""
     import json
     built = {k: list(v) for k, v in (built or {}).items()}
-    if name and name.lower() not in {n.lower() for n in built.get(created, [])}:
-        built.setdefault(created, []).append(name)
+    if name:                                                       # SC1: the item just created is the one to verify,
+        same = [n for n in built.get(created, []) if n.lower() != name.lower()]   # also when an older one of the
+        built[created] = same + [name]                             # same plan is listed after it (shop_ontology_2 vs shop_ontology)
     common = {k: args[k] for k in ("workspace", "source", "schema", "keys", "confirmed") if args.get(k) not in (None, "", [], {})}
     schema = common.get("schema")
     base = _base(str(args.get("source") or ""), schema)
