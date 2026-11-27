@@ -11,9 +11,13 @@ from starlette.testclient import TestClient
 from fabric_backend import concepts, domains, ontology, pages, seed, server, tool_status as ts
 from fabric_backend.infer import plan
 
+# DS1: the group is "How it works" (still at /docs/concepts); Vision moved to "Why" with "Where Krusgraph is heading" in it
 CONCEPTS = ["/docs/concepts", "/docs/concepts/how-it-works", "/docs/concepts/ontologies", "/docs/concepts/data-products",
-            "/docs/concepts/how-they-connect", "/docs/concepts/where-it-runs", "/docs/concepts/vision",
-            "/docs/concepts/where-krusgraph-is-heading"]        # DOCV1
+            "/docs/concepts/how-they-connect", "/docs/concepts/where-it-runs", "/docs/why/vision"]
+HOW_IT_WORKS = ["/docs/concepts", "/docs/concepts/how-it-works", "/docs/concepts/how-relationships-are-inferred",
+                "/docs/concepts/how-krusgraph-uses-graph-theory", "/docs/concepts/ontologies", "/docs/concepts/data-products",
+                "/docs/concepts/how-they-connect", "/docs/concepts/where-it-runs", "/docs/concepts/sources",
+                "/docs/concepts/sap-on-fabric"]
 VISION = ["One place for your Fabric data. Proof at every step.", "Where Krusgraph is today, and where it is going.",
           "Available today", "Check and create", "Map how your tables connect", "Count keys and links against the rows (up to 200 per call)",
           "Create Fabric items when you ask", "Next", "Check what comes in", "See if incoming data matches its source",
@@ -42,10 +46,11 @@ def _plain(s: str) -> str:
 
 def test_the_concepts_group_sits_after_get_started_with_its_pages_in_the_menu(client):
     ps = pages.docs_pages()
-    assert [x["path"] for x in ps if x["path"].startswith("/docs/concepts")] == CONCEPTS
-    assert pages.DOCS_GROUPS.index("Concepts") == pages.DOCS_GROUPS.index("Get started") + 1
+    assert [x["path"] for x in ps if x["path"].startswith("/docs/concepts")] == HOW_IT_WORKS
+    assert pages.DOCS_GROUPS.index("How it works") == pages.DOCS_GROUPS.index("Get started") + 1
+    assert next(x for x in ps if x["path"] == "/docs/why/vision")["group"] == "Why"
     menu = re.search(r'<nav class="docs-menu"[^>]*>(.*?)</nav>', client.get("/docs").text, re.S).group(1)
-    for path in CONCEPTS:
+    for path in CONCEPTS + HOW_IT_WORKS:
         assert f'href="{path}"' in menu and client.get(path).status_code == 200, path
     assert menu.index('href="/docs/get-started/first-time-errors"') < menu.index('href="/docs/concepts"') < menu.index('href="/docs/explore-and-check"')
 
@@ -95,7 +100,7 @@ def test_the_pages_link_to_the_rdfxml_download_the_example_and_each_other(client
 
 
 def test_the_vision_is_html_with_the_text_verbatim_and_said_as_direction(client):
-    html = _main(client.get("/docs/concepts/vision").text)
+    html = _main(client.get("/docs/why/vision").text)
     plain = _plain(html)
     for line in VISION:
         assert line in plain, line
@@ -121,7 +126,7 @@ def test_no_images_from_outside_no_logos_no_sales_words_and_no_claims_of_benefit
 
 def test_markdown_llms_and_sitemap_carry_the_same_pages_and_facts(client):
     md = client.get("/docs.md").text
-    assert "## Concepts" in md and "### Vision" in md and concepts.domains_md() in md and concepts.entities_md() in md
+    assert "## How it works" in md and "### Vision" in md and concepts.domains_md() in md and concepts.entities_md() in md
     full, llms, sitemap = client.get("/llms-full.txt").text, client.get("/llms.txt").text, client.get("/sitemap.xml").text
     assert concepts.trace_md() in full
     for path in CONCEPTS:
@@ -129,7 +134,7 @@ def test_markdown_llms_and_sitemap_carry_the_same_pages_and_facts(client):
 
 
 def test_the_tips_are_on_the_chat_pages_and_check_and_link_to_the_concept_pages(client):
-    for path in ("/", "/docs", "/check", "/docs/concepts/vision"):
+    for path in ("/", "/docs", "/check", "/docs/why/vision"):
         raw = re.search(r'<script type="application/json" id="kg-tips">(.*?)</script>', client.get(path).text).group(1)
         data = json.loads(raw)
         assert set(data) == {"ontology", "data-products"}, path

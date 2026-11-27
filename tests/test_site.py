@@ -731,7 +731,10 @@ def test_docs_are_grouped_and_every_old_section_anchor_still_resolves(client):
     docs = docs_all(client)
     groups = re.findall(r'<h[12] id="([^"]+)">', "".join(client.get(x["path"]).text for x in __import__("fabric_backend.pages").pages.docs_pages() if x["depth"] < 2))
     assert groups[0].startswith("why-")                    # n23: "Why <product>" ahead of the five parts
-    assert groups[1:] == ["why-krusgraph", "why-choose-krusgraph", "get-started", "concepts", "explore-and-check", "build-from-a-plan", "krusgraph-for-fabric", "tool-reference", "hosting-and-permissions"]  # n86b: Concepts; W8: why-choose; MF1: /docs/why
+    # n86b: Concepts; W8: why-choose; MF1: /docs/why; DS1: six menu groups (Why, Get started, How it works, Check, Build,
+    # Run and reference, the last made of the five sections from krusgraph-for-fabric on); W8's eight points are a page of "Why"
+    assert groups[1:] == ["why-krusgraph", "get-started", "how-it-works", "check", "build", "krusgraph-for-fabric",
+                          "hosting-and-permissions", "tool-reference", "support", "troubleshooting"]
     for anchor in ("connect", "what-it-accesses", "what-you-can-ask", "review-check-then-create", "test-status", "tools",
                    "how-relationships-are-inferred", "cold-start-and-min-replicas-if-you-run-it-yourself", "one-plan-five-fabric-pieces",
                    "with-microsoft-s-fabric-mcp-servers", "fabric-iq-the-same-graph-as-an-ontology", "sources",

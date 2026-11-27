@@ -1341,7 +1341,8 @@ body.nav-open .kgc-launch{visibility:hidden}
 .docs-tree a:hover{color:var(--coral-ink);text-decoration:underline}
 .docs-tree a[aria-current=page]{background:var(--coral-soft);color:var(--ink);font-weight:700}
 .docs-more{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
-.docs-first{margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.docs-part-h{display:block;padding:10px 8px 2px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}  /* DS1: "Run and reference" */
+.docs-tree li.docs-part>ul{border-left:0;padding-left:0;margin-top:0}
 .docs-menu{display:none}
 .docs-menu-m{border:1px solid var(--line);border-radius:var(--radius-s);background:var(--card)}
 .docs-menu-m>summary{cursor:pointer;padding:12px 16px;min-height:44px;box-sizing:border-box;font-weight:600}
@@ -1564,22 +1565,49 @@ table.wr-table{min-width:0;width:100%;border-collapse:collapse;font-size:14.5px;
 /* MF1: "Why Krusgraph" (/docs/why), the manifesto: short lines, generous space, the belief line large; the theme's tokens,
    so it reads in light and dark; one small mark at the end */
 .mf-film{margin:4px 0 32px}
-.mf-why{max-width:34em;margin:8px 0 40px}
-.mf-why p{margin:0 0 22px;font-size:18px;line-height:1.7;max-width:34em}
-.mf-why>p:first-child{font-family:var(--font-head);font-weight:600;font-size:clamp(26px,4.2vw,38px);line-height:1.22;letter-spacing:-.01em;max-width:18em;margin:28px 0 40px;text-wrap:balance}
-.mf-why>p:first-child strong{font-weight:inherit}
-.mf-why ul{list-style:none;margin:32px 0 40px;padding:0;border-top:1px solid var(--line)}
-.mf-why li{margin:0;padding:16px 0;border-bottom:1px solid var(--line);font-size:18px;line-height:1.6}
-.mf-why li strong{display:block;font-family:var(--font-head);font-weight:600;font-size:20px;line-height:1.3;margin-bottom:2px}
-.mf-why .mf-sign{margin:44px 0 0;font-family:var(--font-head);font-size:clamp(22px,3vw,28px);line-height:1.3}
-.mf-why .mf-sign strong{font-weight:600}
-.mf-mark{margin:18px 0 0;width:32px;height:32px}
+/* DS1: /docs/why in six sections: the belief, the problem and its turn, five numbered cards, a quiet pair of beliefs,
+   the values as two sides (what we value in ink, what it comes before muted), and the close */
+.mf-sec{margin:0 0 56px;padding:0;max-width:44em}
+.prose h1:has(~ .mf-hero){position:absolute!important;width:1px;height:1px;margin:0;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}  /* the belief line comes first; the h1 stays for screen readers */
+.mf-sec p{font-size:18px;line-height:1.7;margin:0 0 18px;max-width:34em}
+.mf-hero{margin:20px 0 56px}
+.mf-sec.mf-hero p{font-family:var(--font-head);font-weight:600;font-size:clamp(30px,5vw,48px);line-height:1.16;letter-spacing:-.015em;max-width:16em;margin:0;text-wrap:balance}
+.mf-hero p strong{font-weight:inherit}
+.mf-problem .mf-turn{margin-top:28px;padding-left:18px;border-left:4px solid var(--coral);font-family:var(--font-head);font-weight:600;font-size:clamp(22px,3vw,28px);line-height:1.3;color:var(--ink)}
+.prose .mf-cards{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr;gap:14px}
+.prose .mf-card{margin:0;padding:20px 22px 18px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);min-width:0}
+.mf-num{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:var(--coral-soft);color:var(--coral-ink);font-family:var(--font-head);font-weight:600;font-size:17px;margin-bottom:10px}
+.mf-card p{margin:0;font-size:17px;line-height:1.6}
+.mf-card .mf-card-h{font-family:var(--font-head);font-size:20px;line-height:1.3;margin-bottom:4px}
+.mf-card .mf-card-h strong{font-weight:600}
+.mf-quotes{display:grid;gap:14px;padding:6px 0}
+.mf-quotes .mf-quote{margin:0;padding:4px 0 4px 18px;border-left:2px solid var(--line-strong);font-family:var(--font-head);font-weight:500;font-size:clamp(20px,2.6vw,24px);line-height:1.4;color:var(--muted)}
+.prose .mf-h{margin:0 0 14px;font-size:14px;font-family:var(--font-body);font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--coral-ink)}
+.mf-eng .mf-lead{font-family:var(--font-head);font-weight:600;font-size:clamp(22px,3vw,28px);line-height:1.3;margin-bottom:18px}
+.mf-eng .mf-lead strong{font-weight:inherit}
+.prose .mf-values{list-style:none;margin:26px 0 22px;padding:0;border-top:1px solid var(--line)}
+.prose .mf-values li{margin:0;padding:16px 0;border-bottom:1px solid var(--line)}
+.mf-values .mf-pair{margin:0 0 4px;font-family:var(--font-head);font-size:21px;line-height:1.3;max-width:none}
+.mf-values .mf-left{font-weight:600;color:var(--ink)}
+.mf-values .mf-right{font-weight:500;color:var(--muted)}
+.mf-values .mf-because{margin:0;font-size:17px;color:var(--ink);max-width:none}
+.mf-eng .mf-coda{color:var(--muted);font-style:italic}
+.mf-close{margin-bottom:40px;padding-top:36px;border-top:1px solid var(--line)}
+.mf-close .mf-close-big{font-family:var(--font-head);font-weight:600;font-size:clamp(28px,4.4vw,42px);line-height:1.18;letter-spacing:-.01em;max-width:14em;margin:0 0 18px;text-wrap:balance}
+.mf-close .mf-close-big strong{font-weight:inherit}
+.mf-close .mf-close-sub{color:var(--muted);margin-bottom:28px}
+.mf-close .mf-sign{margin:0;font-family:var(--font-head);font-size:clamp(22px,3vw,28px);line-height:1.3}
+.mf-close .mf-sign strong{font-weight:600}
+.mf-mark{margin:14px 0 0;width:32px;height:32px}
 .mf-mark .logo-mark{display:block;width:32px;height:32px}
+@media (min-width:760px){.prose .mf-cards{grid-template-columns:1fr 1fr}
+  .mf-values .mf-pair{display:grid;grid-template-columns:minmax(0,10em) minmax(0,1fr);gap:18px}
+  .mf-values .mf-because{padding-left:calc(10em*21/17 + 18px)}}
 .mf-see{margin:0 0 36px;padding:20px 0 0;border-top:1px solid var(--line)}
 .mf-see .mf-see-h{margin:0 0 10px;font-size:14px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
 .mf-see ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:10px 28px}
 .mf-see li{margin:0;font-size:17px}
-@media (max-width:560px){.mf-why p,.mf-why li{font-size:17px}.mf-why>p:first-child{margin-bottom:32px}.mf-why li strong{font-size:18px}
+@media (max-width:560px){.mf-sec p{font-size:17px}.mf-sec{margin-bottom:44px}.mf-values .mf-pair{font-size:19px}
   .mf-see ul{flex-direction:column;gap:10px}}
 /* n161: on phones the 4:5 version plays (the first <source>, media="(max-width: 640px)"); the frame takes its shape, and
    the one poster (16:9; a poster cannot be swapped without script) is shown cropped to the frame instead of letterboxed */

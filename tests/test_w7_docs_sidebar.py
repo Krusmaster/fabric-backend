@@ -117,7 +117,7 @@ def test_browser_the_sap_film_on_the_docs_page(browser, scheme):
     assert s["src"].endswith("krusgraph-sap-to-report.mp4") and s["poster"].endswith("krusgraph-sap-to-report-poster.webp")
     assert s["track"] == {"kind": "captions", "srclang": "en", "def": True, "src": "/static/media/krusgraph-sap-to-report.en.vtt"}
     assert abs(s["ratio"] - 16 / 9) < 0.01 and s["width"] > 600 and s["link"] and not s["overflow"]
-    assert s["active"] == "/docs/explore-and-check/sap-on-fabric"
+    assert s["active"] == "/docs/concepts/sap-on-fabric"
 
 
 def test_browser_the_sap_film_fits_a_phone(browser):
