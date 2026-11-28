@@ -6079,10 +6079,13 @@ def build_app(host: str = "0.0.0.0"):
     page_route("/docs", docs_html)
     # n86a: the docs' sub-pages, cut out of DOCS.md when they are rendered (which pages exist follows the same settings
     # as the text, so they are looked up per request); the same headers and policy as /docs
-    from .pages import docs_page_html, docs_pages
+    from .pages import docs_page_html, docs_pages, docs_redirects
 
     async def docs_sub(request):
         path = request.url.path
+        moved = docs_redirects().get(path.rstrip("/"))               # DS1: a page that moved answers 301 to its new address
+        if moved:
+            return RedirectResponse(moved, status_code=301)
         if not any(x["path"] == path for x in docs_pages()[1:]):
             return HTMLResponse(not_found_html(path), status_code=404, headers={"X-Robots-Tag": "noindex", **PAGE_HEADERS})
         return compressed(request, docs_page_html(path).encode("utf-8"), "text/html; charset=utf-8", {"Cache-Control": PAGE_CACHE, **PAGE_HEADERS})

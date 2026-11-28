@@ -606,15 +606,85 @@ def why_film_html() -> str:
             '    </video>\n  </div>\n</figure>')
 
 
-def why_manifesto_html(rendered: str) -> str:
-    """The manifesto as written in DOCS.md; its last paragraph (the sign-off) gets its own type and one small mark ends
-    it. The first paragraph, the belief, stays a plain <p> (site.css sizes it), so it is the page's description."""
-    paras = list(re.finditer(r"<p>(.*?)</p>", rendered, re.S))
-    if paras:
-        last = paras[-1]
-        rendered = (rendered[:last.start()] + f'<p class="mf-sign">{last.group(1)}</p>\n'
-                    f'<div class="mf-mark">{_LOGO}</div>' + rendered[last.end():])
-    return f'<div class="mf-why">\n{rendered}\n</div>'
+def _paras(rendered: str) -> list[str]:
+    return [m.group(1) for m in re.finditer(r"<p>(.*?)</p>", rendered, re.S)]
+
+
+def why_hero_html(rendered: str) -> str:
+    """DS1: the belief line, large. It stays a plain <p> (site.css sizes it), so it is the page's description."""
+    return f'<section class="mf-sec mf-hero">\n{rendered.strip()}\n</section>'
+
+
+def why_problem_html(rendered: str) -> str:
+    """DS1: the problem, then its last line set as the turn."""
+    ps = _paras(rendered)
+    body = "".join(f"<p>{x}</p>\n" for x in ps[:-1]) + f'<p class="mf-turn">{ps[-1]}</p>'
+    return f'<section class="mf-sec mf-problem">\n{body}\n</section>'
+
+
+def why_commitments_html(rendered: str) -> str:
+    """DS1: the five commitments as numbered cards: the number, the line in bold, its one sentence."""
+    items = re.findall(r"<li><strong>(.*?)</strong>\s*(.*?)</li>", rendered, re.S)
+    cards = "".join(f'<li class="mf-card"><span class="mf-num" aria-hidden="true">{n}</span>'
+                    f'<p class="mf-card-h"><strong>{h}</strong></p><p>{t.strip()}</p></li>\n'
+                    for n, (h, t) in enumerate(items, 1))
+    return f'<section class="mf-sec mf-do">\n<ol class="mf-cards">\n{cards}</ol>\n</section>'
+
+
+def why_beliefs_html(rendered: str) -> str:
+    """DS1: the two "We believe ..." sentences as a quiet pair."""
+    return ('<section class="mf-sec mf-quotes">\n' + "".join(f'<p class="mf-quote">{x}</p>\n' for x in _paras(rendered))
+            + "</section>")
+
+
+def _value_pair(head: str) -> tuple[str, str]:
+    """"Counting over assuming." → ("Counting", "over assuming."); a line without "over" is one whole line: (line, "")."""
+    if " over " in head:
+        left, right = head.split(" over ", 1)
+        return left, "over " + right
+    return head, ""
+
+
+def why_engineering_html(rendered: str) -> str:
+    """DS1: what we believe about data engineering: its heading, the line and the paragraph, then the seven values as a
+    two-sided list (what we value in ink, what it comes before muted) with each one's sentence under it."""
+    ps = _paras(rendered)
+    head = re.sub(r"</?strong>", "", ps[0])
+    items = re.findall(r"<li><strong>(.*?)</strong>\s*(.*?)</li>", rendered, re.S)
+    def row(l: str, r: str, t: str) -> str:
+        pair = (f'<p class="mf-pair"><strong class="mf-left">{l}</strong> <span class="mf-right">{r}</span></p>' if r else
+                f'<p class="mf-pair mf-whole"><strong class="mf-left">{l}</strong></p>')    # "People decide, tools prepare."
+        return f'<li>{pair}<p class="mf-because">{t.strip()}</p></li>\n'
+    rows = "".join(row(*_value_pair(h), t) for h, t in items)
+    return (f'<section class="mf-sec mf-eng">\n<h2 class="mf-h">{head}</h2>\n<p class="mf-lead">{ps[1]}</p>\n'
+            f"<p>{ps[2]}</p>\n" f'<ul class="mf-values">\n{rows}</ul>\n<p class="mf-coda">{ps[3]}</p>\n</section>')
+
+
+def why_close_html(rendered: str) -> str:
+    """DS1: the close: the line large, the Fabric line, then the sign-off and one small mark."""
+    ps = _paras(rendered)
+    return (f'<section class="mf-sec mf-close">\n<p class="mf-close-big">{ps[0]}</p>\n<p class="mf-close-sub">{ps[1]}</p>\n'
+            f'<p class="mf-sign">{ps[2]}</p>\n<div class="mf-mark">{_LOGO}</div>\n</section>')
+
+
+SIGNATURE_SVG = "/static/signature-gustav.svg"
+
+
+def why_signature_html(rendered: str) -> str:
+    """DS1: the founder's name as a signature (an inline SVG of paths in currentColor, its accessible name the name as
+    written in DOCS.md), and the caption under it."""
+    ps = _paras(rendered)
+    svg = (HERE / SIGNATURE_SVG.removeprefix("/")).read_text(encoding="utf-8").strip()
+    if f'aria-label="{ps[0]}"' not in svg:
+        raise ValueError("the signature's name and DOCS.md differ")
+    return f'<div class="mf-sig">\n{svg}\n<p class="mf-sig-cap">{ps[1]}</p>\n</div>'
+
+
+def why_figures() -> dict:
+    """The manifesto's sections on /docs/why, each a figure of DOCS.md, so the words stay in one place, as written."""
+    return {"why-hero": why_hero_html, "why-problem": why_problem_html, "why-commitments": why_commitments_html,
+            "why-beliefs": why_beliefs_html, "why-engineering": why_engineering_html, "why-close": why_close_html, "why-signature": why_signature_html,
+            "why-see": why_see_html}
 
 
 def why_see_html(rendered: str) -> str:
@@ -1672,13 +1742,40 @@ def _with_toc(rendered: str) -> str:
 # rendered, so every line of it is on exactly one page and /docs.md is the same text as before. The intro and "Why" are
 # /docs itself (the overview); each other "##" section is a group page (its heading and the lines before its first "###")
 # and each "###" a page under it. The menu labels of the groups are below; the rest of the menu is the headings.
-DOCS_GROUPS = ["Overview", "Why Krusgraph", "Why choose Krusgraph", "Get started", "Concepts", "Explore and check", "Build from a plan",
-               "Krusgraph for Fabric", "Reference", "Hosting and permissions"]
-# MF1: "Why Krusgraph", the founder's short manifesto, is the first part after the overview, at /docs/why; W8's eight
-# points follow it and keep their address. A group without an entry here is at /docs/<slug of its label>.
-DOCS_PATHS = {"Why Krusgraph": "/docs/why", "Why choose Krusgraph": "/docs/why-krusgraph"}
-# n188: "Which Krusgraph should I use?" is the docs menu's first entry (DOCS_FIRST), above the docs' own pages
+DOCS_GROUPS = ["Overview", "Why", "Get started", "How it works", "Check", "Build", "Krusgraph for Fabric",
+               "Hosting and permissions", "Tool reference", "Support", "Troubleshooting"]
+# MF1: "Why Krusgraph", the founder's short manifesto, is the first part after the overview, at /docs/why. A group without
+# an entry here is at /docs/<slug of its label>. DS1: the six menu groups (Why, Get started, How it works, Check, Build, Run
+# and reference) keep the addresses their pages had, so links already sent keep working (/docs/build-from-a-plan/...).
+DOCS_PATHS = {"Why": "/docs/why", "How it works": "/docs/concepts", "Check": "/docs/explore-and-check",
+              "Build": "/docs/build-from-a-plan", "Tool reference": "/docs/reference"}
+# DS1: a page with an address of its own instead of <group>/<slug> (W8's eight points keep /docs/why-krusgraph)
+DOCS_PAGE_PATHS = {"why-choose-krusgraph": "/docs/why-krusgraph"}
+# DS1: a menu group made of several "##" sections; the others are one section each, under their own label
+DOCS_PARTS = {"Run and reference": ["Krusgraph for Fabric", "Hosting and permissions", "Tool reference", "Support", "Troubleshooting"]}
+# n188: "Which Krusgraph should I use?" opens the docs menu; DS1: as the first entry of "Get started"
 DOCS_FIRST = ("/choose", "Which Krusgraph should I use?")
+DOCS_GROUP_LINKS = {"Get started": [DOCS_FIRST]}
+# DS1: old /docs#anchors whose heading was renamed or became a part of another page (the rest follow the headings)
+DOCS_ANCHOR_ALIASES = {"concepts": "/docs/concepts", "explore-and-check": "/docs/explore-and-check",
+                       "build-from-a-plan": "/docs/build-from-a-plan", "where-krusgraph-is-heading": "/docs/why/vision",
+                       "how-it-works": "/docs/concepts/the-short-version"}   # the page "How it works" is "The short version"
+# DS1: a group page that lists no "Pages in this part" under its text (the menu has them)
+DOCS_NO_CHILD_LIST = {"/docs/why"}
+
+
+def docs_redirects() -> dict[str, str]:
+    """DS1: docs addresses that moved, old → new (answered with 301). Every address the docs had before DS1 still answers."""
+    product = _slug(_vars()["PRODUCT"])
+    return {"/docs/concepts/how-it-works": "/docs/concepts/the-short-version",
+            "/docs/concepts/vision": "/docs/why/vision",
+            "/docs/concepts/where-krusgraph-is-heading": "/docs/why/vision#where-krusgraph-is-heading",
+            "/docs/explore-and-check/how-relationships-are-inferred": "/docs/concepts/how-relationships-are-inferred",
+            f"/docs/explore-and-check/how-{product}-uses-graph-theory": f"/docs/concepts/how-{product}-uses-graph-theory",
+            "/docs/explore-and-check/sources": "/docs/concepts/sources",
+            "/docs/explore-and-check/sap-on-fabric": "/docs/concepts/sap-on-fabric",
+            "/docs/krusgraph-for-fabric/troubleshooting": "/docs/troubleshooting",
+            "/docs/hosting-and-permissions/support": "/docs/support"}
 DOCS_MORE = [("/getting-started", "Getting started for a pilot"), ("/start", "The set-up guide"), ("/it", "For your IT department"), ("/lovable", "Use with Lovable")]
 
 
@@ -1715,7 +1812,8 @@ def docs_pages() -> list[dict]:
             parent = next(x for x in reversed(pages) if x["depth"] <= 1)
             if parent["depth"] == 0:
                 raise ValueError("a ### before the first group in DOCS.md")
-            pages.append(dict(path=parent["gpath"] + "/" + _slug(lines[0][4:]), title=head, group=parent["group"],
+            slug = _slug(lines[0][4:])
+            pages.append(dict(path=DOCS_PAGE_PATHS.get(slug, parent["gpath"] + "/" + slug), title=head, group=parent["group"],
                               gpath=parent["gpath"], depth=2, md=text))
     if gi != len(DOCS_GROUPS):
         raise ValueError(f"DOCS.md has {gi} groups, the menu {len(DOCS_GROUPS)}")
@@ -1732,21 +1830,35 @@ def docs_anchors(pages: list[dict] | None = None) -> dict[str, str]:
     overview itself has stays there (/docs#why-krusgraph is the overview's own "Why", not the page /docs/why)."""
     pages = pages or docs_pages()
     own = set(pages[0]["ids"])
-    return {i: x["path"] for x in pages if x["depth"] for i in x["ids"] if i not in own}
+    where = {i: x["path"] for x in pages if x["depth"] for i in x["ids"] if i not in own}
+    paths = {x["path"] for x in pages}
+    where.update({i: to for i, to in DOCS_ANCHOR_ALIASES.items() if to in paths and i not in own})   # an alias is chosen by hand
+    return where
 
 
 def _docs_tree(pages: list[dict], current: str) -> str:
     cur = lambda path: ' aria-current="page"' if path == current else ""
-    out = []
+    part_of = {g: part for part, gs in DOCS_PARTS.items() for g in gs}
+    out: list[str] = []
+    open_part = None
     for x in pages:
         if x["depth"] <= 1:
             kids = [y for y in pages if y["depth"] == 2 and y["gpath"] == x["path"]]
-            sub = "".join(f'<li><a href="{y["path"]}"{cur(y["path"])}>{html.escape(y["title"])}</a></li>' for y in kids)
+            links = "".join(f'<li><a href="{h}">{html.escape(t)}</a></li>' for h, t in DOCS_GROUP_LINKS.get(x["group"], []))
+            sub = links + "".join(f'<li><a href="{y["path"]}"{cur(y["path"])}>{html.escape(y["title"])}</a></li>' for y in kids)
+            part = part_of.get(x["group"])
+            if part != open_part:
+                if open_part:
+                    out.append("</ul></li>")
+                if part:
+                    out.append(f'<li class="docs-part"><span class="docs-part-h">{html.escape(part)}</span><ul>')
+                open_part = part
             out.append(f'<li><a class="docs-group" href="{x["path"]}"{cur(x["path"])}>{html.escape(x["group"])}</a>'
                        + (f"<ul>{sub}</ul>" if sub else "") + "</li>")
+    if open_part:
+        out.append("</ul></li>")
     more = "".join(f'<li><a href="{h}">{html.escape(t)}</a></li>' for h, t in DOCS_MORE)
-    first = f'<ul class="docs-tree docs-first"><li><a class="docs-group" href="{DOCS_FIRST[0]}">{html.escape(DOCS_FIRST[1])}</a></li></ul>'
-    return f'{first}<ul class="docs-tree">{"".join(out)}</ul><ul class="docs-tree docs-more">{more}</ul>'
+    return f'<ul class="docs-tree">{"".join(out)}</ul><ul class="docs-tree docs-more">{more}</ul>'
 
 
 def docs_page_html(path: str) -> str:
@@ -1761,8 +1873,7 @@ def docs_page_html(path: str) -> str:
     figs["shared-ontology-film"] = lambda _rendered: shared_film_html()      # ON3: the film on "Shared ontology"
     figs["shared-gold"] = lambda _rendered: shared_gold_figure_html()        # ON3: the shared gold, as a figure
     figs["why-film"] = lambda _rendered: why_film_html()                      # MF1: nothing until the film exists
-    figs["why-manifesto"] = why_manifesto_html                               # MF1: the manifesto's type and spacing
-    figs["why-see"] = why_see_html                                           # MF1: the calm "See it" row
+    figs.update(why_figures())                                               # MF1, DS1: the manifesto's sections
     from . import claims
     figs["what-you-can-build"] = lambda _rendered: claims.section_html()     # n194: n190's grid, moved from the home page
     from . import offering
@@ -1789,9 +1900,11 @@ def docs_page_html(path: str) -> str:
     kids = ""
     if pg["depth"] == 0:
         kids = f'<nav class="docs-children" aria-label="All docs pages">{tree}</nav>'
-    elif pg["depth"] == 1:
-        kids = ('<nav class="docs-children" aria-label="Pages in this part"><ul>' + "".join(
-            f'<li><a href="{y["path"]}">{html.escape(y["title"])}</a></li>' for y in pages if y["depth"] == 2 and y["gpath"] == path) + "</ul></nav>")
+    elif pg["depth"] == 1 and path not in DOCS_NO_CHILD_LIST:
+        items = [(h, t) for h, t in DOCS_GROUP_LINKS.get(pg["group"], [])] + [
+            (y["path"], y["title"]) for y in pages if y["depth"] == 2 and y["gpath"] == path]
+        kids = ("" if not items else '<nav class="docs-children" aria-label="Pages in this part"><ul>' + "".join(
+            f'<li><a href="{h}">{html.escape(t)}</a></li>' for h, t in items) + "</ul></nav>")
     pager = []
     if idx > 0:
         pager.append(f'<a class="docs-prev" href="{pages[idx-1]["path"]}" rel="prev"><span class="muted tiny">Previous</span> {html.escape(pages[idx-1]["title"])}</a>')

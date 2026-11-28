@@ -65,6 +65,9 @@ def test_old_anchors_have_a_page(client):
     where = json.loads(data)
     assert where == pages.docs_anchors() and len(where) > 25
     for anchor, path in where.items():
+        if anchor in pages.DOCS_ANCHOR_ALIASES and f'id="{anchor}"' not in client.get(path).text:   # DS1: a renamed group
+            assert path == pages.DOCS_ANCHOR_ALIASES[anchor] and client.get(path).status_code == 200, anchor
+            continue
         assert path.startswith("/docs/") and f'id="{anchor}"' in client.get(path).text, anchor
     for anchor in ("test-status", "first-time-errors", "databricks-draft-only", "fabric-iq-the-same-graph-as-an-ontology", "tool-reference"):
         assert anchor in where
