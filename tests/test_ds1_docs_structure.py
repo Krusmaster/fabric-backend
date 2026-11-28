@@ -167,7 +167,8 @@ def test_the_groups_hold_the_pages_asked_for():
     assert by("Why") == ["Why choose Krusgraph", "Vision"]
     assert by("How it works")[:3] == ["The short version", "How relationships are inferred", "How Krusgraph uses graph theory"]
     assert by("How it works")[3:] == ["Ontologies", "Data products", "How they connect", "Where it runs", "Sources", "SAP on Fabric"]
-    assert by("Check") == ["Review, check, then create", "Keep your review", "Fix data issues"]
+    assert by("Check") == ["Review, check, then create", "Keep your review", "Fix data issues",
+                            "Match records across systems"]
     assert by("Build") == ["One plan, five Fabric pieces", "Fabric IQ: the same graph as an ontology", "Shared ontology",
                            "Create a dbt flow", "Use with Lovable", "App access", "Databricks (Draft only)", "Two steps stay manual"]
 
