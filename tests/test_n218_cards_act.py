@@ -173,7 +173,10 @@ def _result(r) -> dict:
 
 
 def _calls(out, method="tools/call"):
-    return [m["params"] for m in out["log"] if m.get("method") == method]
+    calls = [dict(m["params"]) for m in out["log"] if m.get("method") == method]
+    if method == "tools/call":                           # SC2: every card call carries the card's mark, and only that
+        assert all(c.pop("_meta", None) == {"io.krusgraph/from": "card"} for c in calls), calls
+    return calls
 
 
 @needs_browser

@@ -298,11 +298,15 @@ def test_the_verify_card_shows_each_item_not_a_key_dump_at_390(tmp_path, scheme)
     from fabric_backend import mcp_apps_words
     d = _verify_answer()
     d["kg_card"] = mcp_apps_words.card("verify_build", d)
+    # SC2: the card draws a row per item (tests/test_sc2_verify_card.py); each differing row has its own Show details, so
+    # the answer's own details are opened by their class and read from the last "Show details" on
     out = _browse(tmp_path, mcp_apps_build.card_html(), {"result": _result(d), "scheme": scheme, "width": 390, "frame": 1400,
-                                                         "clicks": [{"css": "summary", "text": "Show details"}]})
+                                                         "clicks": [{"css": ".res-details > summary"}]})
     text = out["text"]
-    assert text.index("shop_model (semantic model): differs") < text.index("Show details")
-    det = text[text.index("Show details"):]
+    rows = text[:text.index("What to do")]
+    assert rows.index("shop_model") < rows.index("1 difference from the plan") < rows.index("shop_report") < rows.index("shop_api_2")
+    assert "Fix for shop_model: Update the model in place" in text[:text.rindex("Show details")]
+    det = text[text.rindex("Show details"):]
     assert det.index("Differs: shop_model") < det.index("Not checked: shop_report") < det.index("Verified: shop_api_2")
     assert "Fix: shop_model: Update the model in place" in det
     for dump in ("Counts: ", "Lines: ", "Result lines: ", "Sql: "):

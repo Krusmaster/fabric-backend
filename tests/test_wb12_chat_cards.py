@@ -331,7 +331,8 @@ def test_the_card_draws_the_decision_and_its_buttons(tmp_path):
     accept = [x for x in a["actions"] if x.get("decision") == "accepted"][0]
     after = _sample("decide", decisions=accept["arguments"]["plan"]["decisions"], confirmed=accept["arguments"]["plan"]["confirmed"])
     clicked = _render(tmp_path, a, clicks=[{"text": "Accept"}], reply=after)
-    calls = [m["params"] for m in clicked["log"] if m.get("method") == "tools/call"]
+    calls = [dict(m["params"]) for m in clicked["log"] if m.get("method") == "tools/call"]
+    assert all(c.pop("_meta", None) == {"io.krusgraph/from": "card"} for c in calls), calls   # SC2: the card's mark, only that
     assert calls == [{"name": "start", "arguments": accept["arguments"]}]
     assert "Your decision: accepted." in clicked["text"]
 
@@ -362,7 +363,8 @@ def test_the_card_lists_choices_disables_empty_ones_and_waits_for_the_choice(tmp
     assert waits and waits[0]["disabled"] is True and "Choose a schema first." in out["text"]
     many = {"step": "workspace", "items": [{"name": f"w{i}"} for i in range(12)]}
     searched = _render(tmp_path, sf.guide(options=many), width=390, clicks=[{"text": "w11"}], reply=sf.guide(workspace="w11"))
-    calls = [m["params"] for m in searched["log"] if m.get("method") == "tools/call"]
+    calls = [dict(m["params"]) for m in searched["log"] if m.get("method") == "tools/call"]
+    assert all(c.pop("_meta", None) == {"io.krusgraph/from": "card"} for c in calls), calls   # SC2: the card's mark, only that
     assert calls == [{"name": "start", "arguments": {"workspace": "w11"}}] and "Step 1 of 5" in searched["text"]
 
 

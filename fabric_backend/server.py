@@ -514,6 +514,8 @@ def _instrumented(fn, name: str):
             refusal = _entitlements.check(name, dry_run, (who or {}).get("tid"))
         text = (json.dumps(refusal, indent=2) if refusal is not None
                 else _billing.with_notice(_with_flow(fn, name, sig, args, kwargs), notice))
+        if refusal is None:
+            text = _card_events(name, sig, args, kwargs, text)     # SC2: what a card's buttons did, said once to Claude
         try:
             if _usage_metrics.enabled():                   # UM1: KRUSGRAPH_METRICS=off counts nothing at all
                 outcome = _usage.outcome_of(text)
@@ -523,6 +525,79 @@ def _instrumented(fn, name: str):
             pass
         return text
     return wrapper
+
+
+# SC2: a card's button runs a tool through the host (tools/call); Claude does not see that answer, and the cards may not
+# tell it (no ui/update-model-context, docs/MCP-APPS-BUTTONS.md). The cards mark their calls with this _meta key
+# (mcp_apps.CALL_JS). A create (or a check) a card ran is kept for the person (flow_state.card_did), and the next answer
+# to a call without the mark, Claude's own, says it once under `from_the_card` and forgets it.
+CARD_META = "io.krusgraph/from"
+CARD_KIND = {"create_semantic_model": "semantic model", "create_ontology": "ontology", "create_backend": "API for GraphQL",
+             "create_report": "report", "create_pipeline": "pipeline", "create_data_agent": "data agent",
+             "create_views": "views", "create_gold_views": "gold views", "create_silver_notebook": "silver notebook",
+             "create_drift_monitor": "drift monitor"}
+
+
+def _from_card(ctx) -> bool:
+    """True when the call came from a card's button: its request's _meta says {"io.krusgraph/from": "card"}."""
+    try:
+        meta = ctx.request_context.meta if ctx is not None else None
+    except Exception:  # noqa: BLE001 - no request (a direct call, a test): not a card
+        return False
+    if meta is None:
+        return False
+    return (meta.get(CARD_META) if isinstance(meta, dict) else getattr(meta, CARD_META, None)) == "card"
+
+
+def _card_lines(name: str, call: dict, data: dict) -> list[str]:
+    """What a card's call did, in short lines: a create that succeeded (or was seen by Check status), a create still
+    running, and verify_build's verdict per item. A dry run, a refusal and an error did nothing worth saying."""
+    if data.get("error"):
+        return []
+    if name == "verify_build":
+        return [f"checked {ln['item']} ({_verify.WORD_OF.get(ln.get('kind'), ln.get('kind'))}): {ln.get('state')}"
+                for ln in data.get("lines") or [] if isinstance(ln, dict) and ln.get("item")][:4]
+    if name not in CARD_KIND:
+        return []
+    what = f"{call.get('name') or data.get('name') or 'an item'} ({CARD_KIND[name]})"
+    r = data.get("result") if isinstance(data.get("result"), dict) else {}
+    if r.get("status") == "Succeeded" and (data.get("dry_run") is False or data.get("checked") is True):
+        return [f"created {what}"]
+    if isinstance(data.get("started"), dict):
+        return [f"started creating {what}, not finished when the card last looked"]
+    return []
+
+
+def _card_events(name: str, sig, args, kwargs, text: str) -> str:
+    """SC2: keep what a card's call did; or, on a call that is not a card's, add what the cards did since to the answer
+    once (`from_the_card`). Anything that fails here leaves the answer as it was."""
+    try:
+        call = sig.bind_partial(*args, **kwargs).arguments
+        ctx = call.get("ctx")
+        if _WORKLOAD_TOKENS.get() is not None:                     # the Fabric workload's own calls: no chat to tell
+            return text
+        who = _flow_who(ctx)
+        if _from_card(ctx):
+            try:
+                data = json.loads(text)
+            except (TypeError, ValueError):
+                return text
+            for line in _card_lines(name, call, data) if isinstance(data, dict) else []:
+                _flow_state.card_did(who, line)
+            return text
+        lines = _flow_state.card_take(who)
+        if not lines:
+            return text
+        said = {"note": _flow_state.card_note(lines), "events": lines}
+        try:
+            data = json.loads(text)
+        except (TypeError, ValueError):
+            data = None
+        if isinstance(data, dict):
+            return json.dumps({"from_the_card": said, **data}, indent=2, default=str)
+        return said["note"] + "\n\n" + text
+    except Exception:  # noqa: BLE001 - the answer stands
+        return text
 
 
 def _flow_who(ctx) -> str:

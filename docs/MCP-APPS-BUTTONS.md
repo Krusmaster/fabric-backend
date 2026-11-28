@@ -23,6 +23,13 @@ commit `19256f52cad5517ba8272581ed2e11d6a81273d5`, read again on 8 November 2026
 Nothing else is used: no `ui/update-model-context`, no network access from the card (no `_meta.ui.csp`, so the host's
 restrictive default applies), no storage.
 
+Since SC2 (27 November 2026) every `tools/call` a card sends carries the request metadata `_meta` `{"io.krusgraph/from":
+"card"}` (the specification's `params._meta`, with a prefixed key). Claude does not see the answer of a button's call, so
+the server keeps one line for each create or check a card ran, per signed-in person (`flow_state.card_did`, in the
+shared store when there is one), and the next answer to a call without the mark, which is Claude's own, says it once
+under `from_the_card` ("Since your last message, from the card: created shop_ontology_2 (ontology).") and forgets it.
+A host that drops `_meta` gets the cards as before, and nothing is said. Tests: `tests/test_sc2_verify_card.py`.
+
 ## The buttons, all built from the tool's own answer
 
 The server adds `actions` to the answer (with the flag on only); the card draws only what that list holds, and only for

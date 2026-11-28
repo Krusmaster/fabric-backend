@@ -210,6 +210,55 @@ def accepted_links(who: str, workspace, source, schema) -> list[dict]:
     return list((state(who, workspace, source, schema) or {}).get("confirmed") or [])
 
 
+# SC2: what a card's buttons did, for the next answer Claude reads. A button's tools/call goes from the card to the host
+# and back; Claude does not see its answer, and the cards may not tell it (no ui/update-model-context, MCP-APPS-BUTTONS.md).
+# So the server keeps, per person, a short line for each create (and each check) a card ran, and the next answer to a call
+# that did not come from a card says them once ("Since your last message, from the card: created shop_ontology_2
+# (ontology)"), then forgets them. Kept where the flows are (memory, or the shared store with BL44's ETag retry).
+CARD_MAX = 8
+CARD_HEAD = "Since your last message, from the card: "
+
+
+def _card_key(who: str) -> tuple:
+    return (who or "local", "#card", "", "")
+
+
+def card_did(who: str, said: str) -> None:
+    """Keep one line of what a card's button did for this person (the oldest go past CARD_MAX)."""
+    said = str(said or "").strip()
+    if not said:
+        return
+
+    def add(f: dict) -> None:
+        f["card"] = (list(f.get("card") or []) + [said[:200]])[-CARD_MAX:]
+    _change(_card_key(who), add)
+
+
+def card_take(who: str) -> list[str]:
+    """The lines kept for this person, oldest first, and forget them: they are said once. Only reads when none are kept."""
+    k = _card_key(who)
+    store = _shared()
+    if store is not None:
+        got = store.get("flow", _rk(k))
+        if not got or not (got[0] or {}).get("card"):
+            return []
+    else:
+        with _LOCK:
+            f = _FLOWS.get(k)
+            if not f or not f.get("card") or time.monotonic() - f["at"] > TTL:
+                return []
+
+    def take(f: dict) -> list[str]:
+        out, f["card"] = list(f.get("card") or []), []
+        return out
+    return _change(k, take) or []
+
+
+def card_note(lines: list[str]) -> str:
+    """'Since your last message, from the card: created shop_ontology_2 (ontology); checked it: verified.'"""
+    return CARD_HEAD + "; ".join(lines) + "." if lines else ""
+
+
 def clear() -> None:
     """Forget every flow kept in memory, and decide again from the environment which store to use."""
     with _LOCK:

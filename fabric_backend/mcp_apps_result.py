@@ -74,7 +74,7 @@ JS = r"""
     var lines = arr(w.lines).filter(readable).slice(0, CARD_LINES);
     var notes = arr(w.notes).filter(function (n) { return isObj(n) && readable(n.line); });
     if (!readable(w.result) && !lines.length) return null;
-    return { result: readable(w.result), lines: lines, notes: notes };
+    return { result: readable(w.result), lines: lines, notes: notes, verify: isObj(w.verify) ? w.verify : null };
   }
   function noteView(n) {
     var items = arr(n.items).filter(readable);

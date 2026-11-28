@@ -618,12 +618,134 @@ def verify_card(answer: dict) -> dict:
     open_ = [t for x, t in zip(items, short) if x.get("state") != "verified"]
     fixes = [f"Fix for {f.get('item')}: {f.get('label') or f.get('said') or f.get('ask')}" for f in answer.get("fixes") or []
              if isinstance(f, dict) and (f.get("label") or f.get("said") or f.get("ask"))]
-    out = {"title": "Verify what was built", "result": str(answer.get("summary") or "")}
+    out = {"title": "Verify what was built", "result": plain(str(answer.get("summary") or ""))}
     lines = (open_ + fixes)[:LINES_MAX]
     if lines:
         out["lines"] = [plain(x) for x in lines]
     if short:
         out["notes"] = [_note(f"Every item with its verdict ({len(short)}).", [plain(x) for x in short])]
+    out["verify"] = verify_view(items, [plain(x) for x in fixes])
+    return out
+
+
+# SC2: the verify card drawn as a picture a person reads at a glance (mcp_apps.VERIFY_JS). Every word below is taken from
+# the answer: the three states of verify_build.STATES, the counts, each difference's own sentence and each fix's label.
+VERIFY_HEAD = {"verified": "All verified", "differs": "Some differ", "not checked": "Not checked"}
+VERIFY_ITEMS_MAX = 12
+EDGES_MAX = 4
+_EDGE = re.compile(r"^Relationship (.+?) -> (.+?) (?:is (active|inactive) in the dry run and (active|inactive) in Fabric"
+                   r"|is (\S+-to-\S+) in the dry run and (\S+-to-\S+) in Fabric|filters (\S+) in the dry run and (\S+) in Fabric"
+                   r"|is in (the dry run) and not in Fabric|is in (Fabric) and not in the dry run)\.")
+_STATE_SHORT = {"run": ("never ran", "Never run", "No completed run"),
+                "refreshed": ("never refreshed", "Never refreshed", "No completed refresh"),
+                "graph": ("No graph item", "Graph not built", "Graph not found")}
+
+
+def _edge(said: str) -> dict | None:
+    """A relationship difference's sentence (verify_build.compare_model) as {from, to, aspect, plan, built}, or None."""
+    m = _EDGE.match(str(said or ""))
+    if not m:
+        return None
+    g = m.groups()
+    ends = {"from": g[0].split(".")[0], "to": g[1].split(".")[0], "said": plain(said)}
+    if g[2]:
+        return {**ends, "aspect": "active", "plan": g[2], "built": g[3]}
+    if g[4]:
+        return {**ends, "aspect": "cardinality", "plan": g[4], "built": g[5]}
+    if g[6]:
+        return {**ends, "aspect": "filter", "plan": g[6], "built": g[7]}
+    return {**ends, "aspect": "missing" if g[8] else "extra", "plan": "absent" if g[9] else "present",
+            "built": "absent" if g[8] else "present"}
+
+
+def _differs_words(x: dict) -> list[str]:
+    """What differs in one item, in a few plain words each: '2 relationships differ: active and inactive swapped'."""
+    parts, diffs = [], [d for d in x.get("differences") or [] if isinstance(d, dict)]
+    groups: dict[str, list] = {}
+    for d in diffs:
+        groups.setdefault(str(d.get("what") or ""), []).append(d)
+    for what, ds in groups.items():
+        n, edges = len(ds), [_edge(d.get("said")) for d in ds]
+        if not what:
+            parts.append(f"{n} difference{'' if n == 1 else 's'} from the plan")
+            continue
+        word = what if n == 1 else (what[:-1] + "ies" if what.endswith("y") else what + "s")
+        line = f"{n} {word} differ{'s' if n == 1 else ''}"
+        if what == "relationship" and all(e and e["aspect"] == "active" for e in edges):
+            line += ": active and inactive swapped"
+        elif what == "relationship" and all(e and e["aspect"] == "missing" for e in edges):
+            line += ": in the plan, not built"
+        parts.append(line)
+    total = int(x.get("differences_total") or len(diffs))
+    if total > len(diffs):
+        parts.append(f"and {total - len(diffs)} more")
+    figs = [f for f in x.get("figures") or [] if isinstance(f, dict) and f.get("state") == "differs"]
+    if figs:
+        parts.append(f"{len(figs)} figure{'' if len(figs) == 1 else 's'} differ{'s' if len(figs) == 1 else ''} from the rows")
+    if x.get("doubled_totals"):
+        n = len(x["doubled_totals"])
+        parts.append(f"{n} doubled total{'' if n == 1 else 's'}")
+    sc = x.get("state_check") if isinstance(x.get("state_check"), dict) else {}
+    if sc.get("state") == "differs":
+        cue, never, other = _STATE_SHORT.get(str(sc.get("check")), ("", "", ""))
+        head = (never if cue and cue in str(sc.get("said")) else other) or str(sc.get("said") or "").split(":")[0].split(".")[0]
+        fix = (sc.get("fix") or {}).get("label") if isinstance(sc.get("fix"), dict) else None
+        parts.append(head + (f" — {fix[:1].lower() + fix[1:]}, then check again" if fix else ""))
+    return parts
+
+
+def _not_checked_words(x: dict) -> str:
+    """Why an item was not checked, from its own sentence: the reason after 'not checked'."""
+    said = str(x.get("said") or "")
+    said = said.split("): not checked. ", 1)[-1]
+    said = re.sub(r"^Definition not checked: ", "", said)
+    reason = said.split(". ")[0].rstrip(".")
+    reason = reason if len(reason) <= 140 else reason[:139] + "…"
+    return "Not checked: " + (reason[:1].lower() + reason[1:] if reason else "no reason given")
+
+
+def verify_view(items: list[dict], fixes: list[str]) -> dict:
+    """SC2: {state, head, counts, items: [{name, kind, word, state, line, plan?, built?}], fixes} for the verify card's
+    picture. `line` is one plain line per item; a differing item carries what the plan had and what Fabric has
+    (relationships as edges, the rest as the answer's sentences) and the counts compared, as numbers."""
+    from .verify_build import WORD_OF
+    counts = {s: sum(1 for x in items if x.get("state") == s) for s in VERIFY_HEAD}
+    state = "differs" if counts["differs"] else "verified" if items and counts["verified"] == len(items) else "not checked"
+    head = VERIFY_HEAD[state] if not (state == "not checked" and counts["verified"]) else "Not all checked"
+    rows = []
+    for x in items[:VERIFY_ITEMS_MAX]:
+        st, kind = str(x.get("state")), str(x.get("kind") or "")
+        row = {"name": str(x.get("item") or ""), "kind": kind, "word": WORD_OF.get(kind, kind.replace("_", " ")), "state": st}
+        if st == "verified":
+            row["line"] = "Matches the plan"
+        elif st == "differs":
+            row["line"] = plain("; ".join(_differs_words(x)) or "Differs from the plan")
+            diffs = [d for d in x.get("differences") or [] if isinstance(d, dict)]
+            edges = [e for e in (_edge(d.get("said")) for d in diffs) if e][:EDGES_MAX]
+            if edges:
+                row["edges"] = edges
+            rest = [plain(d["said"]) for d in diffs if isinstance(d.get("said"), str) and not _edge(d["said"])]
+            rest += [plain(f["said"]) for f in x.get("figures") or [] if isinstance(f, dict) and f.get("state") == "differs" and f.get("said")]
+            rest += [plain(d["said"]) for d in x.get("doubled_totals") or [] if isinstance(d, dict) and d.get("said")]
+            sc = x.get("state_check") if isinstance(x.get("state_check"), dict) else {}
+            if sc.get("state") == "differs" and sc.get("said"):
+                rest.append(plain(sc["said"]))
+            if rest:
+                row["rest"] = rest[:EDGES_MAX + 2]
+            checked = x.get("checked") if isinstance(x.get("checked"), dict) else {}
+            nums = [[k.replace("_", " "), v] for k, v in checked.items() if isinstance(v, int) and v]
+            if diffs:
+                nums.append(["differences", int(x.get("differences_total") or len(diffs))])
+            row["numbers"] = nums[:6]
+        else:
+            row["line"] = plain(_not_checked_words(x))
+        rows.append(row)
+    out = {"state": state, "head": head, "counts": {**{k.replace(" ", "_"): v for k, v in counts.items()}, "items": len(items)},
+           "items": rows}
+    if len(items) > VERIFY_ITEMS_MAX:
+        out["more"] = len(items) - VERIFY_ITEMS_MAX
+    if fixes:
+        out["fixes"] = fixes[:LINES_MAX]
     return out
 
 
