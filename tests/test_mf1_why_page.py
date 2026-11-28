@@ -33,7 +33,7 @@ def _text(html: str) -> str:
 def test_the_page_renders_first_after_the_overview(client):
     ps = pages.docs_pages()
     assert [x["path"] for x in ps[:3]] == ["/docs", PAGE, "/docs/why-krusgraph"]
-    assert pages.DOCS_GROUPS[1] == "Why Krusgraph"
+    assert pages.DOCS_GROUPS[1] == "Why"                            # DS1: the menu group "Why"; the page keeps its title
     r = client.get(PAGE)
     assert r.status_code == 200
     assert '<h1 id="why-krusgraph">Why Krusgraph</h1>' in r.text
@@ -44,7 +44,8 @@ def test_the_page_renders_first_after_the_overview(client):
 
 def test_the_belief_line_count_first_and_the_text_as_written(client):
     art = _article(client.get(PAGE).text)
-    assert f'<div class="mf-why">\n<p><strong>{_html.escape(BELIEF, quote=False)}</strong></p>' in art   # first: site.css sizes it
+    # DS1: the belief is the first section, a plain <p> that site.css sizes (and the page's description)
+    assert f'<section class="mf-sec mf-hero">\n<p><strong>{_html.escape(BELIEF, quote=False)}</strong></p>' in art
     assert '<p class="mf-sign"><strong>Krusgraph. Count first.</strong></p>' in art
     t = _text(art)
     for s in ("We think that is the wrong order.", "So we do it the other way around.",
@@ -74,7 +75,7 @@ def test_the_see_it_row_links_three_pages_that_answer(client):
 def test_linked_from_the_docs_index_and_the_menu(client):
     index = client.get("/docs").text
     kids = re.search(r'<nav class="docs-children" aria-label="All docs pages">(.*?)</nav>', index, re.S).group(1)
-    assert f'<a class="docs-group" href="{PAGE}">Why Krusgraph</a>' in kids
+    assert f'<a class="docs-group" href="{PAGE}">Why</a>' in kids              # DS1: the group "Why" opens on it
     assert f'<a href="{PAGE}">Why Krusgraph</a>' in _article(index)        # the overview's own "Why" links it
     menu = re.search(r'<nav class="docs-menu"[^>]*>(.*?)</nav>', index, re.S).group(1)
     hrefs = re.findall(r'href="([^"#]+)"', menu)

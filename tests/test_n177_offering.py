@@ -160,7 +160,8 @@ def test_docs_have_krusgraph_in_fabric_with_its_pages(client):
     assert paths == ["/docs/krusgraph-for-fabric", "/docs/krusgraph-for-fabric/what-the-krusgraph-model-item-does",
                      "/docs/krusgraph-for-fabric/next-steps-with-other-workloads",   # WB6: the Hub's third Get started card
                      "/docs/krusgraph-for-fabric/add-it-to-your-fabric", "/docs/krusgraph-for-fabric/permissions-in-plain-words",
-                     "/docs/krusgraph-for-fabric/network-hosts", "/docs/krusgraph-for-fabric/troubleshooting"]
+                     "/docs/krusgraph-for-fabric/network-hosts"]
+    paths.append("/docs/troubleshooting")              # DS1: its own section, under "Run and reference" with the group
     group = _plain(client.get(paths[0]).text)
     assert "uses no AI model" in group and "Workload Hub is planned and not available" in group
     add = client.get(paths[3]).text

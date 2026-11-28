@@ -15,7 +15,8 @@ from starlette.testclient import TestClient
 
 from fabric_backend import heading_sketch, server
 
-PATH = "/docs/concepts/where-krusgraph-is-heading"
+PATH = "/docs/why/vision"                       # DS1: "Where Krusgraph is heading" is a part of Vision, in the group "Why"
+OLD = "/docs/concepts/where-krusgraph-is-heading"        # its old address answers 301 to that part
 TITLE = "Where Krusgraph is heading"
 STATUS = ("This is a sketch of where we are heading, not what ships today. Today every step is rules; whether Ask, Run "
           "and Use get an optional model is being decided. Data stays in your Fabric either way.")
@@ -55,11 +56,14 @@ def test_the_checked_in_sketch_is_what_the_module_draws():
 def test_the_page_renders_with_its_title_and_the_status_near_the_top(client):
     r = client.get(PATH)
     assert r.status_code == 200
-    assert f'<h1 id="where-krusgraph-is-heading">{TITLE}</h1>' in r.text
-    assert f"<title>{TITLE} — Krusgraph docs</title>" in r.text
+    assert f'<h2 id="where-krusgraph-is-heading">{TITLE}</h2>' in r.text                 # DS1: a part of Vision
+    assert "<title>Vision — Krusgraph docs</title>" in r.text
+    assert f'<a href="#where-krusgraph-is-heading">{TITLE}</a>' in r.text                # in "On this page"
     body = _text(_article(r.text))
     assert STATUS in body
-    assert body.index(STATUS) < body.index("Your Fabric tenant") < body.index("Three kinds of helper")   # before the sketch
+    assert body.index(TITLE) < body.index(STATUS) < body.index("Your Fabric tenant") < body.index("Three kinds of helper")   # before the sketch
+    old = client.get(OLD, follow_redirects=False)
+    assert old.status_code == 301 and old.headers["location"] == f"{PATH}#where-krusgraph-is-heading"
 
 
 def test_the_page_says_what_the_brief_asks(client):
@@ -91,17 +95,18 @@ def test_the_sketch_is_inline_and_described(client):
 @pytest.mark.parametrize("where", ["/docs", PATH])
 def test_the_page_is_in_the_docs_menu(client, where):
     menu = re.search(r'<nav class="docs-menu" aria-label="Docs">(.*?)</nav>', client.get(where).text, re.S).group(1)
-    assert f'<a href="{PATH}"' in menu and TITLE in menu
+    assert f'<a href="{PATH}"' in menu and "Vision" in menu
 
 
-@pytest.mark.parametrize("where", ["/docs", "/docs/get-started", "/docs/concepts/vision"])
+@pytest.mark.parametrize("where", ["/docs", "/docs/get-started", PATH])
 def test_the_docs_start_and_the_start_path_link_it(client, where):
-    assert f'href="{PATH}#where-krusgraph-is-heading"' in _article(client.get(where).text), where
+    href = "#where-krusgraph-is-heading" if where == PATH else f"{PATH}#where-krusgraph-is-heading"   # on Vision: its own part
+    assert f'href="{href}"' in _article(client.get(where).text), where
 
 
 def test_the_markdown_twin_has_it(client):
     md = client.get("/docs.md").text
-    assert f"### {TITLE}" in md and STATUS in md
+    assert f"#### {TITLE}" in md and STATUS in md
 
 
 @pytest.mark.parametrize("where", [PATH, "/docs.md"])
@@ -110,7 +115,7 @@ def test_no_forbidden_words(client, where):
     if where == PATH:
         h = _article(h)
     else:
-        h = h[h.index(f"### {TITLE}"):]
+        h = h[h.index(f"#### {TITLE}"):]
         h = h[:h.index("\n## ")]
     low = _text(h).lower()
     for s in FORBIDDEN:

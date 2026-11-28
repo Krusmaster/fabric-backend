@@ -198,6 +198,8 @@ def test_docs_menu_starts_with_which_krusgraph(client):
         html = client.get(path).text
         for nav in ('<nav class="docs-menu" aria-label="Docs">', '<details class="docs-menu-m"><summary>Docs menu</summary><nav aria-label="Docs">'):
             tree = html[html.index(nav) + len(nav):]
-            first = re.search(r'<a [^>]*href="([^"]+)"[^>]*>(.*?)</a>', tree)
-            assert first.groups() == ("/choose", "Which Krusgraph should I use?"), (path, nav)
+            # DS1: it is the first entry of "Get started", right under the group's own link
+            gs = tree[tree.index('<a class="docs-group" href="/docs/get-started"'):]
+            first = re.findall(r'<a [^>]*href="([^"]+)"[^>]*>(.*?)</a>', gs)[1]
+            assert first == ("/choose", "Which Krusgraph should I use?"), (path, nav)
             assert tree[:tree.index("</nav>")].count('href="/choose"') == 1

@@ -17,8 +17,8 @@ import re
 from functools import lru_cache
 
 BASE = "/docs/concepts"
-PAGES = {"how-it-works": BASE + "/how-it-works", "ontologies": BASE + "/ontologies", "data-products": BASE + "/data-products",
-         "how-they-connect": BASE + "/how-they-connect", "where-it-runs": BASE + "/where-it-runs", "vision": BASE + "/vision"}
+PAGES = {"how-it-works": BASE + "/the-short-version", "ontologies": BASE + "/ontologies", "data-products": BASE + "/data-products",
+         "how-they-connect": BASE + "/how-they-connect", "where-it-runs": BASE + "/where-it-runs", "vision": "/docs/why/vision"}   # DS1: "How it works" opens with "The short version"; Vision is under "Why"
 
 TIPS = {
     "ontology": {"label": "What is an ontology?", "href": PAGES["ontologies"], "more": "How ontologies work",
