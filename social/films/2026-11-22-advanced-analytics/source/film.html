@@ -1,0 +1,142 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:F;src:url(../../../../fabric_backend/static/fonts/fredoka-var.woff2);font-weight:300 700}
+@font-face{font-family:N;src:url(../../../../fabric_backend/static/fonts/nunito-var.woff2);font-weight:200 1000}
+:root{--bg:#1d1815;--ink:#f5ede7;--muted:#b9aca3;--or:#f2735c;--gr:#9db8a0;--pu:#a99ad8;--card:#fbf8f5;--dark:#1b1b1f}
+html,body{margin:0;width:1080px;height:1920px;overflow:hidden;background:var(--bg)}
+#stage{position:relative;width:1080px;height:1920px;overflow:hidden;background:var(--bg);font-family:N;color:var(--ink)}
+.glow{position:absolute;border-radius:50%;filter:blur(120px)}
+.h{position:absolute;left:60px;width:960px;text-align:center;font-family:F;font-weight:600;letter-spacing:-1px;line-height:1.05}
+.h1{font-size:112px}
+.or{color:var(--or)} .gr{color:var(--gr)}
+.done{position:absolute;left:170px;width:740px;height:118px;border-radius:30px;background:#2a2320;border:2px solid #3b312b;display:flex;align-items:center;gap:28px;padding:0 34px;box-sizing:border-box;font:800 46px N;color:#e9ded6}
+.tick{width:62px;height:62px;border-radius:50%;border:4px solid #5a4b42;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex:none}
+.tick.on{background:var(--gr);border-color:var(--gr)}
+.stg{position:absolute;left:150px;width:780px;height:150px;border-radius:36px;background:var(--card);color:var(--dark);display:flex;align-items:center;gap:24px;padding:0 36px;box-sizing:border-box;box-shadow:0 30px 80px rgba(0,0,0,.45);font:800 48px N}
+.stg .n{width:76px;height:76px;border-radius:50%;background:#f2e9e4;color:#a0938b;font:800 40px N;display:flex;align-items:center;justify-content:center;flex:none}
+.stg .n.on{background:var(--gr);color:#fff}
+.arrow{position:absolute;left:520px;width:40px;height:60px}
+.out{position:absolute;left:130px;width:820px;height:230px;border-radius:40px;background:var(--card);color:var(--dark);box-shadow:0 30px 80px rgba(0,0,0,.45);display:flex;align-items:center;gap:36px;padding:0 44px;box-sizing:border-box}
+.out .ic{width:140px;height:140px;border-radius:32px;display:flex;align-items:center;justify-content:center;flex:none}
+.out .t{font:800 50px N;line-height:1.1}
+.out .s{font:700 32px N;color:#6f655f;margin-top:8px}
+.mascot{position:absolute;width:170px;height:170px}
+.pv{display:inline-block;vertical-align:middle;margin-left:14px;padding:6px 18px;border-radius:999px;background:#3a302b;color:#cbbfb7;font:800 30px N;letter-spacing:.5px}
+.fine{position:absolute;left:60px;width:960px;text-align:center;font:700 28px N;color:#8f827a}
+</style></head>
+<body><div id="stage">
+  <div class="glow" id="g1" style="width:900px;height:900px;background:#f2735c"></div>
+  <div class="glow" id="g2" style="width:800px;height:800px;background:#a99ad8"></div>
+  <div class="glow" id="g3" style="width:700px;height:700px;background:#9db8a0"></div>
+
+  <!-- S1: your data is ready -->
+  <div class="h h1" id="s1a" style="top:330px">Your data in<br><img src="../../../../workload/Workload/node_modules/@fabric-msft/svg-icons/svg/fabric_48_color.svg" style="width:96px;height:96px;vertical-align:-8px;margin-right:19px">Fabric<br>is <span class="gr">ready.</span></div>
+  <div class="h" id="s1b" style="top:730px;font-size:60px;color:var(--muted)">The data engineering is done.</div>
+  <div id="dones"></div>
+
+  <!-- S2: leverage -->
+  <div class="h" id="s2a" style="top:620px;font-size:100px">Let's put it<br>to work with</div>
+  <div class="h" id="s2b" style="top:860px;font-size:124px"><span class="or">advanced<br>analytics!</span></div>
+
+  <!-- S3: three stages -->
+  <div class="h" id="s3a" style="top:330px;font-size:84px">Three steps, by rules.</div>
+  <div class="stg" id="st1" style="top:560px"><div class="n">1</div><img src="../../../../workload/Workload/node_modules/@fabric-msft/svg-icons/svg/notebook_48_item.svg" style="width:64px;height:64px"><div>Feature table</div></div>
+  <svg class="arrow" id="ar1" style="top:722px" viewBox="0 0 40 60"><path d="M20 4v44M8 38l12 14 12-14" stroke="#9db8a0" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <div class="stg" id="st2" style="top:795px"><div class="n">2</div><img src="../../../../workload/Workload/node_modules/@fabric-msft/svg-icons/svg/experiments_48_item.svg" style="width:64px;height:64px"><div>Model</div></div>
+  <svg class="arrow" id="ar2" style="top:957px" viewBox="0 0 40 60"><path d="M20 4v44M8 38l12 14 12-14" stroke="#9db8a0" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <div class="stg" id="st3" style="top:1030px"><div class="n">3</div><img src="../../../../workload/Workload/node_modules/@fabric-msft/svg-icons/svg/lakehouse_48_item.svg" style="width:64px;height:64px"><div>Predictions in gold</div></div>
+
+  <!-- S4: boom -->
+  <div class="h" id="s4a" style="top:300px;font-size:150px"><span class="or">Boom!</span></div>
+  <div class="out" id="o1" style="top:560px">
+    <div class="ic" style="background:#fde9e4"><svg width="104" height="104" viewBox="0 0 48 48"><path id="fc" d="M4 36 L12 30 L18 33 L25 22 L31 25 L38 14 L44 10" stroke="#f2735c" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="70" stroke-dashoffset="70"/><path d="M4 42h40" stroke="#e7b3a7" stroke-width="2"/></svg></div>
+    <div><div class="t">Weekly orders forecast</div><div class="s">backtested on 8 weeks</div></div></div>
+  <div class="out" id="o2" style="top:830px">
+    <div class="ic" style="background:#eeeaf8"><svg width="104" height="104" viewBox="0 0 48 48"><g id="seg"><circle cx="12" cy="14" r="4" fill="#7d6cc0"/><circle cx="18" cy="11" r="3.4" fill="#7d6cc0"/><circle cx="15" cy="19" r="3.4" fill="#7d6cc0"/><circle cx="34" cy="16" r="4" fill="#9db8a0"/><circle cx="38" cy="22" r="3.4" fill="#9db8a0"/><circle cx="31" cy="23" r="3.4" fill="#9db8a0"/><circle cx="20" cy="35" r="4" fill="#f2735c"/><circle cx="27" cy="38" r="3.4" fill="#f2735c"/><circle cx="23" cy="30" r="3.4" fill="#f2735c"/></g></svg></div>
+    <div><div class="t">Customer segments</div><div class="s">grouped by how they buy</div></div></div>
+  <div class="out" id="o3" style="top:1100px">
+    <div class="ic" style="background:#e7efe8"><svg width="104" height="104" viewBox="0 0 48 48"><rect class="bar" x="6" y="8" height="5" rx="2.5" fill="#5f8f68" data-w="36"/><rect class="bar" x="6" y="17" height="5" rx="2.5" fill="#5f8f68" data-w="28"/><rect class="bar" x="6" y="26" height="5" rx="2.5" fill="#9db8a0" data-w="21"/><rect class="bar" x="6" y="35" height="5" rx="2.5" fill="#9db8a0" data-w="13"/></svg></div>
+    <div><div class="t">Top 10 drivers</div><div class="s">what moves your orders</div></div></div>
+
+  <!-- S5: heartbeat -->
+  <div class="h" id="s5a" style="top:560px;font-size:96px">With Krusgraph<br>it's done in a</div>
+  <div class="h" id="s5b" style="top:800px;font-size:132px"><span class="or">heartbeat.</span></div>
+  <svg id="ecg" style="position:absolute;left:90px;top:1010px" width="900" height="260" viewBox="0 0 900 260"><path id="ecgp" d="M0 150 H250 L285 150 L310 60 L340 230 L370 20 L400 190 L425 150 H560 L590 150 L610 110 L630 150 H900" stroke="#f2735c" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="1500" stroke-dashoffset="1500"/></svg>
+
+  <!-- S6: end -->
+  <div style="position:absolute;left:390px;top:400px;width:300px;height:300px" id="logo"><img src="../../../../fabric_backend/static/favicon.svg" width="300" height="300" style="border-radius:60px"></div>
+  <div class="h" id="s6a" style="top:760px;font-size:120px">Krusgraph</div>
+  <div class="h" id="s6b" style="top:905px;font-size:52px;color:var(--ink)">Workload on</div>
+  <div class="h" id="s6e" style="top:975px;font-size:60px;color:var(--ink);white-space:nowrap"><img src="../../../../workload/Workload/node_modules/@fabric-msft/svg-icons/svg/fabric_48_color.svg" style="width:64px;height:64px;vertical-align:-12px;margin-right:12px">Microsoft Fabric<span class="pv" style="font-size:26px;padding:4px 14px">preview</span></div>
+  <div class="h" id="s6c" style="top:1080px;font-size:60px;color:var(--gr)">krusgraph.com</div>
+  <div class="fine" id="fine" style="top:1440px">Demo on synthetic data. You run each notebook in your own workspace.<br>Krusgraph is independent and not affiliated with Microsoft.</div>
+
+  <img class="mascot" id="m1" src="../../../../fabric_backend/static/mascots/builder.png">
+  <img class="mascot" id="m2" src="../../../../fabric_backend/static/mascots/onto.png">
+  <img class="mascot" id="m3" src="../../../../fabric_backend/static/mascots/thinker.png">
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
+const lin=(t,a,b)=>clamp((t-a)/(b-a));
+const eo=x=>1-Math.pow(1-x,3);
+const back=x=>{const c=1.70158,c3=c+1;return 1+c3*Math.pow(x-1,3)+c*Math.pow(x-1,2)};
+function win(t,a,b,fi=.35,fo=.3){return Math.min(eo(lin(t,a,a+fi)),1-lin(t,b-fo,b))}
+function set(el,o,tx=0,ty=0,s=1){el.style.opacity=o;el.style.transform=`translate(${tx}px,${ty}px) scale(${s})`}
+const dn=['Pipeline','Semantic model','Data products'];const dni=['pipeline','semantic_model','lakehouse'];
+const dones=dn.map((n,i)=>{const d=document.createElement('div');d.className='done';d.style.top=(880+i*150)+'px';
+ d.innerHTML=`<div class="tick"><svg width="34" height="34" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#1d1815" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div><img src="../../../../workload/Workload/node_modules/@fabric-msft/svg-icons/svg/${dni[i]}_48_item.svg" style="width:56px;height:56px"><div>${n}</div>`;$('dones').appendChild(d);return d});
+const T=[0,3.2,6.0,10.4,13.8,16.4,19.5];
+window.DUR=19.5;
+window.render=function(t){
+ const g=(el,x,y,o)=>{el.style.left=x+'px';el.style.top=y+'px';el.style.opacity=o};
+ g($('g1'),-100+120*Math.sin(t*.5),300+80*Math.cos(t*.4),.28);
+ g($('g2'),400+100*Math.cos(t*.45),700+120*Math.sin(t*.35),.22);
+ g($('g3'),100+140*Math.sin(t*.3+1),1100+60*Math.cos(t*.5),.16);
+ // S1
+ set($('s1a'),win(t,0.1,T[1]),0,30*(1-eo(lin(t,.1,.6))));
+ set($('s1b'),win(t,0.6,T[1]),0,30*(1-eo(lin(t,.6,1))));
+ dones.forEach((d,i)=>{const a=.9+i*.3;set(d,Math.min(eo(lin(t,a,a+.3)),1-lin(t,T[1]-.3,T[1])),40*(1-eo(lin(t,a,a+.35))),0);
+   const on=t>a+.35;const tk=d.firstChild;tk.className='tick'+(on?' on':'');tk.style.transform=`scale(${on?back(lin(t,a+.35,a+.65)):1})`});
+ // S2
+ set($('s2a'),win(t,T[1],T[2]),0,30*(1-eo(lin(t,T[1],T[1]+.4))));
+ const bp=back(lin(t,T[1]+.6,T[1]+1.1)); set($('s2b'),win(t,T[1]+.6,T[2]),0,0,.6+.4*bp);
+ // S3
+ set($('s3a'),win(t,T[2],T[3]),0,30*(1-eo(lin(t,T[2],T[2]+.4))));
+ ['st1','st2','st3'].forEach((id,i)=>{const a=T[2]+.3+i*.25;const p=back(lin(t,a,a+.45));
+   set($(id),Math.min(lin(t,a,a+.2),1-lin(t,T[3]-.3,T[3])),0,60*(1-p),.9+.1*p);
+   const on=t>T[2]+1.6+i*.8;const n=$(id).firstChild;n.className='n'+(on?' on':'');n.textContent=on?'✓':String(i+1);
+   n.style.transform=`scale(${on?back(lin(t,T[2]+1.6+i*.8,T[2]+1.9+i*.8)):1})`});
+ ['ar1','ar2'].forEach((id,i)=>{const a=T[2]+1.6+i*.8;set($(id),Math.min(lin(t,a,a+.3),1-lin(t,T[3]-.3,T[3])),0,-10*(1-eo(lin(t,a,a+.3))))});
+ // S4
+ const kb=back(lin(t,T[3],T[3]+.45)); set($('s4a'),win(t,T[3],T[4]),0,0,.4+.6*kb);
+ ['o1','o2','o3'].forEach((id,i)=>{const a=T[3]+.3+i*.35;const p=back(lin(t,a,a+.5));
+   set($(id),Math.min(lin(t,a,a+.2),1-lin(t,T[4]-.3,T[4])),0,120*(1-p),.8+.2*p)});
+ $('fc').setAttribute('stroke-dashoffset',70*(1-eo(lin(t,T[3]+.8,T[3]+1.8))));
+ const sp=eo(lin(t,T[3]+1.1,T[3]+1.8)); $('seg').style.transform=`scale(${.6+.4*sp})`;$('seg').style.transformOrigin='24px 24px';
+ document.querySelectorAll('.bar').forEach((b,i)=>b.setAttribute('width',b.dataset.w*eo(lin(t,T[3]+1.4+i*.1,T[3]+2.0+i*.1))));
+ // S5
+ set($('s5a'),win(t,T[4],T[5]),0,30*(1-eo(lin(t,T[4],T[4]+.4))));
+ const hb=1+.08*Math.max(0,Math.sin((t-T[4]-.5)*Math.PI*2.2))*(t>T[4]+.5?1:0);
+ set($('s5b'),win(t,T[4]+.4,T[5]),0,0,hb);
+ $('ecg').style.opacity=win(t,T[4]+.3,T[5]);
+ $('ecgp').setAttribute('stroke-dashoffset',1500*(1-lin(t,T[4]+.4,T[4]+1.6)));
+ // S6
+ const e=T[5]; const lp=back(lin(t,e,e+.5));
+ set($('logo'),win(t,e,T[6]+1,.3,.01),0,0,.5+.5*lp);
+ set($('s6a'),win(t,e+.3,T[6]+1,.35,.01),0,30*(1-eo(lin(t,e+.3,e+.7))));
+ set($('s6b'),win(t,e+.6,T[6]+1,.35,.01),0,30*(1-eo(lin(t,e+.6,e+1))));
+ set($('s6c'),win(t,e+.9,T[6]+1,.35,.01));
+ set($('s6e'),win(t,e+.75,T[6]+1,.35,.01),0,30*(1-eo(lin(t,e+.75,e+1.15))));
+ set($('fine'),win(t,e+1.0,T[6]+1,.35,.01));
+ const m=[$('m1'),$('m2'),$('m3')];
+ const place=(el,x,y,o,s=1)=>{el.style.left=x+'px';el.style.top=y+'px';el.style.opacity=o;el.style.transform=`scale(${s})`};
+ const hop=k=>Math.abs(Math.sin(t*5+k))*-22;
+ if(t<T[2]){ const mo=win(t,T[1]+.9,T[2]); [150,455,760].forEach((x,i)=>place(m[i],x,1200+hop(i),mo)); }
+ else if(t<T[3]){ const mo=win(t,T[2]+.3,T[3]); place(m[2],455,1290+hop(2)*.5,mo); place(m[0],-300,0,0); place(m[1],-300,0,0); }
+ else if(t<T[5]){ for(const x of m) place(x,-300,0,0); }
+ else { const mo=win(t,e+1.1,T[6]+1,.3,.01);
+   [150,455,760].forEach((x,i)=>{const p=back(lin(t,e+1.1+i*.12,e+1.55+i*.12)); place(m[i],x,1200+hop(i)*.5,Math.min(mo,lin(t,e+1.1+i*.12,e+1.3+i*.12)),.5+.5*p)}); }
+};
+</script></body></html>

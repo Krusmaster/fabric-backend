@@ -1,0 +1,163 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:F;src:url(../../../../fabric_backend/static/fonts/fredoka-var.woff2);font-weight:300 700}
+@font-face{font-family:N;src:url(../../../../fabric_backend/static/fonts/nunito-var.woff2);font-weight:200 1000}
+:root{--bg:#1d1815;--ink:#f5ede7;--muted:#b9aca3;--or:#f2735c;--gr:#9db8a0;--pu:#a99ad8;--card:#fbf8f5;--dark:#1b1b1f}
+html,body{margin:0;width:1080px;height:1920px;overflow:hidden;background:var(--bg)}
+#stage{position:relative;width:1080px;height:1920px;overflow:hidden;background:var(--bg);font-family:N;color:var(--ink)}
+.abs{position:absolute}
+.glow{position:absolute;border-radius:50%;filter:blur(120px);opacity:.0}
+.h{position:absolute;left:60px;width:960px;text-align:center;font-family:F;font-weight:600;letter-spacing:-1px;line-height:1.05}
+.h1{font-size:112px}
+.or{color:var(--or)}
+.chip{position:absolute;padding:14px 26px;border-radius:18px;background:#2c2521;border:2px solid #3d332d;font:700 34px N;color:#d9ccc3;white-space:nowrap}
+.prompt{position:absolute;left:110px;width:860px;height:150px;border-radius:44px;background:#fbf8f5;box-shadow:0 30px 80px rgba(0,0,0,.45),0 0 0 6px rgba(242,115,92,.0);display:flex;align-items:center;padding:0 40px;box-sizing:border-box;font:700 50px N;color:var(--dark)}
+.prompt .ph{color:#9a8f88}
+.caret{display:inline-block;width:5px;height:56px;background:var(--or);margin-left:4px;vertical-align:middle}
+.send{position:absolute;right:22px;top:22px;width:106px;height:106px;border-radius:50%;background:var(--or);display:flex;align-items:center;justify-content:center}
+.step{position:absolute;left:170px;width:740px;height:118px;border-radius:30px;background:#2a2320;border:2px solid #3b312b;display:flex;align-items:center;gap:28px;padding:0 34px;box-sizing:border-box;font:800 46px N;color:#e9ded6}
+.tick{width:62px;height:62px;border-radius:50%;border:4px solid #5a4b42;box-sizing:border-box;display:flex;align-items:center;justify-content:center}
+.tick.on{background:var(--gr);border-color:var(--gr)}
+.out{position:absolute;left:130px;width:820px;height:230px;border-radius:40px;background:var(--card);color:var(--dark);box-shadow:0 30px 80px rgba(0,0,0,.45);display:flex;align-items:center;gap:36px;padding:0 44px;box-sizing:border-box}
+.out .ic{width:140px;height:140px;border-radius:32px;display:flex;align-items:center;justify-content:center;flex:none}
+.out .t{font:800 50px N;line-height:1.1}
+.out .s{font:700 32px N;color:#6f655f;margin-top:8px}
+.mascot{position:absolute;width:170px;height:170px;image-rendering:auto}
+.ripple{position:absolute;width:40px;height:40px;border-radius:50%;border:6px solid rgba(242,115,92,.9);opacity:0}
+.fine{position:absolute;left:40px;width:1000px;text-align:center;font:700 26px N;color:#8f827a}
+.pv{display:inline-block;vertical-align:middle;margin-left:10px;padding:4px 14px;border-radius:999px;background:#ece6e1;color:#7a6e67;font:800 24px N;letter-spacing:.5px}
+.done{position:absolute;left:0;width:1080px;text-align:center;font:800 40px N;color:var(--gr)}
+</style></head>
+<body><div id="stage">
+  <div class="glow" id="g1" style="width:900px;height:900px;background:#f2735c"></div>
+  <div class="glow" id="g2" style="width:800px;height:800px;background:#a99ad8"></div>
+  <div class="glow" id="g3" style="width:700px;height:700px;background:#9db8a0"></div>
+
+  <!-- S1 -->
+  <div class="h h1" id="s1a" style="top:500px">Your data is in<br><img src="../../../../workload/Workload/node_modules/@fabric-msft/svg-icons/svg/fabric_48_color.svg" style="width:96px;height:96px;vertical-align:-8px;margin-right:19px"><span class="or">Fabric.</span></div>
+  <div id="chips"></div>
+
+  <!-- S2 -->
+  <div class="h h1" id="s2a" style="top:640px">Data products?</div>
+  <div class="h" id="s2b" style="top:800px;font-size:84px;color:var(--muted)">Who owns them?<br>Can you <span class="or">trust them?</span></div>
+
+  <!-- S3 -->
+  <div class="h h1" id="s3a" style="top:470px">Just ask.</div>
+  <div class="prompt" id="prompt" style="top:820px"><span id="typed"></span><span class="caret" id="caret"></span>
+    <div class="send" id="send"><svg width="54" height="54" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+
+  <!-- S4 -->
+  <div class="h h1" id="s4a" style="top:330px">A few taps.</div>
+  <div id="steps"></div>
+
+  <!-- S5 -->
+  <div class="h" id="s5a" style="top:300px;font-size:150px"><span class="or">Boom.</span></div>
+  <div class="out" id="o1" style="top:560px">
+    <div class="ic" style="background:#f3efec"><img src="../../../../workload/Workload/node_modules/@fabric-msft/svg-icons/svg/lakehouse_48_item.svg" style="width:108px;height:108px"></div>
+    <div><div class="t">OneLake catalog</div><div class="s">description, owner, domain, tags</div></div></div>
+  <div class="out" id="o2" style="top:830px">
+    <div class="ic" style="background:#f3efec"><img src="../../../../workload/Workload/node_modules/@fabric-msft/svg-icons/svg/data_quality_48_item.svg" style="width:108px;height:108px"></div>
+    <div><div class="t">Quality, counted</div><div class="s">a dated line on every card</div></div></div>
+  <div class="out" id="o3" style="top:1100px">
+    <div class="ic" style="background:#f3efec"><img src="../../../../workload/Workload/node_modules/@fabric-msft/svg-icons/svg/purview_48_color.svg" style="width:108px;height:108px"></div>
+    <div><div class="t">Purview hand-over</div><div class="s">glossary and quality rules</div></div></div>
+
+  <!-- S6 -->
+  <div class="abs" id="logo" style="left:390px;top:430px;width:300px;height:300px"><img src="../../../../fabric_backend/static/favicon.svg" width="300" height="300" style="border-radius:60px"></div>
+  <div class="h" id="s6a" style="top:790px;font-size:120px">Krusgraph</div>
+  <div class="h" id="s6b" style="top:950px;font-size:62px;color:var(--ink)">Find and <span class="or">trust</span> your<br>data products.</div>
+  <div class="h" id="s6c" style="top:1186px;font-size:60px;color:var(--gr)">krusgraph.com</div>
+  <div class="h" id="s6d" style="top:1104px;font-size:50px;color:var(--ink)"><img src="../../../../workload/Workload/node_modules/@fabric-msft/svg-icons/svg/fabric_48_color.svg" style="width:56px;height:56px;vertical-align:-11px;margin-right:11px">Microsoft Fabric</div>
+  <div class="fine" id="fine" style="top:1440px">Synthetic demo data. Every change is shown before it is written; Purview gets a file.<br>Krusgraph is independent and not affiliated with Microsoft.</div>
+
+  <img class="mascot" id="m1" src="../../../../fabric_backend/static/mascots/builder.png">
+  <img class="mascot" id="m2" src="../../../../fabric_backend/static/mascots/onto.png">
+  <img class="mascot" id="m3" src="../../../../fabric_backend/static/mascots/thinker.png">
+  <div class="ripple" id="rip"></div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
+const lin=(t,a,b)=>clamp((t-a)/(b-a));
+const eo=x=>1-Math.pow(1-x,3);
+const back=x=>{const c=1.70158,c3=c+1;return 1+c3*Math.pow(x-1,3)+c*Math.pow(x-1,2)};
+// window: in at a, out at b; returns opacity and progress
+function win(t,a,b,fi=.35,fo=.3){return Math.min(eo(lin(t,a,a+fi)),1-lin(t,b-fo,b))}
+function set(el,o,tx=0,ty=0,s=1){el.style.opacity=o;el.style.transform=`translate(${tx}px,${ty}px) scale(${s})`}
+
+// chips
+const names=['orders','customers','products','invoices','order_lines','suppliers','payments','stores','returns','targets'];
+const pos=[[90,1000],[600,980],[300,1090],[720,1110],[120,1200],[520,1220],[820,1260],[260,1330],[640,1350],[400,900]];
+const chips=names.map((n,i)=>{const d=document.createElement('div');d.className='chip';d.textContent=n;d.style.left=pos[i][0]+'px';d.style.top=pos[i][1]+'px';$('chips').appendChild(d);return d});
+// steps
+const sn=['Your data','Check','Decide','Dry run','Create'];
+const steps=sn.map((n,i)=>{const d=document.createElement('div');d.className='step';d.style.top=(560+i*150)+'px';
+ d.innerHTML=`<div class="tick"><svg width="34" height="34" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#1d1815" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div>${n}</div>`;
+ $('steps').appendChild(d);return d});
+
+const T=[0,2.6,5.2,9.2,13.0,16.4,19.5]; // scene starts; end
+window.DUR=19.5;
+window.render=function(t){
+ // glows drift
+ const g=(el,x,y,o)=>{el.style.left=x+'px';el.style.top=y+'px';el.style.opacity=o};
+ g($('g1'),-100+120*Math.sin(t*.5),300+80*Math.cos(t*.4),.28);
+ g($('g2'),400+100*Math.cos(t*.45),700+120*Math.sin(t*.35),.22);
+ g($('g3'),100+140*Math.sin(t*.3+1),1100+60*Math.cos(t*.5),.16);
+
+ // S1
+ let o=win(t,0.1,T[1]);
+ set($('s1a'),o,0,30*(1-eo(lin(t,0.1,.6))));
+ chips.forEach((c,i)=>{const a=.35+i*.09;const p=back(lin(t,a,a+.45));c.style.opacity=Math.min(lin(t,a,a+.2),1-lin(t,T[1]-.3,T[1]));
+   c.style.transform=`translateY(${Math.sin(t*1.6+i)*8}px) scale(${.6+.4*p}) rotate(${(i%2?3:-3)*Math.sin(t+i)}deg)`});
+ // S2
+ o=win(t,T[1],T[2]); set($('s2a'),o,0,30*(1-eo(lin(t,T[1],T[1]+.4))));
+ o=win(t,T[1]+.7,T[2]); set($('s2b'),o,0,30*(1-eo(lin(t,T[1]+.7,T[1]+1.1))));
+ // S3
+ o=win(t,T[2],T[3]); set($('s3a'),o,0,30*(1-eo(lin(t,T[2],T[2]+.4))));
+ const po=win(t,T[2]+.3,T[3]); const ps=back(lin(t,T[2]+.3,T[2]+.8));
+ set($('prompt'),po,0,0,.85+.15*ps);
+ const txt='Start Krusgraph'; const tt=T[2]+1.1; const n=Math.floor(clamp((t-tt)/0.09,0,txt.length));
+ $('typed').innerHTML= n? txt.slice(0,n) : '<span class="ph">Ask anything…</span>';
+ $('caret').style.opacity=(Math.floor(t*2.2)%2===0||n<txt.length)?1:0;
+ const press=lin(t,T[3]-1.1,T[3]-.9)-lin(t,T[3]-.9,T[3]-.7);
+ $('send').style.transform=`scale(${1-.12*press})`;
+ $('prompt').style.boxShadow=`0 30px 80px rgba(0,0,0,.45),0 0 0 ${6+10*press}px rgba(242,115,92,${.5*Math.max(press,lin(t,tt,tt+.3)*.4)})`;
+ // S4
+ o=win(t,T[3],T[4]); set($('s4a'),o,0,30*(1-eo(lin(t,T[3],T[3]+.4))));
+ steps.forEach((s,i)=>{const a=T[3]+.25+i*.12;const so=Math.min(eo(lin(t,a,a+.3)),1-lin(t,T[4]-.3,T[4]));
+   set(s,so,40*(1-eo(lin(t,a,a+.35))),0);
+   const on=t>T[3]+1.0+i*.5; const tk=s.firstChild; tk.className='tick'+(on?' on':'');
+   const pop=on?back(lin(t,T[3]+1.0+i*.5,T[3]+1.3+i*.5)):1; tk.style.transform=`scale(${on?pop:1})`});
+ // ripple on taps
+ let rip=$('rip'); rip.style.opacity=0;
+ const taps=[T[3]-0.95]; for(let i=0;i<5;i++) taps.push(T[3]+1.0+i*.5);
+ taps.forEach((tp,i)=>{const p=lin(t,tp,tp+.45); if(p>0&&p<1){const x=i==0?885:820, y=i==0?895:(560+(i-1)*150+59);
+   rip.style.left=(x-20)+'px';rip.style.top=(y-20)+'px';rip.style.opacity=1-p;rip.style.transform=`scale(${1+3*p})`}});
+ // S5
+ o=win(t,T[4],T[5]); const bs=back(lin(t,T[4],T[4]+.45)); set($('s5a'),o,0,0,.4+.6*bs);
+ ['o1','o2','o3'].forEach((id,i)=>{const a=T[4]+.35+i*.4; const p=back(lin(t,a,a+.5));
+   set($(id),Math.min(lin(t,a,a+.2),1-lin(t,T[5]-.3,T[5])),0,120*(1-p),.8+.2*p)});
+ // S6
+ const e=T[5]; const lp=back(lin(t,e,e+.5));
+ set($('logo'),win(t,e,T[6]+1,.3,.01),0,0,.5+.5*lp);
+ set($('s6a'),win(t,e+.3,T[6]+1,.35,.01),0,30*(1-eo(lin(t,e+.3,e+.7))));
+ set($('s6b'),win(t,e+.7,T[6]+1,.35,.01),0,30*(1-eo(lin(t,e+.7,e+1.1))));
+ set($('s6c'),win(t,e+1.1,T[6]+1,.35,.01));
+ set($('s6d'),win(t,e+0.9,T[6]+1,.35,.01));
+ set($('fine'),win(t,e+1.1,T[6]+1,.35,.01));
+ // mascots: S1 peek, S4 builder cheers, S6 all three
+ const m=[$('m1'),$('m2'),$('m3')];
+ const place=(el,x,y,o,s=1,r=0)=>{el.style.left=x+'px';el.style.top=y+'px';el.style.opacity=o;el.style.transform=`scale(${s}) rotate(${r}deg)`};
+ const hop=k=>Math.abs(Math.sin(t*5+k))*-22;
+ if(t<T[3]){ // S3: mascots hop around prompt
+   const mo=win(t,T[2]+.9,T[3]);
+   place(m[0],150,1030+hop(0),mo); place(m[1],455,1050+hop(1),mo); place(m[2],760,1030+hop(2),mo);
+ } else if(t<T[4]){ const mo=win(t,T[3]+.2,T[4]); const done=t>T[3]+3.0;
+   place(m[0],455,1330+(done?hop(0)*1.6:hop(0)*.4),mo,1+(done?.08:0)); place(m[1],-300,0,0); place(m[2],-300,0,0);
+ } else if(t<T[5]){ for(const x of m) place(x,-300,0,0);
+ } else { const mo=win(t,e+1.3,T[6]+1,.3,.01);
+   [150,455,760].forEach((x,i)=>{const p=back(lin(t,e+1.3+i*.12,e+1.75+i*.12)); place(m[i],x,1260+hop(i)*.5,Math.min(mo,lin(t,e+1.3+i*.12,e+1.5+i*.12)),.5+.5*p)});
+ }
+};
+</script></body></html>

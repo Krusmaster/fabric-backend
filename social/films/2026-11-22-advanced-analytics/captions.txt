@@ -1,0 +1,26 @@
+DRAFT, 2026-11-22, round FV4. Not approved. Do not post before Gustav says yes.
+
+INSTAGRAM REELS / TIKTOK / LINKEDIN (9:16)
+
+Your data is ready and the data engineering is done. Now put it to work with advanced analytics.
+
+Krusgraph writes three notebooks by rules, from the keys and links counted on your rows: a feature table, a model, and predictions in gold. A weekly orders forecast, customer segments and the top 10 drivers. You run each one in your own Fabric workspace.
+
+Krusgraph, a workload on Microsoft Fabric (preview). Shown on synthetic demo data. Krusgraph is independent and not affiliated with Microsoft.
+
+#MicrosoftFabric #DataScience #MachineLearning #AdvancedAnalytics #Krusgraph
+
+krusgraph.com
+
+
+SVENSK BILDTEXT
+
+Din data är klar och data engineering är gjord. Nu sätter vi den i arbete med avancerad analys.
+
+Krusgraph skriver tre notebooks efter regler, utifrån nycklarna och länkarna som räknats på dina rader: en feature-tabell, en modell och prognoser i gold. En veckoprognos för order, kundsegment och de tio viktigaste drivarna. Du kör var och en i din egen Fabric-workspace.
+
+Krusgraph, en workload på Microsoft Fabric (preview). Visat på syntetisk demodata. Krusgraph är oberoende och inte knutet till Microsoft.
+
+#MicrosoftFabric #DataScience #MachineLearning #AdvancedAnalytics #Krusgraph
+
+krusgraph.com
