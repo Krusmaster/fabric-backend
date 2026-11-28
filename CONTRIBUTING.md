@@ -39,7 +39,7 @@ owner of an area is listed here. Change an area you do not own only when the mai
 
 | Area | Files | Owner now |
 | --- | --- | --- |
-| Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/concepts.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | n242 holds `sap.html` and the new files `static/media/krusgraph-sap-to-report*` only (the approved SAP film on /sap, with captions); the rest is open |
+| Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/concepts.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | n242 holds `sap.html` and the new files `static/media/krusgraph-sap-to-report*` only (the approved SAP film on /sap, with captions); FX1 holds `static/site.js`'s fetch-ahead of /check's engine on the home page (n49) and the privacy page's sentence on it; the rest is open |
 | MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | open |
 | Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | open |
 | Deployment | `deploy/`, `Dockerfile`, `.github/` | open |
