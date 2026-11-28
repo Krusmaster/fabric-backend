@@ -1741,6 +1741,111 @@ def _privacy_rows(table: str, columns: list[str], rows: list[dict], schema, show
     return out
 
 
+# ------------------------------------------------------------------ GR1: match records across systems ---------------
+_CROSS_WORKSPACE_HINT = ("match_records counts all sides in one T-SQL query over one SQL connection, and one query cannot "
+                         "read two workspaces. Create a OneLake shortcut to the other workspace's table in a lakehouse of "
+                         "this workspace (Lakehouse, Tables, New shortcut, Microsoft OneLake), then name that lakehouse as "
+                         "the side's source.")
+_CROSS_HOST_HINT = ("These sources have different SQL endpoint hosts (a Fabric SQL database has its own), so one T-SQL query "
+                    "cannot read them together. Create a OneLake shortcut to the table in a lakehouse of the workspace, or "
+                    "mirror the database, then name that lakehouse as the side's source.")
+
+
+# Registered only with KRUSGRAPH_MATCH_RECORDS=1 (record_match.on; off by default, so every listing, count and golden
+# stays as it is until the maintainer switches it on). The function exists either way, for the tests.
+@safe
+def match_records(sides: _p.MatchSides = None, workspace: _p.MatchWorkspace = "", entity: _p.MatchEntity = "customer",
+                  sample: _p.MatchSample = False, show_personal_data: _p.ShowPersonalData = False, ctx: Context = None) -> str:
+    """Counts the same records (customers) in 2-3 systems on a key normalised by rules N1-N4: matched, only in one,
+    duplicated, conflicts on compare columns, per pair and for all; masked example keys and each count's SQL. Never
+    merges or fuzzy-matches. Read-only. Errors: {error, kind, hint}."""
+    from . import record_match as _rm
+    from .dialects import TSQL, of as _dialect_of
+    try:
+        if sample:
+            parsed = _rm.parse_sides(sides or _rm.SAMPLE_SIDES, sample=True)
+            bound = []
+            for sd in parsed:
+                t = _rm.sample_table(sd["schema"], sd["table"])
+                if t is None:
+                    raise _rm.MatchInputError("table_not_found", f"{sd['label']}: no table {sd['schema']}.{sd['table']} in the sample",
+                                              "The sample holds crm.accounts, erp.KNA1 and mdm.customer.")
+                bound.append(_rm.bind(sd, t, TSQL.table(sd["schema"], t.name)))
+            execute = _rm.sample_db()
+            try:
+                out = _rm.match(_rm.align_rules(bound), execute, TSQL, bool(show_personal_data), entity or "customer")
+            finally:
+                execute.close()
+            out["where"] = {"sample": "the synthetic CRM, ERP and MDM customers (fabric_backend/seed.py RECORDS, SQLite, offline)"}
+            return json.dumps(out, indent=2, default=str)
+        parsed = _rm.parse_sides(sides)
+        headers = _headers(ctx)
+        ids = []
+        for sd in parsed:
+            w = str(sd.get("workspace") or workspace or "").strip()
+            if not w:
+                raise _rm.MatchInputError("bad_input", f"{sd['label']}: no workspace", "Pass workspace, or sample=true for the synthetic set.")
+            ids.append(_workspace_id(w, headers))
+        if len(set(ids)) > 1:
+            return json.dumps({"error": "The sides are in different workspaces; nothing was read or counted.",
+                               "kind": "cross_workspace", "hint": _CROSS_WORKSPACE_HINT}, indent=2)
+        wid = ids[0]
+        items: dict[str, dict] = {}
+        for sd in parsed:
+            if sd["source"].lower() not in items:
+                items[sd["source"].lower()] = _resolve_source(wid, sd["source"], headers)
+        distinct = list({it["id"]: it for it in items.values()}.values())
+        if len({str(it.get("sql_host") or "").lower() for it in distinct}) > 1:
+            return json.dumps({"error": "The sources do not share one SQL endpoint host; nothing was read or counted.",
+                               "kind": "cross_source", "hint": _CROSS_HOST_HINT,
+                               "sources": [it.get("displayName") for it in distinct]}, indent=2)
+        first = items[parsed[0]["source"].lower()]
+        token = auth.sql(ctx)
+        execute = _execute_factory(first, token)
+        try:
+            read: dict[tuple, object] = {}
+            for sd in parsed:
+                it = items[sd["source"].lower()]
+                k = (it["id"], sd["schema"].lower())
+                if k not in read:
+                    if it["id"] == first["id"]:
+                        read[k] = _fabric.PLATFORM.read_schema(execute, sd["schema"])
+                    else:                                              # its metadata on its own connection, closed at once
+                        other = _execute_factory(it, token)
+                        try:
+                            read[k] = _fabric.PLATFORM.read_schema(other, sd["schema"])
+                        finally:
+                            getattr(other, "close", lambda: None)()
+            d = _dialect_of(execute)
+            bound = []
+            for sd in parsed:
+                it = items[sd["source"].lower()]
+                sch = read[(it["id"], sd["schema"].lower())]
+                if len(sch) == 0:
+                    return json.dumps({"error": f"{sd['label']}: schema {sd['schema']!r} has no tables in {sd['source']!r}.",
+                                       "kind": "schema_not_found", "hint": HINTS["schema_not_found"]}, indent=2)
+                t = next((x for x in sch if x.name.lower() == sd["table"].lower()), None)
+                if t is None:
+                    return json.dumps({"error": f"{sd['label']}: no table {sd['table']!r} in schema {sd['schema']!r} of {sd['source']!r}.",
+                                       "kind": "table_not_found", "hint": "list_tables shows the tables in a schema."}, indent=2)
+                dd = d if len(distinct) == 1 else d.with_catalog(it.get("sql_db") or it.get("displayName"))
+                bound.append(_rm.bind(sd, t, dd.table(sch.schema, t.name)))
+            out = _rm.match(_rm.align_rules(bound), execute, d, bool(show_personal_data), entity or "customer")
+        finally:
+            getattr(execute, "close", lambda: None)()
+        out["where"] = {"connection": f"one SQL connection to {first.get('displayName')}",
+                        "names": ("three-part names [item].[schema].[table], one item per side" if len(distinct) > 1
+                                  else "two-part names [schema].[table]")}
+        return json.dumps(out, indent=2, default=str)
+    except _rm.MatchInputError as e:
+        return json.dumps(e.answer(), indent=2)
+
+
+from . import record_match as _record_match  # noqa: E402  (GR1)
+if _record_match.on():
+    match_records = mcp.tool(title="Match records across systems (counted, nothing merged)", annotations=RO)(match_records)
+
+
 # ------------------------------------------------------------------ n229: after a Create ------------------------------
 # The founder, 12 November 2026: "no more suggestions after we built what was proposed". A Create that succeeded now ends
 # with the next steps of the data product (after_create.next_steps): verify what was built first, then what it still

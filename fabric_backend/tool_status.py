@@ -15,6 +15,7 @@ import re
 from dataclasses import dataclass
 
 from .tool_listing import changes_on as _changes_on   # LFD5: KRUSGRAPH_CHANGES, off by default
+from .record_match import on as _match_on             # GR1: KRUSGRAPH_MATCH_RECORDS, off by default
 
 HOSTED, OPERATOR = "hosted", "operator"          # operator: needs a permission the hosted app does not ask for today
 READS, DRAFT, CREATES = "reads", "draft", "creates"
@@ -225,6 +226,10 @@ _RAW = {
 }
 # LFD5: the change-by-chat tool exists only with KRUSGRAPH_CHANGES=1 (off by default); off, it has no status, so no page,
 # listing or instruction names it.
+# GR1: match_records exists only with KRUSGRAPH_MATCH_RECORDS=1 (off by default); off, it has no status, like propose_change.
+if _match_on():
+    _RAW["match_records"] = (HOSTED, READS, "nothing (counting queries)",
+                             "unit tests on the synthetic CRM, ERP and MDM customers (SQLite); not run against Fabric")
 if _changes_on():
     _RAW["propose_change"] = (HOSTED, READS, "nothing (plans and drafts; never writes to Fabric)",
                               "unit tests on the synthetic shop_lfd sample (SQLite); not run against Fabric")

@@ -81,6 +81,72 @@ AMOUNT_DEMO = {
 }
 
 
+# GR1: the same customers in three systems (a CRM, an ERP shaped like SAP's KNA1, an MDM hub), for match_records
+# (fabric_backend/record_match.py). Invented companies, organisation numbers in a made-up format (QX-nnnn-nn, no real
+# register uses it), written the way each system writes them: dashes in the CRM, nothing in the ERP, dots in the MDM, so
+# rule N2 (spaces, dashes, dots and slashes removed) is what makes them meet. Deliberate faults: a lower-case and a
+# padded number in the CRM (N1), Theta Tryck twice in the CRM and My Media twice in the ERP (duplicates), Delta Logistik
+# in Norway in the CRM only and Zeta Data with another name in the ERP (conflicts), Kappa Kemi, Ny Nät, Xi Textil and a
+# mistyped Omikron Optik in one or two systems only, and Lambda Lås without a number. Kept apart from the shop's seven
+# tables, so the shop's plan, the site's demo and the goldens stay as they are; seed(records=True) writes it to the
+# schemas crm, erp and mdm.
+RECORDS = {
+    "crm": {"accounts": ("account_id INT, account_name STRING, org_no STRING, country STRING, email STRING", [
+        (101, "Alpha AB", "QX-1001-01", "SE", "info@alpha.example"),
+        (102, "Beta Bygg AB", "QX-1002-02", "SE", "order@beta.example"),
+        (103, "Gamma Foods AB", "QX-1003-03", "SE", "hello@gamma.example"),
+        (104, "Delta Logistik AB", "QX-1004-04", "NO", "info@delta.example"),
+        (105, "Epsilon Energi AB", "qx-1005-05", "SE", "info@epsilon.example"),
+        (106, "Zeta Data AB", "QX-1006-06", "SE", "kontakt@zeta.example"),
+        (107, "Eta Verkstad AB", " QX-1007-07 ", "SE", "info@eta.example"),
+        (108, "Theta Tryck AB", "QX-1008-08", "SE", "info@theta.example"),
+        (109, "Theta Tryck AB", "QX 1008 08", "SE", "sales@theta.example"),
+        (110, "Iota Instrument AB", "QX-1009-09", "SE", "info@iota.example"),
+        (111, "Kappa Kemi AB", "QX-1010-10", "SE", "info@kappa.example"),
+        (112, "Omikron Optik AB", "QX-1016-16", "SE", "info@omikron.example"),
+        (113, "Lambda Lås AB", None, "SE", "info@lambda.example"),
+    ])},
+    "erp": {"KNA1": ("KUNNR STRING, NAME1 STRING, LAND1 STRING, STCD1 STRING", [
+        ("0000200001", "Alpha AB", "SE", "QX100101"),
+        ("0000200002", "Beta Bygg AB", "SE", "QX100202"),
+        ("0000200003", "Gamma Foods AB", "SE", "QX100303"),
+        ("0000200004", "Delta Logistik AB", "SE", "QX100404"),
+        ("0000200005", "Epsilon Energi AB", "SE", "QX100505"),
+        ("0000200006", "Zeta Data Aktiebolag", "SE", "QX100606"),
+        ("0000200007", "Eta Verkstad AB", "SE", "QX100707"),
+        ("0000200008", "Theta Tryck AB", "SE", "QX100808"),
+        ("0000200009", "Iota Instrument AB", "SE", "QX100909"),
+        ("0000200011", "My Media AB", "SE", "QX101111"),
+        ("0000200012", "My Media AB", "SE", "QX101111"),
+        ("0000200013", "Ny Nät AB", "SE", "QX101212"),
+    ])},
+    "mdm": {"customer": ("customer_id INT, customer_name STRING, org_number STRING, country_code STRING", [
+        (1, "Alpha AB", "QX.1001.01", "SE"),
+        (2, "Beta Bygg AB", "QX.1002.02", "SE"),
+        (3, "Gamma Foods AB", "QX.1003.03", "SE"),
+        (4, "Delta Logistik AB", "QX.1004.04", "SE"),
+        (5, "Epsilon Energi AB", "QX.1005.05", "SE"),
+        (6, "Zeta Data AB", "QX.1006.06", "SE"),
+        (7, "Eta Verkstad AB", "QX.1007.07", "SE"),
+        (8, "Theta Tryck AB", "QX.1008.08", "SE"),
+        (9, "Iota Instrument AB", "QX.1009.09", "SE"),
+        (10, "Kappa Kemi AB", "QX.1010.10", "SE"),
+        (12, "Ny Nät AB", "QX.1012.12", "SE"),
+        (13, "Xi Textil AB", "QX.1013.13", "SE"),
+        (14, "Omikron Optik AB", "QX.1014.14", "SE"),
+    ])},
+}
+
+
+def records_schema(name: str):
+    """GR1: one schema of RECORDS ("crm", "erp" or "mdm") as a `Schema` (no data)."""
+    from .schema import Schema, Table, Column
+    s = Schema(schema=name)
+    for table, (cols, _) in RECORDS[name].items():
+        s.tables[table] = Table(table, [Column(c.split()[0], c.split()[1].lower()) for c in cols.split(", ")], schema=name)
+    return s
+
+
 def schema(name: str = "shop"):
     """The seven tables as a `Schema` (no data), for planning offline — the site's demo runs `plan()` on this."""
     from .schema import Schema, Table, Column
@@ -103,7 +169,7 @@ def schemas_enabled(spark) -> bool:
 
 
 def seed(spark, schema: str = "shop", seed_value: int = 42, mill: bool = False, mill_schema: str = "mill",
-         sap: bool = False) -> dict[str, int]:
+         sap: bool = False, records: bool = False) -> dict[str, int]:
     """Create (or replace) the seven tables in `schema` of the attached lakehouse. Returns row counts.
 
     mill=True (default off) also writes the sixteen tables of the synthetic manufacturing company in fabric_backend/mill.py
@@ -112,6 +178,8 @@ def seed(spark, schema: str = "shop", seed_value: int = 42, mill: bool = False, 
     not SAP data, to the schemas `sap_sd` (order to invoice) and `sap_mm` (purchase to pay); counts as "sap_sd.VBAK".
     schema="sap_cds" (n230) writes only the sample shaped like released SAP CDS views (fabric_backend/sap_cds_demo.py:
     I_SalesDocument, I_SalesDocumentItem, ..., synthetic and not SAP data) to that schema, and not the shop.
+    records=True (default off, GR1) also writes RECORDS, the same customers in three systems, to the schemas crm, erp and
+    mdm; counts as "crm.accounts".
 
     On a lakehouse without schemas the tables go to the default schema (`dbo` as seen by the SQL endpoint) instead,
     with a printed note, so they are visible to Krusgraph; use schema="dbo" in the tools then. The mill's tables are
@@ -141,6 +209,16 @@ def seed(spark, schema: str = "shop", seed_value: int = 42, mill: bool = False, 
         else:
             from . import mill as _mill
             counts.update({f"{mill_schema}.{k}": n for k, n in _mill.seed(spark, mill_schema).items()})
+    if records:
+        if target is None:
+            print("The three-system customer sample needs a lakehouse with 'Lakehouse schemas'; it was not written.")
+        else:
+            for part, tables in RECORDS.items():
+                spark.sql(f"CREATE SCHEMA IF NOT EXISTS {part}")
+                for name, (ddl, data) in tables.items():
+                    df = spark.createDataFrame(data, ddl)
+                    df.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{part}.{name}")
+                    counts[f"{part}.{name}"] = len(data)
     if sap:
         if target is None:
             print("The SAP-shaped samples need a lakehouse with 'Lakehouse schemas'; they were not written.")

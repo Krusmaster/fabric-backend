@@ -273,3 +273,11 @@ Change = Annotated[dict, _d('One change (docs/CHANGES.md). Example: {"type": "fi
 AppliedChanges = Annotated[list[dict] | None, _d('Changes applied so far, in order. Default none.')]
 # LFD6: apply_change, with KRUSGRAPH_CHANGES=1 only.
 ChangeConfirm = Annotated[str, _d('With dry_run=false: the confirm (upd-…) propose_change returned.')]
+# GR1: match_records, the same records in two or three systems, counted on the rows
+MatchSides = Annotated[list[dict] | None, _d(
+    '2-3 sides: {source, schema, table, key, compare?: {field: column}, rules?}. Rules N1-N4; default by name. '
+    'Example: [{"source": "crm_lh", "schema": "crm", "table": "accounts", "key": "org_no", "compare": {"name": '
+    '"account_name"}}, ...]. Default with sample: CRM, ERP, MDM.')]
+MatchWorkspace = Annotated[str, _d('Workspace; empty with sample.')]
+MatchEntity = Annotated[str, _d('What a row is. Default "customer".')]
+MatchSample = Annotated[bool, _d('true: synthetic CRM, ERP, MDM; no Fabric.')]

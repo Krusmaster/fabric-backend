@@ -685,6 +685,46 @@ stops the notebook before it writes anything. `create_silver_notebook` stays a d
 notebook runs only when you run it. Unit-tested on 8 November 2026 on the six datasets of /check and the shop example
 (tests/test_n155_fix_plan.py); `fixes=true` has not been run against a live workspace.
 
+### Match records across systems
+
+The same customer often sits in several systems: a CRM, an ERP and a master data hub. `match_records` counts how
+they line up on a key you name, such as an organisation number, VAT id or e-mail address. It reads two or three tables
+(each a source, a schema, a table and its key column or columns), normalises the key by fixed rules and counts on the
+rows. It changes nothing.
+
+The rules, one per key column, shown in every answer with the reason it was chosen:
+
+- **N1** trimmed and upper case (the default).
+- **N2** N1, then spaces, dashes, dots and slashes removed: organisation numbers, VAT ids, DUNS, GLN. Proposed when the
+  column is named as one; another side of the same key takes it too, so `STCD1` beside `org_no` is compared the same way.
+- **N3** trimmed and lower case: e-mail addresses.
+- **N4** spaces, dashes, brackets, dots, slashes and plus signs removed, and a leading 00 removed: telephone numbers.
+  A national number that starts with one 0 stays as it is, because the country code cannot be known by rule.
+
+For each pair of sides, and for all three together, every distinct key falls in one bucket: **matched** (once on each
+side), **only in** one side, or **duplicated** (on more than one row of a side, so it cannot be matched safely).
+**Conflicts** are matched keys where a compare column you name (`compare: {"name": ..., "country": ...}`) differs after
+N1. Each count comes with the SQL that produced it, and a few example keys per bucket; a key that looks like personal
+data by name (an e-mail address, a telephone number) is masked unless `show_personal_data=true`. Names and countries are
+compared, never returned.
+
+When both sides compare a `name`, keys found on one side only whose name is exactly the same after N1 are listed as
+candidates for a person to look at. They are not matched.
+
+Sides in two lakehouses or warehouses of one workspace are counted over one SQL connection with three-part names
+(`[lakehouse].[schema].[table]`). Sides in different workspaces, or on a SQL database with its own endpoint, are
+refused with a hint: make a OneLake shortcut to the table in one lakehouse and name that lakehouse.
+
+`sample=true` runs it on a synthetic set of the same customers in a CRM, an ERP and an MDM hub, with formatting
+differences, a few customers in one system only, two duplicates and two conflicts. The next step it names: decide per
+field which source wins.
+
+**What it does not do yet.** No fuzzy matching: keys meet only when their normalised text is equal, and names are never
+used to match. No merge: nothing is joined or written. The golden record view, one row per customer with the winning
+value per field, comes next. The tool is registered only when the operator sets `KRUSGRAPH_MATCH_RECORDS=1`. Unit-tested
+on the synthetic set and the multi-lakehouse fixture (SQLite); three-part names were checked as SQL text only, and
+nothing has run against Fabric.
+
 ## Build
 
 What you can build once the plan is reviewed.
