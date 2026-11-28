@@ -48,6 +48,7 @@ import os
 
 from . import mcp_apps_mascots as mascots
 from . import mcp_apps_result as _result
+from . import mcp_apps_verify as _verify_card
 from .evidence import NEXT_STEP_TOOLS
 
 FLAG = "KRUSGRAPH_MCP_APPS"
@@ -344,6 +345,8 @@ READ_JS = r"""
 """
 
 
+# SC2: each call carries _meta {"io.krusgraph/from": "card"}, so the server can tell Claude afterwards what a button did
+# (server._card_events); the host may drop it, and then nothing is said.
 # n138: how both cards ask the host to run a tool, checked against the specification read above. The request is the
 # standard MCP `tools/call` (JSON-RPC 2.0: jsonrpc, id, method, params {name, arguments}); the host says in its
 # `ui/initialize` answer whether it runs such calls for the view (`hostCapabilities.serverTools`, "Host can proxy tool
@@ -356,7 +359,7 @@ CALL_JS = r"""
   function callTool(name, args, onWait) {
     if (!canCallTools()) return Promise.reject({ kind: "unsupported" });
     var timer = setTimeout(onWait, WAIT_MS);
-    return request("tools/call", { name: name, arguments: args }).then(function (r) {
+    return request("tools/call", { name: name, arguments: args, _meta: { "io.krusgraph/from": "card" } }).then(function (r) {
       clearTimeout(timer);
       if (isObj(r) && r.isError === true) throw { kind: "tool", text: resultText(r) };
       return r;
@@ -496,7 +499,9 @@ RESULT_JS = r"""
   function resultView(tool, r, skipResult) {
     var box = el("div", null, "res-box"), d = answerOf(r), text = resultText(r), w = cardWords(d);
     var done = isObj(d) && d.dry_run === false && isObj(d.result) && d.result.status === "Succeeded";
-    if (w) {
+    if (w && isObj(w.verify)) {                                    // SC2: the verify card's picture
+      box.appendChild(verifyView(w.verify, w.result));
+    } else if (w) {
       box.appendChild(wordsView(w, skipResult, done));
     } else if (d) {
       var sm = summaryOf(tool, d), shown = sm.lines.filter(function (ln) { return ln[0] !== "Note"; });
@@ -534,6 +539,8 @@ RESULT_JS = r"""
 
 RESULT_JS += _result.js()                                  # n227: kg_card first, the progress state, the ontology picture
 RESULT_CSS += _result.CSS
+RESULT_JS += _verify_card.JS                               # SC2: verify_build's card as a picture (kg_card.verify)
+RESULT_CSS += _verify_card.CSS
 
 _HTML = """<!DOCTYPE html>
 <html lang="en">
