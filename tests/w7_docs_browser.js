@@ -8,8 +8,8 @@ const { chromium } = require('playwright');
 const path = require('path');
 const base = process.argv[2];
 const shots = process.env.W7_SHOTS || '';
-const SAP = '/docs/explore-and-check/sap-on-fabric';
-const HASH = '/docs/concepts/where-krusgraph-is-heading#how-it-keeps-itself-up-to-date';
+const SAP = '/docs/concepts/sap-on-fabric';                  // DS1: in "How it works"
+const HASH = '/docs/why/vision#how-it-keeps-itself-up-to-date';   // DS1: a part of Vision
 (async () => {
   const browser = await chromium.launch();
   const out = { errors: [], wide: {}, phone: {}, hash: {}, sap: {} };
@@ -31,7 +31,7 @@ const HASH = '/docs/concepts/where-krusgraph-is-heading#how-it-keeps-itself-up-t
     // a link near the bottom of the menu's own pages (the last one before the "more" list), brought into view by
     // scrolling the menu as a reader would
     const target = await page.evaluate(() => {
-      const links = [...document.querySelectorAll('nav.docs-menu ul.docs-tree:not(.docs-first):not(.docs-more) a')];
+      const links = [...document.querySelectorAll('nav.docs-menu ul.docs-tree:not(.docs-more) a')];
       const a = links[links.length - 2];
       const m = document.querySelector('nav.docs-menu');
       m.scrollTop = m.scrollHeight;
@@ -77,7 +77,7 @@ const HASH = '/docs/concepts/where-krusgraph-is-heading#how-it-keeps-itself-up-t
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => out.errors.push(String(e)));
-  await page.goto(base + '/docs/hosting-and-permissions/support', { waitUntil: 'load' });
+  await page.goto(base + '/docs/support', { waitUntil: 'load' });
   out.phone.docs = await page.evaluate(() => ({
     wideMenuShown: getComputedStyle(document.querySelector('nav.docs-menu')).display !== 'none',
     details: !!document.querySelector('details.docs-menu-m'), open: document.querySelector('details.docs-menu-m').open,

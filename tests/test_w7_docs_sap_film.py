@@ -8,7 +8,7 @@ from starlette.testclient import TestClient
 
 from fabric_backend import pages, server
 
-SAP_DOCS = "/docs/explore-and-check/sap-on-fabric"
+SAP_DOCS = "/docs/concepts/sap-on-fabric"            # DS1: in "How it works"
 
 
 @pytest.fixture
@@ -75,7 +75,7 @@ def test_the_page_description_is_its_first_paragraph_not_the_films_fallback(clie
 
 def test_docs_md_links_the_film(client):
     md = client.get("/docs.md").text
-    sec = md[md.index("### SAP on Fabric"):md.index("## Build from a plan")]
+    sec = md[md.index("### SAP on Fabric"):md.index("## Check")]                # DS1: SAP on Fabric closes "How it works"
     assert "[the SAP joining problem](/sap#sap-film)" in sec and "[the SAP page](/sap)" in sec
 
 

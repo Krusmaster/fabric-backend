@@ -33,7 +33,7 @@ def _plain(s: str) -> str:
 
 def test_the_page_sits_in_concepts_before_the_vision_and_is_linked_from_the_menu_llms_and_the_sitemap(client):
     paths = [x["path"] for x in pages.docs_pages()]
-    assert paths.index(PATH) == paths.index("/docs/concepts/vision") - 1
+    assert paths.index(PATH) == paths.index("/docs/concepts/how-they-connect") + 1     # DS1: in "How it works"
     menu = re.search(r'<nav class="docs-menu"[^>]*>(.*?)</nav>', client.get("/docs").text, re.S).group(1)
     for href in re.findall(r'href="([^"#]+)"', menu):                  # every link in the docs menu answers 200
         assert client.get(href).status_code == 200, href

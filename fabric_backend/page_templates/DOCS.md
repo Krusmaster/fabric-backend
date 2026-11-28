@@ -93,25 +93,33 @@ no row-level security of its own; it applies what the source enforces for the id
 <!-- figure:why-film -->
 <!-- /figure -->
 
-<!-- figure:why-manifesto -->
+<!-- figure:why-hero -->
 **We believe data work should start with what's true, not with what someone guessed.**
+<!-- /figure -->
 
+<!-- figure:why-problem -->
 Most data projects begin with a guess. Someone looks at the tables, assumes how they fit together, and builds. The report looks right. The totals look right. Until someone notices an order counted twice, or a link that points at nothing. By then it is built on, shared and trusted.
 
 We think that is the wrong order.
 
 So we do it the other way around.
+<!-- /figure -->
 
+<!-- figure:why-commitments -->
 - **We count before we build.** Every key and every link is checked against your rows.
 - **We show our work.** Every rule, every number, every reason.
 - **We say so when we don't know.** What the rows can't prove, we hand to you instead of guessing.
 - **You decide.** Nothing is created or changed without your yes, and nothing is deleted.
 - **We check what we built.** Read back from Fabric, compared with the plan, counted again.
+<!-- /figure -->
 
+<!-- figure:why-beliefs -->
 We believe people should spend their time deciding, not double-checking.
 
 We believe trust is earned with numbers, not promises.
+<!-- /figure -->
 
+<!-- figure:why-engineering -->
 **What we believe about data engineering**
 
 **When you know what's true, you can build what you actually need.**
@@ -127,12 +135,20 @@ Most data platforms aren't built on what the data is. They're built on what some
 - **Open rules over black boxes.** You can read every rule we use.
 
 The things on the right have their place. We just think the things on the left should come first.
+<!-- /figure -->
 
+<!-- figure:why-close -->
 **Know what's true. Build what you need.**
 
 We just happen to make it for Microsoft Fabric.
 
 **{{PRODUCT}}. Count first.**
+<!-- /figure -->
+
+<!-- figure:why-signature -->
+Gustav Kruse
+
+Founder, {{PRODUCT}}
 <!-- /figure -->
 
 <!-- figure:why-see -->
@@ -141,7 +157,7 @@ We just happen to make it for Microsoft Fabric.
 - [Connect {{PRODUCT}} to Claude](/start)
 <!-- /figure -->
 
-## Why choose {{PRODUCT}}
+### Why choose {{PRODUCT}}
 
 Eight points, each in one line with the page that backs it. They say what {{PRODUCT}} does today; where a part is a
 pilot, experimental or planned, the line says so.
@@ -152,6 +168,108 @@ What these points do not say: nothing here claims a speed, a saving or a price, 
 numbers that are measured, keys and relationships found, missed and wrong on schemas whose answers are known, are on
 [the scores page](/scores). {{PRODUCT}} itself calls no AI model, but your MCP client's model reads its answers, and a
 data agent it creates answers with Fabric's own model ([Where it runs](/docs/concepts/where-it-runs)).
+
+### Vision
+
+<!-- figure:vision -->
+**One place for your Fabric data. Proof at every step.**
+
+Where {{PRODUCT}} is today, and where it is going.
+
+**Available today: Check and create**
+
+- Map how your tables connect
+- Count keys and links against the rows (up to 200 per call)
+- Create Fabric items when you ask
+
+**Next: Check what comes in**
+
+- See if incoming data matches its source
+- Set up Fabric's own tools, with your approval
+
+**Vision: One place for the whole chain**
+
+- From source system to report
+- Any source, with the tool you choose
+
+**The goal: nothing gets built on a link nobody counted.**
+
+Next and Vision are direction, not current features.
+<!-- /figure -->
+
+A sketch of the app we are drawing toward: [Where Krusgraph is heading](#where-krusgraph-is-heading).
+
+#### Where Krusgraph is heading
+
+**Status: This is a sketch of where we are heading, not what ships today. Today every step is rules; whether Ask, Run and Use get an optional model is being decided. Data stays in your Fabric either way.**
+
+Onto drew it on the whiteboard: one sign-in, one approval, and a sensible default for everything else. Today's path is the five steps of the start card ([Connect](#connect)); this is where that path is going.
+
+<!-- figure:heading-sketch -->
+- **Your Fabric tenant** (a dashed line around everything): your data stays here. You sign in with Entra.
+- **Your estate:** bronze ✓, silver ✓ (keys 6/6), gold missing, model missing, catalog missing: what you want next to what is there.
+- **The mascots suggest:** “You have no gold for orders.” Buttons: Build gold + model, Add a key check, Show why. One tap is a dry run.
+- **Plan:** + 4 gold views, + a model on gold, + 12 tests, the rest are defaults. **Approve** turns it into a pull request in Fabric Git.
+- **One sign-in + one approval.** Everything else is a default.
+- **Behind the scenes:** Find → Ask → Build → Approve → Run → Use → Improve. Gray is rules (Find, Build, Improve), purple is where a model proposes (Ask, Run, Use), amber is you (Approve). Data rows are read only inside Fabric.
+<!-- /figure -->
+
+**What each pane does**
+
+- **Your estate** compares what you asked for with what is in your Fabric, layer by layer, and marks what is missing.
+- **The mascots suggest** names the next useful step in one line and offers it as a button; a tap shows a dry run and changes nothing.
+- **Plan** lists exactly what would be added; nothing is created until you press Approve, and then it arrives as a pull request in Fabric Git.
+
+**Three kinds of helper**
+
+- **Answer:** reads and replies. It writes nothing.
+- **Propose:** drafts something, such as a view, a test or a plan. A rule or a person decides whether it is used.
+- **Experiment:** tries an idea in a sandbox. A person promotes it, or it stays there.
+
+**What is never a helper.** The compiler, which turns a plan into Fabric items, and the approver are not agents. So the same plan gives the same result every time.
+
+#### What Krusgraph builds in your Fabric
+
+<!-- figure:heading-sketch-fabric -->
+- **Your Fabric tenant** (a dashed line around everything): every item below is built there.
+- **Sources:** SAP, Salesforce, Dynamics and more sources, brought in by mirroring or shortcuts.
+- **Bronze → Silver → Gold:** bronze is a lakehouse with the raw data, silver is a notebook where the keys are checked, gold is views in a star schema.
+- **Data products · domain: Sales:** the cards Customer, Product and Order, each with a key, an owner and a contract; interface arrows lead into Product.
+- **What people use:** Semantic model, Ontology, Data agent, Report, GraphQL API.
+- **Around it:** Pipeline, dbt tests, Catalog, Domains, Alerts, Fabric Git.
+- **Same plan, same items · every change is a PR.**
+- **Colours:** coral is raw, amber is refined, purple is a data product, teal is what people use, gray is run and govern.
+<!-- /figure -->
+
+- **Sources:** SAP, Salesforce and Dynamics 365, and other sources, land in your Fabric by mirroring or shortcuts, and {{PRODUCT}} reads what has landed there.
+- **Bronze, silver, gold:** the raw tables stay as they are, a silver notebook checks the keys, and gold views shape the tables into a star schema.
+- **Data products:** each product in a domain has a key, an owner and a contract, and the products meet through named interfaces.
+- **What people use:** the semantic model, ontology, data agent, report and GraphQL API are all built from the same plan, so they agree with each other.
+- **Around it:** a pipeline runs the layers, dbt tests and alerts watch them, the catalog and domains describe them, and Fabric Git keeps every version.
+
+**What it builds today.** From one plan, {{PRODUCT}} builds each of these on its own when you ask, with a dry run first: the silver notebook (`create_silver_notebook`), the gold views (`create_gold_views`), the pipeline (`create_pipeline`), the semantic model (`create_semantic_model`), the ontology (`create_ontology`), the data agent (`create_data_agent`), the report (`create_report`), the GraphQL API (`create_backend`), a nightly drift monitor that sends its changes to a webhook (`create_drift_monitor`), and the catalog entries of the data products (`publish_catalog`). It drafts dbt tests (`dbt_schema`) and domains with their contracts (`domain_draft`) for you to apply. Mirroring and shortcuts are set up in Fabric; {{PRODUCT}} reads mirrored databases but does not create them. **The direction:** building all of it in one go from one plan, with every change arriving as a pull request in Fabric Git.
+
+#### How it keeps itself up to date
+
+<!-- figure:heading-sketch-loop -->
+- **It watches:** a new column in a source, a new table, a key that is no longer unique, data that is not fresh, a broken relationship, unused items, cost running away.
+- **Watch** (every night + on change) → **Compare** (desired vs actual = plan) → **Classify** (rules decide the risk).
+- Two branches: **Safe: done on its own** (catalog, tests, a new column) and **Risky: draft PR** (a mascot explains, you approve).
+- **Rebuild + test** (dbt tests, the rows prove it) → **Learn from the decision** (the same choice becomes the default) → back to **Watch**, round after round.
+- **Today: watching and dry runs. Next: fixing on its own.**
+<!-- /figure -->
+
+- **It watches** the sources and what is built on them for anything that would make the plan and Fabric disagree.
+- **Watch** runs every night and whenever something changes.
+- **Compare** sets what you want, the plan, next to what is in Fabric.
+- **Classify** uses rules, not a model, to decide how risky each difference is.
+- **Safe changes** are done on their own; **risky ones** become a draft pull request that a mascot explains and you approve.
+- **Rebuild + test** runs the dbt tests and counts the rows, so the result is proved, not assumed.
+- **Learn from the decision** makes the choice you made the default the next time the same thing happens.
+
+**What it does today.** The nightly drift monitor (`create_drift_monitor`) compares the plan with the last saved one and reports tables and columns that were added or removed, changed types, changed keys and relationships that are no longer inferred, with what reads the tables that changed. `plan_drift` compares today's plan with an existing GraphQL API, and `verify_build` reads back what was built and compares it with the dry run. Every change is a dry run until you confirm it. **The direction:** watching freshness, usage and cost, classifying by risk, fixing safe changes on its own, opening draft pull requests for the rest and learning from your decisions.
+
+You can try today's version: [use it in Claude](#connect), or start with the [guided demo](/check?example=sample&guide=1).
 
 ## Get started
 
@@ -267,13 +385,13 @@ Two more that a first-time user of the Krusgraph Model item in Fabric can meet:
 | Krusgraph Model keeps loading in Fabric (or `ERR_SSL_VERSION_OR_CIPHER_MISMATCH` for `workload.krusgraph.com`) | A corporate web filter blocks a domain it does not know yet; the server supports TLS 1.2 and 1.3 | Ask your IT department to allow `workload.krusgraph.com` and `krusgraph.com` on port 443 (TLS 1.2 or later): [Network: hosts to allow](/it#network). Then reload the Fabric tab. |
 | `schema_ambiguous` | Two schemas in the lakehouse differ only by case (`Shop` and `shop`) | Type the schema exactly as one of the names the answer lists. A schema typed in another case than the only one that exists is read under the lakehouse's spelling, and the answer says which name was used (`schema_used`). |
 
-## Concepts
+## How it works
 
 What the parts are and how they fit together. The examples on these pages are generated by the engine from the
 synthetic shop schema each time a page is rendered: the same schema the [example on /check](/check?example=sample) runs
 in your browser, with no account.
 
-### How it works
+### The short version
 
 {{PRODUCT}} sits between the AI client you ask in and Microsoft Fabric. It reads table and column metadata, makes one
 plan of keys and relationships with the rule behind each one, counts checks against the rows as queries in Fabric, and
@@ -291,6 +409,58 @@ creates Fabric items from that plan only when you ask. Four parts, with how far 
   [Use with Lovable](/lovable).
 - **Model drafts:** a Power BI semantic model in TMDL, or a Fabric IQ ontology draft (preview), with the same keys and
   relationships. [Fabric IQ: the same graph as an ontology](#fabric-iq-the-same-graph-as-an-ontology).
+
+### How relationships are inferred
+
+A lakehouse has no declared keys, so names are all there is — and every result says which rule produced it,
+so you can overrule it. Declared keys and foreign keys (warehouses) always win. A column that could point at
+two tables is reported, never guessed; a column no rule matches is left unlinked and you can pass it as
+`confirmed`. The [example on /check](/check?example=sample) shows the rules on a synthetic schema. The rules, in the engine's own words:
+
+{{RULES_TABLE}}
+
+Names are matched literally first. When nothing matches, a small documented **synonym table** is tried: abbreviations
+(`cust`, `prod`, `ord`, `emp`, `dept`, `acct`, …), Swedish and German business words in singular and plural (`kund`/`kunder`,
+`artikel`/`artiklar`, `leverantör`, `kunde`/`kunden`, `bestellung`, `rechnung`, `mitarbeiter`, …), after transliteration of
+`å ä ö ü ß`; a leading `dim_`, `fact_` or `tbl_` is not part of a table's name, and `_sk`/`_bk` count as key suffixes. Every
+match that rests on the table is listed under `synonyms` in `plan_backend` and on the relationship's `note`, and counts as
+the weakest rule (R4), so the plan never hides that it translated a name. Measured on eleven schemas; the
+five public schemas that need no synonyms are unchanged to the number.
+
+More on how they interact, with examples: https://github.com/Krusmaster/fabric-backend#how-the-relationships-are-inferred
+
+### How {{PRODUCT}} uses graph theory
+
+The plan is a graph: tables are nodes, relationships are edges from the many side to the one side, and every edge
+carries a certainty from its rule (declared or confirmed 1.0; checked against the data 0.9; R1 0.8; R2 0.6; R3 and
+R4 0.5). `fabric_backend/graphs.py` is plain Python and deterministic: the same plan always gives the same answer.
+What each method does for you, in plain terms:
+
+- **Roles** (`analyze_schema`): a table that points at several others and nothing points at is a fact table; one that
+  is pointed at and points at little is a dimension; a table whose key is just two references (a junction) is a bridge.
+  The numbers that decided each role are in the answer, so you can disagree.
+- **Centrality**: in/out degree says what a table refers to and what refers to it; betweenness says how often a
+  table sits on the route between two others; PageRank on the directed graph says where the references end up
+  (shared dimensions score high). The top ten is where to start reading an unknown schema.
+- **Subject areas**: label propagation on the undirected graph groups tables that are more connected to each other
+  than to the rest; each area is named after its most central table. A first cut at the domains in a lakehouse.
+- **Ambiguity**: every relationship beyond a spanning forest closes a cycle, and any two tables on a cycle can be
+  reached two ways. That is exactly what makes filter paths ambiguous in a Power BI model, so the answer lists the
+  cycles and the pairs, and the maximum spanning forest (highest certainty first) says which relationships can be active
+  at once; `semantic_model_draft` uses it for active/inactive.
+- **Paths** (`join_path`): the shortest path counts hops; the safest path (Dijkstra on cost = 1/certainty) prefers
+  declared and R1 links. When they differ the answer says why.
+- **Link prediction** (`suggest_relationships`): a column with a reference suffix and the type of another table's
+  key, in no relationship yet, is a candidate; a name that resembles the target, or a target the table already
+  reaches in two hops, ranks it higher; then the data decides — the share of its values that exist in the target key.
+  Nothing is applied; you pass the suggestion you accept as `confirmed`.
+
+Unit-tested on the synthetic shop schema and the public benchmark schemas; `analyze_schema` and `suggest_relationships`
+were run against the demo workspace (synthetic shop data) on 26 October 2026: the one column outside every relationship, `orders.ship_to_id`, came back with
+every value present in `addresses.address_id` (15 distinct values) and well below that for the other candidates. On
+27 October 2026, after the ranking was fixed, `addresses.address_id` came first before the data check (3.94 against
+1.5 or less) and held for every value after it (inclusion 1.0). The [guided demo](/check?example=sample&guide=1) walks through this column on the
+synthetic sample: the suggestion, its data check and the decision that stays yours.
 
 ### Ontologies
 
@@ -378,109 +548,76 @@ the hosted service. {{PRODUCT}} is the same engine in four places, and each plac
 
 {{CONCEPT_WHERE_NOTES}}
 
-### Vision
+### Sources
 
-<!-- figure:vision -->
-**One place for your Fabric data. Proof at every step.**
+A lakehouse with schemas, read through its SQL analytics endpoint. **Experimental:** warehouses and Fabric SQL databases, read the same way through their SQL endpoint
+and covered by unit tests; warehouses also give declared keys and foreign keys (rules K0 and R0). **Experimental:** the
+mirrored and Snowflake item types below. Tables a lakehouse holds as OneLake shortcuts (to another lakehouse, a
+warehouse, ADLS or S3) are listed by its SQL analytics endpoint like its own tables, so they are planned with it.
 
-Where {{PRODUCT}} is today, and where it is going.
+{{PRODUCT}} reads sources through Fabric, so data that lives elsewhere takes one of two routes:
 
-**Available today: Check and create**
+1. **Bring it into Fabric.** A *Snowflake database* item, a *Mirrored database* (Snowflake, Azure SQL, Cosmos DB, SAP via
+   Datasphere, …), a *Mirrored Azure Databricks catalog* or a *Mirrored catalog* (preview) is a source like a lakehouse:
+   `list_sources` shows it, `plan_backend` plans it and `create_backend` builds the API over its SQL analytics endpoint.
+   The item is set up once in the Fabric portal; {{PRODUCT}} reads the endpoint id from the item, as Microsoft's REST
+   specification documents it for each of these item types. Experimental: unit-tested, not yet run against a live item.
+2. **Plan it where it is.** The engine reads `INFORMATION_SCHEMA`, which Snowflake and Databricks (Unity Catalog)
+   expose like the Fabric SQL endpoint does. The open-source library, the CLI and the local `fabric-backend-mcp` server
+   give you the graph, the rules, the diagram and the Rayfin entities straight from those systems (for Databricks with
+   its own adapter, [below](#databricks-draft-only)); the API for GraphQL item is a Fabric object, so that last step
+   needs route 1.
 
-- Map how your tables connect
-- Count keys and links against the rows (up to 200 per call)
-- Create Fabric items when you ask
+Snowflake has no `KEY_COLUMN_USAGE` view, so keys there come from names (rule K2) and are shown as such. Unity Catalog's
+informational primary and foreign keys are read as declared keys (K0, R0). The item types, routes and `sqlEndpointProperties`
+follow Microsoft's published REST specification; these source types are experimental until a live run.
 
-**Next: Check what comes in**
+### SAP on Fabric
 
-- See if incoming data matches its source
-- Set up Fabric's own tools, with your approval
-
-**Vision: One place for the whole chain**
-
-- From source system to report
-- Any source, with the tool you choose
-
-**The goal: nothing gets built on a link nobody counted.**
-
-Next and Vision are direction, not current features.
+<!-- figure:sap-film -->
+Film: [the SAP joining problem](/sap#sap-film), from SAP tables to a report, on a synthetic SAP-shaped example (AI-generated voice). More on [the SAP page](/sap).
 <!-- /figure -->
 
-A sketch of the app we are drawing toward: [Where Krusgraph is heading](#where-krusgraph-is-heading).
+SAP tables do not follow general naming rules: `VBAP.VBELN` is the order an item belongs to, `LIPS.VBELN` a delivery,
+`VBRP.VBELN` an invoice, and every key starts with the client `MANDT`. For these tables Krusgraph uses its SAP pack:
+declarative files with the keys and the order-to-cash relationships of `KNA1`, `KNVV`, `MARA`, `MAKT`, `TVKO`, `VBAK`,
+`VBAP`, `VBEP`, `VBPA`, `LIKP`, `LIPS`, `VBRK`, `VBRP`, `VBFA`, and the procure-to-pay relationships of `LFA1`, `EBAN`, `EKKO`, `EKPO`, `EKET`, `EKBE`, `RBKP`, `RSEG`, and the finance relationships of `BKPF`, `BSEG`, `ACDOCA`, `SKA1`, `SKB1`, `BSID`, `BSIK`, `CSKS`, the pricing conditions `KONV`/`PRCD_ELEMENTS`, and the business partner `BUT000` with its links to customers and suppliers, each citing a public SAP
+page, written for raw ECC and S/4HANA table names (`VBAK`, `vbak`, `sap_vbak`). It has not yet been run on an SAP
+extract, mirrored or otherwise, and other naming is not recognised yet. Every relationship it adds carries the rule `SAP pack`; `sap_pack_draft` shows what it recognises and
+what is missing, and `validate_plan` checks it against the rows, because a pack is a sourced suggestion, not proof.
 
-### Where Krusgraph is heading
+A synthetic example (no data from any SAP system):
 
-**Status: This is a sketch of where we are heading, not what ships today. Today every step is rules; whether Ask, Run and Use get an optional model is being decided. Data stays in your Fabric either way.**
+```
+plan_backend(workspace="demo", source="sap_lh", schema="sap")
+  sap_vbap.mandt+vbeln          -> sap_vbak.mandt+vbeln          SAP pack   (item to its order)
+  sap_vbep.mandt+vbeln+posnr    -> sap_vbap.mandt+vbeln+posnr    SAP pack   (schedule line to its item)
+  sap_lips.mandt+vgbel+vgpos    -> sap_vbap.mandt+vbeln+posnr    SAP pack   (delivery item to the order item)
+  sap_vbrk.mandt+kunrg          -> sap_kna1.mandt+kunnr          SAP pack   (payer, not the sold-to party)
+  sap_vbfa                      listed, not applied: many-to-many document flow
+validate_plan(...) -> amount_levels: sap_vbak.netwr is repeated on every sap_vbap row in a join of the two
+```
 
-Onto drew it on the whiteboard: one sign-in, one approval, and a sensible default for everything else. Today's path is the five steps of the start card ([Connect](#connect)); this is where that path is going.
+On the synthetic SAP schema of the tests, the name rules alone find none of the 117 relationships. Given every key,
+they find most of them but also 26 joins that read a document number as another kind of document (a delivery number
+as an order, an invoice number as an accounting document); the pack applies none of those. The schema is generated
+from the pack, so this shows what the pack adds over the name rules, not that the pack is right about SAP
+([measurement](https://github.com/Krusmaster/fabric-backend/blob/main/docs/INFERENCE.md)). It has not been run against
+an SAP system or a real installation. Contents, sources and how to contribute:
+[the SAP pack in the repository](https://github.com/Krusmaster/fabric-backend/blob/main/docs/SAP.md).
 
-<!-- figure:heading-sketch -->
-- **Your Fabric tenant** (a dashed line around everything): your data stays here. You sign in with Entra.
-- **Your estate:** bronze ✓, silver ✓ (keys 6/6), gold missing, model missing, catalog missing: what you want next to what is there.
-- **The mascots suggest:** “You have no gold for orders.” Buttons: Build gold + model, Add a key check, Show why. One tap is a dry run.
-- **Plan:** + 4 gold views, + a model on gold, + 12 tests, the rest are defaults. **Approve** turns it into a pull request in Fabric Git.
-- **One sign-in + one approval.** Everything else is a default.
-- **Behind the scenes:** Find → Ask → Build → Approve → Run → Use → Improve. Gray is rules (Find, Build, Improve), purple is where a model proposes (Ask, Run, Use), amber is you (Approve). Data rows are read only inside Fabric.
-<!-- /figure -->
+**Does Krusgraph work on customised SAP tables (Z tables)?**
+Partly. A Z table gets no key from the pack; you add it in the review. Next to standard tables its standard fields are
+linked by the general name rule R3, and the rows decide which of those links hold. A Z table that carries `MANDT` and `VBELN` is linked by the general name rule R3 to every table keyed by those fields, and
+`validate_plan` counts the rows: on our synthetic sample the link to the sales order header held, and the links to the
+delivery and billing headers matched no row, so you reject them in the review. A Z table gets no key from its name: you
+give it in the review, for example `MANDT` + `VBELN`. A link through a custom-named column (`ZZ_KUNDE_NR` holding
+customer numbers) is shown only if the row check finds it, and on SAP tables it does not, because every SAP key starts
+with `MANDT` and the row checks look at single-column keys: you add it in the review. The SAP pack covers standard tables
+only. Tested on synthetic, SAP-shaped data, not on a real SAP system
+([the sample and what was measured](https://github.com/Krusmaster/fabric-backend/blob/main/docs/SAMPLE-SAP.md)).
 
-**What each pane does**
-
-- **Your estate** compares what you asked for with what is in your Fabric, layer by layer, and marks what is missing.
-- **The mascots suggest** names the next useful step in one line and offers it as a button; a tap shows a dry run and changes nothing.
-- **Plan** lists exactly what would be added; nothing is created until you press Approve, and then it arrives as a pull request in Fabric Git.
-
-**Three kinds of helper**
-
-- **Answer:** reads and replies. It writes nothing.
-- **Propose:** drafts something, such as a view, a test or a plan. A rule or a person decides whether it is used.
-- **Experiment:** tries an idea in a sandbox. A person promotes it, or it stays there.
-
-**What is never a helper.** The compiler, which turns a plan into Fabric items, and the approver are not agents. So the same plan gives the same result every time.
-
-#### What Krusgraph builds in your Fabric
-
-<!-- figure:heading-sketch-fabric -->
-- **Your Fabric tenant** (a dashed line around everything): every item below is built there.
-- **Sources:** SAP, Salesforce, Dynamics and more sources, brought in by mirroring or shortcuts.
-- **Bronze → Silver → Gold:** bronze is a lakehouse with the raw data, silver is a notebook where the keys are checked, gold is views in a star schema.
-- **Data products · domain: Sales:** the cards Customer, Product and Order, each with a key, an owner and a contract; interface arrows lead into Product.
-- **What people use:** Semantic model, Ontology, Data agent, Report, GraphQL API.
-- **Around it:** Pipeline, dbt tests, Catalog, Domains, Alerts, Fabric Git.
-- **Same plan, same items · every change is a PR.**
-- **Colours:** coral is raw, amber is refined, purple is a data product, teal is what people use, gray is run and govern.
-<!-- /figure -->
-
-- **Sources:** SAP, Salesforce and Dynamics 365, and other sources, land in your Fabric by mirroring or shortcuts, and {{PRODUCT}} reads what has landed there.
-- **Bronze, silver, gold:** the raw tables stay as they are, a silver notebook checks the keys, and gold views shape the tables into a star schema.
-- **Data products:** each product in a domain has a key, an owner and a contract, and the products meet through named interfaces.
-- **What people use:** the semantic model, ontology, data agent, report and GraphQL API are all built from the same plan, so they agree with each other.
-- **Around it:** a pipeline runs the layers, dbt tests and alerts watch them, the catalog and domains describe them, and Fabric Git keeps every version.
-
-**What it builds today.** From one plan, {{PRODUCT}} builds each of these on its own when you ask, with a dry run first: the silver notebook (`create_silver_notebook`), the gold views (`create_gold_views`), the pipeline (`create_pipeline`), the semantic model (`create_semantic_model`), the ontology (`create_ontology`), the data agent (`create_data_agent`), the report (`create_report`), the GraphQL API (`create_backend`), a nightly drift monitor that sends its changes to a webhook (`create_drift_monitor`), and the catalog entries of the data products (`publish_catalog`). It drafts dbt tests (`dbt_schema`) and domains with their contracts (`domain_draft`) for you to apply. Mirroring and shortcuts are set up in Fabric; {{PRODUCT}} reads mirrored databases but does not create them. **The direction:** building all of it in one go from one plan, with every change arriving as a pull request in Fabric Git.
-
-#### How it keeps itself up to date
-
-<!-- figure:heading-sketch-loop -->
-- **It watches:** a new column in a source, a new table, a key that is no longer unique, data that is not fresh, a broken relationship, unused items, cost running away.
-- **Watch** (every night + on change) → **Compare** (desired vs actual = plan) → **Classify** (rules decide the risk).
-- Two branches: **Safe: done on its own** (catalog, tests, a new column) and **Risky: draft PR** (a mascot explains, you approve).
-- **Rebuild + test** (dbt tests, the rows prove it) → **Learn from the decision** (the same choice becomes the default) → back to **Watch**, round after round.
-- **Today: watching and dry runs. Next: fixing on its own.**
-<!-- /figure -->
-
-- **It watches** the sources and what is built on them for anything that would make the plan and Fabric disagree.
-- **Watch** runs every night and whenever something changes.
-- **Compare** sets what you want, the plan, next to what is in Fabric.
-- **Classify** uses rules, not a model, to decide how risky each difference is.
-- **Safe changes** are done on their own; **risky ones** become a draft pull request that a mascot explains and you approve.
-- **Rebuild + test** runs the dbt tests and counts the rows, so the result is proved, not assumed.
-- **Learn from the decision** makes the choice you made the default the next time the same thing happens.
-
-**What it does today.** The nightly drift monitor (`create_drift_monitor`) compares the plan with the last saved one and reports tables and columns that were added or removed, changed types, changed keys and relationships that are no longer inferred, with what reads the tables that changed. `plan_drift` compares today's plan with an existing GraphQL API, and `verify_build` reads back what was built and compares it with the dry run. Every change is a dry run until you confirm it. **The direction:** watching freshness, usage and cost, classifying by risk, fixing safe changes on its own, opening draft pull requests for the rest and learning from your decisions.
-
-You can try today's version: [use it in Claude](#connect), or start with the [guided demo](/check?example=sample&guide=1).
-
-## Explore and check
+## Check
 
 How a plan is made, how to read it, how to check it against the rows before anything is built, how to keep the review, and the fixes proposed for what the check finds.
 
@@ -588,128 +725,7 @@ value per field, comes next. The tool is registered only when the operator sets 
 on the synthetic set and the multi-lakehouse fixture (SQLite); three-part names were checked as SQL text only, and
 nothing has run against Fabric.
 
-### How relationships are inferred
-
-A lakehouse has no declared keys, so names are all there is — and every result says which rule produced it,
-so you can overrule it. Declared keys and foreign keys (warehouses) always win. A column that could point at
-two tables is reported, never guessed; a column no rule matches is left unlinked and you can pass it as
-`confirmed`. The [example on /check](/check?example=sample) shows the rules on a synthetic schema. The rules, in the engine's own words:
-
-{{RULES_TABLE}}
-
-Names are matched literally first. When nothing matches, a small documented **synonym table** is tried: abbreviations
-(`cust`, `prod`, `ord`, `emp`, `dept`, `acct`, …), Swedish and German business words in singular and plural (`kund`/`kunder`,
-`artikel`/`artiklar`, `leverantör`, `kunde`/`kunden`, `bestellung`, `rechnung`, `mitarbeiter`, …), after transliteration of
-`å ä ö ü ß`; a leading `dim_`, `fact_` or `tbl_` is not part of a table's name, and `_sk`/`_bk` count as key suffixes. Every
-match that rests on the table is listed under `synonyms` in `plan_backend` and on the relationship's `note`, and counts as
-the weakest rule (R4), so the plan never hides that it translated a name. Measured on eleven schemas; the
-five public schemas that need no synonyms are unchanged to the number.
-
-More on how they interact, with examples: https://github.com/Krusmaster/fabric-backend#how-the-relationships-are-inferred
-
-### Sources
-
-A lakehouse with schemas, read through its SQL analytics endpoint. **Experimental:** warehouses and Fabric SQL databases, read the same way through their SQL endpoint
-and covered by unit tests; warehouses also give declared keys and foreign keys (rules K0 and R0). **Experimental:** the
-mirrored and Snowflake item types below. Tables a lakehouse holds as OneLake shortcuts (to another lakehouse, a
-warehouse, ADLS or S3) are listed by its SQL analytics endpoint like its own tables, so they are planned with it.
-
-{{PRODUCT}} reads sources through Fabric, so data that lives elsewhere takes one of two routes:
-
-1. **Bring it into Fabric.** A *Snowflake database* item, a *Mirrored database* (Snowflake, Azure SQL, Cosmos DB, SAP via
-   Datasphere, …), a *Mirrored Azure Databricks catalog* or a *Mirrored catalog* (preview) is a source like a lakehouse:
-   `list_sources` shows it, `plan_backend` plans it and `create_backend` builds the API over its SQL analytics endpoint.
-   The item is set up once in the Fabric portal; {{PRODUCT}} reads the endpoint id from the item, as Microsoft's REST
-   specification documents it for each of these item types. Experimental: unit-tested, not yet run against a live item.
-2. **Plan it where it is.** The engine reads `INFORMATION_SCHEMA`, which Snowflake and Databricks (Unity Catalog)
-   expose like the Fabric SQL endpoint does. The open-source library, the CLI and the local `fabric-backend-mcp` server
-   give you the graph, the rules, the diagram and the Rayfin entities straight from those systems (for Databricks with
-   its own adapter, [below](#databricks-draft-only)); the API for GraphQL item is a Fabric object, so that last step
-   needs route 1.
-
-Snowflake has no `KEY_COLUMN_USAGE` view, so keys there come from names (rule K2) and are shown as such. Unity Catalog's
-informational primary and foreign keys are read as declared keys (K0, R0). The item types, routes and `sqlEndpointProperties`
-follow Microsoft's published REST specification; these source types are experimental until a live run.
-
-### How {{PRODUCT}} uses graph theory
-
-The plan is a graph: tables are nodes, relationships are edges from the many side to the one side, and every edge
-carries a certainty from its rule (declared or confirmed 1.0; checked against the data 0.9; R1 0.8; R2 0.6; R3 and
-R4 0.5). `fabric_backend/graphs.py` is plain Python and deterministic: the same plan always gives the same answer.
-What each method does for you, in plain terms:
-
-- **Roles** (`analyze_schema`): a table that points at several others and nothing points at is a fact table; one that
-  is pointed at and points at little is a dimension; a table whose key is just two references (a junction) is a bridge.
-  The numbers that decided each role are in the answer, so you can disagree.
-- **Centrality**: in/out degree says what a table refers to and what refers to it; betweenness says how often a
-  table sits on the route between two others; PageRank on the directed graph says where the references end up
-  (shared dimensions score high). The top ten is where to start reading an unknown schema.
-- **Subject areas**: label propagation on the undirected graph groups tables that are more connected to each other
-  than to the rest; each area is named after its most central table. A first cut at the domains in a lakehouse.
-- **Ambiguity**: every relationship beyond a spanning forest closes a cycle, and any two tables on a cycle can be
-  reached two ways. That is exactly what makes filter paths ambiguous in a Power BI model, so the answer lists the
-  cycles and the pairs, and the maximum spanning forest (highest certainty first) says which relationships can be active
-  at once; `semantic_model_draft` uses it for active/inactive.
-- **Paths** (`join_path`): the shortest path counts hops; the safest path (Dijkstra on cost = 1/certainty) prefers
-  declared and R1 links. When they differ the answer says why.
-- **Link prediction** (`suggest_relationships`): a column with a reference suffix and the type of another table's
-  key, in no relationship yet, is a candidate; a name that resembles the target, or a target the table already
-  reaches in two hops, ranks it higher; then the data decides — the share of its values that exist in the target key.
-  Nothing is applied; you pass the suggestion you accept as `confirmed`.
-
-Unit-tested on the synthetic shop schema and the public benchmark schemas; `analyze_schema` and `suggest_relationships`
-were run against the demo workspace (synthetic shop data) on 26 October 2026: the one column outside every relationship, `orders.ship_to_id`, came back with
-every value present in `addresses.address_id` (15 distinct values) and well below that for the other candidates. On
-27 October 2026, after the ranking was fixed, `addresses.address_id` came first before the data check (3.94 against
-1.5 or less) and held for every value after it (inclusion 1.0). The [guided demo](/check?example=sample&guide=1) walks through this column on the
-synthetic sample: the suggestion, its data check and the decision that stays yours.
-
-### SAP on Fabric
-
-<!-- figure:sap-film -->
-Film: [the SAP joining problem](/sap#sap-film), from SAP tables to a report, on a synthetic SAP-shaped example (AI-generated voice). More on [the SAP page](/sap).
-<!-- /figure -->
-
-SAP tables do not follow general naming rules: `VBAP.VBELN` is the order an item belongs to, `LIPS.VBELN` a delivery,
-`VBRP.VBELN` an invoice, and every key starts with the client `MANDT`. For these tables Krusgraph uses its SAP pack:
-declarative files with the keys and the order-to-cash relationships of `KNA1`, `KNVV`, `MARA`, `MAKT`, `TVKO`, `VBAK`,
-`VBAP`, `VBEP`, `VBPA`, `LIKP`, `LIPS`, `VBRK`, `VBRP`, `VBFA`, and the procure-to-pay relationships of `LFA1`, `EBAN`, `EKKO`, `EKPO`, `EKET`, `EKBE`, `RBKP`, `RSEG`, and the finance relationships of `BKPF`, `BSEG`, `ACDOCA`, `SKA1`, `SKB1`, `BSID`, `BSIK`, `CSKS`, the pricing conditions `KONV`/`PRCD_ELEMENTS`, and the business partner `BUT000` with its links to customers and suppliers, each citing a public SAP
-page, written for raw ECC and S/4HANA table names (`VBAK`, `vbak`, `sap_vbak`). It has not yet been run on an SAP
-extract, mirrored or otherwise, and other naming is not recognised yet. Every relationship it adds carries the rule `SAP pack`; `sap_pack_draft` shows what it recognises and
-what is missing, and `validate_plan` checks it against the rows, because a pack is a sourced suggestion, not proof.
-
-A synthetic example (no data from any SAP system):
-
-```
-plan_backend(workspace="demo", source="sap_lh", schema="sap")
-  sap_vbap.mandt+vbeln          -> sap_vbak.mandt+vbeln          SAP pack   (item to its order)
-  sap_vbep.mandt+vbeln+posnr    -> sap_vbap.mandt+vbeln+posnr    SAP pack   (schedule line to its item)
-  sap_lips.mandt+vgbel+vgpos    -> sap_vbap.mandt+vbeln+posnr    SAP pack   (delivery item to the order item)
-  sap_vbrk.mandt+kunrg          -> sap_kna1.mandt+kunnr          SAP pack   (payer, not the sold-to party)
-  sap_vbfa                      listed, not applied: many-to-many document flow
-validate_plan(...) -> amount_levels: sap_vbak.netwr is repeated on every sap_vbap row in a join of the two
-```
-
-On the synthetic SAP schema of the tests, the name rules alone find none of the 117 relationships. Given every key,
-they find most of them but also 26 joins that read a document number as another kind of document (a delivery number
-as an order, an invoice number as an accounting document); the pack applies none of those. The schema is generated
-from the pack, so this shows what the pack adds over the name rules, not that the pack is right about SAP
-([measurement](https://github.com/Krusmaster/fabric-backend/blob/main/docs/INFERENCE.md)). It has not been run against
-an SAP system or a real installation. Contents, sources and how to contribute:
-[the SAP pack in the repository](https://github.com/Krusmaster/fabric-backend/blob/main/docs/SAP.md).
-
-**Does Krusgraph work on customised SAP tables (Z tables)?**
-Partly. A Z table gets no key from the pack; you add it in the review. Next to standard tables its standard fields are
-linked by the general name rule R3, and the rows decide which of those links hold. A Z table that carries `MANDT` and `VBELN` is linked by the general name rule R3 to every table keyed by those fields, and
-`validate_plan` counts the rows: on our synthetic sample the link to the sales order header held, and the links to the
-delivery and billing headers matched no row, so you reject them in the review. A Z table gets no key from its name: you
-give it in the review, for example `MANDT` + `VBELN`. A link through a custom-named column (`ZZ_KUNDE_NR` holding
-customer numbers) is shown only if the row check finds it, and on SAP tables it does not, because every SAP key starts
-with `MANDT` and the row checks look at single-column keys: you add it in the review. The SAP pack covers standard tables
-only. Tested on synthetic, SAP-shaped data, not on a real SAP system
-([the sample and what was measured](https://github.com/Krusmaster/fabric-backend/blob/main/docs/SAMPLE-SAP.md)).
-
-## Build from a plan
+## Build
 
 What you can build once the plan is reviewed.
 
@@ -730,30 +746,6 @@ reference checked, and `gold_views_draft` the **gold views** on top of them, as 
 available in Fabric since September 2026) whose data quality rules are the plan's keys and relationships. A model you
 already have is checked against the plan with `compare_semantic_model`. And when changes go through Git rather than
 straight into the workspace, `export_item_definitions` gives every piece as the files Fabric's Git integration reads.
-
-### Create a dbt flow
-
-`dbt_schema` with `project=true` writes a dbt project as files, for dbt-fabric 1.12 on dbt-core 1.12 and a Fabric
-Warehouse; it creates nothing and runs no dbt. With `check_rows=true` the keys and relationships are counted first,
-and the project is built from that checked plan:
-
-- `dbt_project.yml`, `profiles.example.yml` (placeholders and `authentication: CLI`, no secret) and a `README.md` that
-  says how to run it (`dbt debug`, `dbt parse`, then `dbt build`, the step that changes the Warehouse).
-- `models/sources/`: the source tables with `unique` and `not_null` on single-column keys and `relationships` on
-  single-column relationships.
-- `models/staging/`: one view per table, columns renamed to snake_case (the README lists the renames), cast to a Fabric
-  Warehouse type only where the metadata gives one, and de-duplicated on the key.
-- `models/marts/`: a table per fact table, joined only over relationships whose target key was counted unique; the
-  others are left out and listed with the reason. A header amount is never in a mart at line grain, and child rows are
-  summed to the header before the join.
-- `tests/`: a key or a relationship over several columns as a singular test. dbt_utils' `unique_combination_of_columns`
-  is not used, because dbt-fabric's documentation says dbt-utils is not supported; no package is needed.
-
-`fixes` takes the ids accepted from `validate_plan(fixes=true)` (see *Fix data issues*) and writes them as staging
-logic: the latest row by the accepted column, a row whose reference has no parent left out (a NULL reference is kept),
-or the reference set to NULL with `{"id": ..., "choice": "set_null"}`. Moving a header amount stays with the silver
-notebook. The SQL of each file is checked to parse as T-SQL and the YAML to load, in unit tests on the shop example and
-the /check datasets (tests/test_n156_dbt_flow.py, 8 November 2026); dbt itself has not been run on these files.
 
 ### Fabric IQ: the same graph as an ontology
 
@@ -933,12 +925,41 @@ the customer match accepted offers the product match as its next action.
 *{{PRODUCT}} is independent and not affiliated with SAP or Microsoft. Dynamics 365, Microsoft Fabric and Fabric IQ are
 trademarks of Microsoft.*
 
-### Two steps stay manual
+### Create a dbt flow
 
-Fabric has no API for these yet, and the connector tells you when they are needed:
+`dbt_schema` with `project=true` writes a dbt project as files, for dbt-fabric 1.12 on dbt-core 1.12 and a Fabric
+Warehouse; it creates nothing and runs no dbt. With `check_rows=true` the keys and relationships are counted first,
+and the project is built from that checked plan:
 
-1. **Introspection** on the GraphQL item (item → Settings → Introspection) — needed by tools such as Lovable that read the schema.
-2. **Permissions** on the item for other apps or service principals that should query it.
+- `dbt_project.yml`, `profiles.example.yml` (placeholders and `authentication: CLI`, no secret) and a `README.md` that
+  says how to run it (`dbt debug`, `dbt parse`, then `dbt build`, the step that changes the Warehouse).
+- `models/sources/`: the source tables with `unique` and `not_null` on single-column keys and `relationships` on
+  single-column relationships.
+- `models/staging/`: one view per table, columns renamed to snake_case (the README lists the renames), cast to a Fabric
+  Warehouse type only where the metadata gives one, and de-duplicated on the key.
+- `models/marts/`: a table per fact table, joined only over relationships whose target key was counted unique; the
+  others are left out and listed with the reason. A header amount is never in a mart at line grain, and child rows are
+  summed to the header before the join.
+- `tests/`: a key or a relationship over several columns as a singular test. dbt_utils' `unique_combination_of_columns`
+  is not used, because dbt-fabric's documentation says dbt-utils is not supported; no package is needed.
+
+`fixes` takes the ids accepted from `validate_plan(fixes=true)` (see *Fix data issues*) and writes them as staging
+logic: the latest row by the accepted column, a row whose reference has no parent left out (a NULL reference is kept),
+or the reference set to NULL with `{"id": ..., "choice": "set_null"}`. Moving a header amount stays with the silver
+notebook. The SQL of each file is checked to parse as T-SQL and the YAML to load, in unit tests on the shop example and
+the /check datasets (tests/test_n156_dbt_flow.py, 8 November 2026); dbt itself has not been run on these files.
+
+### Use with Lovable
+
+Lovable meets {{PRODUCT}} twice. In Lovable's chat, {{PRODUCT}} is a custom MCP connector{{#IF CLIENT_REGISTRATION}} at `{{CONNECT_URL}}`{{/IF}} that plans,
+checks and creates the API for GraphQL item. Then Lovable's own
+Microsoft Fabric connector reads that item with a service principal, after the introspection and permission steps above
+and an app registration in Entra. Step by step: [Use {{PRODUCT}} with Lovable](/lovable). `app_readiness`
+says what is still missing on the API; `app_starter` gives the prompt, the queries and a Supabase edge function that
+keeps the app's Entra secret on the server side.
+
+A live example: [Shop Desk](https://demo.krusgraph.com), built in Lovable, reads synthetic data in the demo workspace
+through a read-only API for GraphQL that `create_backend` made.
 
 ### App access
 
@@ -958,18 +979,6 @@ The API for GraphQL has no row-level security of its own. Restrict rows at the s
 expose only views that hold the rows the app may show. `app_readiness` lists what it can read about an API and marks the
 permissions as "unknown" with the portal path, because the Fabric API does not return them.
 
-### Use with Lovable
-
-Lovable meets {{PRODUCT}} twice. In Lovable's chat, {{PRODUCT}} is a custom MCP connector{{#IF CLIENT_REGISTRATION}} at `{{CONNECT_URL}}`{{/IF}} that plans,
-checks and creates the API for GraphQL item. Then Lovable's own
-Microsoft Fabric connector reads that item with a service principal, after the introspection and permission steps above
-and an app registration in Entra. Step by step: [Use {{PRODUCT}} with Lovable](/lovable). `app_readiness`
-says what is still missing on the API; `app_starter` gives the prompt, the queries and a Supabase edge function that
-keeps the app's Entra secret on the server side.
-
-A live example: [Shop Desk](https://demo.krusgraph.com), built in Lovable, reads synthetic data in the demo workspace
-through a read-only API for GraphQL that `create_backend` made.
-
 ### Databricks (Draft only)
 
 The same engine reads Databricks too, in the local server only (`KRUSGRAPH_PLATFORM=databricks`): a Unity Catalog
@@ -981,6 +990,13 @@ yet run against a Databricks workspace. The hosted service at {{DOMAIN}} reads F
 rests on: [Databricks in the repository](https://github.com/Krusmaster/fabric-backend/blob/main/docs/DATABRICKS.md).
 Databricks' own managed MCP servers (Genie, Databricks SQL, Unity Catalog functions) answer questions and run SQL;
 {{PRODUCT}} is the part that works out how the tables relate. {{PRODUCT}} is not affiliated with Databricks.
+
+### Two steps stay manual
+
+Fabric has no API for these yet, and the connector tells you when they are needed:
+
+1. **Introspection** on the GraphQL item (item → Settings → Introspection) — needed by tools such as Lovable that read the schema.
+2. **Permissions** on the item for other apps or service principals that should query it.
 
 ## Krusgraph for Fabric
 
@@ -1096,18 +1112,64 @@ TLS 1.2 or later) to:
 Both are hosted in Azure, Sweden Central. Fabric (`app.fabric.microsoft.com`) and Microsoft sign-in
 (`login.microsoftonline.com`) must be reachable as for any use of Fabric. More: [Network: hosts to allow](/it#network).
 
-### Troubleshooting
+## Hosting and permissions
 
-| You see | What to do |
-| --- | --- |
-| Krusgraph Model keeps loading, or `ERR_SSL_VERSION_OR_CIPHER_MISMATCH` for `workload.krusgraph.com` | A web filter blocks a domain it does not know yet. Ask IT to allow the two [network hosts](/docs/krusgraph-for-fabric/network-hosts), then reload the Fabric tab. |
-| Krusgraph Model is not under + New item | Your organisation is not in the pilot yet, the tenant setting for workloads not validated by Microsoft is off for you, or the workspace is not on a capacity. [Pilot in Microsoft Fabric](/pilot/fabric) has the steps. |
-| "{{PRODUCT}} is not turned on for your organisation yet." | Your tenant id is not on the pilot's list yet. Nothing was read or changed. Write to us with the tenant id it shows. |
-| A card says `consent` | Your sign-in lacks the permission the card names. Your administrator adds it to the workload's Entra app and consents; the card lists the steps. Then reload the Fabric tab. |
-| The schema list is empty, or a schema shows "no tables" | The lakehouse has no tables in that schema, or you cannot read its SQL endpoint. Choose a schema with tables; when the list cannot be read, the editor says why and lets you type the name. |
-| `schema_ambiguous` | Two schemas differ only by case (`Shop` and `shop`). Type the one you mean exactly as listed. |
-| A card says "no answer yet" after Create | Fabric may still be creating it. Reopen the item in a minute and choose Create again: what was built is skipped. |
-| `already_exists` on a card | An item of that name exists and this Model did not build it. Choose another name. |
+What the hosted server reads and asks for, and what to know when you run it yourself.
+
+<!-- figure:hosting -->
+{{CONCEPT_HOSTING}}
+<!-- /figure -->
+
+### What it accesses
+
+The Entra app asks for delegated permissions only, all acting as the signed-in user. Each one, what the tools use it
+for, and whether anything runs or is scheduled with it (the same table as on [/it](/it) and [/start](/start)):
+
+{{ACCESS_SCOPES}}
+
+Every creating tool is a dry run until you pass `dry_run=false`; then it creates or updates only the item named in the
+call, and never deletes.
+
+**The data path.** {{ACCESS_PLANNING}} `validate_plan` and `suggest_relationships` check keys and references against
+the rows in Fabric with counting queries and return only the counts. {{ACCESS_CHECKS}} `sample_rows` returns up to 20 example rows of one table, and `query_graphql` returns the results you ask
+for. `describe_backend`, `plan_drift`, `app_starter` and `lineage` read the definitions of items in the workspace.
+Metadata, requested samples and query results pass through {{PRODUCT}} on their way to your MCP client and are not kept
+after the request. From Claude, your tokens are exchanged on your behalf and held in memory only, never written to disk
+or logs.{{#IF CLIENT_REGISTRATION}} From an MCP client other than Claude (signing in through {{DOMAIN}}/oauth), the Microsoft
+tokens of a sign-in are kept encrypted in {{REGISTRATION_WHERE}} until your client collects them (at most 60 seconds), and
+Microsoft's refresh token stays there encrypted for as long as your client keeps renewing its access, at most 90 days,
+and is never given to the client; after each renewal the answer given (an access token and the next refresh token)
+is kept there encrypted too, used for at most 60 seconds to answer the client again if it asks again ([sign-in from MCP clients other than Claude](/privacy#sign-in-from-mcp-clients-other-than-claude));
+apart from those sign-in records there is no database and no file storage.{{/IF}}{{#IF NO_CLIENT_REGISTRATION}} There is no
+database and no file storage.{{/IF}} Each tool call leaves an anonymous usage record (the tool, how the call ended, how long it took), and the
+service writes technical logs. Details: [privacy policy](/privacy).
+
+**Where the answers go.** Hosted or self-hosted, the AI client receives the tools' answers:
+
+{{ACCESS_FLOWS}}
+
+**Server-wide switches.** For a server you run yourself (hosted or local), two settings, both off by default: `KRUSGRAPH_READ_ONLY=1` leaves out the tools that create or change something in Fabric, and `KRUSGRAPH_NO_ROW_VALUES=1` leaves out `sample_rows` and removes row values from the other answers, keeping names and counts. A tool that is left out is not in the tool list, and `/healthz` names the mode the server runs in.
+
+**Personal data and sensitivity labels.** Columns whose name looks like personal data are flagged by one rule per
+pattern, from the name alone and never from the values: a person's name (P1: `first_name`, `last_name`, and `name` in a
+table that holds people such as customers or employees), e-mail (P2), telephone (P3), national identity number (P4,
+such as `personnummer`), address (P5: street, postal code, and the city in a table of addresses or people) and birth
+date (P6). By default `sample_rows` returns their values as `***` with a notice naming the rule, `answer_query_draft`
+and `gold_views_draft` leave them out (the key stands in), and the silver notebook masks them in its quarantine table;
+`show_personal_data=true` shows them, and your own Fabric permissions still decide what you can read. When Fabric
+returns a Microsoft Purview sensitivity label on the source item, `sample_rows` and `validate_plan` name it: Fabric
+gives the label's id only, and a label covers the whole item, so the column rules still decide what is masked.
+
+### Cold start, and `min_replicas` if you run it yourself
+
+If the hosted service has been idle, the first request may take longer while Azure starts the container. If that
+request times out, try again after a short pause. If the problem continues, check the error message or
+[get help](/support).
+
+If you run the server yourself with `deploy/krusgraph.sh`, `min_replicas` in `deploy/krusgraph.json` decides whether it
+scales to zero: `0` (the default) scales to zero when idle and is the cheapest, `1` keeps one instance running so idle
+time does not cause a cold start, at the cost of one always-on instance. A new revision or a restart can still delay a
+request. The change takes effect with `--update`. A container on a VM or in Docker does not scale to zero.
 
 ## Tool reference
 
@@ -1242,67 +1304,21 @@ A typical pairing: Microsoft's server finds the workspace and the lakehouse; {{P
 Fabric IQ MCP then answers questions on the model once it exists. {{PRODUCT}} is an independent open-source project of
 Kruse Consulting AB and is not affiliated with Microsoft.
 
-## Hosting and permissions
-
-What the hosted server reads and asks for, and what to know when you run it yourself.
-
-<!-- figure:hosting -->
-{{CONCEPT_HOSTING}}
-<!-- /figure -->
-
-### What it accesses
-
-The Entra app asks for delegated permissions only, all acting as the signed-in user. Each one, what the tools use it
-for, and whether anything runs or is scheduled with it (the same table as on [/it](/it) and [/start](/start)):
-
-{{ACCESS_SCOPES}}
-
-Every creating tool is a dry run until you pass `dry_run=false`; then it creates or updates only the item named in the
-call, and never deletes.
-
-**The data path.** {{ACCESS_PLANNING}} `validate_plan` and `suggest_relationships` check keys and references against
-the rows in Fabric with counting queries and return only the counts. {{ACCESS_CHECKS}} `sample_rows` returns up to 20 example rows of one table, and `query_graphql` returns the results you ask
-for. `describe_backend`, `plan_drift`, `app_starter` and `lineage` read the definitions of items in the workspace.
-Metadata, requested samples and query results pass through {{PRODUCT}} on their way to your MCP client and are not kept
-after the request. From Claude, your tokens are exchanged on your behalf and held in memory only, never written to disk
-or logs.{{#IF CLIENT_REGISTRATION}} From an MCP client other than Claude (signing in through {{DOMAIN}}/oauth), the Microsoft
-tokens of a sign-in are kept encrypted in {{REGISTRATION_WHERE}} until your client collects them (at most 60 seconds), and
-Microsoft's refresh token stays there encrypted for as long as your client keeps renewing its access, at most 90 days,
-and is never given to the client; after each renewal the answer given (an access token and the next refresh token)
-is kept there encrypted too, used for at most 60 seconds to answer the client again if it asks again ([sign-in from MCP clients other than Claude](/privacy#sign-in-from-mcp-clients-other-than-claude));
-apart from those sign-in records there is no database and no file storage.{{/IF}}{{#IF NO_CLIENT_REGISTRATION}} There is no
-database and no file storage.{{/IF}} Each tool call leaves an anonymous usage record (the tool, how the call ended, how long it took), and the
-service writes technical logs. Details: [privacy policy](/privacy).
-
-**Where the answers go.** Hosted or self-hosted, the AI client receives the tools' answers:
-
-{{ACCESS_FLOWS}}
-
-**Server-wide switches.** For a server you run yourself (hosted or local), two settings, both off by default: `KRUSGRAPH_READ_ONLY=1` leaves out the tools that create or change something in Fabric, and `KRUSGRAPH_NO_ROW_VALUES=1` leaves out `sample_rows` and removes row values from the other answers, keeping names and counts. A tool that is left out is not in the tool list, and `/healthz` names the mode the server runs in.
-
-**Personal data and sensitivity labels.** Columns whose name looks like personal data are flagged by one rule per
-pattern, from the name alone and never from the values: a person's name (P1: `first_name`, `last_name`, and `name` in a
-table that holds people such as customers or employees), e-mail (P2), telephone (P3), national identity number (P4,
-such as `personnummer`), address (P5: street, postal code, and the city in a table of addresses or people) and birth
-date (P6). By default `sample_rows` returns their values as `***` with a notice naming the rule, `answer_query_draft`
-and `gold_views_draft` leave them out (the key stands in), and the silver notebook masks them in its quarantine table;
-`show_personal_data=true` shows them, and your own Fabric permissions still decide what you can read. When Fabric
-returns a Microsoft Purview sensitivity label on the source item, `sample_rows` and `validate_plan` name it: Fabric
-gives the label's id only, and a label covers the whole item, so the column rules still decide what is masked.
-
-### Cold start, and `min_replicas` if you run it yourself
-
-If the hosted service has been idle, the first request may take longer while Azure starts the container. If that
-request times out, try again after a short pause. If the problem continues, check the error message or
-[get help](/support).
-
-If you run the server yourself with `deploy/krusgraph.sh`, `min_replicas` in `deploy/krusgraph.json` decides whether it
-scales to zero: `0` (the default) scales to zero when idle and is the cheapest, `1` keeps one instance running so idle
-time does not cause a cold start, at the cost of one always-on instance. A new revision or a restart can still delay a
-request. The change takes effect with `--update`. A container on a VM or in Docker does not scale to zero.
-
-### Support
+## Support
 
 [Get help](/support): email Gustav at {{CONTACT}} with the `error`, `kind` and `hint` from the tool's answer (there is no
 promised response time), or report a bug or a plan that came out wrong on
 [GitHub Issues](https://github.com/Krusmaster/fabric-backend/issues). Source (MIT): https://github.com/Krusmaster/fabric-backend
+
+## Troubleshooting
+
+| You see | What to do |
+| --- | --- |
+| Krusgraph Model keeps loading, or `ERR_SSL_VERSION_OR_CIPHER_MISMATCH` for `workload.krusgraph.com` | A web filter blocks a domain it does not know yet. Ask IT to allow the two [network hosts](/docs/krusgraph-for-fabric/network-hosts), then reload the Fabric tab. |
+| Krusgraph Model is not under + New item | Your organisation is not in the pilot yet, the tenant setting for workloads not validated by Microsoft is off for you, or the workspace is not on a capacity. [Pilot in Microsoft Fabric](/pilot/fabric) has the steps. |
+| "{{PRODUCT}} is not turned on for your organisation yet." | Your tenant id is not on the pilot's list yet. Nothing was read or changed. Write to us with the tenant id it shows. |
+| A card says `consent` | Your sign-in lacks the permission the card names. Your administrator adds it to the workload's Entra app and consents; the card lists the steps. Then reload the Fabric tab. |
+| The schema list is empty, or a schema shows "no tables" | The lakehouse has no tables in that schema, or you cannot read its SQL endpoint. Choose a schema with tables; when the list cannot be read, the editor says why and lets you type the name. |
+| `schema_ambiguous` | Two schemas differ only by case (`Shop` and `shop`). Type the one you mean exactly as listed. |
+| A card says "no answer yet" after Create | Fabric may still be creating it. Reopen the item in a minute and choose Create again: what was built is skipped. |
+| `already_exists` on a card | An item of that name exists and this Model did not build it. Choose another name. |

@@ -56,7 +56,7 @@ def test_the_docs_page_renders_second_in_the_menu(client):
     hrefs = re.findall(r'href="([^"#]+)"', menu)
     # MF1: the manifesto "Why Krusgraph" (/docs/why) comes first after the overview, the eight points right after it
     assert hrefs.index(why.PAGE) == hrefs.index("/docs/why") + 1 == hrefs.index("/docs") + 2 < hrefs.index("/docs/get-started")
-    assert pages.DOCS_GROUPS[1] == "Why Krusgraph"
+    assert pages.DOCS_GROUPS[1] == "Why"                                        # DS1: the group "Why", W8's page in it
     assert 'href="/docs/why-krusgraph"' in client.get("/docs").text          # the overview's "Why" links it
 
 
@@ -131,4 +131,4 @@ def test_no_price_no_sales_word_and_true_status(client):
 
 def test_the_page_is_in_the_sitemap_and_llms_txt(client):
     assert f"https://krusgraph.test{why.PAGE}</loc>" in client.get("/sitemap.xml").text
-    assert f"[Why choose Krusgraph](https://krusgraph.test{why.PAGE})" in client.get("/llms.txt").text
+    assert f"[Why: Why choose Krusgraph](https://krusgraph.test{why.PAGE})" in client.get("/llms.txt").text   # DS1: a page of "Why"
